@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.db
+*.db-journal
+*.backup*
+.env
+.DS_Store
+blobs/
+clipboard-images/
