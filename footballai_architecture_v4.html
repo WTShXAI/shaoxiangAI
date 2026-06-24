@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>哨响AI v5.2.12 — WC2026 预测系统架构 + 实时赔率分析引擎</title>
+<style>
+  :root {
+    --bg: #0a0e17;
+    --card: #111827;
+    --border: #1e293b;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --accent: #3b82f6;
+    --accent2: #06b6d4;
+    --gold: #f59e0b;
+    --red: #ef4444;
+    --green: #10b981;
+    --purple: #8b5cf6;
+    --pink: #ec4899;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 0;
+  }
+  .hero {
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+    padding: 60px 40px;
+    text-align: center;
+    border-bottom: 3px solid var(--accent);
+  }
+  .hero h1 {
+    font-size: 2.8em;
+    background: linear-gradient(135deg, #3b82f6, #06b6d4, #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+  }
+  .hero .subtitle {
+    font-size: 1.2em;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .hero .version {
+    display: inline-block;
+    background: rgba(59,130,246,0.2);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 4px 16px;
+    border-radius: 20px;
+    font-size: 0.9em;
+  }
+  .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+  
+  .section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 32px;
+  }
+  .section h2 {
+    font-size: 1.5em;
+    color: var(--accent2);
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section h2 .icon { font-size: 1.3em; }
+  .section h3 {
+    font-size: 1.15em;
+    color: var(--gold);
+    margin: 20px 0 12px;
+  }
+  
+  /* Architecture Diagram */
+  .arch-diagram {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 24px 0;
+  }
+  .arch-layer {
+    border-radius: 12px;
+    padding: 20px 24px;
+    position: relative;
+  }
+  .arch-layer .layer-name {
+    font-weight: 700;
+    font-size: 1.1em;
+    margin-bottom: 10px;
+  }
+  .arch-layer .layer-desc {
+    font-size: 0.9em;
+    color: var(--text-dim);
+  }
+  .arch-layer .layer-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .arch-layer .layer-item {
+    background: rgba(255,255,255,0.08);
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 0.85em;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .l0 { background: linear-gradient(135deg, #1e293b, #0f172a); border: 2px solid var(--accent); }
+  .l1 { background: linear-gradient(135deg, #1e293b, #17202a); border: 2px solid #6366f1; }
+  .l2 { background: linear-gradient(135deg, #1e293b, #1a2433); border: 2px solid var(--purple); }
+  .l3 { background: linear-gradient(135deg, #1e293b, #1d2a3a); border: 2px solid var(--accent2); }
+  .l4 { background: linear-gradient(135deg, #1e293b, #1f2d3d); border: 2px solid var(--gold); }
+  .l5 { background: linear-gradient(135deg, #1e293b, #233040); border: 2px solid var(--green); }
+  
+  .arrow-down {
+    text-align: center;
+    color: var(--accent);
+    font-size: 1.5em;
+    line-height: 0.5;
+  }
+  
+  /* Expert Cards */
+  .expert-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .expert-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    border-left: 4px solid var(--accent);
+  }
+  .expert-card.q { border-left-color: #6366f1; }
+  .expert-card.g { border-left-color: #f59e0b; }
+  .expert-card.s { border-left-color: #10b981; }
+  .expert-card.e { border-left-color: #ec4899; }
+  
+  .expert-card .expert-name {
+    font-size: 1.1em;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .expert-card .expert-role {
+    font-size: 0.8em;
+    color: var(--text-dim);
+    margin: 4px 0 8px;
+  }
+  .expert-card .expert-duty {
+    font-size: 0.9em;
+    color: var(--text-dim);
+  }
+  .expert-card .expert-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 10px;
+  }
+  .expert-card .tag {
+    font-size: 0.7em;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  
+  /* Flow */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 16px 0;
+    padding: 16px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 12px;
+  }
+  .flow-step {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 0.85em;
+    text-align: center;
+    min-width: 100px;
+  }
+  .flow-arrow {
+    color: var(--accent);
+    font-size: 1.2em;
+  }
+  
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 0.9em;
+  }
+  th, td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: rgba(59,130,246,0.1);
+    color: var(--accent2);
+    font-weight: 600;
+  }
+  tr:hover { background: rgba(255,255,255,0.03); }
+  
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 0.75em;
+    font-weight: 600;
+  }
+  .badge-blue { background: rgba(59,130,246,0.2); color: #60a5fa; }
+  .badge-gold { background: rgba(245,158,11,0.2); color: #fbbf24; }
+  .badge-green { background: rgba(16,185,129,0.2); color: #34d399; }
+  .badge-red { background: rgba(239,68,68,0.2); color: #f87171; }
+  .badge-purple { background: rgba(139,92,246,0.2); color: #a78bfa; }
+  .badge-pink { background: rgba(236,72,153,0.2); color: #f472b6; }
+  
+  .note {
+    background: rgba(245,158,11,0.1);
+    border-left: 3px solid var(--gold);
+    padding: 12px 16px;
+    margin: 16px 0;
+    border-radius: 0 8px 8px 0;
+    font-size: 0.9em;
+  }
+  .highlight {
+    background: rgba(59,130,246,0.1);
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    margin: 16px 0;
+    border-radius: 0 8px 8px 0;
+  }
+  
+  .terminology-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .term-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .term-card .term-name {
+    font-weight: 700;
+    color: var(--accent2);
+    margin-bottom: 4px;
+  }
+  .term-card .term-desc {
+    font-size: 0.85em;
+    color: var(--text-dim);
+  }
+  
+  .phase-timeline {
+    display: flex;
+    gap: 0;
+    margin: 20px 0;
+    overflow-x: auto;
+  }
+  .phase-block {
+    flex: 1;
+    min-width: 160px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 16px;
+    text-align: center;
+  }
+  .phase-block:first-child { border-radius: 12px 0 0 12px; }
+  .phase-block:last-child { border-radius: 0 12px 12px 0; }
+  .phase-block .phase-num {
+    font-size: 2em;
+    font-weight: 800;
+    color: var(--accent);
+  }
+  .phase-block .phase-name {
+    font-weight: 600;
+    margin: 4px 0;
+  }
+  .phase-block .phase-desc {
+    font-size: 0.8em;
+    color: var(--text-dim);
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>⚽ 哨响AI v4.0</h1>
+  <div class="subtitle">D-Gate v5.2.12 · WC2026实时预测 · 45万场校准</div>
+  <div style="margin-top: 16px;">
+    <span class="version">Architecture v4.0 — 2026-06-18</span>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ============================================================ -->
+<!-- 1. 架构总览 -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2><span class="icon">🏗️</span> 一、六层协同架构总览</h2>
+  <p style="color: var(--text-dim); margin-bottom: 20px;">
+    核心理念：<strong style="color: var(--accent2);">赔率 = 加密协议</strong>，预测本质是逆向工程还原庄家风控信号。
+    11位WorkBuddy专家 + 15个分析模块 = 全维度足球预测分析引擎。
+  </p>
+
+  <div class="arch-diagram">
+    <div class="arch-layer l0">
+      <div class="layer-name">🔵 Layer 0 — 用户交互层 (User Interface Layer)</div>
+      <div class="layer-desc">Web Dashboard · 自然语言对话 · API接口 · 报告生成 · 实时推送</div>
+      <div class="layer-items">
+        <span class="layer-item">📊 可视化仪表盘</span>
+        <span class="layer-item">💬 NL对话交互</span>
+        <span class="layer-item">🔌 RESTful API</span>
+        <span class="layer-item">📄 PDF分析报告</span>
+        <span class="layer-item">🔔 异常预警推送</span>
+        <span class="layer-item">📱 移动端适配</span>
+      </div>
+    </div>
+    <div class="arrow-down">⬇</div>
+    
+    <div class="arch-layer l1">
+      <div class="layer-name">🟣 Layer 1 — 意图理解与任务拆解层 (Intent & Decomposition Layer)</div>
+      <div class="layer-desc">意图分类 → 领域路由 → 任务拆解 → 专家调度 → 输入校验 → 上下文注入</div>
+      <div class="layer-items">
+        <span class="layer-item">🧠 意图分类器</span>
+        <span class="layer-item">🔀 领域路由器</span>
+        <span class="layer-item">📋 任务DAG拆解</span>
+        <span class="layer-item">👤 专家调度器</span>
+        <span class="layer-item">✅ Schema校验</span>
+        <span class="layer-item">📚 知识上下文注入</span>
+      </div>
+    </div>
+    <div class="arrow-down">⬇</div>
+
+    <div class="arch-layer l2">
+      <div class="layer-name">🟢 Layer 2 — 专家协同执行层 (Expert Collaboration Layer)</div>
+      <div class="layer-desc">三大领域并行执行 — 量化分析域 | 博弈分析域 | 工程执行域</div>
+      <div class="layer-items">
+        <span class="layer-item">📐 量化建模 (季泊松·毕建模)</span>
+        <span class="layer-item">🎲 赔率逆向 (杜博弈·荣合众)</span>
+        <span class="layer-item">⚖️ 平衡优化 (曾均衡·施时序)</span>
+        <span class="layer-item">⚙️ 工程落地 (傅稳当·舒治理)</span>
+        <span class="layer-item">⚡ 性能加速 (孙加速)</span>
+        <span class="layer-item">🎨 界面展现 (杨界面)</span>
+      </div>
+    </div>
+    <div class="arrow-down">⬇</div>
+
+    <div class="arch-layer l3">
+      <div class="layer-name">🟡 Layer 3 — 知识融合与决策层 (Knowledge Fusion & Decision Layer)</div>
+      <div class="layer-desc">多专家投票 · 冲突消解 · 置信度评估 · 不确定性量化 · 贝叶斯融合</div>
+      <div class="layer-items">
+        <span class="layer-item">🗳️ 加权投票</span>
+        <span class="layer-item">🔄 冲突消解仲裁</span>
+        <span class="layer-item">📊 置信度校准</span>
+        <span class="layer-item">🎯 贝叶斯融合</span>
+        <span class="layer-item">📉 不确定性带</span>
+        <span class="layer-item">🧪 统计显著检验</span>
+      </div>
+    </div>
+    <div class="arrow-down">⬇</div>
+
+    <div class="arch-layer l4">
+      <div class="layer-name">🔴 Layer 4 — 自主优化与迭代层 (Autonomous Optimization Layer)</div>
+      <div class="layer-desc">性能监控 · 漂移检测 · A/B实验 · 自动重训 · 超参搜索 · 版本管理</div>
+      <div class="layer-items">
+        <span class="layer-item">📈 实时性能监控</span>
+        <span class="layer-item">🔍 特征漂移检测</span>
+        <span class="layer-item">🧪 A/B实验框架</span>
+        <span class="layer-item">🔄 自动重训触发</span>
+        <span class="layer-item">🔧 超参贝叶斯搜索</span>
+        <span class="layer-item">📦 模型版本管理</span>
+      </div>
+    </div>
+    <div class="arrow-down">⬇</div>
+
+    <div class="arch-layer l5">
+      <div class="layer-name">🟢 Layer 5 — 知识底座层 (Knowledge Foundation Layer)</div>
+      <div class="layer-desc">足球领域知识 · 历史规律库 · 模型注册表 · 经验教训库 · 特征工程Cookbook</div>
+      <div class="layer-items">
+        <span class="layer-item">📖 足球知识图谱</span>
+        <span class="layer-item">📊 312K历史规律</span>
+        <span class="layer-item">🗄️ 模型注册中心</span>
+        <span class="layer-item">⚠️ 踩坑经验库</span>
+        <span class="layer-item">📝 特征工程手册</span>
+        <span class="layer-item">🔄 联赛风格DNA</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 2. 11位专家全角色定义 -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2><span class="icon">👥</span> 二、11位专家 — 全角色能力矩阵</h2>
+  
+  <h3>🔹 算法技术序列（7人）— 分析核心引擎</h3>
+  <div class="expert-grid">
+    <div class="expert-card q">
+      <div class="expert-name">📐 季泊松 <span class="badge badge-purple">量化建模专家</span></div>
+      <div class="expert-role">Sports Quantitative Modeling Expert</div>
+      <div class="expert-duty">
+        <strong>核心能力：</strong>泊松分布概率建模 · Dixon-Coles修正 · 赔率漂移微积分特征(一阶/二阶导数) · xG/xGA预期进球模型 · 联赛风格DNA嵌入<br>
+        <strong>输出产物：</strong>三分类概率分布 · 比分分布 · 进球期望 · 联赛调整因子
+      </div>
+      <div class="expert-tags">
+        <span class="tag">Poisson</span><span class="tag">xG/xGA</span><span class="tag">赔率漂移</span><span class="tag">联赛风格</span><span class="tag">Dixon-Coles</span>
+      </div>
+    </div>
+    
+    <div class="expert-card g">
+      <div class="expert-name">🎲 杜博弈 <span class="badge badge-gold">博弈论专家</span></div>
+      <div class="expert-role">Game Theory & Odds Reverse Engineering Expert</div>
+      <div class="expert-duty">
+        <strong>核心能力：</strong>庄家赔率逆向工程 · 诱盘模式识别(12引擎) · 多机构分歧挖掘 · 凯利指数分析 · 抽水结构分解 · RP风控屏障检测<br>
+        <strong>输出产物：</strong>真实概率估计 · 诱盘警报 · 机构分歧度 · 庄家信心指数
+      </div>
+      <div class="expert-tags">
+        <span class="tag">赔率逆向</span><span class="tag">诱盘检测</span><span class="tag">凯利指数</span><span class="tag">RP屏障</span><span class="tag">庄家行为</span>
+      </div>
+    </div>
+
+    <div class="expert-card s">
+      <div class="expert-name">🔗 荣合众 <span class="badge badge-green">集成学习专家</span></div>
+      <div class="expert-role">Ensemble Learning & Model Fusion Expert</div>
+      <div class="expert-duty">
+        <strong>核心能力：</strong>Stacking深度优化 · 动态权重融合 · MoE混合专家门控 · 元模型正则化 · D-Gate融合 · 弱模型自动压制<br>
+        <strong>输出产物：</strong>融合预测 · 权重分配方案 · 基模型贡献度分析 · 集成架构诊断
+      </div>
+      <div class="expert-tags">
+        <span class="tag">Stacking</span><span class="tag">动态权重</span><span class="tag">MoE</span><span class="tag">D-Gate</span><span class="tag">元模型</span>
+      </div>
+    </div>
+
+    <div class="expert-card q">
+      <div class="expert-name">⚖️ 曾均衡 <span class="badge badge-red">不平衡分类专家</span></div>
+      <div class="expert-role">Imbalanced Classification & Minority Event Expert</div>
+      <div class="expert-duty">
+        <strong>核心能力：</strong>Draw平局专属特征设计 · 冷门检测模型 · Focal Loss/Tweedie Loss · 时序安全SMOTE · 阈值联合寻优 · 代价敏感学习<br>
+        <strong>输出产物：</strong>平局概率精细化 · 冷门预警 · 阈值推荐 · 类别平衡方案
+      </div>
+      <div class="expert-tags">
+        <span class="tag">Draw优化</span><span class="tag">冷门检测</span><span class="tag">Focal Loss</span><span class="tag">SMOTE</span><span class="tag">阈值寻优</span>
+      </div>
+    </div>
+
+    <div class="expert-card q">
+      <div class="expert-name">⏱️ 施时序 <span class="badge badge-blue">时序深度学习专家</span></div>
+      <div class="expert-role">Time Series & Deep Learning Expert</div>
+      <div class="expert-duty">
+        <strong>核心能力：</strong>Transformer/LSTM球队状态序列建模 · 赔率时序漂移信号挖掘 · NN模块升级(PyTorch/CUDA) · 实时预测技术储备<br>
+        <strong>输出产物：</strong>序列特征 · 状态向量 · NN预测 · 时序异常检测
+      </div>
+      <div class="expert-tags">
+        <span class="tag">Transformer</span><span class="tag">LSTM</span><span class="tag">时序建模</span><span class="tag">NN升级</span><span class="tag">实时预测</span>
+      </div>
+    </div>
+
+    <div class="expert-card q">
+      <div class="expert-name">📊 毕建模 <span class="badge badge-blue">数学统计专家</span></div>
+      <div class="expert-role">Mathematics & Statistical Modeling Expert</div>
+      <div class="expert-duty">
+        <strong>核心能力：</strong>概率公式推导 · 凸优化(损失函数设计) · 统计显著性检验(t-test/Wilcoxon/McNemar) · 赔率定价数学 · 全团数学底座<br>
+        <strong>输出产物：</strong>统计检验报告 · 损失函数设计 · 效应量评估 · 数学证明
+      </div>
+      <div class="expert-tags">
+        <span class="tag">统计检验</span><span class="tag">凸优化</span><span class="tag">概率推导</span><span class="tag">效应量</span><span class="tag">数学底座</span>
+      </div>
+    </div>
+
+    <div class="expert-card" style="border-left-color: #f59e0b;">
+      <div class="expert-name">🎯 郝优算 <span class="badge badge-gold">算法总工 / 团队协调</span></div>
+      <div class="expert-role">Chief Algorithm Officer & Team Lead</div>
+      <div class="expert-duty">
+        <strong>核心能力：</strong>问题拆解 · 精准调度 · 方案汇编 · 跨领域协调 · 交付把关 · 冲突仲裁<br>
+        <strong>输出产物：</strong>任务分解方案 · 专家调度计划 · 最终融合方案 · 质量把关
+      </div>
+      <div class="expert-tags">
+        <span class="tag">调度协调</span><span class="tag">方案汇编</span><span class="tag">质量把关</span><span class="tag">跨域仲裁</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>🔹 工程落地序列（4人）— 系统保障引擎</h3>
+  <div class="expert-grid">
+    <div class="expert-card e">
+      <div class="expert-name">⚙️ 傅稳当 <span class="badge badge-pink">后端工程专家</span></div>
+      <div class="expert-role">Backend Engineering Expert</div>
+      <div class="expert-duty">
+        <strong>核心能力：</strong>FastAPI服务架构 · 三档降级链路 · 并发优化 · 接口熔断/限流 · 系统监控告警<br>
+        <strong>输出产物：</strong>API接口 · 降级方案 · 性能报告 · 部署方案
+      </div>
+      <div class="expert-tags">
+        <span class="tag">FastAPI</span><span class="tag">降级链</span><span class="tag">并发优化</span><span class="tag">监控告警</span>
+      </div>
+    </div>
+
+    <div class="expert-card e">
+      <div class="expert-name">💾 舒治理 <span class="badge badge-pink">数据工程专家</span></div>
+      <div class="expert-role">Data Engineering Expert</div>
+      <div class="expert-duty">
+        <strong>核心能力：</strong>特征管线工程化 · Parquet/SQLite存储优化 · 数据质量校验 · 冷启动兜底 · 增量更新机制<br>
+        <strong>输出产物：</strong>特征计算代码 · 存储方案 · 数据校验规则 · 增量调度
+      </div>
+      <div class="expert-tags">
+        <span class="tag">特征管线</span><span class="tag">Parquet</span><span class="tag">数据质量</span><span class="tag">冷启动</span>
+      </div>
+    </div>
+
+    <div class="expert-card e">
+      <div class="expert-name">⚡ 孙加速 <span class="badge badge-pink">性能工程专家</span></div>
+      <div class="expert-role">Performance Engineering Expert</div>
+      <div class="expert-duty">
+        <strong>核心能力：</strong>推理加速(INT8量化/ONNX) · GPU/CPU多硬件适配 · 模型缓存 · 全链路耗时优化 · CUDA兼容性<br>
+        <strong>输出产物：</strong>量化模型 · 性能测试报告 · 硬件适配方案
+      </div>
+      <div class="expert-tags">
+        <span class="tag">INT8量化</span><span class="tag">GPU加速</span><span class="tag">缓存设计</span><span class="tag">CUDA</span>
+      </div>
+    </div>
+
+    <div class="expert-card e">
+      <div class="expert-name">🎨 杨界面 <span class="badge badge-pink">前端开发专家</span></div>
+      <div class="expert-role">Frontend Development Expert</div>
+      <div class="expert-duty">
+        <strong>核心能力：</strong>Vue 3.4组件开发 · ECharts数据可视化 · Vite构建优化 · 响应式布局 · 前后端联调<br>
+        <strong>输出产物：</strong>前端页面 · 可视化图表 · 交互组件 · 构建产物
+      </div>
+      <div class="expert-tags">
+        <span class="tag">Vue 3</span><span class="tag">ECharts</span><span class="tag">Vite</span><span class="tag">可视化</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 3. 用户交互流程设计 -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2><span class="icon">💬</span> 三、用户交互 — 四大核心场景</h2>
+
+  <h3>场景 1：赛前深度预测分析</h3>
+  <div class="flow">
+    <div class="flow-step">👤 用户输入<br><small>"分析明天曼联vs利物浦"</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">🧠 意图识别<br><small>prediction</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">📋 任务拆解<br><small>5子任务</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">👥 并行调度<br><small>量化+博弈+平衡+时序</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">🔗 融合输出<br><small>预测+分析+置信度</small></div>
+  </div>
+  <table>
+    <tr><th>分析维度</th><th>负责专家</th><th>输出内容</th><th>专业术语</th></tr>
+    <tr>
+      <td>概率预测</td>
+      <td><span class="badge badge-purple">季泊松</span> <span class="badge badge-green">荣合众</span></td>
+      <td>三分类概率(H/D/A)、比分分布、进球期望</td>
+      <td>泊松强度λ、Dixon-Coles修正、OOF诚实回测</td>
+    </tr>
+    <tr>
+      <td>赔率深度解析</td>
+      <td><span class="badge badge-gold">杜博弈</span></td>
+      <td>真实概率估计、诱盘警报、RP屏障状态、抽水结构</td>
+      <td>Margin分解、凯利指数、诱盘模式、非均匀抽水</td>
+    </tr>
+    <tr>
+      <td>平局/冷门评估</td>
+      <td><span class="badge badge-red">曾均衡</span></td>
+      <td>Draw概率精细化、冷门预警等级、Focal Loss信号</td>
+      <td>类别不平衡度、代价敏感权重、阈值联合寻优</td>
+    </tr>
+    <tr>
+      <td>时序趋势分析</td>
+      <td><span class="badge badge-blue">施时序</span></td>
+      <td>球队状态向量、赔率时序异常、序列特征</td>
+      <td>Transformer注意力、LSTM隐状态、时序漂移</td>
+    </tr>
+    <tr>
+      <td>统计验证</td>
+      <td><span class="badge badge-blue">毕建模</span></td>
+      <td>置信区间、显著性检验、效应量评估</td>
+      <td>95%CI、p值、Cohen's d、McNemar检验</td>
+    </tr>
+  </table>
+
+  <h3>场景 2：比赛实时监控与预警</h3>
+  <div class="flow">
+    <div class="flow-step">🔔 自动触发<br><small>赔率异常波动</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">🎲 杜博弈<br><small>诱盘实时检测</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">📊 毕建模<br><small>异常显著性验证</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">📱 推送通知<br><small>预警+分析+建议</small></div>
+  </div>
+  <div class="note">
+    <strong>预警触发条件（自动）：</strong>赔率漂移>2% · 抽水率突变>1% · RP屏障状态变更 · 多机构分歧度>阈值 · 凯利指数异常
+  </div>
+
+  <h3>场景 3：赛后复盘与归因分析</h3>
+  <div class="flow">
+    <div class="flow-step">📊 赛果输入<br><small>比分+数据</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">🔍 预测vs实际<br><small>偏差分析</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">👥 多专家归因<br><small>各维度诊断</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">📝 复盘报告<br><small>根因+改进建议</small></div>
+  </div>
+  <table>
+    <tr><th>偏差类型</th><th>归因专家</th><th>诊断方向</th></tr>
+    <tr><td>概率偏差>15pp</td><td>毕建模 + 荣合众</td><td>模型校准度、特征贡献漂移、Stacking权重失衡</td></tr>
+    <tr><td>Draw漏报</td><td>曾均衡 + 季泊松</td><td>平局信号强度、泊松λ_H≈λ_A条件、D-Gate失效</td></tr>
+    <tr><td>冷门漏报</td><td>杜博弈 + 曾均衡</td><td>诱盘未识别、赔率信号失真、RP屏障穿透</td></tr>
+    <tr><td>系统性偏差</td><td>郝优算(全团)</td><td>数据泄漏、特征崩塌、模型退化、概念漂移</td></tr>
+  </table>
+
+  <h3>场景 4：系统自主优化请求</h3>
+  <div class="flow">
+    <div class="flow-step">📈 性能监控<br><small>Acc/F1/AUC漂移</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">🔍 自动诊断<br><small>特征+模型+数据</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">📋 优化方案<br><small>多专家联合输出</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">🧪 A/B验证<br><small>灰度→全量</small></div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 4. 专业术语与话语体系 -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2><span class="icon">📖</span> 四、专业术语体系 — 足球量化分析话语</h2>
+  <p style="color: var(--text-dim); margin-bottom: 16px;">
+    系统输出的专业语言体系，覆盖六大领域，确保分析的专业性和深度。
+  </p>
+  
+  <div class="terminology-grid">
+    <div class="term-card">
+      <div class="term-name">📐 赔率量化类</div>
+      <div class="term-desc">
+        隐含概率 · 抽水率(Margin)分解 · 非均匀抽水 · 赔率漂移一阶/二阶导数 · 
+        凯利指数(Kelly Criterion) · 水位震荡 · RP风险溢价屏障 · 公平赔率(Fair Odds) · 
+        机构分歧度 · 赔率锁定信号
+      </div>
+    </div>
+    <div class="term-card">
+      <div class="term-name">📊 概率建模类</div>
+      <div class="term-desc">
+        泊松强度λ_H/λ_A · Dixon-Coles修正 · 双变量泊松(Bivariate Poisson) · 
+        xG预期进球 · xGA预期失球 · 比分分布 · 进球时序分布 · 
+        对数强度(Log-Intensity) · 过度离散(Over-dispersion)
+      </div>
+    </div>
+    <div class="term-card">
+      <div class="term-name">🎲 博弈论类</div>
+      <div class="term-desc">
+        庄家风控信号 · 诱盘模式(浅盘大热/降赔升水/深盘诱杀) · 收割区检测 · 
+        信息不对称 · 市场共识偏差 · 波胆防线 · 抽水异常 · 
+        庄家私有信息还原 · 赔率加密协议
+      </div>
+    </div>
+    <div class="term-card">
+      <div class="term-name">⚖️ 分类优化类</div>
+      <div class="term-desc">
+        三分类准确率 · Draw-F1/召回率 · 类别不平衡度 · 代价敏感学习 · 
+        Focal Loss(γ/α参数) · Tweedie Loss · 时序安全SMOTE · 
+        阈值联合寻优 · Macro/Micro-F1 · 混淆矩阵分解
+      </div>
+    </div>
+    <div class="term-card">
+      <div class="term-name">🔗 集成学习类</div>
+      <div class="term-desc">
+        Stacking集成 · 元学习器(Meta-Learner) · OOF诚实回测 · 
+        时间切分验证(pre-2023/2023+) · D-Gate融合 · 
+        MoE门控网络 · 动态权重衰减 · 基模型贡献度 · CalibratorSuite校准
+      </div>
+    </div>
+    <div class="term-card">
+      <div class="term-name">📈 统计验证类</div>
+      <div class="term-desc">
+        95%置信区间 · McNemar检验 · Wilcoxon符号秩 · DeLong AUC检验 · 
+        Cohen's d效应量 · 统计功效(Power) · 多重比较校正(Bonferroni) · 
+        贝叶斯因子(BF) · 后验分布 · 概念漂移检测
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 5. 专家协同模式 -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2><span class="icon">🔀</span> 五、专家协同调度 — 四类协作模式</h2>
+  
+  <h3>模式 A：全栈预测模式（6专家并行 + 2工程保障）</h3>
+  <div class="highlight">
+    <strong>触发条件：</strong>用户请求完整赛前预测分析<br>
+    <strong>主导专家：</strong>郝优算（调度）<br>
+    <strong>执行专家：</strong>季泊松(量化) ‖ 杜博弈(博弈) ‖ 荣合众(集成) ‖ 曾均衡(平局) ‖ 施时序(时序) ‖ 毕建模(统计) — 六路并行<br>
+    <strong>工程保障：</strong>舒治理(数据管线) + 傅稳当(接口降级)<br>
+    <strong>融合策略：</strong>荣合众主导 → 加权投票 → 贝叶斯融合 → 毕建模统计验证 → 郝优算把关输出
+  </div>
+
+  <h3>模式 B：赔率深度挖掘模式（博弈论域主导）</h3>
+  <div class="highlight">
+    <strong>触发条件：</strong>赔率异常检测、庄家行为分析、诱盘识别<br>
+    <strong>主导专家：</strong>杜博弈<br>
+    <strong>辅助专家：</strong>季泊松(赔率漂移量化) + 毕建模(异常显著性检验)<br>
+    <strong>串行流程：</strong>杜博弈诱盘检测 → 季泊松漂移分析 → 毕建模统计验证 → 输出诱盘报告
+  </div>
+
+  <h3>模式 C：平局/冷门攻坚模式（不平衡域主导）</h3>
+  <div class="highlight">
+    <strong>触发条件：</strong>Draw-F1下降、冷门预测优化、代价敏感调整<br>
+    <strong>主导专家：</strong>曾均衡<br>
+    <strong>辅助专家：</strong>季泊松(泊松λ_H≈λ_A条件) + 荣合众(融合权重调整)<br>
+    <strong>串行流程：</strong>曾均衡特征分析 → 季泊松概率验证 → 荣合众权重调优 → 毕建模效果检验
+  </div>
+
+  <h3>模式 D：系统自主迭代模式（全团联动）</h3>
+  <div class="highlight">
+    <strong>触发条件：</strong>Acc跌幅>2pp · 特征漂移告警 · Draw-F1持续下降 · 定时周检<br>
+    <strong>总协调：</strong>郝优算<br>
+    <strong>四阶段流程：</strong><br>
+    ① 并行诊断：季泊松+杜博弈+荣合众+曾均衡+施时序+毕建模 → 各维度诊断报告<br>
+    ② 交叉评审：郝优算汇总 → 识别交叉影响 → 拆解优化任务<br>
+    ③ 并行优化：各专家输出优化方案 → 毕建模统计验证<br>
+    ④ 工程落地：傅稳当+舒治理+孙加速评估 → 灰度上线 → 全量
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 6. 自主优化引擎 -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2><span class="icon">🔄</span> 六、自主优化引擎 — 全闭环迭代机制</h2>
+
+  <h3>6.1 监控指标体系</h3>
+  <table>
+    <tr><th>指标类别</th><th>核心指标</th><th>告警阈值</th><th>负责专家</th></tr>
+    <tr>
+      <td><span class="badge badge-red">效果指标</span></td>
+      <td>Acc · Draw-F1 · AUC · 各类别召回率</td>
+      <td>Acc↓>2pp · Draw-F1↓>0.05</td>
+      <td>毕建模</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-gold">校准指标</span></td>
+      <td>ECE · Brier Score · 概率分布偏移</td>
+      <td>ECE>0.1 · Brier↑>0.02</td>
+      <td>荣合众</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-purple">特征指标</span></td>
+      <td>特征重要性漂移 · PSI · KS统计量</td>
+      <td>PSI>0.25 · 重要性Top10变动>30%</td>
+      <td>季泊松</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-blue">赔率指标</span></td>
+      <td>赔率-概率背离度 · 抽水率漂移 · 诱盘触发率</td>
+      <td>背离度>10pp · 诱盘率>20%</td>
+      <td>杜博弈</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-green">工程指标</span></td>
+      <td>推理延迟P50/P99 · 错误率 · 降级触发率</td>
+      <td>P99>100ms · 错误率>1%</td>
+      <td>傅稳当+孙加速</td>
+    </tr>
+  </table>
+
+  <h3>6.2 自动重训触发逻辑</h3>
+  <div class="flow">
+    <div class="flow-step">📈 效果漂移检测<br><small>滑动窗口Acc监测</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">🔍 根因诊断<br><small>特征漂移？模型退化？数据泄漏？</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">📋 重训方案<br><small>增量/全量/选择性</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">⚙️ A窗训练<br><small>pre-2023严格隔离</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">🧪 B窗验证<br><small>2023+ OOF诚实回测</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">✅ 达标上线<br><small>灰度→全量</small></div>
+  </div>
+
+  <h3>6.3 A/B实验框架</h3>
+  <table>
+    <tr><th>实验类型</th><th>分流策略</th><th>评估周期</th><th>决策标准</th></tr>
+    <tr>
+      <td>特征A/B</td><td>比赛随机分流(50/50)</td><td>≥200场</td>
+      <td>Acc↑≥0.3pp + Draw-F1不下降 → 采纳</td>
+    </tr>
+    <tr>
+      <td>模型A/B</td><td>联赛分层分流</td><td>≥500场</td>
+      <td>Macro-F1↑≥0.5pp + AUC↑ → 采纳</td>
+    </tr>
+    <tr>
+      <td>权重A/B</td><td>时间交替分流</td><td>≥300场</td>
+      <td>Acc↑+Draw-F1↑≥综合0.3pp → 采纳</td>
+    </tr>
+    <tr>
+      <td>架构A/B</td><td>灰度比例(10%→30%→100%)</td><td>≥1000场</td>
+      <td>所有核心指标无退化 → 全量</td>
+    </tr>
+  </table>
+
+  <h3>6.4 特征漂移自动检测</h3>
+  <div class="note">
+    <strong>检测机制：</strong>每日计算PSI(Population Stability Index)对比训练集与近期预测数据分布。<br>
+    <strong>PSI>0.25：</strong>触发特征重要性重排 → 季泊松+毕建模联合诊断 → 输出漂移根因报告<br>
+    <strong>PSI>0.5：</strong>触发紧急重训 → 郝优算召集全团 → 模式D全栈诊断+优化
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 7. 知识底座 -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2><span class="icon">📚</span> 七、知识底座 — 持续进化的记忆体系</h2>
+  
+  <table>
+    <tr><th>知识库</th><th>存储内容</th><th>更新机制</th><th>消费方</th></tr>
+    <tr>
+      <td>📖 足球领域知识库</td>
+      <td>联赛风格DNA · 球队实力分层 · 德比/杯赛因子 · 主客场优势系数</td>
+      <td>每赛季更新</td>
+      <td>季泊松(联赛嵌入) · 杜博弈(赔率校准)</td>
+    </tr>
+    <tr>
+      <td>📊 历史规律库</td>
+      <td>312K历史赔率规律 · spread-胜率映射 · 强弱对决统计 · 赔率漂移模式</td>
+      <td>每周增量</td>
+      <td>全算法专家</td>
+    </tr>
+    <tr>
+      <td>🗄️ 模型注册中心</td>
+      <td>版本号 · 训练参数 · 效果指标 · 特征列表 · 训练/验证集切分</td>
+      <td>每次重训后</td>
+      <td>荣合众(版本选择) · 傅稳当(部署)</td>
+    </tr>
+    <tr>
+      <td>⚠️ 踩坑经验库</td>
+      <td>Beta校准摧毁Draw · 随机K折时间泄漏 · 173维灾难 · numpy.int64→BLOB</td>
+      <td>每次踩坑后</td>
+      <td>全团(避免重复犯错)</td>
+    </tr>
+    <tr>
+      <td>📝 特征工程Cookbook</td>
+      <td>已验证有效特征公式 · 最佳维度区间(80-100) · 特征替换规则 · 计算成本表</td>
+      <td>每次特征迭代后</td>
+      <td>季泊松+舒治理</td>
+    </tr>
+    <tr>
+      <td>🔄 优化决策日志</td>
+      <td>每次优化的原因 · 方案 · 效果 · 回滚记录</td>
+      <td>每次优化后</td>
+      <td>郝优算(全局策略)</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ============================================================ -->
+<!-- 8. 分阶段实施路线图 -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2><span class="icon">🗺️</span> 八、分阶段实施路线图</h2>
+  
+  <div class="phase-timeline">
+    <div class="phase-block">
+      <div class="phase-num">P0</div>
+      <div class="phase-name">基础建设</div>
+      <div class="phase-desc">
+        意图分类器<br>
+        专家调度框架<br>
+        统一输出格式<br>
+        <strong>周期：1-2周</strong>
+      </div>
+    </div>
+    <div class="phase-block">
+      <div class="phase-num">P1</div>
+      <div class="phase-name">核心协同</div>
+      <div class="phase-desc">
+        全栈预测模式(模式A)<br>
+        6专家并行+融合<br>
+        专业术语体系<br>
+        <strong>周期：2-3周</strong>
+      </div>
+    </div>
+    <div class="phase-block">
+      <div class="phase-num">P2</div>
+      <div class="phase-name">深度专项</div>
+      <div class="phase-desc">
+        赔率深度挖掘(模式B)<br>
+        平局冷门攻坚(模式C)<br>
+        赛后复盘归因<br>
+        <strong>周期：2-3周</strong>
+      </div>
+    </div>
+    <div class="phase-block">
+      <div class="phase-num">P3</div>
+      <div class="phase-name">自主进化</div>
+      <div class="phase-desc">
+        性能监控面板<br>
+        A/B实验框架<br>
+        自动重训+漂移检测<br>
+        <strong>周期：3-4周</strong>
+      </div>
+    </div>
+    <div class="phase-block">
+      <div class="phase-num">P4</div>
+      <div class="phase-name">智能增强</div>
+      <div class="phase-desc">
+        实时预警推送<br>
+        知识图谱自动更新<br>
+        跨联赛迁移学习<br>
+        <strong>周期：4-6周</strong>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 9. 技术栈与约束 -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2><span class="icon">⚙️</span> 九、技术栈与硬约束</h2>
+  
+  <table>
+    <tr><th>层级</th><th>技术选型</th><th>硬约束</th></tr>
+    <tr>
+      <td>意图理解层</td>
+      <td>NaiveBayes意图分类 + 规则路由 + LLM增强(可选)</td>
+      <td>分类准确率>90%，误路由率<5%</td>
+    </tr>
+    <tr>
+      <td>专家执行层</td>
+      <td>ThreadPoolExecutor(max=10) · ExpertHub调度器 · ExpertProtocol统一接口</td>
+      <td>单专家超时15s · 最少2专家在线 · 强制降级兜底</td>
+    </tr>
+    <tr>
+      <td>知识融合层</td>
+      <td>加权投票(soft voting) + Stacking元模型 + 贝叶斯融合</td>
+      <td>概率和为1 · 置信度0-1 · 冲突自动仲裁</td>
+    </tr>
+    <tr>
+      <td>优化引擎</td>
+      <td>MLflow实验追踪 · Optuna超参搜索 · PSI漂移检测</td>
+      <td>A/B最少200场 · 效果提升≥0.3pp才采纳</td>
+    </tr>
+    <tr>
+      <td>数据存储</td>
+      <td>SQLite(7表) + Parquet训练集 · 特征Schema强制校验</td>
+      <td>禁止后验特征 · 数据类型兼容 · 时序切分隔离</td>
+    </tr>
+    <tr>
+      <td>硬件适配</td>
+      <td>i7-13700K + RTX 5070 Ti + 32GB RAM · Python 3.11.9</td>
+      <td>推理延迟P99≤100ms(CPU) · GPU可选加速 · CUDA降级兜底</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ============================================================ -->
+<!-- 10. 立即行动项 -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2><span class="icon">🚀</span> 十、立即行动项（P0 — 本周启动）</h2>
+  
+  <table>
+    <tr><th>#</th><th>行动项</th><th>负责专家</th><th>产出</th><th>优先级</th></tr>
+    <tr>
+      <td>1</td>
+      <td><strong>意图分类器开发</strong> — 基于现有NaiveBayes扩展，支持prediction/analysis/backtest/optimize/explain五大意图</td>
+      <td>郝优算 + 毕建模</td>
+      <td>intent_classifier_v2.py</td>
+      <td><span class="badge badge-red">P0</span></td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td><strong>统一输出Schema定义</strong> — 所有专家输出标准化：probability/distribution/reasoning/confidence/evidence五元组</td>
+      <td>荣合众 + 傅稳当</td>
+      <td>output_schema.py + API文档</td>
+      <td><span class="badge badge-red">P0</span></td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td><strong>专家调度框架升级</strong> — ExpertHub接入WorkBuddy专家体系，打通调用链路</td>
+      <td>郝优算 + 傅稳当</td>
+      <td>expert_hub_v2.py</td>
+      <td><span class="badge badge-red">P0</span></td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td><strong>知识库冷启动</strong> — 将共享记忆中的经验教训、踩坑记录结构化为知识底座</td>
+      <td>舒治理</td>
+      <td>knowledge_base/ 目录</td>
+      <td><span class="badge badge-gold">P1</span></td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td><strong>专业术语词典</strong> — 建立中英对照术语表，注入所有专家输出模板</td>
+      <td>季泊松 + 杜博弈</td>
+      <td>terminology.yaml</td>
+      <td><span class="badge badge-gold">P1</span></td>
+    </tr>
+  </table>
+</div>
+
+<!-- ============================================================ -->
+<!-- D-Gate v5.2.12 平局检测引擎 -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2><span class="icon">🧠</span> D-Gate v5.2.12 — 五层平局检测引擎</h2>
+  
+  <div class="grid-3" style="grid-template-columns: repeat(5,1fr); gap: 12px; margin-bottom: 24px;">
+    <div class="card" style="border-top: 4px solid #ef4444;">
+      <h4>Mode C</h4>
+      <p style="font-size:0.8em">超热门翻车<br>max_imp≥70%</p>
+      <span class="tag">2.2×boost</span>
+      <span class="tag">thresh=0.14</span>
+    </div>
+    <div class="card" style="border-top: 4px solid #f59e0b;">
+      <h4>Mode C-away</h4>
+      <p style="font-size:0.8em">客队热门翻车<br>pa>65%</p>
+      <span class="tag">1.5×boost</span>
+      <span class="tag">thresh=0.35</span>
+    </div>
+    <div class="card" style="border-top: 4px solid #3b82f6;">
+      <h4>Mode A</h4>
+      <p style="font-size:0.8em">中等热门<br>48-70%</p>
+      <span class="tag">1.08×boost</span>
+      <span class="tag">thresh=0.28</span>
+    </div>
+    <div class="card" style="border-top: 4px solid #10b981;">
+      <h4>Mode B</h4>
+      <p style="font-size:0.8em">均衡赛<br>spread<0.15</p>
+      <span class="tag">od[3.0,4.5]</span>
+      <span class="tag">OU≤2.75</span>
+    </div>
+    <div class="card" style="border-top: 4px solid #8b5cf6;">
+      <h4>Default</h4>
+      <p style="font-size:0.8em">窄spread探测<br>+全局阈值</p>
+      <span class="tag">thresh=0.32</span>
+    </div>
+  </div>
+
+  <h3>🔒 安全阀 (按触发优先级)</h3>
+  <table>
+    <tr><th>优先级</th><th>安全阀</th><th>触发条件</th><th>效果</th></tr>
+    <tr><td>1</td><td>cs_other 否决</td><td>cs_other < 5.0</td><td>庄家"非常规比分"赔率极低 → 平局被否决</td></tr>
+    <tr><td>2</td><td>平赔否决</td><td>od > 7.0 + 单场样本防线漏</td><td>45万场校准: od>7.0 平局率仅8% → 否决</td></tr>
+    <tr><td>3</td><td>屠杀惯性</td><td>blowout≥33% + total≥2</td><td>德国/巴西等惯犯 → d_boost×1.4, thresh=0.45</td></tr>
+    <tr><td>4</td><td>单场防线检查</td><td>total=1 + 对手ga90≥2.0</td><td>数据不足+已知漏洞 → d_boost×0.75, thresh=0.28</td></tr>
+    <tr><td>5</td><td>同类赔率屠杀偏</td><td>同类比赛50%+屠杀</td><td>d_boost×0.85</td></tr>
+  </table>
+</div>
+
+<!-- ============================================================ -->
+<!-- 校准数据管道 -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2><span class="icon">📊</span> 校准数据管道</h2>
+  <div class="grid-3">
+    <div class="card">
+      <h4>🏆 大赛历史</h4>
+      <div style="font-size:2em;color:var(--gold)">287<small>场</small></div>
+      <p>WC2014-2026 + EC2024<br>小组赛平局率25%<br>>2.5球=50%</p>
+      <span class="badge badge-green">API实时</span>
+    </div>
+    <div class="card">
+      <h4>🏴󠁧󠁢󠁥󠁮󠁧󠁿 William Hill</h4>
+      <div style="font-size:2em;color:var(--accent)">458K<small>场</small></div>
+      <p>全球俱乐部联赛<br>od>7.0平局率8%<br>超热门平局率8%</p>
+      <span class="badge badge-blue">赔率→进球校准</span>
+    </div>
+    <div class="card">
+      <h4>🌐 实时数据</h4>
+      <div style="font-size:2em;color:var(--purple)">44<small>场</small></div>
+      <p>WC2026已完赛<br>比分1-1最高频(16%)<br>avg=3.05球</p>
+      <span class="badge badge-gold">football-data.org</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 预测管线 -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2><span class="icon">⚡</span> 实时预测管线</h2>
+  <div class="pipeline" style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center; align-items:center; margin:24px 0;">
+    <div class="card" style="text-align:center; min-width:100px;"><h4>FIFA Elo</h4><p style="font-size:0.75em">排名→基础分<br>K=32校准</p></div>
+    <span style="color:var(--accent);font-size:1.5em">→</span>
+    <div class="card" style="text-align:center; min-width:100px;"><h4>隐含概率</h4><p style="font-size:0.75em">1X2→imp<br>去抽水归一化</p></div>
+    <span style="color:var(--accent);font-size:1.5em">→</span>
+    <div class="card" style="text-align:center; min-width:140px; border:2px solid var(--gold);"><h4>D-Gate v5.2.12</h4><p style="font-size:0.75em">五层递进+安全阀<br>34场回测64.7%</p></div>
+    <span style="color:var(--accent);font-size:1.5em">→</span>
+    <div class="card" style="text-align:center; min-width:100px;"><h4>泊松λ</h4><p style="font-size:0.75em">OU锚定<br>λ≈OU+diff/300</p></div>
+    <span style="color:var(--accent);font-size:1.5em">→</span>
+    <div class="card" style="text-align:center; min-width:100px;"><h4>比分推荐</h4><p style="font-size:0.75em">首选+次选<br>入库追踪</p></div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 关键指标仪表 -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2><span class="icon">📈</span> WC2026 回测指标 (34场)</h2>
+  <div class="grid-4" style="grid-template-columns: repeat(4,1fr);">
+    <div class="card" style="text-align:center;">
+      <div style="font-size:2em;color:var(--green)">64.7%</div>
+      <p>方向盘口准确率<br><small>vs v5.2.3: 58.8% (+5.9pp)</small></p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:2em;color:var(--accent)">29.4%</div>
+      <p>精确比分命中<br><small>vs v5.2.3: 17.6% (+11.8pp)</small></p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:2em;color:var(--purple)">65%</div>
+      <p>接近命中(±1球)<br><small>vs v5.2.3: 51% (+14pp)</small></p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:2em;color:var(--gold)">0</div>
+      <p>v5.2.8安全阀假阳性<br><small>葡萄牙误判已修正</small></p>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- Footer -->
+<!-- ============================================================ -->
+<div style="text-align: center; padding: 40px; color: var(--text-dim); font-size: 0.85em;">
+  <p>哨响AI D-Gate v5.2.12 · WC2026实时预测系统</p>
+  <p style="font-size:0.75em; margin-top:4px;">校准数据: William Hill 458K场 + WC2014-2026 287场 + football-data.org实时API</p>
+  <p>FootballAI Full-Stack Expert Team · 11 Experts · 6-Layer Architecture</p>
+  <p style="margin-top: 8px;">© 2026 FootballAI · 基于 v3.2 基线 (Acc 59.20% · Draw-F1 0.504 · AUC 0.814)</p>
+</div>
+
+</div>
+</body>
+</html>

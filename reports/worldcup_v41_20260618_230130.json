@@ -1,0 +1,1282 @@
+{
+  "version": "v4.1",
+  "timestamp": "2026-06-18T23:01:30.247261",
+  "model": "UnifiedPredictor v4.1",
+  "backtest": {
+    "accuracy": 45.0,
+    "draw_accuracy": 0.0,
+    "n": 20,
+    "results": [
+      {
+        "id": 1,
+        "date": "6.14",
+        "home": "卡塔尔",
+        "away": "瑞士",
+        "prediction": "H",
+        "actual": "D",
+        "correct": false,
+        "probabilities": {
+          "H": 0.7763,
+          "D": 0.1506,
+          "A": 0.073
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 2,
+        "date": "6.14",
+        "home": "巴西",
+        "away": "摩洛哥",
+        "prediction": "H",
+        "actual": "D",
+        "correct": false,
+        "probabilities": {
+          "H": 0.9246,
+          "D": 0.0691,
+          "A": 0.0062
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 3,
+        "date": "6.14",
+        "home": "海地",
+        "away": "苏格兰",
+        "prediction": "H",
+        "actual": "A",
+        "correct": false,
+        "probabilities": {
+          "H": 0.7478,
+          "D": 0.1501,
+          "A": 0.1021
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 4,
+        "date": "6.14",
+        "home": "澳大利亚",
+        "away": "土耳其",
+        "prediction": "H",
+        "actual": "H",
+        "correct": true,
+        "probabilities": {
+          "H": 0.6652,
+          "D": 0.2524,
+          "A": 0.0824
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 5,
+        "date": "6.15",
+        "home": "德国",
+        "away": "库拉索",
+        "prediction": "H",
+        "actual": "H",
+        "correct": true,
+        "probabilities": {
+          "H": 0.9122,
+          "D": 0.0799,
+          "A": 0.0079
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 6,
+        "date": "6.15",
+        "home": "瑞典",
+        "away": "突尼斯",
+        "prediction": "H",
+        "actual": "H",
+        "correct": true,
+        "probabilities": {
+          "H": 0.896,
+          "D": 0.0949,
+          "A": 0.0091
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 7,
+        "date": "6.15",
+        "home": "科特迪瓦",
+        "away": "厄瓜多尔",
+        "prediction": "H",
+        "actual": "H",
+        "correct": true,
+        "probabilities": {
+          "H": 0.6611,
+          "D": 0.2774,
+          "A": 0.0615
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 8,
+        "date": "6.15",
+        "home": "荷兰",
+        "away": "日本",
+        "prediction": "H",
+        "actual": "D",
+        "correct": false,
+        "probabilities": {
+          "H": 0.9118,
+          "D": 0.0799,
+          "A": 0.0082
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 9,
+        "date": "6.16",
+        "home": "伊朗",
+        "away": "新西兰",
+        "prediction": "H",
+        "actual": "D",
+        "correct": false,
+        "probabilities": {
+          "H": 0.9204,
+          "D": 0.073,
+          "A": 0.0065
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 10,
+        "date": "6.16",
+        "home": "比利时",
+        "away": "埃及",
+        "prediction": "H",
+        "actual": "D",
+        "correct": false,
+        "probabilities": {
+          "H": 0.9233,
+          "D": 0.0705,
+          "A": 0.0062
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 11,
+        "date": "6.16",
+        "home": "沙特阿拉伯",
+        "away": "乌拉圭",
+        "prediction": "H",
+        "actual": "D",
+        "correct": false,
+        "probabilities": {
+          "H": 0.7536,
+          "D": 0.1474,
+          "A": 0.0989
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 12,
+        "date": "6.16",
+        "home": "西班牙",
+        "away": "佛得角共和国",
+        "prediction": "H",
+        "actual": "D",
+        "correct": false,
+        "probabilities": {
+          "H": 0.925,
+          "D": 0.063,
+          "A": 0.012
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 13,
+        "date": "6.17",
+        "home": "伊拉克",
+        "away": "挪威",
+        "prediction": "H",
+        "actual": "A",
+        "correct": false,
+        "probabilities": {
+          "H": 0.579,
+          "D": 0.3448,
+          "A": 0.0762
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 14,
+        "date": "6.17",
+        "home": "奥地利",
+        "away": "约旦",
+        "prediction": "H",
+        "actual": "H",
+        "correct": true,
+        "probabilities": {
+          "H": 0.9144,
+          "D": 0.0787,
+          "A": 0.0069
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 15,
+        "date": "6.17",
+        "home": "法国",
+        "away": "塞内加尔",
+        "prediction": "H",
+        "actual": "H",
+        "correct": true,
+        "probabilities": {
+          "H": 0.9254,
+          "D": 0.0628,
+          "A": 0.0118
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 16,
+        "date": "6.17",
+        "home": "阿根廷",
+        "away": "阿尔及利亚",
+        "prediction": "H",
+        "actual": "H",
+        "correct": true,
+        "probabilities": {
+          "H": 0.9167,
+          "D": 0.0755,
+          "A": 0.0078
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 17,
+        "date": "6.18",
+        "home": "乌兹别克斯坦",
+        "away": "哥伦比亚",
+        "prediction": "H",
+        "actual": "A",
+        "correct": false,
+        "probabilities": {
+          "H": 0.6428,
+          "D": 0.1921,
+          "A": 0.1651
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 18,
+        "date": "6.18",
+        "home": "加纳",
+        "away": "巴拿马",
+        "prediction": "H",
+        "actual": "H",
+        "correct": true,
+        "probabilities": {
+          "H": 0.9147,
+          "D": 0.0778,
+          "A": 0.0075
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 19,
+        "date": "6.18",
+        "home": "英格兰",
+        "away": "克罗地亚",
+        "prediction": "H",
+        "actual": "H",
+        "correct": true,
+        "probabilities": {
+          "H": 0.9315,
+          "D": 0.0602,
+          "A": 0.0083
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 20,
+        "date": "6.18",
+        "home": "葡萄牙",
+        "away": "民主刚果",
+        "prediction": "H",
+        "actual": "D",
+        "correct": false,
+        "probabilities": {
+          "H": 0.9291,
+          "D": 0.0641,
+          "A": 0.0068
+        },
+        "method": "threshold(D>0.46)"
+      }
+    ]
+  },
+  "predict": {
+    "n": 48,
+    "distribution": {
+      "H": 44,
+      "D": 0,
+      "A": 4
+    },
+    "results": [
+      {
+        "id": 21,
+        "date": "6.19",
+        "home": "加拿大",
+        "away": "卡塔尔",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.9155,
+          "D": 0.0769,
+          "A": 0.0076
+        },
+        "confidence": 0.9155,
+        "goal_prediction": {
+          "home": 2.14,
+          "away": 0.02,
+          "total": 2.16,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 22,
+        "date": "6.19",
+        "home": "墨西哥",
+        "away": "韩国",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.8947,
+          "D": 0.0961,
+          "A": 0.0092
+        },
+        "confidence": 0.8947,
+        "goal_prediction": {
+          "home": 2.14,
+          "away": 0.02,
+          "total": 2.16,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 23,
+        "date": "6.19",
+        "home": "捷克",
+        "away": "南非",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.921,
+          "D": 0.0706,
+          "A": 0.0084
+        },
+        "confidence": 0.921,
+        "goal_prediction": {
+          "home": 2.12,
+          "away": 0.02,
+          "total": 2.14,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 24,
+        "date": "6.19",
+        "home": "瑞士",
+        "away": "波黑",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.9155,
+          "D": 0.0769,
+          "A": 0.0076
+        },
+        "confidence": 0.9155,
+        "goal_prediction": {
+          "home": 2.14,
+          "away": 0.02,
+          "total": 2.16,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 25,
+        "date": "6.20",
+        "home": "土耳其",
+        "away": "巴拉圭",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.6066,
+          "D": 0.3004,
+          "A": 0.0931
+        },
+        "confidence": 0.6066,
+        "goal_prediction": {
+          "home": 1.87,
+          "away": 0.29,
+          "total": 2.16,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 26,
+        "date": "6.20",
+        "home": "巴西",
+        "away": "海地",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.9189,
+          "D": 0.0742,
+          "A": 0.0069
+        },
+        "confidence": 0.9189,
+        "goal_prediction": {
+          "home": 2.18,
+          "away": 0.02,
+          "total": 2.19,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 27,
+        "date": "6.20",
+        "home": "美国",
+        "away": "澳大利亚",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.9162,
+          "D": 0.0763,
+          "A": 0.0075
+        },
+        "confidence": 0.9162,
+        "goal_prediction": {
+          "home": 2.14,
+          "away": 0.02,
+          "total": 2.16,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 28,
+        "date": "6.20",
+        "home": "苏格兰",
+        "away": "摩洛哥",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.896,
+          "D": 0.0949,
+          "A": 0.0091
+        },
+        "confidence": 0.896,
+        "goal_prediction": {
+          "home": 2.14,
+          "away": 0.02,
+          "total": 2.16,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 29,
+        "date": "6.21",
+        "home": "厄瓜多尔",
+        "away": "库拉索",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.9305,
+          "D": 0.0631,
+          "A": 0.0064
+        },
+        "confidence": 0.9305,
+        "goal_prediction": {
+          "home": 2.39,
+          "away": 0.02,
+          "total": 2.4,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 30,
+        "date": "6.21",
+        "home": "德国",
+        "away": "科特迪瓦",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.9122,
+          "D": 0.0799,
+          "A": 0.0079
+        },
+        "confidence": 0.9122,
+        "goal_prediction": {
+          "home": 2.26,
+          "away": 0.02,
+          "total": 2.28,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 31,
+        "date": "6.21",
+        "home": "突尼斯",
+        "away": "日本",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.6769,
+          "D": 0.2395,
+          "A": 0.0836
+        },
+        "confidence": 0.6769,
+        "goal_prediction": {
+          "home": 1.81,
+          "away": 0.22,
+          "total": 2.03,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 32,
+        "date": "6.21",
+        "home": "荷兰",
+        "away": "瑞典",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.9118,
+          "D": 0.0799,
+          "A": 0.0082
+        },
+        "confidence": 0.9118,
+        "goal_prediction": {
+          "home": 2.14,
+          "away": 0.02,
+          "total": 2.16,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 33,
+        "date": "6.22",
+        "home": "乌拉圭",
+        "away": "佛得角共和国",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.9204,
+          "D": 0.073,
+          "A": 0.0065
+        },
+        "confidence": 0.9204,
+        "goal_prediction": {
+          "home": 2.16,
+          "away": 0.02,
+          "total": 2.17,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 34,
+        "date": "6.22",
+        "home": "新西兰",
+        "away": "埃及",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.6652,
+          "D": 0.2524,
+          "A": 0.0824
+        },
+        "confidence": 0.6652,
+        "goal_prediction": {
+          "home": 1.81,
+          "away": 0.22,
+          "total": 2.03,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 35,
+        "date": "6.22",
+        "home": "比利时",
+        "away": "伊朗",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.9233,
+          "D": 0.0705,
+          "A": 0.0062
+        },
+        "confidence": 0.9233,
+        "goal_prediction": {
+          "home": 2.18,
+          "away": 0.01,
+          "total": 2.2,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 36,
+        "date": "6.22",
+        "home": "西班牙",
+        "away": "沙特阿拉伯",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.925,
+          "D": 0.063,
+          "A": 0.012
+        },
+        "confidence": 0.925,
+        "goal_prediction": {
+          "home": 2.79,
+          "away": 0.04,
+          "total": 2.82,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 37,
+        "date": "6.23",
+        "home": "挪威",
+        "away": "塞内加尔",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.7302,
+          "D": 0.2444,
+          "A": 0.0254
+        },
+        "confidence": 0.7302,
+        "goal_prediction": {
+          "home": 2.09,
+          "away": 0.07,
+          "total": 2.16,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 38,
+        "date": "6.23",
+        "home": "法国",
+        "away": "伊拉克",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.9254,
+          "D": 0.0628,
+          "A": 0.0118
+        },
+        "confidence": 0.9254,
+        "goal_prediction": {
+          "home": 2.79,
+          "away": 0.04,
+          "total": 2.83,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 39,
+        "date": "6.23",
+        "home": "约旦",
+        "away": "阿尔及利亚",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.5829,
+          "D": 0.2056,
+          "A": 0.2115
+        },
+        "confidence": 0.5829,
+        "goal_prediction": {
+          "home": 1.59,
+          "away": 0.58,
+          "total": 2.17,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 40,
+        "date": "6.23",
+        "home": "阿根廷",
+        "away": "奥地利",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.9167,
+          "D": 0.0755,
+          "A": 0.0078
+        },
+        "confidence": 0.9167,
+        "goal_prediction": {
+          "home": 2.14,
+          "away": 0.02,
+          "total": 2.16,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 41,
+        "date": "6.24",
+        "home": "哥伦比亚",
+        "away": "民主刚果",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.9218,
+          "D": 0.0717,
+          "A": 0.0064
+        },
+        "confidence": 0.9218,
+        "goal_prediction": {
+          "home": 2.04,
+          "away": 0.01,
+          "total": 2.05,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 42,
+        "date": "6.24",
+        "home": "巴拿马",
+        "away": "克罗地亚",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.642,
+          "D": 0.1925,
+          "A": 0.1655
+        },
+        "confidence": 0.642,
+        "goal_prediction": {
+          "home": 1.72,
+          "away": 0.44,
+          "total": 2.16,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 43,
+        "date": "6.24",
+        "home": "英格兰",
+        "away": "加纳",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.9315,
+          "D": 0.0602,
+          "A": 0.0083
+        },
+        "confidence": 0.9315,
+        "goal_prediction": {
+          "home": 2.33,
+          "away": 0.02,
+          "total": 2.35,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 44,
+        "date": "6.24",
+        "home": "葡萄牙",
+        "away": "乌兹别克斯坦",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.9291,
+          "D": 0.0641,
+          "A": 0.0068
+        },
+        "confidence": 0.9291,
+        "goal_prediction": {
+          "home": 2.49,
+          "away": 0.02,
+          "total": 2.51,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 45,
+        "date": "6.25",
+        "home": "南非",
+        "away": "韩国",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.624,
+          "D": 0.258,
+          "A": 0.1181
+        },
+        "confidence": 0.624,
+        "goal_prediction": {
+          "home": 1.81,
+          "away": 0.34,
+          "total": 2.16,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 46,
+        "date": "6.25",
+        "home": "捷克",
+        "away": "墨西哥",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.6982,
+          "D": 0.239,
+          "A": 0.0628
+        },
+        "confidence": 0.6982,
+        "goal_prediction": {
+          "home": 1.98,
+          "away": 0.18,
+          "total": 2.16,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 47,
+        "date": "6.25",
+        "home": "摩洛哥",
+        "away": "海地",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.9269,
+          "D": 0.0654,
+          "A": 0.0077
+        },
+        "confidence": 0.9269,
+        "goal_prediction": {
+          "home": 2.32,
+          "away": 0.02,
+          "total": 2.34,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 48,
+        "date": "6.25",
+        "home": "波黑",
+        "away": "卡塔尔",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.9155,
+          "D": 0.0769,
+          "A": 0.0076
+        },
+        "confidence": 0.9155,
+        "goal_prediction": {
+          "home": 2.02,
+          "away": 0.02,
+          "total": 2.03,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 49,
+        "date": "6.25",
+        "home": "瑞士",
+        "away": "加拿大",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.8042,
+          "D": 0.177,
+          "A": 0.0188
+        },
+        "confidence": 0.8042,
+        "goal_prediction": {
+          "home": 1.99,
+          "away": 0.05,
+          "total": 2.03,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 50,
+        "date": "6.25",
+        "home": "苏格兰",
+        "away": "巴西",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.7478,
+          "D": 0.1501,
+          "A": 0.1021
+        },
+        "confidence": 0.7478,
+        "goal_prediction": {
+          "home": 1.93,
+          "away": 0.26,
+          "total": 2.19,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 51,
+        "date": "6.26",
+        "home": "厄瓜多尔",
+        "away": "德国",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.5644,
+          "D": 0.3037,
+          "A": 0.1319
+        },
+        "confidence": 0.5644,
+        "goal_prediction": {
+          "home": 1.75,
+          "away": 0.41,
+          "total": 2.16,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 52,
+        "date": "6.26",
+        "home": "土耳其",
+        "away": "美国",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.6066,
+          "D": 0.3004,
+          "A": 0.0931
+        },
+        "confidence": 0.6066,
+        "goal_prediction": {
+          "home": 1.87,
+          "away": 0.29,
+          "total": 2.16,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 53,
+        "date": "6.26",
+        "home": "巴拉圭",
+        "away": "澳大利亚",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.8191,
+          "D": 0.1638,
+          "A": 0.0171
+        },
+        "confidence": 0.8191,
+        "goal_prediction": {
+          "home": 1.99,
+          "away": 0.04,
+          "total": 2.03,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 54,
+        "date": "6.26",
+        "home": "库拉索",
+        "away": "科特迪瓦",
+        "prediction": "A",
+        "probabilities": {
+          "H": 0.0542,
+          "D": 0.1023,
+          "A": 0.8435
+        },
+        "confidence": 0.8435,
+        "goal_prediction": {
+          "home": 0.14,
+          "away": 2.24,
+          "total": 2.39,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 55,
+        "date": "6.26",
+        "home": "日本",
+        "away": "瑞典",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.8212,
+          "D": 0.1599,
+          "A": 0.0189
+        },
+        "confidence": 0.8212,
+        "goal_prediction": {
+          "home": 1.99,
+          "away": 0.05,
+          "total": 2.04,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 56,
+        "date": "6.26",
+        "home": "突尼斯",
+        "away": "荷兰",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.6297,
+          "D": 0.1887,
+          "A": 0.1816
+        },
+        "confidence": 0.6297,
+        "goal_prediction": {
+          "home": 1.68,
+          "away": 0.48,
+          "total": 2.16,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 57,
+        "date": "6.27",
+        "home": "乌拉圭",
+        "away": "西班牙",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.5818,
+          "D": 0.297,
+          "A": 0.1212
+        },
+        "confidence": 0.5818,
+        "goal_prediction": {
+          "home": 1.79,
+          "away": 0.37,
+          "total": 2.16,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 58,
+        "date": "6.27",
+        "home": "佛得角共和国",
+        "away": "沙特阿拉伯",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.6278,
+          "D": 0.3059,
+          "A": 0.0663
+        },
+        "confidence": 0.6278,
+        "goal_prediction": {
+          "home": 1.95,
+          "away": 0.21,
+          "total": 2.16,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 59,
+        "date": "6.27",
+        "home": "埃及",
+        "away": "伊朗",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.8202,
+          "D": 0.1629,
+          "A": 0.0169
+        },
+        "confidence": 0.8202,
+        "goal_prediction": {
+          "home": 1.87,
+          "away": 0.04,
+          "total": 1.91,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 60,
+        "date": "6.27",
+        "home": "塞内加尔",
+        "away": "伊拉克",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.9136,
+          "D": 0.0796,
+          "A": 0.0068
+        },
+        "confidence": 0.9136,
+        "goal_prediction": {
+          "home": 2.18,
+          "away": 0.02,
+          "total": 2.19,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 61,
+        "date": "6.27",
+        "home": "挪威",
+        "away": "法国",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.6712,
+          "D": 0.2435,
+          "A": 0.0853
+        },
+        "confidence": 0.6712,
+        "goal_prediction": {
+          "home": 1.92,
+          "away": 0.24,
+          "total": 2.16,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 62,
+        "date": "6.27",
+        "home": "新西兰",
+        "away": "比利时",
+        "prediction": "A",
+        "probabilities": {
+          "H": 0.0652,
+          "D": 0.1069,
+          "A": 0.8278
+        },
+        "confidence": 0.8278,
+        "goal_prediction": {
+          "home": 0.16,
+          "away": 2.07,
+          "total": 2.24,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 63,
+        "date": "6.28",
+        "home": "克罗地亚",
+        "away": "加纳",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.9203,
+          "D": 0.071,
+          "A": 0.0087
+        },
+        "confidence": 0.9203,
+        "goal_prediction": {
+          "home": 2.02,
+          "away": 0.02,
+          "total": 2.04,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 64,
+        "date": "6.28",
+        "home": "哥伦比亚",
+        "away": "葡萄牙",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.6295,
+          "D": 0.3021,
+          "A": 0.0684
+        },
+        "confidence": 0.6295,
+        "goal_prediction": {
+          "home": 1.84,
+          "away": 0.2,
+          "total": 2.04,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 65,
+        "date": "6.28",
+        "home": "巴拿马",
+        "away": "英格兰",
+        "prediction": "A",
+        "probabilities": {
+          "H": 0.0584,
+          "D": 0.1129,
+          "A": 0.8287
+        },
+        "confidence": 0.8287,
+        "goal_prediction": {
+          "home": 0.16,
+          "away": 2.21,
+          "total": 2.37,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 66,
+        "date": "6.28",
+        "home": "民主刚果",
+        "away": "乌兹别克斯坦",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.7411,
+          "D": 0.2375,
+          "A": 0.0214
+        },
+        "confidence": 0.7411,
+        "goal_prediction": {
+          "home": 1.98,
+          "away": 0.06,
+          "total": 2.03,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 67,
+        "date": "6.28",
+        "home": "约旦",
+        "away": "阿根廷",
+        "prediction": "A",
+        "probabilities": {
+          "H": 0.0592,
+          "D": 0.1013,
+          "A": 0.8395
+        },
+        "confidence": 0.8395,
+        "goal_prediction": {
+          "home": 0.17,
+          "away": 2.36,
+          "total": 2.53,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      },
+      {
+        "id": 68,
+        "date": "6.28",
+        "home": "阿尔及利亚",
+        "away": "奥地利",
+        "prediction": "H",
+        "probabilities": {
+          "H": 0.6082,
+          "D": 0.3247,
+          "A": 0.0671
+        },
+        "confidence": 0.6082,
+        "goal_prediction": {
+          "home": 1.83,
+          "away": 0.2,
+          "total": 2.04,
+          "ou_prediction": "Under"
+        },
+        "method": "threshold(D>0.46)"
+      }
+    ]
+  }
+}

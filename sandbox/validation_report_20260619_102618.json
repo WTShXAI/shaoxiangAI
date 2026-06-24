@@ -1,0 +1,203 @@
+{
+  "timestamp": "2026-06-19T10:26:18.488339",
+  "scenario": "default",
+  "params": {
+    "draw_threshold": 0.48
+  },
+  "baseline": {
+    "accuracy": 0.3333333333333333,
+    "correct": 4,
+    "total": 12,
+    "details": [
+      {
+        "match": "卡塔尔 vs 瑞士",
+        "pred": "A",
+        "actual": "D",
+        "correct": false,
+        "probs": "24%/37%/39%"
+      },
+      {
+        "match": "海地 vs 苏格兰",
+        "pred": "D",
+        "actual": "A",
+        "correct": false,
+        "probs": "35%/37%/28%"
+      },
+      {
+        "match": "澳大利亚 vs 土耳其",
+        "pred": "A",
+        "actual": "H",
+        "correct": false,
+        "probs": "25%/37%/38%"
+      },
+      {
+        "match": "巴西 vs 摩洛哥",
+        "pred": "A",
+        "actual": "D",
+        "correct": false,
+        "probs": "7%/35%/59%"
+      },
+      {
+        "match": "德国 vs 库拉索",
+        "pred": "D",
+        "actual": "H",
+        "correct": false,
+        "probs": "32%/36%/32%"
+      },
+      {
+        "match": "瑞典 vs 突尼斯",
+        "pred": "A",
+        "actual": "H",
+        "correct": false,
+        "probs": "17%/37%/46%"
+      },
+      {
+        "match": "科特迪瓦 vs 厄瓜多尔",
+        "pred": "H",
+        "actual": "H",
+        "correct": true,
+        "probs": "39%/37%/24%"
+      },
+      {
+        "match": "荷兰 vs 日本",
+        "pred": "H",
+        "actual": "D",
+        "correct": false,
+        "probs": "54%/37%/10%"
+      },
+      {
+        "match": "葡萄牙 vs 民主刚果",
+        "pred": "H",
+        "actual": "D",
+        "correct": false,
+        "probs": "56%/37%/7%"
+      },
+      {
+        "match": "英格兰 vs 克罗地亚",
+        "pred": "H",
+        "actual": "H",
+        "correct": true,
+        "probs": "38%/36%/26%"
+      },
+      {
+        "match": "加纳 vs 巴拿马",
+        "pred": "H",
+        "actual": "H",
+        "correct": true,
+        "probs": "40%/37%/23%"
+      },
+      {
+        "match": "乌兹别克斯坦 vs 哥伦比亚",
+        "pred": "A",
+        "actual": "A",
+        "correct": true,
+        "probs": "22%/37%/41%"
+      }
+    ]
+  },
+  "experiment": {
+    "accuracy": 0.3333333333333333,
+    "correct": 4,
+    "total": 12,
+    "params": {
+      "draw_threshold": 0.48
+    },
+    "details": [
+      {
+        "match": "卡塔尔 vs 瑞士",
+        "pred": "A",
+        "actual": "D",
+        "correct": false,
+        "probs": "24%/37%/39%"
+      },
+      {
+        "match": "海地 vs 苏格兰",
+        "pred": "D",
+        "actual": "A",
+        "correct": false,
+        "probs": "35%/37%/28%"
+      },
+      {
+        "match": "澳大利亚 vs 土耳其",
+        "pred": "A",
+        "actual": "H",
+        "correct": false,
+        "probs": "25%/37%/38%"
+      },
+      {
+        "match": "巴西 vs 摩洛哥",
+        "pred": "A",
+        "actual": "D",
+        "correct": false,
+        "probs": "7%/35%/59%"
+      },
+      {
+        "match": "德国 vs 库拉索",
+        "pred": "D",
+        "actual": "H",
+        "correct": false,
+        "probs": "32%/36%/32%"
+      },
+      {
+        "match": "瑞典 vs 突尼斯",
+        "pred": "A",
+        "actual": "H",
+        "correct": false,
+        "probs": "17%/37%/46%"
+      },
+      {
+        "match": "科特迪瓦 vs 厄瓜多尔",
+        "pred": "H",
+        "actual": "H",
+        "correct": true,
+        "probs": "39%/37%/24%"
+      },
+      {
+        "match": "荷兰 vs 日本",
+        "pred": "H",
+        "actual": "D",
+        "correct": false,
+        "probs": "54%/37%/10%"
+      },
+      {
+        "match": "葡萄牙 vs 民主刚果",
+        "pred": "H",
+        "actual": "D",
+        "correct": false,
+        "probs": "56%/37%/7%"
+      },
+      {
+        "match": "英格兰 vs 克罗地亚",
+        "pred": "H",
+        "actual": "H",
+        "correct": true,
+        "probs": "38%/36%/26%"
+      },
+      {
+        "match": "加纳 vs 巴拿马",
+        "pred": "H",
+        "actual": "H",
+        "correct": true,
+        "probs": "40%/37%/23%"
+      },
+      {
+        "match": "乌兹别克斯坦 vs 哥伦比亚",
+        "pred": "A",
+        "actual": "A",
+        "correct": true,
+        "probs": "22%/37%/41%"
+      }
+    ]
+  },
+  "comparison": {
+    "baseline_acc": 0.3333333333333333,
+    "experiment_acc": 0.3333333333333333,
+    "delta": 0.0,
+    "verdict": "PASS",
+    "changes": [],
+    "details": {
+      "baseline": "4/12",
+      "experiment": "4/12"
+    }
+  }
+}

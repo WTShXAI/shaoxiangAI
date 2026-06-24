@@ -1,0 +1,741 @@
+{
+  "version": "D-Gate v4.6+ Multi-Dim Optimizer",
+  "timestamp": "2026-06-20 18:23:58",
+  "dataset": "WorldCup 2026 (26 matches)",
+  "params_used": {
+    "mode_a_min": 0.5,
+    "mode_a_max_league": 0.7,
+    "mode_a_max_cup": 0.7,
+    "mode_b_od_min": 3.0,
+    "mode_b_od_max": 4.5,
+    "mode_b_spread": 1.6,
+    "fallback_d_threshold": 0.28,
+    "fallback_d_ratio": 0.85,
+    "shallow_hcap_range": 0.5,
+    "trap_exclude_threshold": 99.0,
+    "ou_draw_favor": 2.5,
+    "ou_strong_draw": 2.25
+  },
+  "v4.6_baseline": {
+    "metrics": {
+      "accuracy": 0.4231,
+      "correct": 11,
+      "total": 26,
+      "per_class": {
+        "主胜": {
+          "precision": 0.2308,
+          "recall": 0.6,
+          "f1": 0.3333,
+          "support": 5
+        },
+        "平局": {
+          "precision": 0.8,
+          "recall": 0.381,
+          "f1": 0.5161,
+          "support": 21
+        },
+        "客胜": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0
+        }
+      },
+      "draw_f1": 0.5161,
+      "confusion_matrix": {
+        "主胜": {
+          "主胜": 3,
+          "平局": 2,
+          "客胜": 0
+        },
+        "平局": {
+          "主胜": 10,
+          "平局": 8,
+          "客胜": 3
+        },
+        "客胜": {
+          "主胜": 0,
+          "平局": 0,
+          "客胜": 0
+        }
+      },
+      "prediction_distribution": {
+        "平局": 21,
+        "主胜": 5
+      },
+      "actual_distribution": {
+        "平局": 10,
+        "客胜": 3,
+        "主胜": 13
+      },
+      "excluded_count": 0,
+      "effective_rate": 1.0
+    },
+    "predictions": [
+      "平局",
+      "平局",
+      "平局",
+      "平局",
+      "主胜",
+      "平局",
+      "平局",
+      "平局",
+      "平局",
+      "平局",
+      "平局",
+      "主胜",
+      "平局",
+      "平局",
+      "主胜",
+      "平局",
+      "平局",
+      "平局",
+      "主胜",
+      "主胜",
+      "平局",
+      "平局",
+      "平局",
+      "平局",
+      "平局",
+      "平局"
+    ]
+  },
+  "v4.6+_enhanced": {
+    "metrics": {
+      "accuracy": 0.4231,
+      "correct": 11,
+      "total": 26,
+      "per_class": {
+        "主胜": {
+          "precision": 0.2308,
+          "recall": 0.6,
+          "f1": 0.3333,
+          "support": 5
+        },
+        "平局": {
+          "precision": 0.8,
+          "recall": 0.381,
+          "f1": 0.5161,
+          "support": 21
+        },
+        "客胜": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0
+        }
+      },
+      "draw_f1": 0.5161,
+      "confusion_matrix": {
+        "主胜": {
+          "主胜": 3,
+          "平局": 2,
+          "客胜": 0
+        },
+        "平局": {
+          "主胜": 10,
+          "平局": 8,
+          "客胜": 3
+        },
+        "客胜": {
+          "主胜": 0,
+          "平局": 0,
+          "客胜": 0
+        }
+      },
+      "prediction_distribution": {
+        "平局": 21,
+        "主胜": 5
+      },
+      "actual_distribution": {
+        "平局": 10,
+        "客胜": 3,
+        "主胜": 13
+      },
+      "excluded_count": 0,
+      "effective_rate": 1.0
+    },
+    "predictions": [
+      {
+        "pred": "平局",
+        "mode": "A",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.1276,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.101,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.101,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "A",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.1213,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.0887,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.0887,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "A",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.121,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.0882,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.0882,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "A",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.1303,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.108,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.108,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "主胜",
+        "mode": "Fallback-H",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "2-0",
+            "prob": 0.1099,
+            "outcome": "H"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.1099,
+            "outcome": "H"
+          },
+          {
+            "score": "2-1",
+            "prob": 0.0991,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "A",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.1306,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.1086,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.1086,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "B",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.1312,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.1105,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.1105,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "A",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.1257,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.0969,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.0969,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "A",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.1228,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.0914,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.0914,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "A",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.121,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.0882,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.0882,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "A",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.121,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.0882,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.0882,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "主胜",
+        "mode": "Fallback-H",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "2-0",
+            "prob": 0.0996,
+            "outcome": "H"
+          },
+          {
+            "score": "3-0",
+            "prob": 0.0916,
+            "outcome": "H"
+          },
+          {
+            "score": "2-1",
+            "prob": 0.088,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "B",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.1301,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.1074,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.1074,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "A",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.1234,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.0925,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.0925,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "主胜",
+        "mode": "Fallback-H",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "2-0",
+            "prob": 0.1001,
+            "outcome": "H"
+          },
+          {
+            "score": "3-0",
+            "prob": 0.0925,
+            "outcome": "H"
+          },
+          {
+            "score": "2-1",
+            "prob": 0.0877,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "A",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.126,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.0975,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.0975,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "A",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.1246,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.0947,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.0947,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "A",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.1252,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.0958,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.0958,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "主胜",
+        "mode": "Fallback-H",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "2-0",
+            "prob": 0.1126,
+            "outcome": "H"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.0984,
+            "outcome": "H"
+          },
+          {
+            "score": "2-1",
+            "prob": 0.0966,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "主胜",
+        "mode": "Fallback-H",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "2-0",
+            "prob": 0.1079,
+            "outcome": "H"
+          },
+          {
+            "score": "2-1",
+            "prob": 0.0945,
+            "outcome": "H"
+          },
+          {
+            "score": "3-0",
+            "prob": 0.0881,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "A",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.1295,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.1056,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.1056,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "A",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.1268,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.0992,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.0992,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "A",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.1268,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.0992,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.0992,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "A",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.1297,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.1062,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.1062,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "A",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.1295,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.1056,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.1056,
+            "outcome": "H"
+          }
+        ]
+      },
+      {
+        "pred": "平局",
+        "mode": "A",
+        "excluded": false,
+        "scores": [
+          {
+            "score": "1-1",
+            "prob": 0.1268,
+            "outcome": "D"
+          },
+          {
+            "score": "0-1",
+            "prob": 0.0992,
+            "outcome": "A"
+          },
+          {
+            "score": "1-0",
+            "prob": 0.0992,
+            "outcome": "H"
+          }
+        ]
+      }
+    ]
+  },
+  "improvement": {
+    "accuracy_delta_pct": 0.0,
+    "draw_f1_delta_pct": 0.0,
+    "improved_count": 0,
+    "regressed_count": 0,
+    "excluded_count": 0,
+    "score_top1_hit_rate": 23.1
+  }
+}

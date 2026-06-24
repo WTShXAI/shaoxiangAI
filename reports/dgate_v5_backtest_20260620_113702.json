@@ -1,0 +1,716 @@
+{
+  "metadata": {
+    "version": "D-Gate Backtest Engine v1.0",
+    "timestamp": "2026-06-20 11:37:02",
+    "dataset": "WorldCup 2026 Group Stage (Completed Matches)",
+    "sample_size": 26
+  },
+  "results": {
+    "v4.6": {
+      "predictions": [
+        {
+          "match_id": 1,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.72,
+          "details": "模式A: 中等热门(max_imp=58.2%)+OU2.5"
+        },
+        {
+          "match_id": 2,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.72,
+          "details": "模式A: 中等热门(max_imp=66.9%)+OU2.5"
+        },
+        {
+          "match_id": 3,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.72,
+          "details": "模式A: 中等热门(max_imp=66.0%)+OU2.5"
+        },
+        {
+          "match_id": 4,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.72,
+          "details": "模式A: 中等热门(max_imp=52.3%)+OU2.5"
+        },
+        {
+          "match_id": 5,
+          "pred": "主胜",
+          "mode": "",
+          "confidence": 0.601,
+          "details": "概率主胜: imp_h=60.1%"
+        },
+        {
+          "match_id": 6,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.72,
+          "details": "模式A: 中等热门(max_imp=52.6%)+OU2.5"
+        },
+        {
+          "match_id": 7,
+          "pred": "平局",
+          "mode": "B",
+          "confidence": 0.65,
+          "details": "模式B: 均衡赛(spread=0.0)+平赔3.35"
+        },
+        {
+          "match_id": 8,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.72,
+          "details": "模式A: 中等热门(max_imp=56.7%)+OU2.5"
+        },
+        {
+          "match_id": 9,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.72,
+          "details": "模式A: 中等热门(max_imp=63.8%)+OU2.5"
+        },
+        {
+          "match_id": 10,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.72,
+          "details": "模式A: 中等热门(max_imp=66.5%)+OU2.5"
+        },
+        {
+          "match_id": 11,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.72,
+          "details": "模式A: 中等热门(max_imp=66.5%)+OU2.5"
+        },
+        {
+          "match_id": 12,
+          "pred": "主胜",
+          "mode": "",
+          "confidence": 0.846,
+          "details": "概率主胜: imp_h=84.6%"
+        },
+        {
+          "match_id": 13,
+          "pred": "平局",
+          "mode": "B",
+          "confidence": 0.65,
+          "details": "模式B: 均衡赛(spread=1.0)+平赔3.4"
+        },
+        {
+          "match_id": 14,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.72,
+          "details": "模式A: 中等热门(max_imp=63.0%)+OU2.5"
+        },
+        {
+          "match_id": 15,
+          "pred": "主胜",
+          "mode": "",
+          "confidence": 0.85,
+          "details": "概率主胜: imp_h=85.0%"
+        },
+        {
+          "match_id": 16,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.72,
+          "details": "模式A: 中等热门(max_imp=57.6%)+OU2.5"
+        },
+        {
+          "match_id": 17,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.72,
+          "details": "模式A: 中等热门(max_imp=60.7%)+OU2.5"
+        },
+        {
+          "match_id": 18,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.72,
+          "details": "模式A: 中等热门(max_imp=60.6%)+OU2.5"
+        },
+        {
+          "match_id": 19,
+          "pred": "主胜",
+          "mode": "",
+          "confidence": 0.706,
+          "details": "概率主胜: imp_h=70.6%"
+        },
+        {
+          "match_id": 20,
+          "pred": "主胜",
+          "mode": "",
+          "confidence": 0.753,
+          "details": "概率主胜: imp_h=75.3%"
+        },
+        {
+          "match_id": 21,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.72,
+          "details": "模式A: 中等热门(max_imp=56.1%)+OU2.5"
+        },
+        {
+          "match_id": 22,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.72,
+          "details": "模式A: 中等热门(max_imp=57.1%)+OU2.5"
+        },
+        {
+          "match_id": 23,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.72,
+          "details": "模式A: 中等热门(max_imp=57.1%)+OU2.5"
+        },
+        {
+          "match_id": 24,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.72,
+          "details": "模式A: 中等热门(max_imp=54.5%)+OU2.5"
+        },
+        {
+          "match_id": 25,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.72,
+          "details": "模式A: 中等热门(max_imp=56.1%)+OU2.5"
+        },
+        {
+          "match_id": 26,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.72,
+          "details": "模式A: 中等热门(max_imp=57.1%)+OU2.5"
+        }
+      ],
+      "metrics": {
+        "accuracy": 0.0,
+        "correct": 0,
+        "total": 26,
+        "per_class": {
+          "主胜": {
+            "precision": 0.2308,
+            "recall": 0.6,
+            "f1": 0.3333,
+            "support": 5,
+            "tp": 3,
+            "fp": 10,
+            "fn": 2,
+            "tn": 11
+          },
+          "平局": {
+            "precision": 0.8,
+            "recall": 0.381,
+            "f1": 0.5161,
+            "support": 21,
+            "tp": 8,
+            "fp": 2,
+            "fn": 13,
+            "tn": 3
+          },
+          "客胜": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0,
+            "tp": 0,
+            "fp": 3,
+            "fn": 0,
+            "tn": 23
+          }
+        },
+        "draw_f1": 0.5161,
+        "confusion_matrix": {
+          "主胜": {
+            "主胜": 3,
+            "平局": 2,
+            "客胜": 0
+          },
+          "平局": {
+            "主胜": 10,
+            "平局": 8,
+            "客胜": 3
+          },
+          "客胜": {
+            "主胜": 0,
+            "平局": 0,
+            "客胜": 0
+          }
+        },
+        "prediction_distribution": {
+          "平局": 21,
+          "主胜": 5
+        },
+        "actual_distribution": {
+          "平局": 10,
+          "客胜": 3,
+          "主胜": 13
+        },
+        "raw_actuals": [
+          "D",
+          "D",
+          "A",
+          "H",
+          "H",
+          "H",
+          "H",
+          "D",
+          "D",
+          "D",
+          "D",
+          "D",
+          "A",
+          "H",
+          "H",
+          "H",
+          "A",
+          "H",
+          "H",
+          "D",
+          "D",
+          "H",
+          "H",
+          "H",
+          "D",
+          "H"
+        ]
+      }
+    },
+    "v5.0": {
+      "predictions": [
+        {
+          "match_id": 1,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.75,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式A: 中等热门(max_imp=58.2%,阈值=0.68)+OU2.5[排除极端一边倒]"
+        },
+        {
+          "match_id": 2,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.75,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式A: 中等热门(max_imp=66.9%,阈值=0.68)+OU2.5[排除极端一边倒]"
+        },
+        {
+          "match_id": 3,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.75,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式A: 中等热门(max_imp=66.0%,阈值=0.68)+OU2.5[排除极端一边倒]"
+        },
+        {
+          "match_id": 4,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.75,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式A: 中等热门(max_imp=52.3%,阈值=0.68)+OU2.5[排除极端一边倒]"
+        },
+        {
+          "match_id": 5,
+          "pred": "主胜",
+          "mode": "",
+          "confidence": 0.601,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "概率主胜: imp_h=60.1%"
+        },
+        {
+          "match_id": 6,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.75,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式A: 中等热门(max_imp=52.6%,阈值=0.68)+OU2.5[排除极端一边倒]"
+        },
+        {
+          "match_id": 7,
+          "pred": "平局",
+          "mode": "B",
+          "confidence": 0.68,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式B: 均衡赛(spread=0.0,阈值<1.8)+平赔3.35"
+        },
+        {
+          "match_id": 8,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.75,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式A: 中等热门(max_imp=56.7%,阈值=0.68)+OU2.5[排除极端一边倒]"
+        },
+        {
+          "match_id": 9,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.75,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式A: 中等热门(max_imp=63.8%,阈值=0.68)+OU2.5[排除极端一边倒]"
+        },
+        {
+          "match_id": 10,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.75,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式A: 中等热门(max_imp=66.5%,阈值=0.68)+OU2.5[排除极端一边倒]"
+        },
+        {
+          "match_id": 11,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.75,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式A: 中等热门(max_imp=66.5%,阈值=0.68)+OU2.5[排除极端一边倒]"
+        },
+        {
+          "match_id": 12,
+          "pred": "主胜",
+          "mode": "",
+          "confidence": 0.846,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "概率主胜: imp_h=84.6%"
+        },
+        {
+          "match_id": 13,
+          "pred": "平局",
+          "mode": "B",
+          "confidence": 0.68,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式B: 均衡赛(spread=1.0,阈值<1.8)+平赔3.4"
+        },
+        {
+          "match_id": 14,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.75,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式A: 中等热门(max_imp=63.0%,阈值=0.68)+OU2.5[排除极端一边倒]"
+        },
+        {
+          "match_id": 15,
+          "pred": "主胜",
+          "mode": "",
+          "confidence": 0.85,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "概率主胜: imp_h=85.0%"
+        },
+        {
+          "match_id": 16,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.75,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式A: 中等热门(max_imp=57.6%,阈值=0.68)+OU2.5[排除极端一边倒]"
+        },
+        {
+          "match_id": 17,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.75,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式A: 中等热门(max_imp=60.7%,阈值=0.68)+OU2.5[排除极端一边倒]"
+        },
+        {
+          "match_id": 18,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.75,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式A: 中等热门(max_imp=60.6%,阈值=0.68)+OU2.5[排除极端一边倒]"
+        },
+        {
+          "match_id": 19,
+          "pred": "主胜",
+          "mode": "",
+          "confidence": 0.706,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "概率主胜: imp_h=70.6%"
+        },
+        {
+          "match_id": 20,
+          "pred": "主胜",
+          "mode": "",
+          "confidence": 0.753,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "概率主胜: imp_h=75.3%"
+        },
+        {
+          "match_id": 21,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.75,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式A: 中等热门(max_imp=56.1%,阈值=0.68)+OU2.5[排除极端一边倒]"
+        },
+        {
+          "match_id": 22,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.75,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式A: 中等热门(max_imp=57.1%,阈值=0.68)+OU2.5[排除极端一边倒]"
+        },
+        {
+          "match_id": 23,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.75,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式A: 中等热门(max_imp=57.1%,阈值=0.68)+OU2.5[排除极端一边倒]"
+        },
+        {
+          "match_id": 24,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.75,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式A: 中等热门(max_imp=54.5%,阈值=0.68)+OU2.5[排除极端一边倒]"
+        },
+        {
+          "match_id": 25,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.75,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式A: 中等热门(max_imp=56.1%,阈值=0.68)+OU2.5[排除极端一边倒]"
+        },
+        {
+          "match_id": 26,
+          "pred": "平局",
+          "mode": "A",
+          "confidence": 0.75,
+          "trap_boost": 0.0,
+          "trap_signals": [],
+          "details": "模式A: 中等热门(max_imp=57.1%,阈值=0.68)+OU2.5[排除极端一边倒]"
+        }
+      ],
+      "metrics": {
+        "accuracy": 0.0,
+        "correct": 0,
+        "total": 26,
+        "per_class": {
+          "主胜": {
+            "precision": 0.2308,
+            "recall": 0.6,
+            "f1": 0.3333,
+            "support": 5,
+            "tp": 3,
+            "fp": 10,
+            "fn": 2,
+            "tn": 11
+          },
+          "平局": {
+            "precision": 0.8,
+            "recall": 0.381,
+            "f1": 0.5161,
+            "support": 21,
+            "tp": 8,
+            "fp": 2,
+            "fn": 13,
+            "tn": 3
+          },
+          "客胜": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0,
+            "tp": 0,
+            "fp": 3,
+            "fn": 0,
+            "tn": 23
+          }
+        },
+        "draw_f1": 0.5161,
+        "confusion_matrix": {
+          "主胜": {
+            "主胜": 3,
+            "平局": 2,
+            "客胜": 0
+          },
+          "平局": {
+            "主胜": 10,
+            "平局": 8,
+            "客胜": 3
+          },
+          "客胜": {
+            "主胜": 0,
+            "平局": 0,
+            "客胜": 0
+          }
+        },
+        "prediction_distribution": {
+          "平局": 21,
+          "主胜": 5
+        },
+        "actual_distribution": {
+          "平局": 10,
+          "客胜": 3,
+          "主胜": 13
+        },
+        "raw_actuals": [
+          "D",
+          "D",
+          "A",
+          "H",
+          "H",
+          "H",
+          "H",
+          "D",
+          "D",
+          "D",
+          "D",
+          "D",
+          "A",
+          "H",
+          "H",
+          "H",
+          "A",
+          "H",
+          "H",
+          "D",
+          "D",
+          "H",
+          "H",
+          "H",
+          "D",
+          "H"
+        ]
+      }
+    }
+  },
+  "comparison": {
+    "accuracy_delta_pct": 0.0,
+    "draw_f1_delta_pct": 0.0,
+    "improved_cases_count": 0,
+    "regressed_cases_count": 0
+  },
+  "parameter_optimization": {
+    "best_config": {
+      "mode_a_threshold_max_imp": 0.78,
+      "mode_c_imp_d_threshold": 0.22,
+      "trap_boost_min": 0.25,
+      "accuracy": 0.0,
+      "draw_f1": 0.5294
+    },
+    "top10_configs": [
+      {
+        "mode_a_thresh": 0.78,
+        "mode_c_thresh": 0.22,
+        "trap_min": 0.25,
+        "accuracy": 0.0,
+        "draw_f1": 0.5294,
+        "draw_recall": 0.375
+      },
+      {
+        "mode_a_thresh": 0.78,
+        "mode_c_thresh": 0.22,
+        "trap_min": 0.3,
+        "accuracy": 0.0,
+        "draw_f1": 0.5294,
+        "draw_recall": 0.375
+      },
+      {
+        "mode_a_thresh": 0.78,
+        "mode_c_thresh": 0.22,
+        "trap_min": 0.35,
+        "accuracy": 0.0,
+        "draw_f1": 0.5294,
+        "draw_recall": 0.375
+      },
+      {
+        "mode_a_thresh": 0.78,
+        "mode_c_thresh": 0.22,
+        "trap_min": 0.4,
+        "accuracy": 0.0,
+        "draw_f1": 0.5294,
+        "draw_recall": 0.375
+      },
+      {
+        "mode_a_thresh": 0.78,
+        "mode_c_thresh": 0.24,
+        "trap_min": 0.25,
+        "accuracy": 0.0,
+        "draw_f1": 0.5294,
+        "draw_recall": 0.375
+      },
+      {
+        "mode_a_thresh": 0.78,
+        "mode_c_thresh": 0.24,
+        "trap_min": 0.3,
+        "accuracy": 0.0,
+        "draw_f1": 0.5294,
+        "draw_recall": 0.375
+      },
+      {
+        "mode_a_thresh": 0.78,
+        "mode_c_thresh": 0.24,
+        "trap_min": 0.35,
+        "accuracy": 0.0,
+        "draw_f1": 0.5294,
+        "draw_recall": 0.375
+      },
+      {
+        "mode_a_thresh": 0.78,
+        "mode_c_thresh": 0.24,
+        "trap_min": 0.4,
+        "accuracy": 0.0,
+        "draw_f1": 0.5294,
+        "draw_recall": 0.375
+      },
+      {
+        "mode_a_thresh": 0.78,
+        "mode_c_thresh": 0.25,
+        "trap_min": 0.25,
+        "accuracy": 0.0,
+        "draw_f1": 0.5294,
+        "draw_recall": 0.375
+      },
+      {
+        "mode_a_thresh": 0.78,
+        "mode_c_thresh": 0.25,
+        "trap_min": 0.3,
+        "accuracy": 0.0,
+        "draw_f1": 0.5294,
+        "draw_recall": 0.375
+      }
+    ],
+    "total_combinations_tested": 168
+  }
+}

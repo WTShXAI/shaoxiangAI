@@ -1,0 +1,53 @@
+# =============================================================================
+# footballAI Backend - FastAPI + SQLAlchemy + Celery
+# 最后更新: 2026-06-11 (安全升级 batch 1)
+# =============================================================================
+fastapi>=0.136.0
+uvicorn[standard]>=0.49.0
+a2wsgi>=1.10.0
+sqlalchemy>=2.0.0
+alembic>=1.18.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+celery[redis]>=5.6.0
+redis>=5.0.0,<8.0.0
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.9
+httpx>=0.27.0
+
+# 数据科学（复用现有模型 - 大版本锁定避免兼容性问题）
+pandas>=2.0.0,<3.0.0
+numpy>=1.24.0,<2.0.0
+scikit-learn>=1.3.0
+xgboost>=2.0.0
+joblib>=1.3.0
+scipy>=1.11.0
+
+# 监控
+prometheus-client>=0.20.0
+psutil>=5.9.0
+
+# MLflow
+mlflow>=2.14.0
+
+# 工具
+pyyaml>=6.0
+python-dotenv>=1.0.0
+tenacity>=9.0
+typer>=0.26.0
+tomlkit>=0.15.0
+
+# LangChain / LLM (跟踪最新 minor)
+langchain>=1.3.7
+langchain-core>=1.4.4
+langsmith>=0.8.14
+openai>=2.41.0
+
+# 约束: torch 2.6.x 要求 sympy==1.13.1, transformers 4.x 要求 tokenizers<0.22
+sympy>=1.13.1,<1.14
+tokenizers>=0.21.0,<0.22
+
+# 测试
+pytest>=8.0.0
+pytest-asyncio>=0.24.0

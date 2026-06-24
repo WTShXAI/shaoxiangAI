@@ -1,0 +1,20 @@
+{
+  "experiment": "markov_v4_fusion",
+  "n_oof": 2524,
+  "signal_orthogonality": {
+    "agree_rate": 0.4469096671949287,
+    "both_correct": 662,
+    "only_v4": 743,
+    "only_mc": 345,
+    "neither": 774
+  },
+  "best_fusion": {
+    "w_v4": 1.0000000000000004,
+    "w_mc": -4.440892098500626e-16,
+    "acc": 0.5566561014263075,
+    "macro_f1": 0.5626993395060599,
+    "f1_d": 0.49816465652857894,
+    "auc": 0.8109289791904767
+  },
+  "baseline_v4_acc": 0.5655
+}

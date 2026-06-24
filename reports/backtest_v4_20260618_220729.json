@@ -1,0 +1,52 @@
+{
+  "model": "football_v4.0_production",
+  "timestamp": "2026-06-18T22:07:29.581548",
+  "data": "ht_enhanced_training_v6.parquet",
+  "test_samples": 39381,
+  "date_range": "2023-01-01 → 2025-04-11",
+  "metrics": {
+    "accuracy": 0.3777,
+    "mcc": 0.1643,
+    "auc_ovr_macro": 0.6189,
+    "f1_macro": 0.3634,
+    "f1_weighted": 0.3506,
+    "precision": {
+      "Home": 0.7346,
+      "Draw": 0.3029,
+      "Away": 0.4216
+    },
+    "recall": {
+      "Home": 0.1887,
+      "Draw": 0.8066,
+      "Away": 0.2985
+    },
+    "f1": {
+      "Home": 0.3002,
+      "Draw": 0.4404,
+      "Away": 0.3495
+    },
+    "confusion_matrix": [
+      [
+        3288,
+        10391,
+        3748
+      ],
+      [
+        729,
+        7989,
+        1187
+      ],
+      [
+        459,
+        7993,
+        3597
+      ]
+    ]
+  },
+  "vs_v32": {
+    "accuracy_delta": -21.43,
+    "draw_f1_delta": -0.0636,
+    "auc_delta": -0.1951
+  },
+  "elapsed_seconds": 5.5
+}

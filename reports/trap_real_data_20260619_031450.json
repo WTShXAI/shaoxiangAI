@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-06-19T03:14:50.445537",
+  "n_matches": 2884,
+  "n_detected": 0,
+  "detection_rate": 0.0,
+  "book_accuracy": 51.1,
+  "levels": {},
+  "types": {},
+  "trap_score_stats": {
+    "mean": 0.0,
+    "std": 0.0,
+    "max": 0.0
+  },
+  "elapsed_seconds": 14311.5
+}

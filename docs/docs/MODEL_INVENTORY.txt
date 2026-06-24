@@ -1,0 +1,113 @@
+FootballAI 模型全面扫描结果
+📊 总量概览
+类别	数量
+模型类定义（代码中）	30+ 个类
+已保存模型文件	74 个（.joblib/.pkl）
+其中：主目录	46 个
+其中：专家模型 experts/	8 个
+其中：联赛模型 leagues/	10 个
+其中：生产环境 production/	10 个
+🏗️ 一、模型类定义（代码层，30+个）
+核心预测模型（4个）
+模型	算法	说明
+FootballAIEnhanced	XGBoost + Ridge + Poisson	三模型加权集成，v4.0
+DrawOptimizedEnsemble	3×XGBoost 三阶段	平局检测+增强，v6.1
+UnifiedPredictor	主模型+专家+Stacking+Draw	统一预测入口，v3
+SmartIntegration	LogisticRegression Meta	备用集成器
+GBDT训练器（3个）
+模型	算法
+LightGBMTrainer	LightGBM 多分类
+CatBoostTrainer	CatBoost 多分类
+EnsembleTrainer	XGBoost+Ridge 加权投票
+深度学习模型（4个）
+模型	架构
+MatchGRU	双向GRU+Attention 双塔
+MatchCNN	1D多尺度CNN 双塔
+MatchTransformer	Transformer+自注意力 双塔
+MatchEnsemble	GRU+CNN+Transformer 三塔融合
+专家Agent模型（10个）
+Agent	专长
+TrendAgent	趋势分析
+AlphaAgent	Alpha因子
+QuantAgent	量化交易
+GoalTimingAgent	进球时机
+RefereeAgent	裁判影响
+CoachAgent	教练战术
+TimeSpaceAgent	时空检测
+UpsetAgent	冷门检测
+ArbitrageAgent	套利检测
+MLAgent	机器学习
+MediaAgent	媒体分析
+专项分析模型（5个）
+模型	用途
+PoissonPredictor	泊松分布比分预测
+ScorePredictionEngine	xG→Poisson→比分概率
+RefereeInfluenceModel	裁判执法风格
+KeeperRiskModel	门将风险评估
+AttackEfficiencyModel	进攻效率分析
+TeamInjuryModel	伤病评估
+工具/管理类（4个）
+模型	用途
+ModelRegistry	版本管理+哈希
+ModelAnalyzer	模型诊断
+BatchPredictor	批量预测
+PredictionEngine	预测管线
+WalkForwardEngine	步进回测
+ArbitrationEngine	仲裁决策
+💾 二、已保存模型文件（硬盘层，74个）
+code
+saved_models/                          (46个)
+├── footballai_enhanced_v4.0.joblib    主模型标准版
+├── footballai_v5.0_30000.joblib       3万场全特征版
+├── footballai_expert_latest.joblib    最新专家主模型 (7.26MB)
+├── unified_ensemble_latest.joblib     最新集成包 (meta+scaler)
+├── smart_integrated.joblib            SmartIntegration
+├── arbitrage_detector_model_v2.joblib 套利检测
+├── upset_detector_model_v2.joblib     冷门检测
+├── alpha_decision_model_v2.joblib     Alpha决策
+├── quant_trader_model_v2.joblib       量化交易
+├── footballai_compressed.joblib       压缩特征版
+└── ... (36个历史版本/备份)
+
+saved_models/experts/                  (8个)
+├── trend.joblib         趋势专家
+├── alpha.joblib         Alpha因子
+├── quant.joblib         量化专家
+├── goal_timing.joblib   进球时机
+├── referee.joblib       裁判影响
+├── draw_signal.joblib   平局信号 ★
+├── coach.joblib         教练战术 (弱)
+└── timespace.joblib     时空检测 (弱)
+
+saved_models/leagues/                  (10个)
+├── Premier League.joblib              英超
+├── La Liga.joblib                     西甲
+├── Serie A.joblib                     意甲
+├── Bundesliga.joblib                  德甲
+├── Ligue 1.joblib                     法甲
+├── Eredivisie.joblib                  荷甲
+├── Primeira Liga.joblib               葡超
+├── Championship.joblib                英冠
+├── Champions League.joblib            欧冠
+└── Campeonato Brasileiro Série A.joblib 巴甲
+🔗 三、模型关系图
+code
+            30+ 代码类
+                │
+    ┌───────────┼───────────┐
+    │           │           │
+  核心层    专家层(10)   专项层(5)
+    │           │           │
+ FootballAI  8 Agent    泊松/裁判/
+ Enhanced   (每Agent有   门将/进攻/
+ (3合1)     独立模型)   伤病
+    │           │
+    └─────┬─────┘
+          │
+    Stacking(LR)
+     + Draw优化
+          │
+    UnifiedPredictor  ← 对外统一接口
+          │
+    74个 .joblib 文件  ← 硬盘持久化
+结论: 项目有 30+ 个模型类定义 和 74 个已保存模型文件。推理时需要加载 7-12 个模型，这正是需要知识蒸馏压缩为单模型的根本原因。

@@ -1,0 +1,444 @@
+{
+  "timestamp": "2026-06-18 16:17:05",
+  "n_matches": 16,
+  "models": [
+    "v3.2",
+    "v4.0",
+    "VIP-2",
+    "SKY"
+  ],
+  "results": [
+    {
+      "match": "葡萄牙 vs 刚果",
+      "actual": "D",
+      "actual_result": "1-1",
+      "v3.2": {
+        "H": 0.7261,
+        "D": 0.2485,
+        "A": 0.0254,
+        "pred": "H"
+      },
+      "v4.0": {
+        "error": "X has 19 features, but LGBMClassifier is expecting 21 features as input."
+      },
+      "VIP-2": {
+        "H": 0.7686,
+        "D": 0.2109,
+        "A": 0.0205,
+        "pred": "?",
+        "trap_score": 7.88
+      },
+      "SKY": {
+        "H": 0.7679,
+        "D": 0.1373,
+        "A": 0.0948,
+        "pred": "H"
+      }
+    },
+    {
+      "match": "英格兰 vs 克罗地亚",
+      "actual": "H",
+      "actual_result": "4-2",
+      "v3.2": {
+        "H": 0.3358,
+        "D": 0.6433,
+        "A": 0.021,
+        "pred": "D"
+      },
+      "v4.0": {
+        "error": "X has 19 features, but LGBMClassifier is expecting 21 features as input."
+      },
+      "VIP-2": {
+        "H": 0.5237,
+        "D": 0.3042,
+        "A": 0.1721,
+        "pred": "?",
+        "trap_score": 6.18
+      },
+      "SKY": {
+        "H": 0.5087,
+        "D": 0.2566,
+        "A": 0.2347,
+        "pred": "H"
+      }
+    },
+    {
+      "match": "加纳 vs 巴拿马",
+      "actual": "H",
+      "actual_result": "1-0",
+      "v3.2": {
+        "H": 0.38,
+        "D": 0.4666,
+        "A": 0.1535,
+        "pred": "D"
+      },
+      "v4.0": {
+        "error": "X has 19 features, but LGBMClassifier is expecting 21 features as input."
+      },
+      "VIP-2": {
+        "H": 0.3977,
+        "D": 0.3618,
+        "A": 0.2405,
+        "pred": "?",
+        "trap_score": 2.0
+      },
+      "SKY": {
+        "H": 0.4218,
+        "D": 0.2852,
+        "A": 0.293,
+        "pred": "H"
+      }
+    },
+    {
+      "match": "乌兹别克斯坦 vs 哥伦比亚",
+      "actual": "A",
+      "actual_result": "1-3",
+      "v3.2": {
+        "H": 0.0752,
+        "D": 0.4961,
+        "A": 0.4287,
+        "pred": "D"
+      },
+      "v4.0": {
+        "error": "X has 19 features, but LGBMClassifier is expecting 21 features as input."
+      },
+      "VIP-2": {
+        "H": 0.1039,
+        "D": 0.2287,
+        "A": 0.6674,
+        "pred": "?",
+        "trap_score": 3.65
+      },
+      "SKY": {
+        "H": 0.2469,
+        "D": 0.2567,
+        "A": 0.4964,
+        "pred": "A"
+      }
+    },
+    {
+      "match": "德国 vs 库拉索",
+      "actual": "H",
+      "actual_result": "7-1",
+      "v3.2": {
+        "H": 0.8573,
+        "D": 0.1216,
+        "A": 0.0211,
+        "pred": "H"
+      },
+      "v4.0": {
+        "error": "X has 19 features, but LGBMClassifier is expecting 21 features as input."
+      },
+      "VIP-2": {
+        "H": 0.8796,
+        "D": 0.1047,
+        "A": 0.0157,
+        "pred": "?",
+        "trap_score": 6.98
+      },
+      "SKY": {
+        "H": 0.8246,
+        "D": 0.0944,
+        "A": 0.081,
+        "pred": "H"
+      }
+    },
+    {
+      "match": "荷兰 vs 日本",
+      "actual": "D",
+      "actual_result": "2-2",
+      "v3.2": {
+        "H": 0.3249,
+        "D": 0.6116,
+        "A": 0.0635,
+        "pred": "D"
+      },
+      "v4.0": {
+        "error": "X has 19 features, but LGBMClassifier is expecting 21 features as input."
+      },
+      "VIP-2": {
+        "H": 0.5429,
+        "D": 0.2799,
+        "A": 0.1772,
+        "pred": "?",
+        "trap_score": 6.18
+      },
+      "SKY": {
+        "H": 0.4924,
+        "D": 0.2567,
+        "A": 0.251,
+        "pred": "H"
+      }
+    },
+    {
+      "match": "科特迪瓦 vs 厄瓜多尔",
+      "actual": "H",
+      "actual_result": "1-0",
+      "v3.2": {
+        "H": 0.4351,
+        "D": 0.3957,
+        "A": 0.1692,
+        "pred": "H"
+      },
+      "v4.0": {
+        "error": "X has 19 features, but LGBMClassifier is expecting 21 features as input."
+      },
+      "VIP-2": {
+        "H": 0.3764,
+        "D": 0.3036,
+        "A": 0.32,
+        "pred": "?",
+        "trap_score": 0.0
+      },
+      "SKY": {
+        "H": 0.3902,
+        "D": 0.2815,
+        "A": 0.3283,
+        "pred": "H"
+      }
+    },
+    {
+      "match": "瑞典 vs 突尼斯",
+      "actual": "H",
+      "actual_result": "5-1",
+      "v3.2": {
+        "H": 0.5534,
+        "D": 0.4372,
+        "A": 0.0095,
+        "pred": "H"
+      },
+      "v4.0": {
+        "error": "X has 19 features, but LGBMClassifier is expecting 21 features as input."
+      },
+      "VIP-2": {
+        "H": 0.6628,
+        "D": 0.2462,
+        "A": 0.0909,
+        "pred": "?",
+        "trap_score": 6.18
+      },
+      "SKY": {
+        "H": 0.636,
+        "D": 0.2041,
+        "A": 0.1598,
+        "pred": "H"
+      }
+    },
+    {
+      "match": "西班牙 vs 佛得角",
+      "actual": "D",
+      "actual_result": "0-0",
+      "v3.2": {
+        "H": 0.6945,
+        "D": 0.2796,
+        "A": 0.0259,
+        "pred": "H"
+      },
+      "v4.0": {
+        "error": "X has 19 features, but LGBMClassifier is expecting 21 features as input."
+      },
+      "VIP-2": {
+        "H": 0.7717,
+        "D": 0.2056,
+        "A": 0.0226,
+        "pred": "?",
+        "trap_score": 6.18
+      },
+      "SKY": {
+        "H": 0.7637,
+        "D": 0.1376,
+        "A": 0.0987,
+        "pred": "H"
+      }
+    },
+    {
+      "match": "比利时 vs 埃及",
+      "actual": "D",
+      "actual_result": "1-1",
+      "v3.2": {
+        "H": 0.4247,
+        "D": 0.5545,
+        "A": 0.0208,
+        "pred": "D"
+      },
+      "v4.0": {
+        "error": "X has 19 features, but LGBMClassifier is expecting 21 features as input."
+      },
+      "VIP-2": {
+        "H": 0.6033,
+        "D": 0.2341,
+        "A": 0.1626,
+        "pred": "?",
+        "trap_score": 6.18
+      },
+      "SKY": {
+        "H": 0.5977,
+        "D": 0.2208,
+        "A": 0.1815,
+        "pred": "H"
+      }
+    },
+    {
+      "match": "沙特 vs 乌拉圭",
+      "actual": "D",
+      "actual_result": "1-1",
+      "v3.2": {
+        "H": 0.1442,
+        "D": 0.4653,
+        "A": 0.3905,
+        "pred": "D"
+      },
+      "v4.0": {
+        "error": "X has 19 features, but LGBMClassifier is expecting 21 features as input."
+      },
+      "VIP-2": {
+        "H": 0.1491,
+        "D": 0.195,
+        "A": 0.6559,
+        "pred": "?",
+        "trap_score": 1.62
+      },
+      "SKY": {
+        "H": 0.2624,
+        "D": 0.2644,
+        "A": 0.4732,
+        "pred": "A"
+      }
+    },
+    {
+      "match": "伊朗 vs 新西兰",
+      "actual": "D",
+      "actual_result": "2-2",
+      "v3.2": {
+        "H": 0.4304,
+        "D": 0.3992,
+        "A": 0.1704,
+        "pred": "H"
+      },
+      "v4.0": {
+        "error": "X has 19 features, but LGBMClassifier is expecting 21 features as input."
+      },
+      "VIP-2": {
+        "H": 0.429,
+        "D": 0.3042,
+        "A": 0.2668,
+        "pred": "?",
+        "trap_score": 0.0
+      },
+      "SKY": {
+        "H": 0.4029,
+        "D": 0.2799,
+        "A": 0.3172,
+        "pred": "H"
+      }
+    },
+    {
+      "match": "法国 vs 塞内加尔",
+      "actual": "H",
+      "actual_result": "3-1",
+      "v3.2": {
+        "H": 0.5344,
+        "D": 0.432,
+        "A": 0.0336,
+        "pred": "H"
+      },
+      "v4.0": {
+        "error": "X has 19 features, but LGBMClassifier is expecting 21 features as input."
+      },
+      "VIP-2": {
+        "H": 0.7557,
+        "D": 0.1917,
+        "A": 0.0526,
+        "pred": "?",
+        "trap_score": 6.18
+      },
+      "SKY": {
+        "H": 0.6819,
+        "D": 0.1837,
+        "A": 0.1344,
+        "pred": "H"
+      }
+    },
+    {
+      "match": "伊拉克 vs 挪威",
+      "actual": "A",
+      "actual_result": "1-4",
+      "v3.2": {
+        "H": 0.2123,
+        "D": 0.432,
+        "A": 0.3557,
+        "pred": "D"
+      },
+      "v4.0": {
+        "error": "X has 19 features, but LGBMClassifier is expecting 21 features as input."
+      },
+      "VIP-2": {
+        "H": 0.1551,
+        "D": 0.1884,
+        "A": 0.6564,
+        "pred": "?",
+        "trap_score": 1.62
+      },
+      "SKY": {
+        "H": 0.2722,
+        "D": 0.2557,
+        "A": 0.4721,
+        "pred": "A"
+      }
+    },
+    {
+      "match": "阿根廷 vs 阿尔及利亚",
+      "actual": "H",
+      "actual_result": "3-0",
+      "v3.2": {
+        "H": 0.5495,
+        "D": 0.4413,
+        "A": 0.0092,
+        "pred": "H"
+      },
+      "v4.0": {
+        "error": "X has 19 features, but LGBMClassifier is expecting 21 features as input."
+      },
+      "VIP-2": {
+        "H": 0.7335,
+        "D": 0.1959,
+        "A": 0.0706,
+        "pred": "?",
+        "trap_score": 6.18
+      },
+      "SKY": {
+        "H": 0.6594,
+        "D": 0.1909,
+        "A": 0.1497,
+        "pred": "H"
+      }
+    },
+    {
+      "match": "奥地利 vs 约旦",
+      "actual": "H",
+      "actual_result": "3-1",
+      "v3.2": {
+        "H": 0.3624,
+        "D": 0.5744,
+        "A": 0.0632,
+        "pred": "D"
+      },
+      "v4.0": {
+        "error": "X has 19 features, but LGBMClassifier is expecting 21 features as input."
+      },
+      "VIP-2": {
+        "H": 0.473,
+        "D": 0.3257,
+        "A": 0.2013,
+        "pred": "?",
+        "trap_score": 4.48
+      },
+      "SKY": {
+        "H": 0.48,
+        "D": 0.2636,
+        "A": 0.2564,
+        "pred": "H"
+      }
+    }
+  ]
+}

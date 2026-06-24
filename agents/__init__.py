@@ -1,0 +1,1 @@
+# Minimal compatibility stub after frontend removal

@@ -1,0 +1,472 @@
+{
+  "summary": {
+    "total": 22,
+    "accuracy": 0.5454545454545454,
+    "draw_f1": 0.42857142857142855,
+    "macro_f1": 0.46861471861471865,
+    "ocr_failures": 12,
+    "actual_distribution": {
+      "D": 8,
+      "H": 11,
+      "A": 3
+    },
+    "model": "JEPALite-167K"
+  },
+  "class_metrics": {
+    "H": {
+      "accuracy": 0.7272727272727273,
+      "correct": 8,
+      "total": 11,
+      "precision": 0.7272727272727273
+    },
+    "D": {
+      "accuracy": 0.375,
+      "correct": 3,
+      "total": 8,
+      "precision": 0.5
+    },
+    "A": {
+      "accuracy": 0.3333333333333333,
+      "correct": 1,
+      "total": 3,
+      "precision": 0.2
+    }
+  },
+  "confusion_matrix": {
+    "H": {
+      "H": 8,
+      "D": 1,
+      "A": 2
+    },
+    "D": {
+      "H": 3,
+      "D": 3,
+      "A": 2
+    },
+    "A": {
+      "H": 0,
+      "D": 2,
+      "A": 1
+    }
+  },
+  "results": [
+    {
+      "home": "Canada",
+      "away": "Bosnia",
+      "date": "2026-06-12",
+      "odds": {
+        "home": 6.0,
+        "draw": 2.58,
+        "away": 3.0
+      },
+      "prediction": "D",
+      "actual": "D",
+      "correct": true,
+      "probabilities": {
+        "H": 0.3148634731769562,
+        "D": 0.4086397886276245,
+        "A": 0.2764968276023865
+      },
+      "score": "1-1"
+    },
+    {
+      "home": "USA",
+      "away": "Paraguay",
+      "date": "2026-06-13",
+      "odds": {
+        "home": 7.8,
+        "draw": 5.9,
+        "away": 1.6
+      },
+      "prediction": "A",
+      "actual": "H",
+      "correct": false,
+      "probabilities": {
+        "H": 0.38926124572753906,
+        "D": 0.15530291199684143,
+        "A": 0.4554358720779419
+      },
+      "score": "4-1"
+    },
+    {
+      "home": "Qatar",
+      "away": "Switzerland",
+      "date": "2026-06-13",
+      "odds": {
+        "home": 2.14,
+        "draw": 1.93,
+        "away": 6.7
+      },
+      "prediction": "H",
+      "actual": "D",
+      "correct": false,
+      "probabilities": {
+        "H": 0.4242182970046997,
+        "D": 0.3040508031845093,
+        "A": 0.27173087000846863
+      },
+      "score": "1-1"
+    },
+    {
+      "home": "Brazil",
+      "away": "Morocco",
+      "date": "2026-06-13",
+      "odds": {
+        "home": 1.7,
+        "draw": 3.6,
+        "away": 5.3
+      },
+      "prediction": "A",
+      "actual": "D",
+      "correct": false,
+      "probabilities": {
+        "H": 0.28455379605293274,
+        "D": 0.34519627690315247,
+        "A": 0.3702499270439148
+      },
+      "score": "1-1"
+    },
+    {
+      "home": "Haiti",
+      "away": "Scotland",
+      "date": "2026-06-14",
+      "odds": {
+        "home": 5.9,
+        "draw": 4.6,
+        "away": 2.07
+      },
+      "prediction": "D",
+      "actual": "A",
+      "correct": false,
+      "probabilities": {
+        "H": 0.292928010225296,
+        "D": 0.4831913709640503,
+        "A": 0.22388064861297607
+      },
+      "score": "0-1"
+    },
+    {
+      "home": "Australia",
+      "away": "Turkey",
+      "date": "2026-06-14",
+      "odds": {
+        "home": 4.95,
+        "draw": 3.75,
+        "away": 1.71
+      },
+      "prediction": "H",
+      "actual": "H",
+      "correct": true,
+      "probabilities": {
+        "H": 0.3972964882850647,
+        "D": 0.2863505482673645,
+        "A": 0.316352903842926
+      },
+      "score": "2-0"
+    },
+    {
+      "home": "Germany",
+      "away": "Curacao",
+      "date": "2026-06-14",
+      "odds": {
+        "home": 1.91,
+        "draw": 2.03,
+        "away": 4.95
+      },
+      "prediction": "D",
+      "actual": "H",
+      "correct": false,
+      "probabilities": {
+        "H": 0.3127814829349518,
+        "D": 0.4754483103752136,
+        "A": 0.21177023649215698
+      },
+      "score": "7-1"
+    },
+    {
+      "home": "Sweden",
+      "away": "Tunisia",
+      "date": "2026-06-15",
+      "odds": {
+        "home": 1.92,
+        "draw": 3.4,
+        "away": 4.1
+      },
+      "prediction": "H",
+      "actual": "H",
+      "correct": true,
+      "probabilities": {
+        "H": 0.5353603363037109,
+        "D": 0.18549150228500366,
+        "A": 0.2791481912136078
+      },
+      "score": "5-1"
+    },
+    {
+      "home": "Ivory Coast",
+      "away": "Ecuador",
+      "date": "2026-06-14",
+      "odds": {
+        "home": 3.5,
+        "draw": 2.88,
+        "away": 2.36
+      },
+      "prediction": "H",
+      "actual": "H",
+      "correct": true,
+      "probabilities": {
+        "H": 0.3971635699272156,
+        "D": 0.3633088171482086,
+        "A": 0.23952767252922058
+      },
+      "score": "1-0"
+    },
+    {
+      "home": "Iran",
+      "away": "New Zealand",
+      "date": "2026-06-16",
+      "odds": {
+        "home": 1.85,
+        "draw": 3.35,
+        "away": 4.55
+      },
+      "prediction": "D",
+      "actual": "D",
+      "correct": true,
+      "probabilities": {
+        "H": 0.33461445569992065,
+        "D": 0.4596938490867615,
+        "A": 0.20569171011447906
+      },
+      "score": "2-2"
+    },
+    {
+      "home": "Belgium",
+      "away": "Egypt",
+      "date": "2026-06-15",
+      "odds": {
+        "home": 1.63,
+        "draw": 2.25,
+        "away": 5.2
+      },
+      "prediction": "H",
+      "actual": "D",
+      "correct": false,
+      "probabilities": {
+        "H": 0.4268846809864044,
+        "D": 0.2618720829486847,
+        "A": 0.3112432658672333
+      },
+      "score": "1-1"
+    },
+    {
+      "home": "France",
+      "away": "Senegal",
+      "date": "2026-06-16",
+      "odds": {
+        "home": 1.45,
+        "draw": 4.4,
+        "away": 7.5
+      },
+      "prediction": "H",
+      "actual": "H",
+      "correct": true,
+      "probabilities": {
+        "H": 0.3820752501487732,
+        "D": 0.3803677558898926,
+        "A": 0.23755702376365662
+      },
+      "score": "3-1"
+    },
+    {
+      "home": "Argentina",
+      "away": "Algeria",
+      "date": "2026-06-17",
+      "odds": {
+        "home": 1.94,
+        "draw": 1.93,
+        "away": 7.9
+      },
+      "prediction": "H",
+      "actual": "H",
+      "correct": true,
+      "probabilities": {
+        "H": 0.4481928050518036,
+        "D": 0.3658319115638733,
+        "A": 0.18597528338432312
+      },
+      "score": "3-0"
+    },
+    {
+      "home": "Uzbekistan",
+      "away": "Colombia",
+      "date": "2026-06-18",
+      "odds": {
+        "home": 8.4,
+        "draw": 1.99,
+        "away": 2.01
+      },
+      "prediction": "A",
+      "actual": "A",
+      "correct": true,
+      "probabilities": {
+        "H": 0.334330677986145,
+        "D": 0.26333463191986084,
+        "A": 0.40233471989631653
+      },
+      "score": "1-3"
+    },
+    {
+      "home": "England",
+      "away": "Croatia",
+      "date": "2026-06-17",
+      "odds": {
+        "home": 1.73,
+        "draw": 3.65,
+        "away": 4.95
+      },
+      "prediction": "H",
+      "actual": "H",
+      "correct": true,
+      "probabilities": {
+        "H": 0.3441188335418701,
+        "D": 0.3263753056526184,
+        "A": 0.32950592041015625
+      },
+      "score": "4-2"
+    },
+    {
+      "home": "Portugal",
+      "away": "DR Congo",
+      "date": "2026-06-17",
+      "odds": {
+        "home": 1.28,
+        "draw": 5.6,
+        "away": 1.84
+      },
+      "prediction": "A",
+      "actual": "D",
+      "correct": false,
+      "probabilities": {
+        "H": 0.298410028219223,
+        "D": 0.34432679414749146,
+        "A": 0.3572631776332855
+      },
+      "score": "1-1"
+    },
+    {
+      "home": "Mexico",
+      "away": "South Korea",
+      "date": "2026-06-19",
+      "odds": {
+        "home": 2.76,
+        "draw": 3.25,
+        "away": 3.95
+      },
+      "prediction": "H",
+      "actual": "H",
+      "correct": true,
+      "probabilities": {
+        "H": 0.3873875141143799,
+        "D": 0.32755327224731445,
+        "A": 0.2850591838359833
+      },
+      "score": "1-0"
+    },
+    {
+      "home": "Czech Republic",
+      "away": "South Africa",
+      "date": "2026-06-18",
+      "odds": {
+        "home": 1.82,
+        "draw": 3.6,
+        "away": 4.35
+      },
+      "prediction": "D",
+      "actual": "D",
+      "correct": true,
+      "probabilities": {
+        "H": 0.3502594232559204,
+        "D": 0.3785373270511627,
+        "A": 0.27120324969291687
+      },
+      "score": "1-1"
+    },
+    {
+      "home": "Switzerland",
+      "away": "Bosnia",
+      "date": "2026-06-18",
+      "odds": {
+        "home": 1.58,
+        "draw": 4.05,
+        "away": 5.7
+      },
+      "prediction": "A",
+      "actual": "H",
+      "correct": false,
+      "probabilities": {
+        "H": 0.27867335081100464,
+        "D": 0.2981441915035248,
+        "A": 0.42318251729011536
+      },
+      "score": "4-1"
+    },
+    {
+      "home": "Ecuador",
+      "away": "Curacao",
+      "date": "2026-06-21",
+      "odds": {
+        "home": 1.7,
+        "draw": 6.1,
+        "away": 2.41
+      },
+      "prediction": "H",
+      "actual": "D",
+      "correct": false,
+      "probabilities": {
+        "H": 0.3915381133556366,
+        "D": 0.34230104088783264,
+        "A": 0.2661608159542084
+      },
+      "score": "0-0"
+    },
+    {
+      "home": "Tunisia",
+      "away": "Japan",
+      "date": "2026-06-21",
+      "odds": {
+        "home": 4.9,
+        "draw": 3.45,
+        "away": 1.69
+      },
+      "prediction": "D",
+      "actual": "A",
+      "correct": false,
+      "probabilities": {
+        "H": 0.2944923937320709,
+        "D": 0.3573656678199768,
+        "A": 0.34814193844795227
+      },
+      "score": "0-4"
+    },
+    {
+      "home": "Netherlands",
+      "away": "Sweden",
+      "date": "2026-06-20",
+      "odds": {
+        "home": 1.63,
+        "draw": 2.11,
+        "away": 4.7
+      },
+      "prediction": "H",
+      "actual": "H",
+      "correct": true,
+      "probabilities": {
+        "H": 0.412698358297348,
+        "D": 0.19685672223567963,
+        "A": 0.39044496417045593
+      },
+      "score": "5-1"
+    }
+  ]
+}

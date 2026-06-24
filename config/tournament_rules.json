@@ -1,0 +1,73 @@
+{
+  "_meta": "D-Gate v5.1 赛事规则 — 多信号分层判型",
+  "_version": "2.0.0",
+  "_updated": "2026-06-21T20:30:00+08:00",
+  "_note": "v5.1升级: Mode C反转(spread大=翻车×2.2), S7+S1过滤, Mode C-away",
+
+  "tournament": {
+    "_desc": "杯赛: 宽松参数, 世界杯平局率~32%",
+    "draw_threshold": 0.28,
+    "dgate": {
+      "mode_c": {
+        "_desc": "超热门翻车 — imp≥70%触发spread反转(×boost), 反过滤od>9.5",
+        "imp_min": 0.70,
+        "boost_tier1": 2.2, "tier1_imp": 0.75, "tier1_hcp": 1.75,
+        "boost_tier2": 1.8,
+        "threshold": 0.14,
+        "anti_od": 9.5, "anti_ou": 3.5, "anti_hcp": 2.5
+      },
+      "mode_c_away": {
+        "_desc": "客场强队翻车 — pa>65%触发, 主场优势放大平局概率",
+        "pa_min": 0.65,
+        "boost": 2.0,
+        "threshold": 0.14
+      },
+      "mode_a": {
+        "_desc": "中等热门 — imp 48-70%, d_boost阈值判定(含S7+S1过滤)",
+        "imp_min": 0.48, "imp_max": 0.70,
+        "threshold": 0.28,
+        "spread_power": 0.30, "ou_boost": 1.05,
+        "s7_threshold": 3.5, "s1_threshold": 1.30, "s7s1_penalty": 0.70
+      },
+      "mode_b": {
+        "_desc": "均衡赛 — spread<0.15, 高门槛d_boost>0.43",
+        "spread_max": 0.15,
+        "boost": 1.20,
+        "threshold": 0.43
+      },
+      "default": {
+        "_desc": "兜底 — spread抑制 + S7+S1过滤, thresh=0.32",
+        "threshold": 0.32,
+        "s7_threshold": 3.5, "s1_threshold": 1.30, "s7s1_penalty": 0.70
+      }
+    }
+  },
+
+  "league": {
+    "_desc": "联赛: 保守参数, 平局率~25%",
+    "dgate": {
+      "mode_c": {
+        "imp_min": 0.72,
+        "boost_tier1": 1.8, "tier1_imp": 0.78, "tier1_hcp": 1.75,
+        "boost_tier2": 1.5,
+        "threshold": 0.18,
+        "anti_od": 9.5, "anti_ou": 3.5, "anti_hcp": 2.5
+      },
+      "mode_a": {
+        "imp_min": 0.48, "imp_max": 0.68,
+        "threshold": 0.32,
+        "spread_power": 0.35, "ou_boost": 1.03,
+        "s7_threshold": 3.5, "s1_threshold": 1.25, "s7s1_penalty": 0.65
+      },
+      "mode_b": {
+        "spread_max": 0.12,
+        "boost": 1.15,
+        "threshold": 0.45
+      },
+      "default": {
+        "threshold": 0.34,
+        "s7_threshold": 4.0, "s1_threshold": 1.20, "s7s1_penalty": 0.60
+      }
+    }
+  }
+}

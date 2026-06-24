@@ -1,0 +1,46 @@
+# 足球领域知识库 (Domain Knowledge Base)
+# 用途: 修正 ML 模型输出的基础概率，注入领域先验知识
+# 约束: 缺失此文件 → FileNotFoundError（Fail-Fast，不静默跳过）
+# 兼容: Windows / Linux / macOS 路径
+schema_version: "1.0"
+last_updated: "2026-06-11"
+
+# ── 球队属性 ──────────────────────────────────────────
+teams:
+  Arsenal:
+    is_top6: true
+    home_advantage_factor: 1.08
+  Chelsea:
+    is_top6: false
+    home_advantage_factor: 1.02
+  Tottenham:
+    is_top6: false
+    home_advantage_factor: 1.03
+  "Manchester City":
+    is_top6: true
+    home_advantage_factor: 1.10
+  Liverpool:
+    is_top6: true
+    home_advantage_factor: 1.09
+  "Manchester United":
+    is_top6: true
+    home_advantage_factor: 1.07
+
+# ── 德比组合（无序匹配） ──────────────────────────────
+# 当对阵双方恰好为一组时，触发 derby_boost
+derbies:
+  - ["Arsenal", "Tottenham"]
+  - ["Chelsea", "Arsenal"]
+  - ["Liverpool", "Manchester United"]
+  - ["Manchester City", "Manchester United"]
+
+# ── 伤停影响系数 ──────────────────────────────────────
+# key_positions: 关键位置列表
+# penalty_per_position: 每个关键位置缺失时对主胜概率的惩罚值
+injuries:
+  key_positions: ["GK", "ST", "CB", "CM"]
+  penalty_per_position:
+    GK: 0.15   # 门将伤停影响最大
+    ST: 0.10   # 前锋伤停影响较大
+    CB: 0.08   # 中卫伤停影响中等
+    CM: 0.05   # 中场伤停影响较小

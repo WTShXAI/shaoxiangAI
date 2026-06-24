@@ -1,0 +1,48 @@
+{
+  "experiment": "naive_bayes_intent",
+  "n_features": 19,
+  "features": [
+    "odds_spread",
+    "odds_draw_dev",
+    "odds_imp_d",
+    "odds_imp_h",
+    "odds_imp_a",
+    "odds_overround",
+    "odds_draw",
+    "odds_home",
+    "odds_away",
+    "drift_magnitude",
+    "drift_d",
+    "drift_h_val",
+    "drift_a_val",
+    "drift_d_signal",
+    "ix_sharp_draw",
+    "ix_drift_even_draw",
+    "ix_drift_draw_odds",
+    "ix_bal_even",
+    "ix_power_gap"
+  ],
+  "gaussian_nb": {
+    "best_var_smoothing": 1e-12,
+    "acc": 0.3624145521955741
+  },
+  "multinomial_nb": {
+    "best_alpha": 0.01,
+    "acc": 0.47758081334723673
+  },
+  "orthogonality": {
+    "agree_rate": 0.6806656101426307,
+    "both_correct": 914,
+    "only_v4": 491,
+    "only_nb": 182,
+    "neither": 937
+  },
+  "best_fusion": {
+    "acc": 0.5566561014263075,
+    "w_v4": 1.0000000000000004,
+    "w_nb": -4.440892098500626e-16,
+    "macro_f1": 0.5626993395060599,
+    "d_f1": 0.49816465652857894,
+    "auc": 0.8109289791904767
+  }
+}

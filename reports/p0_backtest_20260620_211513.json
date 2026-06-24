@@ -1,0 +1,1267 @@
+{
+  "timestamp": "2026-06-20T21:15:13.919357",
+  "dataset": "WorldCup 2026 (26 matches, 10 draws)",
+  "model": "v4.1 production",
+  "strategies": [
+    {
+      "accuracy": 0.5769230769230769,
+      "f1_macro": 0.4646464646464647,
+      "f1_home": 0.7272727272727273,
+      "f1_draw": 0.0,
+      "f1_away": 0.6666666666666666,
+      "draw_precision": 0.0,
+      "draw_recall": 0.0,
+      "confusion_matrix": [
+        [
+          12,
+          0,
+          1
+        ],
+        [
+          8,
+          0,
+          2
+        ],
+        [
+          0,
+          0,
+          3
+        ]
+      ],
+      "per_match": [
+        {
+          "id": 1,
+          "match": "卡塔尔 vs 瑞士",
+          "act": "D",
+          "pred": "A",
+          "pH": 0.188,
+          "pD": 0.319,
+          "pA": 0.493,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 2,
+          "match": "巴西 vs 摩洛哥",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.768,
+          "pD": 0.163,
+          "pA": 0.069,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 3,
+          "match": "海地 vs 苏格兰",
+          "act": "A",
+          "pred": "A",
+          "pH": 0.117,
+          "pD": 0.204,
+          "pA": 0.679,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 4,
+          "match": "澳大利亚 vs 土耳其",
+          "act": "H",
+          "pred": "A",
+          "pH": 0.179,
+          "pD": 0.317,
+          "pA": 0.505,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 5,
+          "match": "德国 vs 库拉索",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.683,
+          "pD": 0.239,
+          "pA": 0.078,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 6,
+          "match": "瑞典 vs 突尼斯",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.528,
+          "pD": 0.349,
+          "pA": 0.124,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 7,
+          "match": "科特迪瓦 vs 厄瓜多尔",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.39,
+          "pD": 0.331,
+          "pA": 0.279,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 8,
+          "match": "荷兰 vs 日本",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.575,
+          "pD": 0.323,
+          "pA": 0.103,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 9,
+          "match": "伊朗 vs 新西兰",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.713,
+          "pD": 0.216,
+          "pA": 0.071,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 10,
+          "match": "比利时 vs 埃及",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.767,
+          "pD": 0.163,
+          "pA": 0.07,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 11,
+          "match": "沙特阿拉伯 vs 乌拉圭",
+          "act": "D",
+          "pred": "A",
+          "pH": 0.117,
+          "pD": 0.2,
+          "pA": 0.683,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 12,
+          "match": "西班牙 vs 佛得角共和国",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.817,
+          "pD": 0.128,
+          "pA": 0.055,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 13,
+          "match": "伊拉克 vs 挪威",
+          "act": "A",
+          "pred": "A",
+          "pH": 0.231,
+          "pD": 0.36,
+          "pA": 0.409,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 14,
+          "match": "奥地利 vs 约旦",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.709,
+          "pD": 0.227,
+          "pA": 0.064,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 15,
+          "match": "法国 vs 塞内加尔",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.8,
+          "pD": 0.142,
+          "pA": 0.058,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 16,
+          "match": "阿根廷 vs 阿尔及利亚",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.581,
+          "pD": 0.317,
+          "pA": 0.102,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 17,
+          "match": "乌兹别克斯坦 vs 哥伦比亚",
+          "act": "A",
+          "pred": "A",
+          "pH": 0.184,
+          "pD": 0.318,
+          "pA": 0.499,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 18,
+          "match": "加纳 vs 巴拿马",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.686,
+          "pD": 0.244,
+          "pA": 0.07,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 19,
+          "match": "英格兰 vs 克罗地亚",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.79,
+          "pD": 0.145,
+          "pA": 0.066,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 20,
+          "match": "葡萄牙 vs 民主刚果",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.766,
+          "pD": 0.171,
+          "pA": 0.063,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 21,
+          "match": "捷克 vs 南非",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.594,
+          "pD": 0.32,
+          "pA": 0.086,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 22,
+          "match": "瑞士 vs 波黑",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.579,
+          "pD": 0.317,
+          "pA": 0.103,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 23,
+          "match": "加拿大 vs 卡塔尔",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.579,
+          "pD": 0.317,
+          "pA": 0.103,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 24,
+          "match": "墨西哥 vs 韩国",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.541,
+          "pD": 0.343,
+          "pA": 0.116,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 25,
+          "match": "捷克 vs 南非",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.594,
+          "pD": 0.32,
+          "pA": 0.086,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 26,
+          "match": "瑞士 vs 波黑",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.579,
+          "pD": 0.317,
+          "pA": 0.103,
+          "correct": true,
+          "draw_signal": 0.0
+        }
+      ],
+      "strategy": "A_argmax"
+    },
+    {
+      "accuracy": 0.5769230769230769,
+      "f1_macro": 0.4646464646464647,
+      "f1_home": 0.7272727272727273,
+      "f1_draw": 0.0,
+      "f1_away": 0.6666666666666666,
+      "draw_precision": 0.0,
+      "draw_recall": 0.0,
+      "confusion_matrix": [
+        [
+          12,
+          0,
+          1
+        ],
+        [
+          8,
+          0,
+          2
+        ],
+        [
+          0,
+          0,
+          3
+        ]
+      ],
+      "per_match": [
+        {
+          "id": 1,
+          "match": "卡塔尔 vs 瑞士",
+          "act": "D",
+          "pred": "A",
+          "pH": 0.188,
+          "pD": 0.319,
+          "pA": 0.493,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 2,
+          "match": "巴西 vs 摩洛哥",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.768,
+          "pD": 0.163,
+          "pA": 0.069,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 3,
+          "match": "海地 vs 苏格兰",
+          "act": "A",
+          "pred": "A",
+          "pH": 0.117,
+          "pD": 0.204,
+          "pA": 0.679,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 4,
+          "match": "澳大利亚 vs 土耳其",
+          "act": "H",
+          "pred": "A",
+          "pH": 0.179,
+          "pD": 0.317,
+          "pA": 0.505,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 5,
+          "match": "德国 vs 库拉索",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.683,
+          "pD": 0.239,
+          "pA": 0.078,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 6,
+          "match": "瑞典 vs 突尼斯",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.528,
+          "pD": 0.349,
+          "pA": 0.124,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 7,
+          "match": "科特迪瓦 vs 厄瓜多尔",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.39,
+          "pD": 0.331,
+          "pA": 0.279,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 8,
+          "match": "荷兰 vs 日本",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.575,
+          "pD": 0.323,
+          "pA": 0.103,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 9,
+          "match": "伊朗 vs 新西兰",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.713,
+          "pD": 0.216,
+          "pA": 0.071,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 10,
+          "match": "比利时 vs 埃及",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.767,
+          "pD": 0.163,
+          "pA": 0.07,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 11,
+          "match": "沙特阿拉伯 vs 乌拉圭",
+          "act": "D",
+          "pred": "A",
+          "pH": 0.117,
+          "pD": 0.2,
+          "pA": 0.683,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 12,
+          "match": "西班牙 vs 佛得角共和国",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.817,
+          "pD": 0.128,
+          "pA": 0.055,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 13,
+          "match": "伊拉克 vs 挪威",
+          "act": "A",
+          "pred": "A",
+          "pH": 0.231,
+          "pD": 0.36,
+          "pA": 0.409,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 14,
+          "match": "奥地利 vs 约旦",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.709,
+          "pD": 0.227,
+          "pA": 0.064,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 15,
+          "match": "法国 vs 塞内加尔",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.8,
+          "pD": 0.142,
+          "pA": 0.058,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 16,
+          "match": "阿根廷 vs 阿尔及利亚",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.581,
+          "pD": 0.317,
+          "pA": 0.102,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 17,
+          "match": "乌兹别克斯坦 vs 哥伦比亚",
+          "act": "A",
+          "pred": "A",
+          "pH": 0.184,
+          "pD": 0.318,
+          "pA": 0.499,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 18,
+          "match": "加纳 vs 巴拿马",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.686,
+          "pD": 0.244,
+          "pA": 0.07,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 19,
+          "match": "英格兰 vs 克罗地亚",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.79,
+          "pD": 0.145,
+          "pA": 0.066,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 20,
+          "match": "葡萄牙 vs 民主刚果",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.766,
+          "pD": 0.171,
+          "pA": 0.063,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 21,
+          "match": "捷克 vs 南非",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.594,
+          "pD": 0.32,
+          "pA": 0.086,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 22,
+          "match": "瑞士 vs 波黑",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.579,
+          "pD": 0.317,
+          "pA": 0.103,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 23,
+          "match": "加拿大 vs 卡塔尔",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.579,
+          "pD": 0.317,
+          "pA": 0.103,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 24,
+          "match": "墨西哥 vs 韩国",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.541,
+          "pD": 0.343,
+          "pA": 0.116,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 25,
+          "match": "捷克 vs 南非",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.594,
+          "pD": 0.32,
+          "pA": 0.086,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 26,
+          "match": "瑞士 vs 波黑",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.579,
+          "pD": 0.317,
+          "pA": 0.103,
+          "correct": true,
+          "draw_signal": 0.0
+        }
+      ],
+      "strategy": "B_fixed_046"
+    },
+    {
+      "accuracy": 0.38461538461538464,
+      "f1_macro": 0.3893719806763285,
+      "f1_home": 0.43478260869565216,
+      "f1_draw": 0.3333333333333333,
+      "f1_away": 0.4,
+      "draw_precision": 0.2857142857142857,
+      "draw_recall": 0.4,
+      "confusion_matrix": [
+        [
+          5,
+          8,
+          0
+        ],
+        [
+          5,
+          4,
+          1
+        ],
+        [
+          0,
+          2,
+          1
+        ]
+      ],
+      "per_match": [
+        {
+          "id": 1,
+          "match": "卡塔尔 vs 瑞士",
+          "act": "D",
+          "pred": "D",
+          "pH": 0.188,
+          "pD": 0.319,
+          "pA": 0.493,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 2,
+          "match": "巴西 vs 摩洛哥",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.768,
+          "pD": 0.163,
+          "pA": 0.069,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 3,
+          "match": "海地 vs 苏格兰",
+          "act": "A",
+          "pred": "A",
+          "pH": 0.117,
+          "pD": 0.204,
+          "pA": 0.679,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 4,
+          "match": "澳大利亚 vs 土耳其",
+          "act": "H",
+          "pred": "D",
+          "pH": 0.179,
+          "pD": 0.317,
+          "pA": 0.505,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 5,
+          "match": "德国 vs 库拉索",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.683,
+          "pD": 0.239,
+          "pA": 0.078,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 6,
+          "match": "瑞典 vs 突尼斯",
+          "act": "H",
+          "pred": "D",
+          "pH": 0.528,
+          "pD": 0.349,
+          "pA": 0.124,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 7,
+          "match": "科特迪瓦 vs 厄瓜多尔",
+          "act": "H",
+          "pred": "D",
+          "pH": 0.39,
+          "pD": 0.331,
+          "pA": 0.279,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 8,
+          "match": "荷兰 vs 日本",
+          "act": "D",
+          "pred": "D",
+          "pH": 0.575,
+          "pD": 0.323,
+          "pA": 0.103,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 9,
+          "match": "伊朗 vs 新西兰",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.713,
+          "pD": 0.216,
+          "pA": 0.071,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 10,
+          "match": "比利时 vs 埃及",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.767,
+          "pD": 0.163,
+          "pA": 0.07,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 11,
+          "match": "沙特阿拉伯 vs 乌拉圭",
+          "act": "D",
+          "pred": "A",
+          "pH": 0.117,
+          "pD": 0.2,
+          "pA": 0.683,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 12,
+          "match": "西班牙 vs 佛得角共和国",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.817,
+          "pD": 0.128,
+          "pA": 0.055,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 13,
+          "match": "伊拉克 vs 挪威",
+          "act": "A",
+          "pred": "D",
+          "pH": 0.231,
+          "pD": 0.36,
+          "pA": 0.409,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 14,
+          "match": "奥地利 vs 约旦",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.709,
+          "pD": 0.227,
+          "pA": 0.064,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 15,
+          "match": "法国 vs 塞内加尔",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.8,
+          "pD": 0.142,
+          "pA": 0.058,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 16,
+          "match": "阿根廷 vs 阿尔及利亚",
+          "act": "H",
+          "pred": "D",
+          "pH": 0.581,
+          "pD": 0.317,
+          "pA": 0.102,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 17,
+          "match": "乌兹别克斯坦 vs 哥伦比亚",
+          "act": "A",
+          "pred": "D",
+          "pH": 0.184,
+          "pD": 0.318,
+          "pA": 0.499,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 18,
+          "match": "加纳 vs 巴拿马",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.686,
+          "pD": 0.244,
+          "pA": 0.07,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 19,
+          "match": "英格兰 vs 克罗地亚",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.79,
+          "pD": 0.145,
+          "pA": 0.066,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 20,
+          "match": "葡萄牙 vs 民主刚果",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.766,
+          "pD": 0.171,
+          "pA": 0.063,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 21,
+          "match": "捷克 vs 南非",
+          "act": "D",
+          "pred": "D",
+          "pH": 0.594,
+          "pD": 0.32,
+          "pA": 0.086,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 22,
+          "match": "瑞士 vs 波黑",
+          "act": "H",
+          "pred": "D",
+          "pH": 0.579,
+          "pD": 0.317,
+          "pA": 0.103,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 23,
+          "match": "加拿大 vs 卡塔尔",
+          "act": "H",
+          "pred": "D",
+          "pH": 0.579,
+          "pD": 0.317,
+          "pA": 0.103,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 24,
+          "match": "墨西哥 vs 韩国",
+          "act": "H",
+          "pred": "D",
+          "pH": 0.541,
+          "pD": 0.343,
+          "pA": 0.116,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 25,
+          "match": "捷克 vs 南非",
+          "act": "D",
+          "pred": "D",
+          "pH": 0.594,
+          "pD": 0.32,
+          "pA": 0.086,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 26,
+          "match": "瑞士 vs 波黑",
+          "act": "H",
+          "pred": "D",
+          "pH": 0.579,
+          "pD": 0.317,
+          "pA": 0.103,
+          "correct": false,
+          "draw_signal": 0.0
+        }
+      ],
+      "strategy": "C_dynamic"
+    },
+    {
+      "accuracy": 0.2692307692307692,
+      "f1_macro": 0.29876543209876544,
+      "f1_home": 0.2,
+      "f1_draw": 0.2962962962962963,
+      "f1_away": 0.4,
+      "draw_precision": 0.23529411764705882,
+      "draw_recall": 0.4,
+      "confusion_matrix": [
+        [
+          2,
+          11,
+          0
+        ],
+        [
+          5,
+          4,
+          1
+        ],
+        [
+          0,
+          2,
+          1
+        ]
+      ],
+      "per_match": [
+        {
+          "id": 1,
+          "match": "卡塔尔 vs 瑞士",
+          "act": "D",
+          "pred": "D",
+          "pH": 0.188,
+          "pD": 0.319,
+          "pA": 0.493,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 2,
+          "match": "巴西 vs 摩洛哥",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.768,
+          "pD": 0.163,
+          "pA": 0.069,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 3,
+          "match": "海地 vs 苏格兰",
+          "act": "A",
+          "pred": "A",
+          "pH": 0.117,
+          "pD": 0.204,
+          "pA": 0.679,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 4,
+          "match": "澳大利亚 vs 土耳其",
+          "act": "H",
+          "pred": "D",
+          "pH": 0.179,
+          "pD": 0.317,
+          "pA": 0.505,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 5,
+          "match": "德国 vs 库拉索",
+          "act": "H",
+          "pred": "D",
+          "pH": 0.683,
+          "pD": 0.239,
+          "pA": 0.078,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 6,
+          "match": "瑞典 vs 突尼斯",
+          "act": "H",
+          "pred": "D",
+          "pH": 0.528,
+          "pD": 0.349,
+          "pA": 0.124,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 7,
+          "match": "科特迪瓦 vs 厄瓜多尔",
+          "act": "H",
+          "pred": "D",
+          "pH": 0.39,
+          "pD": 0.331,
+          "pA": 0.279,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 8,
+          "match": "荷兰 vs 日本",
+          "act": "D",
+          "pred": "D",
+          "pH": 0.575,
+          "pD": 0.323,
+          "pA": 0.103,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 9,
+          "match": "伊朗 vs 新西兰",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.713,
+          "pD": 0.216,
+          "pA": 0.071,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 10,
+          "match": "比利时 vs 埃及",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.767,
+          "pD": 0.163,
+          "pA": 0.07,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 11,
+          "match": "沙特阿拉伯 vs 乌拉圭",
+          "act": "D",
+          "pred": "A",
+          "pH": 0.117,
+          "pD": 0.2,
+          "pA": 0.683,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 12,
+          "match": "西班牙 vs 佛得角共和国",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.817,
+          "pD": 0.128,
+          "pA": 0.055,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 13,
+          "match": "伊拉克 vs 挪威",
+          "act": "A",
+          "pred": "D",
+          "pH": 0.231,
+          "pD": 0.36,
+          "pA": 0.409,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 14,
+          "match": "奥地利 vs 约旦",
+          "act": "H",
+          "pred": "D",
+          "pH": 0.709,
+          "pD": 0.227,
+          "pA": 0.064,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 15,
+          "match": "法国 vs 塞内加尔",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.8,
+          "pD": 0.142,
+          "pA": 0.058,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 16,
+          "match": "阿根廷 vs 阿尔及利亚",
+          "act": "H",
+          "pred": "D",
+          "pH": 0.581,
+          "pD": 0.317,
+          "pA": 0.102,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 17,
+          "match": "乌兹别克斯坦 vs 哥伦比亚",
+          "act": "A",
+          "pred": "D",
+          "pH": 0.184,
+          "pD": 0.318,
+          "pA": 0.499,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 18,
+          "match": "加纳 vs 巴拿马",
+          "act": "H",
+          "pred": "D",
+          "pH": 0.686,
+          "pD": 0.244,
+          "pA": 0.07,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 19,
+          "match": "英格兰 vs 克罗地亚",
+          "act": "H",
+          "pred": "H",
+          "pH": 0.79,
+          "pD": 0.145,
+          "pA": 0.066,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 20,
+          "match": "葡萄牙 vs 民主刚果",
+          "act": "D",
+          "pred": "H",
+          "pH": 0.766,
+          "pD": 0.171,
+          "pA": 0.063,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 21,
+          "match": "捷克 vs 南非",
+          "act": "D",
+          "pred": "D",
+          "pH": 0.594,
+          "pD": 0.32,
+          "pA": 0.086,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 22,
+          "match": "瑞士 vs 波黑",
+          "act": "H",
+          "pred": "D",
+          "pH": 0.579,
+          "pD": 0.317,
+          "pA": 0.103,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 23,
+          "match": "加拿大 vs 卡塔尔",
+          "act": "H",
+          "pred": "D",
+          "pH": 0.579,
+          "pD": 0.317,
+          "pA": 0.103,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 24,
+          "match": "墨西哥 vs 韩国",
+          "act": "H",
+          "pred": "D",
+          "pH": 0.541,
+          "pD": 0.343,
+          "pA": 0.116,
+          "correct": false,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 25,
+          "match": "捷克 vs 南非",
+          "act": "D",
+          "pred": "D",
+          "pH": 0.594,
+          "pD": 0.32,
+          "pA": 0.086,
+          "correct": true,
+          "draw_signal": 0.0
+        },
+        {
+          "id": 26,
+          "match": "瑞士 vs 波黑",
+          "act": "H",
+          "pred": "D",
+          "pH": 0.579,
+          "pD": 0.317,
+          "pA": 0.103,
+          "correct": false,
+          "draw_signal": 0.0
+        }
+      ],
+      "strategy": "D_p0_full"
+    }
+  ]
+}

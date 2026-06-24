@@ -9,3 +9,6 @@ __pycache__/
 .DS_Store
 blobs/
 clipboard-images/
+.workbuddy/
+logs/
+nul

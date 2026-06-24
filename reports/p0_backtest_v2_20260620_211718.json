@@ -1,0 +1,335 @@
+{
+  "timestamp": "2026-06-20T21:17:18.559338",
+  "dataset": "WorldCup 2026 (26 matches, 10 draws)",
+  "model": "v4.1 production",
+  "grid_search": [
+    {
+      "threshold": 0.15,
+      "accuracy": 0.4230769230769231,
+      "f1_macro": 0.26515151515151514,
+      "f1_draw": 0.5454545454545454,
+      "draw_recall": 0.9
+    },
+    {
+      "threshold": 0.16,
+      "accuracy": 0.4230769230769231,
+      "f1_macro": 0.26515151515151514,
+      "f1_draw": 0.5454545454545454,
+      "draw_recall": 0.9
+    },
+    {
+      "threshold": 0.17,
+      "accuracy": 0.34615384615384615,
+      "f1_macro": 0.2246117084826762,
+      "f1_draw": 0.45161290322580644,
+      "draw_recall": 0.7
+    },
+    {
+      "threshold": 0.18,
+      "accuracy": 0.3076923076923077,
+      "f1_macro": 0.20350877192982456,
+      "f1_draw": 0.4,
+      "draw_recall": 0.6
+    },
+    {
+      "threshold": 0.19,
+      "accuracy": 0.3076923076923077,
+      "f1_macro": 0.20350877192982456,
+      "f1_draw": 0.4,
+      "draw_recall": 0.6
+    },
+    {
+      "threshold": 0.2,
+      "accuracy": 0.2692307692307692,
+      "f1_macro": 0.1851179673321234,
+      "f1_draw": 0.3448275862068966,
+      "draw_recall": 0.5
+    },
+    {
+      "threshold": 0.21,
+      "accuracy": 0.3076923076923077,
+      "f1_macro": 0.32255639097744365,
+      "f1_draw": 0.35714285714285715,
+      "draw_recall": 0.5
+    },
+    {
+      "threshold": 0.22,
+      "accuracy": 0.2692307692307692,
+      "f1_macro": 0.29876543209876544,
+      "f1_draw": 0.2962962962962963,
+      "draw_recall": 0.4
+    },
+    {
+      "threshold": 0.23,
+      "accuracy": 0.3076923076923077,
+      "f1_macro": 0.3311355311355311,
+      "f1_draw": 0.3076923076923077,
+      "draw_recall": 0.4
+    },
+    {
+      "threshold": 0.24,
+      "accuracy": 0.34615384615384615,
+      "f1_macro": 0.36121212121212115,
+      "f1_draw": 0.32,
+      "draw_recall": 0.4
+    },
+    {
+      "threshold": 0.25,
+      "accuracy": 0.38461538461538464,
+      "f1_macro": 0.3893719806763285,
+      "f1_draw": 0.3333333333333333,
+      "draw_recall": 0.4
+    },
+    {
+      "threshold": 0.26,
+      "accuracy": 0.38461538461538464,
+      "f1_macro": 0.3893719806763285,
+      "f1_draw": 0.3333333333333333,
+      "draw_recall": 0.4
+    },
+    {
+      "threshold": 0.27,
+      "accuracy": 0.38461538461538464,
+      "f1_macro": 0.3893719806763285,
+      "f1_draw": 0.3333333333333333,
+      "draw_recall": 0.4
+    },
+    {
+      "threshold": 0.28,
+      "accuracy": 0.38461538461538464,
+      "f1_macro": 0.3893719806763285,
+      "f1_draw": 0.3333333333333333,
+      "draw_recall": 0.4
+    },
+    {
+      "threshold": 0.29,
+      "accuracy": 0.38461538461538464,
+      "f1_macro": 0.3893719806763285,
+      "f1_draw": 0.3333333333333333,
+      "draw_recall": 0.4
+    },
+    {
+      "threshold": 0.3,
+      "accuracy": 0.38461538461538464,
+      "f1_macro": 0.3893719806763285,
+      "f1_draw": 0.3333333333333333,
+      "draw_recall": 0.4
+    },
+    {
+      "threshold": 0.31,
+      "accuracy": 0.38461538461538464,
+      "f1_macro": 0.3893719806763285,
+      "f1_draw": 0.3333333333333333,
+      "draw_recall": 0.4
+    },
+    {
+      "threshold": 0.32,
+      "accuracy": 0.5384615384615384,
+      "f1_macro": 0.5065359477124183,
+      "f1_draw": 0.35294117647058826,
+      "draw_recall": 0.3
+    },
+    {
+      "threshold": 0.33,
+      "accuracy": 0.4230769230769231,
+      "f1_macro": 0.3666666666666667,
+      "f1_draw": 0.0,
+      "draw_recall": 0.0
+    },
+    {
+      "threshold": 0.34,
+      "accuracy": 0.46153846153846156,
+      "f1_macro": 0.3817204301075268,
+      "f1_draw": 0.0,
+      "draw_recall": 0.0
+    },
+    {
+      "threshold": 0.35,
+      "accuracy": 0.5384615384615384,
+      "f1_macro": 0.4090909090909091,
+      "f1_draw": 0.0,
+      "draw_recall": 0.0
+    },
+    {
+      "threshold": 0.36,
+      "accuracy": 0.5769230769230769,
+      "f1_macro": 0.4646464646464647,
+      "f1_draw": 0.0,
+      "draw_recall": 0.0
+    },
+    {
+      "threshold": 0.37,
+      "accuracy": 0.5769230769230769,
+      "f1_macro": 0.4646464646464647,
+      "f1_draw": 0.0,
+      "draw_recall": 0.0
+    },
+    {
+      "threshold": 0.38,
+      "accuracy": 0.5769230769230769,
+      "f1_macro": 0.4646464646464647,
+      "f1_draw": 0.0,
+      "draw_recall": 0.0
+    },
+    {
+      "threshold": 0.39,
+      "accuracy": 0.5769230769230769,
+      "f1_macro": 0.4646464646464647,
+      "f1_draw": 0.0,
+      "draw_recall": 0.0
+    },
+    {
+      "threshold": 0.4,
+      "accuracy": 0.5769230769230769,
+      "f1_macro": 0.4646464646464647,
+      "f1_draw": 0.0,
+      "draw_recall": 0.0
+    },
+    {
+      "threshold": 0.41,
+      "accuracy": 0.5769230769230769,
+      "f1_macro": 0.4646464646464647,
+      "f1_draw": 0.0,
+      "draw_recall": 0.0
+    },
+    {
+      "threshold": 0.42,
+      "accuracy": 0.5769230769230769,
+      "f1_macro": 0.4646464646464647,
+      "f1_draw": 0.0,
+      "draw_recall": 0.0
+    },
+    {
+      "threshold": 0.43,
+      "accuracy": 0.5769230769230769,
+      "f1_macro": 0.4646464646464647,
+      "f1_draw": 0.0,
+      "draw_recall": 0.0
+    },
+    {
+      "threshold": 0.44,
+      "accuracy": 0.5769230769230769,
+      "f1_macro": 0.4646464646464647,
+      "f1_draw": 0.0,
+      "draw_recall": 0.0
+    },
+    {
+      "threshold": 0.45,
+      "accuracy": 0.5769230769230769,
+      "f1_macro": 0.4646464646464647,
+      "f1_draw": 0.0,
+      "draw_recall": 0.0
+    }
+  ],
+  "best_threshold": 0.32,
+  "strategies": {
+    "optimal_threshold": {
+      "accuracy": 0.5384615384615384,
+      "f1_macro": 0.5065359477124183,
+      "f1_home": 0.6666666666666666,
+      "f1_draw": 0.35294117647058826,
+      "f1_away": 0.5,
+      "draw_precision": 0.42857142857142855,
+      "draw_recall": 0.3,
+      "confusion_matrix": [
+        [
+          9,
+          3,
+          1
+        ],
+        [
+          5,
+          3,
+          2
+        ],
+        [
+          0,
+          1,
+          2
+        ]
+      ],
+      "threshold": 0.32
+    },
+    "margin_aware": {
+      "accuracy": 0.5,
+      "f1_macro": 0.3958333333333333,
+      "f1_home": 0.6875,
+      "f1_draw": 0.0,
+      "f1_away": 0.5,
+      "draw_precision": 0.0,
+      "draw_recall": 0.0,
+      "confusion_matrix": [
+        [
+          11,
+          1,
+          1
+        ],
+        [
+          8,
+          0,
+          2
+        ],
+        [
+          0,
+          1,
+          2
+        ]
+      ],
+      "strategy": "margin_aware"
+    },
+    "tiered": {
+      "accuracy": 0.4230769230769231,
+      "f1_macro": 0.41818181818181815,
+      "f1_home": 0.45454545454545453,
+      "f1_draw": 0.4,
+      "f1_away": 0.4,
+      "draw_precision": 0.3333333333333333,
+      "draw_recall": 0.5,
+      "confusion_matrix": [
+        [
+          5,
+          8,
+          0
+        ],
+        [
+          4,
+          5,
+          1
+        ],
+        [
+          0,
+          2,
+          1
+        ]
+      ],
+      "strategy": "tiered"
+    },
+    "optimal_dgate": {
+      "accuracy": 0.5384615384615384,
+      "f1_macro": 0.45450785773366426,
+      "f1_home": 0.7096774193548387,
+      "f1_draw": 0.15384615384615385,
+      "f1_away": 0.5,
+      "draw_precision": 0.3333333333333333,
+      "draw_recall": 0.1,
+      "confusion_matrix": [
+        [
+          11,
+          1,
+          1
+        ],
+        [
+          7,
+          1,
+          2
+        ],
+        [
+          0,
+          1,
+          2
+        ]
+      ],
+      "strategy": "optimal_dgate"
+    }
+  }
+}

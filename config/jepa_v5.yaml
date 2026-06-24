@@ -1,0 +1,49 @@
+# 哨响AI v5.0 JEPA Configuration
+# ==================================
+# 基于6位专家共识 (2026-06-21)
+
+jepa:
+  # ── 嵌入维度 ──
+  embed_dim: 128           # 主嵌入维度 (季泊松: 256, 施时序: 128, 共识: 128)
+  odds_semantic_dim: 16    # 赔率语义嵌入 (杜博弈)
+  
+  # ── Rollout ──
+  n_steps: 6               # 推演步数 (15分钟×6=90分钟)
+  n_paths: 50              # 蒙特卡洛路径数 (荣合众 K=50)
+  noise_scale: 0.04        # 路径分叉噪声
+  
+  # ── VICReg Loss (毕建模) ──
+  sim_coeff: 10.0          # Invariance
+  var_coeff: 1.0           # Variance (防止坍塌)
+  cov_coeff: 0.04          # Covariance (去相关)
+  pred_coeff: 25.0         # Prediction
+  
+  # ── 防坍塌 (毕建模+曾均衡) ──
+  triplet_coeff: 2.0       # 三元组约束 (D vs H/A间距)
+  home_bias_thresh: 0.05   # 主胜偏置容忍
+  dals_coeff: 0.5          # 分布感知平滑
+  
+  # ── 训练 ──
+  learning_rate: 0.001
+  weight_decay: 0.00001
+  batch_size: 256
+  epochs: 50
+  early_stop_patience: 10
+  ema_tau: 0.996           # Target encoder EMA动量
+  
+  # ── 数据 ──
+  train_cutoff: "2023-01-01"
+  val_cutoff: "2024-01-01"
+  data_dir: "D:/Architecture v4.0/v5/data"
+  
+  # ── 集成 ──
+  stacking_weight: 0.08    # Phase 1初始权重 (荣合众)
+  feature_importance_threshold: 0.10  # Phase 2触发阈值
+  
+  # ── 推理 ──
+  device: "cpu"            # RTX 5070 Ti CUDA兼容问题
+  degradation: "full"      # full | no_drift | static_only
+  
+  # ── MoE Gate (Phase 2) ──
+  num_experts: 3           # Stacking / JEPA_World / JEPA_Upset
+  gate_dim: 13             # 门控特征维度

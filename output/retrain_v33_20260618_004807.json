@@ -1,0 +1,94 @@
+{
+  "timestamp": "20260618_004807",
+  "train_samples": 24729,
+  "val_samples": 8631,
+  "train_cutoff": "2023-01-01",
+  "lgb_params": null,
+  "xgb_params": null,
+  "best_meta": "Meta-LogisticReg",
+  "results": [
+    {
+      "name": "LightGBM",
+      "accuracy": 56.74,
+      "f1_h": 0.6862,
+      "f1_d": 0.1698,
+      "f1_a": 0.5905,
+      "macro_f1": 0.4822,
+      "auc": 0.7174
+    },
+    {
+      "name": "XGBoost",
+      "accuracy": 56.85,
+      "f1_h": 0.685,
+      "f1_d": 0.1694,
+      "f1_a": 0.5951,
+      "macro_f1": 0.4831,
+      "auc": 0.7204
+    },
+    {
+      "name": "Heuristic",
+      "accuracy": 49.28,
+      "f1_h": 0.6301,
+      "f1_d": 0.0,
+      "f1_a": 0.4237,
+      "macro_f1": 0.3513,
+      "auc": 0.5944
+    },
+    {
+      "name": "Stacking(Meta-LogisticReg)",
+      "accuracy": 57.39,
+      "f1_h": 0.6898,
+      "f1_d": 0.0933,
+      "f1_a": 0.5992,
+      "macro_f1": 0.4608,
+      "auc": 0.7239
+    },
+    {
+      "name": "WeightedAvg(0.4/0.35/0.25)",
+      "accuracy": 57.32,
+      "f1_h": 0.6905,
+      "f1_d": 0.1096,
+      "f1_a": 0.6002,
+      "macro_f1": 0.4668,
+      "auc": 0.7202
+    }
+  ],
+  "meta_comparison": [
+    {
+      "name": "Meta-LGBM(d=5)",
+      "accuracy": 46.73,
+      "f1_h": 0.5253,
+      "f1_d": 0.3739,
+      "f1_a": 0.5179,
+      "macro_f1": 0.4724,
+      "auc": 0.7019
+    },
+    {
+      "name": "Meta-LogisticReg",
+      "accuracy": 49.04,
+      "f1_h": 0.5594,
+      "f1_d": 0.3975,
+      "f1_a": 0.528,
+      "macro_f1": 0.4949,
+      "auc": 0.7137
+    },
+    {
+      "name": "Meta-LGBM(d=2)",
+      "accuracy": 45.86,
+      "f1_h": 0.4908,
+      "f1_d": 0.3924,
+      "f1_a": 0.5146,
+      "macro_f1": 0.466,
+      "auc": 0.7072
+    },
+    {
+      "name": "WeightedAvg",
+      "accuracy": 56.34,
+      "f1_h": 0.6763,
+      "f1_d": 0.0792,
+      "f1_a": 0.5932,
+      "macro_f1": 0.4496,
+      "auc": 0.7177
+    }
+  ]
+}
