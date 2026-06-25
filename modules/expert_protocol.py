@@ -23,6 +23,8 @@ from enum import Enum, auto
 from typing import Dict, List, Optional, Any, Set, Callable, Tuple
 from dataclasses import dataclass, field
 
+from utils.constants import DEFAULT_HOME_PROB, DEFAULT_DRAW_PROB, DEFAULT_AWAY_PROB
+
 logger = logging.getLogger(__name__)
 
 
@@ -455,7 +457,7 @@ class ExpertProtocol(abc.ABC):
         """构建降级预测"""
         return {
             'expert_id': self.meta.expert_id,
-            'prediction': {'home': 0.33, 'draw': 0.34, 'away': 0.33},
+            'prediction': {'home': DEFAULT_HOME_PROB, 'draw': DEFAULT_DRAW_PROB, 'away': DEFAULT_AWAY_PROB},
             'confidence': 0.1,
             'reasoning': f"[{self.meta.display_name}] 降级预测: {reason}",
             'execution_time_ms': 0.0,
@@ -559,7 +561,7 @@ class ExpertAdapter(ExpertProtocol):
             # 统一返回格式
             return {
                 'expert_id': self._expert_id,
-                'prediction': result.get('prediction', {'home': 0.33, 'draw': 0.34, 'away': 0.33}),
+                'prediction': result.get('prediction', {'home': DEFAULT_HOME_PROB, 'draw': DEFAULT_DRAW_PROB, 'away': DEFAULT_AWAY_PROB}),
                 'confidence': result.get('confidence', 0.5),
                 'reasoning': result.get('reasoning', ''),
                 'execution_time_ms': round(elapsed_ms, 2),
@@ -569,7 +571,7 @@ class ExpertAdapter(ExpertProtocol):
             elapsed_ms = (time.perf_counter() - start) * 1000
             return {
                 'expert_id': self._expert_id,
-                'prediction': {'home': 0.33, 'draw': 0.34, 'away': 0.33},
+                'prediction': {'home': DEFAULT_HOME_PROB, 'draw': DEFAULT_DRAW_PROB, 'away': DEFAULT_AWAY_PROB},
                 'confidence': 0.05,
                 'reasoning': f'Legacy agent error: {str(e)}',
                 'execution_time_ms': round(elapsed_ms, 2),

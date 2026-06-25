@@ -42,7 +42,7 @@ def get_setting(path: str, default: Any = None) -> Any:
     点号路径获取配置值
 
     Example:
-        get_setting('prediction.draw_threshold')  → 0.46
+        get_setting('prediction.draw_threshold')  → 0.32
         get_setting('scenarios.cup_group.draw_target_rate')  → 0.375
     """
     cfg = load_config()
@@ -86,7 +86,7 @@ def _default_config() -> Dict[str, Any]:
     """兜底默认配置 (保证配置加载失败时系统仍可运行)"""
     return {
         'global_switches': {'pure_v32_mode': False},
-        'prediction': {'draw_threshold': 0.46, 'ha_gap': 0.0},
+        'prediction': {'draw_threshold': 0.32, 'ha_gap': 0.0},
         'paths': {'project_root': '.', 'output_dir': 'output'},
         'server': {'host': '0.0.0.0', 'port': 8000},
     }

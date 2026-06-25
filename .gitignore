@@ -1,14 +1,43 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
-.venv/
+*.egg-info/
+dist/
+build/
+
+# 模型文件
+*.joblib
+*.pth
+*.pkl
+*.h5
+*.onnx
+
+# 数据和报告
 *.db
-*.db-journal
-*.backup*
+*.sqlite
+*.parquet
+*.npz
+
+# 环境
 .env
-.DS_Store
-blobs/
-clipboard-images/
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# WorkBuddy
 .workbuddy/
-logs/
-nul
+
+# 输出
+output/*.zip
+deliverables/*.zip
+
+# 备份
+*.bak
+*.backup
+*~

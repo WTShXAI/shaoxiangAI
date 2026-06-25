@@ -1,0 +1,575 @@
+{
+  "name": "shaoxiang-ai",
+  "version": "1.0.0",
+  "description": "ShaoxiangAI v5.2 — 33 specialists, unified entry, intelligent routing by Chief Architect",
+  "author": {
+    "name": "杜博弈",
+    "email": ""
+  },
+  "agents": [
+    "./agents/shaoxiang-ai-team-lead.md",
+    "./agents/ai-code-driver.md",
+    "./agents/ai-pm.md",
+    "./agents/ai-recorder.md",
+    "./agents/ai-strategist.md",
+    "./agents/ai-mathematician.md",
+    "./agents/ai-game-theorist.md",
+    "./agents/ai-architect.md",
+    "./agents/ai-data-scientist.md",
+    "./agents/ai-compliance.md",
+    "./agents/ai-algo-poisson.md",
+    "./agents/ai-algo-game.md",
+    "./agents/ai-algo-ensemble.md",
+    "./agents/ai-algo-temporal.md",
+    "./agents/ai-algo-math.md",
+    "./agents/ai-algo-draw.md",
+    "./agents/ai-train-trainer.md",
+    "./agents/ai-train-validator.md",
+    "./agents/ai-data-lead.md",
+    "./agents/ai-data-collector.md",
+    "./agents/ai-data-cleaner.md",
+    "./agents/ai-data-pipeline.md",
+    "./agents/ai-qa-reviewer.md",
+    "./agents/ai-qa-security.md",
+    "./agents/ai-qa-validator.md",
+    "./agents/ai-devops-lead.md",
+    "./agents/ai-train-ops.md",
+    "./agents/ai-qa-investigator.md",
+    "./agents/ai-design-lead.md",
+    "./agents/ai-design-discovery.md",
+    "./agents/ai-design-system.md",
+    "./agents/ai-design-prototype.md",
+    "./agents/ai-design-critique.md",
+    "./agents/ai-design-export.md"
+  ],
+  "expertType": "team",
+  "agentName": "shaoxiang-ai-team-lead",
+  "teamInfo": {
+    "leadAgent": "shaoxiang-ai-team-lead",
+    "memberAgents": [
+      "ai-code-driver",
+      "ai-pm",
+      "ai-recorder",
+      "ai-strategist",
+      "ai-mathematician",
+      "ai-game-theorist",
+      "ai-architect",
+      "ai-data-scientist",
+      "ai-compliance",
+      "ai-algo-poisson",
+      "ai-algo-game",
+      "ai-algo-ensemble",
+      "ai-algo-temporal",
+      "ai-algo-math",
+      "ai-algo-draw",
+      "ai-train-trainer",
+      "ai-train-validator",
+      "ai-data-lead",
+      "ai-data-collector",
+      "ai-data-cleaner",
+      "ai-data-pipeline",
+      "ai-qa-reviewer",
+      "ai-qa-security",
+      "ai-qa-validator",
+      "ai-devops-lead",
+      "ai-train-ops",
+      "ai-qa-investigator",
+      "ai-design-lead",
+      "ai-design-discovery",
+      "ai-design-system",
+      "ai-design-prototype",
+      "ai-design-critique",
+      "ai-design-export"
+    ]
+  },
+  "displayName": {
+    "en": "ShaoxiangAI v5.2",
+    "zh": "哨响AI"
+  },
+  "profession": {
+    "en": "ShaoxiangAI v5.2",
+    "zh": "哨响AI"
+  },
+  "displayDescription": {
+    "en": "33 experts: Commander+ThinkTank+Algorithm+Training+Data+QA+DevOps+Design+Knowledge. One entry, total control.",
+    "zh": "33位专家全栈协作：指挥官+智囊+算法+训练+数据+质检+DevOps+设计+知识官，一个入口，全局调度。"
+  },
+  "avatar": "avatars/expert.png",
+  "categoryId": "04-DataAI",
+  "plugin": "shaoxiang-ai",
+  "defaultInitPrompt": {
+    "zh": "哨响AI v5.2.14 就绪。需要做什么？",
+    "en": "ShaoxiangAI v5.2.14 ready."
+  },
+  "tags": [
+    {
+      "en": "Football AI",
+      "zh": "足球AI"
+    },
+    {
+      "en": "Multi-Agent",
+      "zh": "多专家协作"
+    },
+    {
+      "en": "Full Stack",
+      "zh": "全栈AI"
+    }
+  ],
+  "quickPrompts": [
+    {
+      "en": "Full match prediction with odds, D-Gate, and score distribution.",
+      "zh": "全链路预测：赔率分析+D-Gate+泊松比分"
+    },
+    {
+      "en": "Complete pre-launch audit: code+security+QA+compliance.",
+      "zh": "完整上线全检：代码+安全+QA+合规"
+    },
+    {
+      "en": "Analyze backtest issue and propose P0-P3 fix plan.",
+      "zh": "回测问题五视角分析+产出P0-P3方案"
+    }
+  ],
+  "members": [
+    {
+      "id": "shaoxiang-ai-team-lead",
+      "displayName": {
+        "en": "Chief",
+        "zh": "总工·赵统筹"
+      },
+      "profession": {
+        "en": "Chief Architect",
+        "zh": "首席架构师"
+      },
+      "role": "lead"
+    },
+    {
+      "id": "ai-code-driver",
+      "displayName": {
+        "en": "CodeDriver",
+        "zh": "工程·钱代驾"
+      },
+      "profession": {
+        "en": "Code Driver",
+        "zh": "代码代写·提示词工程"
+      },
+      "role": "member",
+      "department": "工程部"
+    },
+    {
+      "id": "ai-pm",
+      "displayName": {
+        "en": "PM",
+        "zh": "PM·孙策"
+      },
+      "profession": {
+        "en": "Product Manager",
+        "zh": "产品经理"
+      },
+      "role": "member",
+      "department": "指挥官"
+    },
+    {
+      "id": "ai-recorder",
+      "displayName": {
+        "en": "Knowledge",
+        "zh": "知识官·史为鉴"
+      },
+      "profession": {
+        "en": "Knowledge Officer",
+        "zh": "知识图谱官"
+      },
+      "role": "member",
+      "department": "资产层"
+    },
+    {
+      "id": "ai-strategist",
+      "displayName": {
+        "en": "Strategist",
+        "zh": "智囊·何执策"
+      },
+      "profession": {
+        "en": "Chief Strategist",
+        "zh": "首席策略官"
+      },
+      "role": "member",
+      "department": "智囊团"
+    },
+    {
+      "id": "ai-mathematician",
+      "displayName": {
+        "en": "Math",
+        "zh": "智囊·毕正验"
+      },
+      "profession": {
+        "en": "Mathematical Modeler",
+        "zh": "数学建模师"
+      },
+      "role": "member",
+      "department": "智囊团"
+    },
+    {
+      "id": "ai-game-theorist",
+      "displayName": {
+        "en": "GameTheory",
+        "zh": "智囊·渡庄生"
+      },
+      "profession": {
+        "en": "Game Theory Analyst",
+        "zh": "博弈分析师"
+      },
+      "role": "member",
+      "department": "智囊团"
+    },
+    {
+      "id": "ai-architect",
+      "displayName": {
+        "en": "Architect",
+        "zh": "智囊·费深谋"
+      },
+      "profession": {
+        "en": "System Architect",
+        "zh": "系统架构师"
+      },
+      "role": "member",
+      "department": "智囊团"
+    },
+    {
+      "id": "ai-data-scientist",
+      "displayName": {
+        "en": "DataSci",
+        "zh": "智囊·贾证数"
+      },
+      "profession": {
+        "en": "Data Scientist",
+        "zh": "数据科学家"
+      },
+      "role": "member",
+      "department": "智囊团"
+    },
+    {
+      "id": "ai-compliance",
+      "displayName": {
+        "en": "Compliance",
+        "zh": "风控·法如山"
+      },
+      "profession": {
+        "en": "Compliance Officer",
+        "zh": "风控合规官"
+      },
+      "role": "member",
+      "department": "大脑层"
+    },
+    {
+      "id": "ai-algo-poisson",
+      "displayName": {
+        "en": "Poisson",
+        "zh": "算法·季泊松"
+      },
+      "profession": {
+        "en": "JEPA Modeler",
+        "zh": "JEPA建模师"
+      },
+      "role": "member",
+      "department": "算法部"
+    },
+    {
+      "id": "ai-algo-game",
+      "displayName": {
+        "en": "OddsInv",
+        "zh": "算法·杜博弈"
+      },
+      "profession": {
+        "en": "Odds Inversion",
+        "zh": "赔率逆向"
+      },
+      "role": "member",
+      "department": "算法部"
+    },
+    {
+      "id": "ai-algo-ensemble",
+      "displayName": {
+        "en": "Ensemble",
+        "zh": "算法·荣合众"
+      },
+      "profession": {
+        "en": "Ensemble Expert",
+        "zh": "集成专家"
+      },
+      "role": "member",
+      "department": "算法部"
+    },
+    {
+      "id": "ai-algo-temporal",
+      "displayName": {
+        "en": "Temporal",
+        "zh": "算法·施时序"
+      },
+      "profession": {
+        "en": "Temporal Expert",
+        "zh": "时序专家"
+      },
+      "role": "member",
+      "department": "算法部"
+    },
+    {
+      "id": "ai-algo-math",
+      "displayName": {
+        "en": "Math",
+        "zh": "算法·毕建模"
+      },
+      "profession": {
+        "en": "Math Expert",
+        "zh": "数学专家"
+      },
+      "role": "member",
+      "department": "算法部"
+    },
+    {
+      "id": "ai-algo-draw",
+      "displayName": {
+        "en": "Draw",
+        "zh": "算法·曾均衡"
+      },
+      "profession": {
+        "en": "Draw Specialist",
+        "zh": "平局专家"
+      },
+      "role": "member",
+      "department": "算法部"
+    },
+    {
+      "id": "ai-train-trainer",
+      "displayName": {
+        "en": "Trainer",
+        "zh": "训练·训练师"
+      },
+      "profession": {
+        "en": "Model Trainer",
+        "zh": "模型训练师"
+      },
+      "role": "member",
+      "department": "训练部"
+    },
+    {
+      "id": "ai-train-validator",
+      "displayName": {
+        "en": "Validator",
+        "zh": "训练·验证师"
+      },
+      "profession": {
+        "en": "Validator",
+        "zh": "验证师"
+      },
+      "role": "member",
+      "department": "训练部"
+    },
+    {
+      "id": "ai-data-lead",
+      "displayName": {
+        "en": "DataLead",
+        "zh": "数据·数定规"
+      },
+      "profession": {
+        "en": "Data Architect",
+        "zh": "数据架构师"
+      },
+      "role": "member",
+      "department": "数据部"
+    },
+    {
+      "id": "ai-data-collector",
+      "displayName": {
+        "en": "Collector",
+        "zh": "数据·采集员"
+      },
+      "profession": {
+        "en": "Data Collector",
+        "zh": "数据采集员"
+      },
+      "role": "member",
+      "department": "数据部"
+    },
+    {
+      "id": "ai-data-cleaner",
+      "displayName": {
+        "en": "Cleaner",
+        "zh": "数据·清洗员"
+      },
+      "profession": {
+        "en": "Data Cleaner",
+        "zh": "数据清洗员"
+      },
+      "role": "member",
+      "department": "数据部"
+    },
+    {
+      "id": "ai-data-pipeline",
+      "displayName": {
+        "en": "Pipeline",
+        "zh": "数据·管道员"
+      },
+      "profession": {
+        "en": "Pipeline Engineer",
+        "zh": "管道工程师"
+      },
+      "role": "member",
+      "department": "数据部"
+    },
+    {
+      "id": "ai-qa-reviewer",
+      "displayName": {
+        "en": "Reviewer",
+        "zh": "质检·严审明"
+      },
+      "profession": {
+        "en": "Product Reviewer",
+        "zh": "产品官"
+      },
+      "role": "member",
+      "department": "质检部"
+    },
+    {
+      "id": "ai-qa-security",
+      "displayName": {
+        "en": "Security",
+        "zh": "质检·固安生"
+      },
+      "profession": {
+        "en": "Security Officer",
+        "zh": "安全卫士"
+      },
+      "role": "member",
+      "department": "质检部"
+    },
+    {
+      "id": "ai-qa-validator",
+      "displayName": {
+        "en": "QA",
+        "zh": "质检·测必过"
+      },
+      "profession": {
+        "en": "QA Validator",
+        "zh": "质量门神"
+      },
+      "role": "member",
+      "department": "质检部"
+    },
+    {
+      "id": "ai-devops-lead",
+      "displayName": {
+        "en": "DevOps",
+        "zh": "运维·稳如山"
+      },
+      "profession": {
+        "en": "DevOps Lead",
+        "zh": "运维负责人"
+      },
+      "role": "member",
+      "department": "DevOps部"
+    },
+    {
+      "id": "ai-train-ops",
+      "displayName": {
+        "en": "Ops",
+        "zh": "运维·运维师"
+      },
+      "profession": {
+        "en": "DevOps Engineer",
+        "zh": "运维工程师"
+      },
+      "role": "member",
+      "department": "DevOps部"
+    },
+    {
+      "id": "ai-qa-investigator",
+      "displayName": {
+        "en": "Debugger",
+        "zh": "运维·究根源"
+      },
+      "profession": {
+        "en": "Incident Responder",
+        "zh": "故障排障手"
+      },
+      "role": "member",
+      "department": "DevOps部"
+    },
+    {
+      "id": "ai-design-lead",
+      "displayName": {
+        "en": "DesignLead",
+        "zh": "设计·画统筹"
+      },
+      "profession": {
+        "en": "Design Lead",
+        "zh": "设计主理人"
+      },
+      "role": "member",
+      "department": "设计部"
+    },
+    {
+      "id": "ai-design-discovery",
+      "displayName": {
+        "en": "Discovery",
+        "zh": "设计·许明需"
+      },
+      "profession": {
+        "en": "Discovery Analyst",
+        "zh": "需求分析师"
+      },
+      "role": "member",
+      "department": "设计部"
+    },
+    {
+      "id": "ai-design-system",
+      "displayName": {
+        "en": "DesignSys",
+        "zh": "设计·彩格调"
+      },
+      "profession": {
+        "en": "Design System Expert",
+        "zh": "设计系统专家"
+      },
+      "role": "member",
+      "department": "设计部"
+    },
+    {
+      "id": "ai-design-prototype",
+      "displayName": {
+        "en": "Prototyper",
+        "zh": "设计·筑原型"
+      },
+      "profession": {
+        "en": "Prototype Builder",
+        "zh": "原型构建师"
+      },
+      "role": "member",
+      "department": "设计部"
+    },
+    {
+      "id": "ai-design-critique",
+      "displayName": {
+        "en": "Critiquer",
+        "zh": "设计·严过审"
+      },
+      "profession": {
+        "en": "Critique Reviewer",
+        "zh": "质量审查官"
+      },
+      "role": "member",
+      "department": "设计部"
+    },
+    {
+      "id": "ai-design-export",
+      "displayName": {
+        "en": "Exporter",
+        "zh": "设计·交付达"
+      },
+      "profession": {
+        "en": "Export Specialist",
+        "zh": "导出交付师"
+      },
+      "role": "member",
+      "department": "设计部"
+    }
+  ]
+}

@@ -13,6 +13,8 @@ import numpy as np
 import pandas as pd
 import sqlalchemy
 from sqlalchemy import create_engine, text
+
+from utils.constants import DEFAULT_DRAW_PROB
 from sqlalchemy.exc import SQLAlchemyError
 from typing import Optional, Dict
 
@@ -510,7 +512,7 @@ class PredictionService:
                 h_oe = d_oe = a_oe = None
                 if oe_out:
                     h_oe = oe_out.get('home', 0.33)
-                    d_oe = oe_out.get('draw', 0.34)
+                    d_oe = oe_out.get('draw', DEFAULT_DRAW_PROB)
                     a_oe = oe_out.get('away', 0.33)
                     # OE OOD检测: 近均匀分布→标记为无信号
                     oe_entropy = abs(max(h_oe, d_oe, a_oe) - min(h_oe, d_oe, a_oe))
@@ -988,7 +990,7 @@ class PredictionService:
             # ── Step 3: 先验注入 ──
             model_probs = {
                 'home': fusion.get('H', 0.33),
-                'draw': fusion.get('D', 0.34),
+                'draw': fusion.get('D', DEFAULT_DRAW_PROB),
                 'away': fusion.get('A', 0.33),
             }
             fused = _bayes_infer.inject_as_prior(result, model_probs, injection_strength)

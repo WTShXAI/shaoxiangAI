@@ -26,6 +26,8 @@ from enum import Enum
 from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Optional, Any, Tuple, Union
 
+from utils.constants import DEFAULT_HOME_PROB, DEFAULT_DRAW_PROB, DEFAULT_AWAY_PROB, DEFAULT_CONFIDENCE
+
 logger = logging.getLogger(__name__)
 
 
@@ -81,7 +83,7 @@ class ThreeWayProbability:
 
     @classmethod
     def from_dict(cls, d: Dict) -> "ThreeWayProbability":
-        return cls(home=float(d.get("home", 0.33)), draw=float(d.get("draw", 0.34)), away=float(d.get("away", 0.33)))
+        return cls(home=float(d.get("home", DEFAULT_HOME_PROB)), draw=float(d.get("draw", DEFAULT_DRAW_PROB)), away=float(d.get("away", DEFAULT_AWAY_PROB)))
 
 
 @dataclass
@@ -378,7 +380,7 @@ def create_simple_prediction(home: float, draw: float, away: float,
 def create_fallback_prediction(reason: str = "降级兜底") -> UnifiedPrediction:
     """创建降级兜底预测 (均匀分布)"""
     return UnifiedPrediction(
-        probability=ThreeWayProbability(home=0.33, draw=0.34, away=0.33),
+        probability=ThreeWayProbability(home=DEFAULT_HOME_PROB, draw=DEFAULT_DRAW_PROB, away=DEFAULT_AWAY_PROB),
         confidence=ConfidenceAssessment(overall=0.1, level="very_low"),
         reasoning=ReasoningChain(summary=f"降级预测: {reason}"),
         evidence=EvidencePackage(degradation_indicators=[reason]),
@@ -391,7 +393,7 @@ def create_from_v3_output(v3_output: Dict) -> UnifiedPrediction:
     return UnifiedPrediction(
         probability=ThreeWayProbability(
             home=float(pred.get("home", 0.33)),
-            draw=float(pred.get("draw", 0.34)),
+            draw=float(pred.get("draw", DEFAULT_DRAW_PROB)),
             away=float(pred.get("away", 0.33)),
         ),
         confidence=ConfidenceAssessment(

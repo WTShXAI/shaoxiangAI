@@ -1,0 +1,23 @@
+{
+  "total_experiments": 8,
+  "improved_count": 8,
+  "last_updated": "2026-06-19T10:05:57.684088",
+  "best": {
+    "accuracy": {
+      "value": 0.375,
+      "experiment": "Draw阈值优化"
+    },
+    "draw_f1": {
+      "value": 0.3,
+      "experiment": "Draw阈值优化"
+    },
+    "brier": {
+      "value": 0.26,
+      "experiment": "阈值0.40"
+    },
+    "composite": {
+      "value": 0.14,
+      "experiment": "阈值0.48"
+    }
+  }
+}

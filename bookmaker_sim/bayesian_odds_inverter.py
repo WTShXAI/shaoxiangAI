@@ -179,8 +179,8 @@ def odds_to_probs_vector(odds_h: float, odds_d: float, odds_a: float,
         try:
             z_opt = float(fsolve(shin_eq, z0, maxfev=100)[0])
             z_opt = np.clip(z_opt, 0.0, 0.5)
-        except Exception:
-            z_opt = 0.0
+        except (ValueError, RuntimeError):
+            z_opt = 0.0  # fsolve 未收敛, 回退均匀抽水
 
         adjusted = np.sqrt(z_opt + (1 - z_opt) * raw)
         return adjusted / adjusted.sum()
@@ -515,8 +515,8 @@ class BayesianOddsInverter:
                 lam_h_ests.append(lam_h)
                 lam_a_ests.append(lam_a)
                 rho_ests.append(rho)
-            except Exception:
-                continue
+            except (ValueError, RuntimeError):
+                continue  # 数值求解除外, 跳过该样本
 
         if len(lam_h_ests) < 100:
             logger.warning(f"经验先验估计样本不足: {len(lam_h_ests)}")
@@ -645,8 +645,8 @@ class BayesianOddsInverter:
                 lam_h_std, lam_a_std, rho_std = stds[0], stds[1], stds[2]
             else:
                 lam_h_std = lam_a_std = rho_std = 0.5  # 退化情况
-        except Exception:
-            lam_h_std = lam_a_std = rho_std = 0.5
+        except (ValueError, RuntimeError):
+            lam_h_std = lam_a_std = rho_std = 0.5  # Hessian奇异, 退化
 
         # 后验预测: 从 Laplace 近似采样
         n_samples = 1000
@@ -1128,5 +1128,7 @@ if __name__ == "__main__":
     try:
         inv2 = BayesianOddsInverter("data/football_data.db")
         inv2.set_empirical_prior_from_db(sample_size=10000)
+    except ImportError:
+        print("  数据库模块未安装, 使用默认先验")
     except Exception as e:
         print(f"  数据库不可用 ({e}), 使用默认先验")

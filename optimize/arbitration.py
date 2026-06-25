@@ -27,6 +27,8 @@ import time
 import math
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
+
+from utils.constants import DEFAULT_HOME_PROB, DEFAULT_DRAW_PROB, DEFAULT_AWAY_PROB
 from datetime import datetime
 from collections import defaultdict
 from enum import Enum
@@ -359,7 +361,7 @@ class WeightedVoteArbiter:
             for i, ballot in enumerate(valid_ballots):
                 norm_w = raw_weights[i] / sum_raw
                 exp_weight = self.EXPERT_TOTAL_WEIGHT * norm_w * (0.5 + 0.5 * ballot.get('confidence', 0.5))
-                pred = ballot.get('prediction', {'home': 0.33, 'draw': 0.34, 'away': 0.33})
+                pred = ballot.get('prediction', {'home': DEFAULT_HOME_PROB, 'draw': DEFAULT_DRAW_PROB, 'away': DEFAULT_AWAY_PROB})
                 voters.append((pred, exp_weight, f"Expert:{ballot.get('expert_id', '?')}"))
                 total_expert_weight += exp_weight
         else:
@@ -377,7 +379,7 @@ class WeightedVoteArbiter:
 
         # ── 投票源4: 额外信号 ──
         for av in (additional_voters or []):
-            av_pred = av.get('prediction', {'home': 0.33, 'draw': 0.34, 'away': 0.33})
+            av_pred = av.get('prediction', {'home': DEFAULT_HOME_PROB, 'draw': DEFAULT_DRAW_PROB, 'away': DEFAULT_AWAY_PROB})
             av_weight = av.get('weight', 0.05)
             voters.append((av_pred, av_weight, av.get('name', 'ExtraVoter')))
 
@@ -551,7 +553,7 @@ class MetaLearningArbiter:
                     # 集成模型预测
                     ensemble_probs = {
                         'home': float(row['home_prob'] or 0.33),
-                        'draw': float(row['draw_prob'] or 0.34),
+                        'draw': float(row['draw_prob'] or DEFAULT_DRAW_PROB),
                         'away': float(row['away_prob'] or 0.33),
                     }
                     ensemble_outcome = max(ensemble_probs, key=ensemble_probs.get)
@@ -777,7 +779,7 @@ class ArbitrationEngine:
         except AttributeError:
             # 兼容 dict
             expert_prediction = expert_vote_result.get('prediction',
-                                                       {'home': 0.33, 'draw': 0.34, 'away': 0.33})
+                                                       {'home': DEFAULT_HOME_PROB, 'draw': DEFAULT_DRAW_PROB, 'away': DEFAULT_AWAY_PROB})
             expert_outcome = expert_vote_result.get('predicted_outcome', 'draw')
             expert_conf = expert_vote_result.get('confidence', 0.5)
             expert_ballots = expert_vote_result.get('ballots', [])

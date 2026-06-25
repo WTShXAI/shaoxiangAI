@@ -54,6 +54,7 @@ from modules.output_schema import (
     create_from_v3_output, TerminologyInjector, SchemaValidator,
 )
 from knowledge_base import KnowledgeBase, get_knowledge_base
+from utils.constants import DEFAULT_HOME_PROB, DEFAULT_DRAW_PROB, DEFAULT_AWAY_PROB, DEFAULT_CONFIDENCE
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -114,7 +115,7 @@ class OrchestrationResult:
         """纯 v3.2 兼容输出 (去掉 v4.0 增强层)"""
         if self.prediction:
             return self.prediction.to_v3_compat()
-        return {"prediction": {"home": 0.33, "draw": 0.34, "away": 0.33}, "confidence": 0.1}
+        return {"prediction": {"home": DEFAULT_HOME_PROB, "draw": DEFAULT_DRAW_PROB, "away": DEFAULT_AWAY_PROB}, "confidence": DEFAULT_CONFIDENCE}
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -253,8 +254,20 @@ class PredictionOrchestratorV4:
                 self._ensure_terminology()
                 self._inject_terminology(result.prediction, result.collaboration_mode)
 
+        except ImportError as e:
+            logger.warning(f"[V4 Orchestrator] 模块缺失, 降级: {e}")
+            result.fallback_triggered = True
+            result.fallback_reason = f"import:{e}"
+            result.errors.append(str(e))
+            result.prediction = create_fallback_prediction(f"模块缺失: {e}")
+        except (ValueError, RuntimeError, TypeError) as e:
+            logger.error(f"[V4 Orchestrator] 预测失败: {e}", exc_info=True)
+            result.fallback_triggered = True
+            result.fallback_reason = str(e)
+            result.errors.append(str(e))
+            result.prediction = create_fallback_prediction(f"v4.0 编排异常: {e}")
         except Exception as e:
-            logger.error(f"[V4 Orchestrator] 预测失败: {e}")
+            logger.critical(f"[V4 Orchestrator] 未预期错误: {e}", exc_info=True)
             result.fallback_triggered = True
             result.fallback_reason = str(e)
             result.errors.append(str(e))
@@ -373,8 +386,10 @@ class PredictionOrchestratorV4:
 
         except ImportError:
             logger.debug("PredictionService 不可用")
+        except (ValueError, RuntimeError, TypeError) as e:
+            logger.warning(f"PredictionService 调用失败: {e}")
         except Exception as e:
-            logger.debug(f"PredictionService: {e}")
+            logger.error(f"PredictionService 意外错误: {e}", exc_info=True)
 
         # 降级: 从赔率反推概率
         if odds and all(k in odds for k in ["home", "draw", "away"]):
@@ -464,8 +479,12 @@ class PredictionOrchestratorV4:
             # 存储完整报告到 result (供 API 消费)
             result.__dict__['odds_deep_report'] = report.to_dict()
 
+        except ImportError as e:
+            logger.warning(f"赔率分析 模块缺失: {e}")
+        except (ValueError, RuntimeError) as e:
+            logger.error(f"赔率深度分析失败: {e}")
         except Exception as e:
-            logger.warning(f"赔率深度分析失败: {e}")
+            logger.error(f"赔率分析 意外错误: {e}", exc_info=True)
 
     def _run_draw_upset(self, result: OrchestrationResult,
                         home_team: str, away_team: str,
@@ -509,8 +528,12 @@ class PredictionOrchestratorV4:
 
             result.__dict__['draw_upset_report'] = report.to_dict()
 
+        except ImportError as e:
+            logger.warning(f"Draw/Upset 模块缺失: {e}")
+        except (ValueError, RuntimeError) as e:
+            logger.error(f"平局/冷门分析失败: {e}")
         except Exception as e:
-            logger.warning(f"平局/冷门分析失败: {e}")
+            logger.error(f"Draw分析 意外错误: {e}", exc_info=True)
 
     # ═══════════════════════════════════════════════════════════
     # P3 自主进化方法
@@ -523,6 +546,8 @@ class PredictionOrchestratorV4:
             from modules.auto_optimizer import get_optimizer
             opt = get_optimizer()
             opt.record_result(h_prob, d_prob, a_prob, actual)
+        except ImportError:
+            pass  # P3模块未就绪, 静默跳过
         except Exception as e:
             logger.warning(f"记录预测结果失败: {e}")
 
@@ -531,6 +556,8 @@ class PredictionOrchestratorV4:
         try:
             from modules.auto_optimizer import get_optimizer
             return get_optimizer().status_summary()
+        except ImportError:
+            return {"health": "p3_unavailable", "error": "auto_optimizer 模块未就绪"}
         except Exception as e:
             return {"health": "unknown", "error": str(e)}
 
@@ -539,6 +566,8 @@ class PredictionOrchestratorV4:
         try:
             from modules.auto_optimizer import get_optimizer
             get_optimizer().set_feature_baseline(stats, importance)
+        except ImportError:
+            pass  # P3模块未就绪, 静默跳过
         except Exception as e:
             logger.warning(f"设置特征基线失败: {e}")
 
@@ -564,6 +593,8 @@ class PredictionOrchestratorV4:
                 logger.info(f"知识库需更新: {len(changes['changes'])}项变化")
                 for s in changes["suggestions"]:
                     logger.info(s)
+        except ImportError:
+            pass  # P4模块未就绪, 静默跳过
         except Exception as e:
             logger.warning(f"知识库更新失败: {e}")
 
@@ -573,6 +604,9 @@ class PredictionOrchestratorV4:
         try:
             from modules.p4_enhancement import get_transfer
             return get_transfer().adapt(h_prob, d_prob, a_prob, league)
+        except ImportError:
+            logger.debug("P4联赛适配器未就绪, 返回原概率")
+            return h_prob, d_prob, a_prob, 1.0
         except Exception as e:
             logger.warning(f"联赛适配失败: {e}")
             return h_prob, d_prob, a_prob, 1.0

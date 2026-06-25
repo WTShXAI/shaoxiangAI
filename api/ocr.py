@@ -5,7 +5,7 @@
 端点: POST /api/v1/ocr/upload
 """
 
-import base64, hashlib, hmac, logging
+import base64, hashlib, hmac, logging, os
 from datetime import datetime, timezone
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from urllib.parse import urlencode
@@ -14,9 +14,12 @@ import requests
 logger = logging.getLogger("OCR")
 ocr_router = APIRouter()
 
-AK = "AKLTN2FkMmY5NmNlZDVkNDNjZTgwMTFiNjBkNWY2ZTk1MjA"
-SK = "T0RJMllqZGlOakk1TW1Gak5HTmlaV0l5T0RjelptTmxZbVJsTW1Fek16SQ=="
+# OCR 凭据从环境变量读取（.env 或系统环境），不再硬编码
+AK = os.getenv("OCR_AK", "")
+SK = os.getenv("OCR_SK", "")
 HOST = "visual.volcengineapi.com"
+if not AK or not SK:
+    logger.warning("OCR_AK/OCR_SK 环境变量未设置，OCR 功能将不可用")
 REGION = "cn-north-1"
 SERVICE = "cv"
 API_VERSION = "2020-08-26"

@@ -33,11 +33,11 @@ def get_active_version() -> str:
         path = _get_registry_path()
         with open(path, "r", encoding="utf-8") as f:
             registry = json.load(f)
-        return registry.get("active", "3.2")
+        return registry.get("active", "4.1")
     except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
         import logging
         logging.getLogger(__name__).warning(f"读取 model_registry.json 失败: {e}")
-        return "3.2"
+        return "4.1"
 
 
 def get_active_model_version() -> str:

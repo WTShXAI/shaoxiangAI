@@ -194,6 +194,9 @@ class OddsDeepAnalyzer:
             try:
                 from bookmaker_sim.margin_likelihood_bridge import BookmakerBayesInfer
                 self._bayes_infer = BookmakerBayesInfer()
+            except ImportError:
+                logger.debug("BookmakerBayesInfer 模块未安装")
+                self._bayes_infer = None
             except Exception as e:
                 logger.warning(f"BookmakerBayesInfer 不可用: {e}")
                 self._bayes_infer = None
@@ -202,6 +205,9 @@ class OddsDeepAnalyzer:
             try:
                 from bookmaker_sim.bookmaker_trap_detector import BookmakerTrapDetector
                 self._trap_detector = BookmakerTrapDetector()
+            except ImportError:
+                logger.debug("BookmakerTrapDetector 模块未安装")
+                self._trap_detector = None
             except Exception as e:
                 logger.warning(f"BookmakerTrapDetector 不可用: {e}")
                 self._trap_detector = None
@@ -210,6 +216,9 @@ class OddsDeepAnalyzer:
             try:
                 from bookmaker_sim.harvesting_guard import HarvestingGuard
                 self._harvesting_guard = HarvestingGuard()
+            except ImportError:
+                logger.debug("HarvestingGuard 模块未安装")
+                self._harvesting_guard = None
             except Exception as e:
                 logger.warning(f"HarvestingGuard 不可用: {e}")
                 self._harvesting_guard = None
@@ -282,6 +291,7 @@ class OddsDeepAnalyzer:
 
     def _analyze_implied_probs(self, h: float, d: float, a: float) -> ImpliedProbabilityBreakdown:
         """隐含概率分解 — 比例法 + 贝叶斯校正"""
+        # SEE: bookmaker_sim.bayesian_odds_inverter.odds_to_probs_vector() — canonical impl
         # L1: 比例法
         inv_sum = 1.0/h + 1.0/d + 1.0/a
         raw = {"home": (1.0/h)/inv_sum, "draw": (1.0/d)/inv_sum, "away": (1.0/a)/inv_sum}
@@ -306,8 +316,12 @@ class OddsDeepAnalyzer:
                     total = sum(corrected.values())
                     corrected = {k: v/total for k, v in corrected.items()}
                     correction_magnitude = abs(corrected["draw"] - raw["draw"])
-            except Exception as e:
+            except ImportError:
+                logger.debug("Bayes inference module not loaded")
+            except (ValueError, RuntimeError) as e:
                 logger.debug(f"Bayes correction skipped: {e}")
+            except Exception as e:
+                logger.warning(f"Bayes correction failed: {e}")
 
         return ImpliedProbabilityBreakdown(
             raw_implied=raw, bayes_corrected=corrected,

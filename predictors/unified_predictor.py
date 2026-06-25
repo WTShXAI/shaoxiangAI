@@ -557,6 +557,8 @@ class UnifiedPredictor:
 
         de_path = os.path.join(ROOT, 'models', 'draw_expert', 'draw_expert_v1.joblib')
         if not os.path.exists(de_path):
+            de_path = os.path.join(ROOT, 'saved_models', 'draw_expert_v1.joblib')
+        if not os.path.exists(de_path):
             de_path = os.path.join(FOOTBALLAI_ROOT, 'saved_models', 'draw_expert_v1.joblib')
 
         if os.path.exists(de_path):

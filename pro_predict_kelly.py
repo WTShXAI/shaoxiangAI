@@ -8,7 +8,12 @@ import numpy as np
 from pathlib import Path
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ROOT)
-sys.path.insert(0, r"D:\AI\footballAI")
+# 优先环境变量, fallback 到已知路径
+_fai = os.environ.get('FOOTBALLAI_ROOT', '')
+if _fai and os.path.isdir(_fai):
+    sys.path.insert(0, _fai)
+else:
+    sys.path.insert(0, ROOT)  # 自给自足
 import joblib
 
 # ============================================================

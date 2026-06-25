@@ -8,6 +8,8 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query, Depends, Response
 from pydantic import BaseModel, Field, field_validator
 
+from utils.constants import DEFAULT_HOME_PROB, DEFAULT_DRAW_PROB, DEFAULT_AWAY_PROB
+
 from api.deps import get_current_user
 
 # 懒加载 — agents 包不可用时整个 predictions.py 仍能加载
@@ -534,7 +536,7 @@ async def predict_v4(request: V4PredictRequest):
             home_team=request.home_team,
             away_team=request.away_team,
             league=request.league,
-            probabilities=probs.to_dict() if probs else {"home": 0.33, "draw": 0.34, "away": 0.33},
+            probabilities=probs.to_dict() if probs else {"home": DEFAULT_HOME_PROB, "draw": DEFAULT_DRAW_PROB, "away": DEFAULT_AWAY_PROB},
             top_pick=probs.top_prediction() if probs else "D",
             confidence=pred.confidence.overall if pred else 0.1,
             collaboration_mode=result.collaboration_mode,
@@ -661,7 +663,7 @@ async def v4_backtest(request: BacktestRequest):
             analysis = pm.analyze(
                 home, away, league, actual,
                 h_prob=probs.home if probs else 0.33,
-                d_prob=probs.draw if probs else 0.34,
+                d_prob=probs.draw if probs else DEFAULT_DRAW_PROB,
                 a_prob=probs.away if probs else 0.33,
                 odds=odds,
             )

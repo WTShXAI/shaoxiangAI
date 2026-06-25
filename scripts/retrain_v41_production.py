@@ -1,6 +1,9 @@
 """
-FootballAI v4.1 Production 模型生成
-====================================
+LEGACY: FootballAI v4.1 Production 模型生成
+============================================
+v5.2.14 状态: GBDT(LGBM/XGBoost)已被 JEPA v5.0 替代为主动擎。
+此脚本保留用于基线对比和回归测试, 不应作为生产训练管线。
+
 基于 retrain_meta_v40 脚本, 应用 v4.1 优化配置:
   - DrawExpert 强度: ×0.25 (v4.0 是 ×1.0)
   - Draw 类别权重: ×1.10 (v4.0 是 ×1.3)
@@ -13,13 +16,23 @@ import numpy as np
 from datetime import datetime
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
-from lightgbm import LGBMClassifier
-from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier  # LEGACY
+from xgboost import XGBClassifier    # LEGACY
 from sklearn.utils.class_weight import compute_class_weight
 import joblib
 import pandas as pd
 
-ROOT = r"D:\AI\footballAI"
+from utils.constants import DEFAULT_DRAW_PROB
+
+# 路径解析: 优先环境变量, fallback 自动检测
+_arch_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_fai_env = os.environ.get('FOOTBALLAI_ROOT', '')
+_fai_candidates = [
+    _fai_env,
+    os.path.join(os.path.dirname(_arch_root), 'footballAI'),
+    r'D:\AI\footballAI',
+]
+ROOT = next((p for p in _fai_candidates if p and os.path.isdir(p)), _arch_root)
 sys.path.insert(0, ROOT)
 os.environ.setdefault('PROJECT_ROOT', ROOT)
 
@@ -63,8 +76,10 @@ def main():
         try:
             trainer.load_nn_model(nn_path)
             logger.info("  NN 模型已加载")
-        except Exception:
-            logger.warning("  NN 加载失败，跳过")
+        except (ImportError, FileNotFoundError):
+            logger.warning("  NN 模型文件不可用, 跳过")
+        except RuntimeError as e:
+            logger.warning(f"  NN 加载失败: {e}, 跳过")
 
     # ─── 步骤2: 加载 DrawExpert ───
     logger.info("步骤2: 加载 DrawExpert")
@@ -79,8 +94,9 @@ def main():
     logger.info("步骤3: 加载数据 + 时间切分")
     df = trainer.load_training_data()
     df['match_date'] = pd.to_datetime(df['match_date'])
-    df['final_result'] = df.apply(lambda r: 'H' if r['home_score'] > r['away_score']
-                                  else ('A' if r['home_score'] < r['away_score'] else 'D'), axis=1)
+    _hs = df['home_score'].values
+    _as = df['away_score'].values
+    df['final_result'] = np.where(_hs > _as, 'H', np.where(_hs < _as, 'A', 'D'))
 
     train_mask = df['match_date'] < TRAIN_CUTOFF
     oof_mask = df['match_date'] >= TRAIN_CUTOFF
@@ -152,8 +168,8 @@ def main():
         try:
             p = trainer._heuristic_predict_proba(X_oof_raw[i].reshape(1, -1))
             proba_heuristic_oof[i] = p[0]
-        except Exception:
-            proba_heuristic_oof[i] = [0.33, 0.34, 0.33]
+        except (ValueError, RuntimeError, AttributeError):
+            proba_heuristic_oof[i] = [DEFAULT_HOME_PROB, DEFAULT_DRAW_PROB, DEFAULT_AWAY_PROB]
 
     if oe_model is not None:
         X_oe_oof = df_oof[oe_cols_in_df].fillna(0).values.astype(np.float64)
@@ -182,7 +198,11 @@ def main():
     ])
 
     # 🔴 v4.1: DrawExpert P(Draw) ×0.25 衰减
-    de_pdraw = np.ones((len(df_oof), 1)) * 0.25
+    # fallback: 优先使用全局平局率, 否则用 DEFAULT_DRAW_PROB
+    _global_dr = getattr(trainer, 'global_d_rate',
+                getattr(trainer, 'config', {}).get('league_draw_prior', {}).get('global_d_rate',
+                DEFAULT_DRAW_PROB))
+    de_pdraw = np.ones((len(df_oof), 1)) * _global_dr
     if has_full_de:
         draw_expert = DrawExpert.load(de_model_path)
         de_scaler = joblib.load(de_scaler_path) if os.path.exists(de_scaler_path) else None
@@ -201,7 +221,7 @@ def main():
         de_pdraw = aligned * V41_CONFIG['draw_expert_mult']  # 🔴 ×0.25
         logger.info(f"  DrawExpert P(Draw) mean={de_pdraw.mean():.4f} (×{V41_CONFIG['draw_expert_mult']})")
     else:
-        logger.warning(f"  DrawExpert OOF 缺失, 使用默认 0.25")
+        logger.warning(f"  DrawExpert OOF 缺失, 使用全局平局率 {_global_dr:.3f}")
 
     # Key features
     key_feats = []
@@ -306,8 +326,8 @@ def main():
         try:
             p = trainer._heuristic_predict_proba(X_test_s[i].reshape(1, -1))
             proba_heur_test[i] = p[0]
-        except Exception:
-            proba_heur_test[i] = [0.33, 0.34, 0.33]
+        except (ValueError, RuntimeError, AttributeError):
+            proba_heur_test[i] = [DEFAULT_HOME_PROB, DEFAULT_DRAW_PROB, DEFAULT_AWAY_PROB]
 
     if oe_model is not None:
         oe_cols_test = [c for c in oe_cols_in_df if c in df_test.columns]
@@ -325,7 +345,7 @@ def main():
     else:
         proba_nn_test = np.ones((len(X_test_s), 3)) / 3
 
-    de_pdraw_test = np.ones((len(X_test_s), 1)) * 0.25
+    de_pdraw_test = np.ones((len(X_test_s), 1)) * _global_dr
 
     w_sum = 0.35 + 0.35 + 0.175 + 0.125
     proba_weighted = (0.35*proba_xgb_test + 0.35*proba_lgb_test +

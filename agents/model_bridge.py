@@ -11,6 +11,8 @@ import yaml
 import numpy as np
 import joblib
 
+from utils.constants import DEFAULT_HOME_PROB, DEFAULT_DRAW_PROB, DEFAULT_AWAY_PROB
+
 logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = os.environ.get(
@@ -188,7 +190,7 @@ class ModelBridge:
                         logger.warning(f"输入特征维度偏低补零: {X.shape[1]} → {n_feats}")
                         X = np.hstack([X, np.zeros((X.shape[0], n_feats - X.shape[1]))])
                 else:
-                    return {"home": 0.33, "draw": 0.34, "away": 0.33}
+                    return {"home": DEFAULT_HOME_PROB, "draw": DEFAULT_DRAW_PROB, "away": DEFAULT_AWAY_PROB}
 
                 # 标准化
                 if self._trainer.scaler is not None:
@@ -212,7 +214,7 @@ class ModelBridge:
 
         except Exception as e:
             logger.error(f"模型预测失败: {e}", exc_info=True)
-            return {"home": 0.33, "draw": 0.34, "away": 0.33}
+            return {"home": DEFAULT_HOME_PROB, "draw": DEFAULT_DRAW_PROB, "away": DEFAULT_AWAY_PROB}
 
     def _legacy_predict(self, features, odds_data=None) -> dict:
         """旧版轻量预测（EnsembleTrainer 不可用时的 fallback）"""
@@ -232,11 +234,11 @@ class ModelBridge:
             elif X.shape[1] < n_feats:
                 X = np.hstack([X, np.zeros((X.shape[0], n_feats - X.shape[1]))])
         else:
-            return {"home": 0.33, "draw": 0.34, "away": 0.33}
+            return {"home": DEFAULT_HOME_PROB, "draw": DEFAULT_DRAW_PROB, "away": DEFAULT_AWAY_PROB}
 
-        xgb_p = self._xgb.predict_proba(X)[0] if self._xgb else np.array([0.33, 0.34, 0.33])
-        lgb_p = self._lgb.predict_proba(X)[0] if self._lgb else np.array([0.33, 0.34, 0.33])
-        oe_p = np.array([0.33, 0.34, 0.33])
+        xgb_p = self._xgb.predict_proba(X)[0] if self._xgb else np.array([DEFAULT_HOME_PROB, DEFAULT_DRAW_PROB, DEFAULT_AWAY_PROB])
+        lgb_p = self._lgb.predict_proba(X)[0] if self._lgb else np.array([DEFAULT_HOME_PROB, DEFAULT_DRAW_PROB, DEFAULT_AWAY_PROB])
+        oe_p = np.array([DEFAULT_HOME_PROB, DEFAULT_DRAW_PROB, DEFAULT_AWAY_PROB])
         if odds_data and self._oe:
             try:
                 oe_vec = np.array([float(odds_data.get(k, 0)) for k in self._odds_feature_names]).reshape(1, -1)

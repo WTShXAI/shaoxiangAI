@@ -399,10 +399,10 @@ models:
     storage_path: saved_models/elo_ratings.json
   ensemble:
     heuristic_weight: 0.27
-    lightgbm_weight: 0.18
+    lightgbm_weight: 0.18        # LEGACY v4.1 — 保留用于基线对比
     odds_expert_weight: 0.23
-    ridge_weight: 0.05
-    xgboost_weight: 0.18
+    ridge_weight: 0.05           # LEGACY v4.1 — 保留用于基线对比
+    xgboost_weight: 0.18         # LEGACY v4.1 — 保留用于基线对比
     neural_net_weight: 0.09
   league_draw_prior:
     enabled: true
@@ -418,6 +418,7 @@ models:
       Premier League: 0.244
       Primeira Liga: 0.264
       Serie A: 0.281
+  # LEGACY: v5.2.14 JEPA v5.0 已替代 GBDT, 此配置仅用于 v4.1 基线对比
   lightgbm:
     boosting_type: gbdt
     colsample_bytree: 0.8
@@ -527,6 +528,7 @@ models:
     enabled: true
     home_advantage_factor: 1.08
     jitter_range: 0.15
+  # LEGACY: v5.2.14 JEPA v5.0 已替代 GBDT, 此配置仅用于 v4.1 基线对比
   xgboost:
     colsample_bytree: 0.8
     early_stopping_rounds: 50

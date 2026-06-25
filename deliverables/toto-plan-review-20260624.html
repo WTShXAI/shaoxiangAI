@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>体彩方案审核 | 哨响AI v5.2.14 | 6月24日</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background:#0d1117; color:#c9d1d9; padding:20px; }
+.container { max-width:1100px; margin:0 auto; }
+.header { text-align:center; padding:30px 0; border-bottom:1px solid #21262d; margin-bottom:30px; }
+.header h1 { font-size:26px; color:#e6edf3; margin-bottom:6px; }
+.header .sub { font-size:14px; color:#8b949e; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(500px,1fr)); gap:20px; }
+.card { background:#161b22; border:1px solid #21262d; border-radius:10px; padding:22px; }
+.card.risk-high { border-left:4px solid #f85149; }
+.card.risk-med { border-left:4px solid #d29922; }
+.card.risk-low { border-left:4px solid #3fb950; }
+.card .match-id { font-size:12px; color:#484f58; margin-bottom:2px; }
+.card .teams { font-size:18px; font-weight:700; color:#e6edf3; margin-bottom:4px; }
+.card .bet-info { display:flex; gap:12px; align-items:center; margin-bottom:8px; }
+.card .bet-info .label { font-size:12px; color:#8b949e; }
+.card .bet-info .pick { font-size:15px; font-weight:700; padding:2px 10px; border-radius:4px; }
+.card .pick.red { background:#f8514920; color:#f85149; }
+.card .pick.yellow { background:#d2992220; color:#d29922; }
+.card .pick.green { background:#3fb95020; color:#3fb950; }
+.card .pick.blue { background:#58a6ff20; color:#58a6ff; }
+.card .odds { font-size:14px; font-weight:600; color:#e6edf3; }
+.card .verdict { font-size:15px; margin:8px 0; padding:10px; background:#0d1117; border-radius:6px; }
+.card .verdict .v-label { color:#8b949e; font-size:12px; }
+.card .verdict .v-value { font-size:20px; font-weight:700; }
+.card .verdict .v-mode { font-size:12px; padding:1px 6px; border-radius:3px; margin-left:8px; }
+.card .verdict .v-mode.C { background:#f8514920; color:#f85149; }
+.card .verdict .v-mode.normal { background:#3fb95020; color:#3fb950; }
+.card .verdict .v-mode.default { background:#d2992220; color:#d29922; }
+.card .scores { display:flex; gap:10px; margin:8px 0; flex-wrap:wrap; }
+.card .scores span { padding:4px 12px; background:#21262d; border-radius:6px; font-size:14px; font-family:monospace; }
+.card .scores span.top1 { background:#3fb95020; border:1px solid #3fb95060; color:#3fb950; }
+.card .context { margin:10px 0; padding:10px; background:#0d1117; border-radius:6px; font-size:13px; line-height:1.6; }
+.card .context .ctx-label { color:#58a6ff; font-weight:600; }
+.card .signals { margin:8px 0; }
+.card .signal-item { font-size:12px; padding:3px 8px; margin:2px 0; border-radius:4px; background:#21262d; display:inline-block; margin-right:4px; }
+.card .risk-tag { display:inline-block; font-size:16px; padding:6px 16px; border-radius:6px; font-weight:700; margin:10px 0; }
+.card .risk-tag.high { background:#f8514920; color:#f85149; border:1px solid #f8514960; }
+.card .risk-tag.med { background:#d2992220; color:#d29922; border:1px solid #d2992260; }
+.card .risk-tag.low { background:#3fb95020; color:#3fb950; border:1px solid #3fb95060; }
+.summary { background:#161b22; border:1px solid #21262d; border-radius:10px; padding:24px; margin-top:24px; }
+.summary h2 { font-size:20px; color:#e6edf3; margin-bottom:16px; }
+.summary table { width:100%; border-collapse:collapse; font-size:14px; }
+.summary th { text-align:left; padding:8px 12px; border-bottom:1px solid #21262d; color:#8b949e; font-weight:500; }
+.summary td { padding:10px 12px; border-bottom:1px solid #21262d20; }
+.summary .risk-dot { width:12px; height:12px; border-radius:50%; display:inline-block; margin-right:6px; }
+.summary .risk-dot.red { background:#f85149; }
+.summary .risk-dot.yellow { background:#d29922; }
+.summary .risk-dot.green { background:#3fb950; }
+.conclusion { background:linear-gradient(135deg,#1a1a2e,#16213e); border:1px solid #30363d; border-radius:10px; padding:24px; margin-top:24px; }
+.conclusion h2 { font-size:20px; color:#e6edf3; margin-bottom:12px; }
+.conclusion .advice { padding:16px; background:#0d1117; border-radius:8px; line-height:1.8; }
+.footer { text-align:center; padding:20px; color:#484f58; font-size:12px; margin-top:20px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>体彩串子方案审核报告</h1>
+  <div class="sub">哨响AI v5.2.14 · D-Gate 五层引擎 + Tournament Dynamics · 2026-06-24 18:06</div>
+</div>
+
+<div class="grid">
+
+<!-- Match 1: Switzerland vs Canada -->
+<div class="card risk-med">
+  <div class="match-id">#3049 · Group B MD3 · 6.24 19:00</div>
+  <div class="teams">瑞士 vs 加拿大</div>
+  <div class="bet-info">
+    <span class="label">方案投注:</span>
+    <span class="pick yellow">让胜</span>
+    <span class="odds">@4.70</span>
+    <span style="font-size:12px;color:#8b949e">(瑞士-1 → 需赢2球+)</span>
+  </div>
+  <div class="verdict">
+    <div class="v-label">哨响AI 判型</div>
+    <span class="v-value" style="color:#3fb950">主胜 H</span>
+    <span class="v-mode normal">normal</span>
+  </div>
+  <div class="scores">
+    比分预测: <span class="top1">1-0</span> <span>1-1</span> <span>2-0</span>
+  </div>
+  <div class="context">
+    <span class="ctx-label">积分形势:</span> 双方均4分，胜者头名出线。瑞士GD+3 vs 加拿大GD+6。<br>
+    <span class="ctx-label">D-Gate信号:</span> 窄spread(0.02) + 双方防守数据都好 → 小比分倾向<br>
+    <span class="ctx-label">同类赔率:</span> 1平1屠混合，方向不明确
+  </div>
+  <div class="risk-tag med">🟡 方向对，盘口不稳</div>
+  <div style="color:#d29922;font-size:13px">让胜需赢2球+，模型Top1仅1-0。大概率卡在1球内出让平。</div>
+</div>
+
+<!-- Match 2: Bosnia vs Qatar -->
+<div class="card risk-low">
+  <div class="match-id">#3050 · Group B MD3 · 6.24 19:00</div>
+  <div class="teams">波黑 vs 卡塔尔</div>
+  <div class="bet-info">
+    <span class="label">方案投注:</span>
+    <span class="pick green">让平</span>
+    <span class="odds">@3.60</span>
+    <span style="font-size:12px;color:#8b949e">(波黑-1 → 赢1球)</span>
+  </div>
+  <div class="verdict">
+    <div class="v-label">哨响AI 判型</div>
+    <span class="v-value" style="color:#3fb950">主胜 H</span>
+    <span class="v-mode normal">normal</span>
+  </div>
+  <div class="scores">
+    比分预测: <span class="top1">1-0</span> <span>2-0</span> <span>1-1</span>
+  </div>
+  <div class="context">
+    <span class="ctx-label">积分形势:</span> 双方均1分，末轮生死战。波黑需胜且瑞士输球。<br>
+    <span class="ctx-label">D-Gate信号:</span> 双方屠杀率都高，但效率差数据偏平局。<br>
+    <span class="ctx-label">历史:</span> 加拿大6-0卡塔尔 → 卡塔尔防守有漏洞
+  </div>
+  <div class="risk-tag low">🟢 高度吻合</div>
+  <div style="color:#3fb950;font-size:13px">Top1比分1-0 = 让平。方向+盘口+比分三重对齐。</div>
+</div>
+
+<!-- Match 3: Scotland vs Brazil -->
+<div class="card risk-high">
+  <div class="match-id">#3051 · Group C MD3 · 6.24 22:00</div>
+  <div class="teams">苏格兰 vs 巴西</div>
+  <div class="bet-info">
+    <span class="label">方案投注:</span>
+    <span class="pick red">让平</span>
+    <span class="odds">@3.75</span>
+    <span style="font-size:12px;color:#8b949e">(苏格兰+1 → 巴西赢1球)</span>
+  </div>
+  <div class="verdict">
+    <div class="v-label">哨响AI 判型</div>
+    <span class="v-value" style="color:#f85149">平局 D</span>
+    <span class="v-mode C">Mode C</span>
+    <span style="font-size:12px;color:#f85149;margin-left:4px">d=0.660</span>
+  </div>
+  <div class="scores">
+    比分预测: <span class="top1">0-0</span> <span>0-1</span> <span>1-0</span>
+  </div>
+  <div class="context">
+    <span class="ctx-label">积分形势:</span> 巴西4分(打平出线) | 苏格兰3分(必须赢)<br>
+    <span class="ctx-label">🚨 赛制逻辑:</span> 巴西只需1分确保出线 → 必然收缩防守。苏格兰必须攻但实力有限。<br>
+    <span class="ctx-label">同类赔率:</span> 2/3平局 — 海地0-1苏格兰、沙特1-1乌拉圭、卡塔尔1-1瑞士<br>
+    <span class="ctx-label">Mode C触发:</span> imp>65% + 平赔<6.0 + OU≤2.5 + 屠杀惯性降权<br>
+    <span class="ctx-label">庄家意图:</span> 利用巴西"必须赢"的错觉诱买入强势方，真实场景巴西打平即出线
+  </div>
+  <div class="risk-tag high">🔴 庄家诱盘 — Mode C!</div>
+  <div style="color:#f85149;font-size:13px;font-weight:600">方案买巴西赢球，D-Gate判平局。这是Mode C的教科书案例：超级强队+保守战术=高概率平局。让平(巴西赢1球)的兑现条件与Mode C平局信号直接冲突。</div>
+</div>
+
+<!-- Match 4: Morocco vs Haiti -->
+<div class="card risk-med">
+  <div class="match-id">#3052 · Group C MD3 · 6.24 22:00</div>
+  <div class="teams">摩洛哥 vs 海地</div>
+  <div class="bet-info">
+    <span class="label">方案投注:</span>
+    <span class="pick yellow">让胜</span>
+    <span class="odds">@2.19</span>
+    <span style="font-size:12px;color:#8b949e">(摩洛哥-2 → 赢3球+)</span>
+  </div>
+  <div class="verdict">
+    <div class="v-label">哨响AI 判型</div>
+    <span class="v-value" style="color:#3fb950">主胜 H</span>
+    <span class="v-mode normal">normal</span>
+  </div>
+  <div class="scores">
+    比分预测: <span class="top1">2-0</span> <span>1-0</span> <span style="background:#3fb95020;border:1px solid #3fb95060;color:#3fb950">3-0</span>
+  </div>
+  <div class="context">
+    <span class="ctx-label">积分形势:</span> 摩洛哥4分(争头名) | 海地0分(已淘汰)<br>
+    <span class="ctx-label">海地防守:</span> 2场丢4球，前两轮巴西3-0、苏格兰1-0 → 面对强队不崩盘<br>
+    <span class="ctx-label">同类赔率:</span> 2/3平局 — 强队深盘冷平模式
+  </div>
+  <div class="risk-tag med">🟡 深盘卡线</div>
+  <div style="color:#d29922;font-size:13px">方向对但-2深盘。3-0在Top3内但概率低于2-0。2-0打出则让平（方案挂）。串子中投注让胜@2.19的赔率溢价不足以补偿这个"赢2球还是赢3球"的不确定性。</div>
+</div>
+
+<!-- Match 5: South Africa vs Korea -->
+<div class="card risk-low">
+  <div class="match-id">#3053 · Group A MD3 · 6.25 01:00</div>
+  <div class="teams">南非 vs 韩国</div>
+  <div class="bet-info">
+    <span class="label">方案投注:</span>
+    <span class="pick green">让平</span>
+    <span class="odds">@3.20</span>
+    <span style="font-size:12px;color:#8b949e">(南非+1 → 韩国赢1球)</span>
+  </div>
+  <div class="verdict">
+    <div class="v-label">哨响AI 判型</div>
+    <span class="v-value" style="color:#58a6ff">客胜 A</span>
+    <span class="v-mode normal">normal</span>
+  </div>
+  <div class="scores">
+    比分预测: <span>1-1</span> <span class="top1">0-1</span> <span>1-2</span>
+  </div>
+  <div class="context">
+    <span class="ctx-label">积分形势:</span> 韩国3分(打平出线) | 南非1分(需赢+捷克不胜)<br>
+    <span class="ctx-label">历史交锋:</span> 韩国实力占优。南非前两轮仅进1球。<br>
+    <span class="ctx-label">D-Gate信号:</span> S7=5.0≥3.5惩罚，窄spread→平局偏多，但最终判A
+  </div>
+  <div class="risk-tag low">🟢 最佳匹配</div>
+  <div style="color:#3fb950;font-size:13px">Top1比分0-1 = 韩国赢1球 = 让平。方向+盘口+比分完美对齐。这是整个串子中单场质量最高的选择。</div>
+</div>
+
+<!-- Match 6: Czech vs Mexico -->
+<div class="card risk-high">
+  <div class="match-id">#3054 · Group A MD3 · 6.25 01:00</div>
+  <div class="teams">捷克 vs 墨西哥</div>
+  <div class="bet-info">
+    <span class="label">方案投注:</span>
+    <span class="pick red">让负</span>
+    <span class="odds">@3.50</span>
+    <span style="font-size:12px;color:#8b949e">(捷克+1 → 墨西哥赢2球+)</span>
+  </div>
+  <div class="verdict">
+    <div class="v-label">哨响AI 判型</div>
+    <span class="v-value" style="color:#f85149">平局 D</span>
+    <span class="v-mode default">default</span>
+    <span style="font-size:12px;color:#f85149;margin-left:4px">d=0.395</span>
+  </div>
+  <div class="scores">
+    比分预测: <span class="top1">0-0</span> <span>0-1</span> <span>1-0</span>
+  </div>
+  <div class="context">
+    <span class="ctx-label">🚨🚨 积分形势:</span> 墨西哥6分<strong>已锁定小组第一出线</strong> | 捷克1分需胜+韩国输球<br>
+    <span class="ctx-label">赛制动态 R1:</span> 墨西哥已出线 → 必然大幅轮换！首发非主力，战力打折扣。<br>
+    <span class="ctx-label">捷克动机:</span> 仍有理论出线希望，会全力争胜。<br>
+    <span class="ctx-label">D-Gate:</span> 捷克平局率高 + 窄spread → 平局倾向
+  </div>
+  <div class="risk-tag high">🔴 R1出线轮换 + 判D==双重否定</div>
+  <div style="color:#f85149;font-size:13px;font-weight:600">
+    这是全场<b>最大风险点</b>：<br>
+    ① R1规则：墨西哥6分已第一出线，上一场对韩国轮换5人（前两轮轮换幅度已验证）<br>
+    ② D-Gate判D：赔率结构指向平局<br>
+    ③ 方案要求墨西哥<b>赢2球+</b>，这在轮换阵容下极不现实<br>
+    ④ 捷克1-1南非、墨西哥1-0韩国的历史比分也说明捷克死守能力
+  </div>
+</div>
+
+</div>
+
+<!-- Summary Table -->
+<div class="summary">
+  <h2>风险汇总矩阵</h2>
+  <table>
+    <tr>
+      <th>场次</th><th>对阵</th><th>方案</th><th>赔率</th><th>D-Gate判型</th><th>Top1比分</th><th>风险等级</th><th>判定依据</th>
+    </tr>
+    <tr>
+      <td>3049</td><td>瑞士 vs 加拿大</td><td>让胜</td><td>4.70</td><td style="color:#3fb950">H</td><td>1-0</td>
+      <td><span class="risk-dot yellow"></span>中</td>
+      <td style="font-size:12px">让胜需2球+，判型方向对但盘深</td>
+    </tr>
+    <tr>
+      <td>3050</td><td>波黑 vs 卡塔尔</td><td>让平</td><td>3.60</td><td style="color:#3fb950">H</td><td>1-0</td>
+      <td><span class="risk-dot green"></span>低</td>
+      <td style="font-size:12px">1-0=让平，方向+盘口+比分对齐</td>
+    </tr>
+    <tr style="background:#f8514908">
+      <td>3051</td><td>苏格兰 vs 巴西</td><td>让平</td><td>3.75</td><td style="color:#f85149;font-weight:700">D (Mode C)</td><td>0-0</td>
+      <td><span class="risk-dot red"></span><b style="color:#f85149">高</b></td>
+      <td style="font-size:12px">Mode C庄家诱盘 → 判平局，与方案直接冲突</td>
+    </tr>
+    <tr>
+      <td>3052</td><td>摩洛哥 vs 海地</td><td>让胜</td><td>2.19</td><td style="color:#3fb950">H</td><td>2-0</td>
+      <td><span class="risk-dot yellow"></span>中</td>
+      <td style="font-size:12px">-2深盘，3-0卡线，2-0打出方案挂</td>
+    </tr>
+    <tr>
+      <td>3053</td><td>南非 vs 韩国</td><td>让平</td><td>3.20</td><td style="color:#58a6ff">A</td><td>0-1</td>
+      <td><span class="risk-dot green"></span>低</td>
+      <td style="font-size:12px">0-1=让平，完美匹配</td>
+    </tr>
+    <tr style="background:#f8514908">
+      <td>3054</td><td>捷克 vs 墨西哥</td><td>让负</td><td>3.50</td><td style="color:#f85149;font-weight:700">D + R1</td><td>0-0</td>
+      <td><span class="risk-dot red"></span><b style="color:#f85149">高</b></td>
+      <td style="font-size:12px">墨已出线轮换 + D-Gate判D = 双重风险</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Conclusion -->
+<div class="conclusion">
+  <h2>审核结论</h2>
+  <div class="advice">
+    <p><b style="color:#f85149">🔴 两场高风险场次足以判罚这个方案。</b></p><br>
+
+    <p><b style="color:#e6edf3">1. #3051 苏格兰vs巴西 — 让平 @3.75</b></p>
+    <p style="color:#8b949e;margin-bottom:12px">
+    D-Gate v5.2.14 触发 Mode C（庄家诱盘），判平局。巴西打平即出线→收缩防守，苏格兰必须赢但攻击力有限。
+    同类赔率结构下平局率高达2/3（沙特1-1乌拉圭、卡塔尔1-1瑞士）。
+    方案买让平要求<b>巴西刚好赢1球</b>——在巴西不需要赢的场景下这个条件极难兑现。<br>
+    <span style="color:#d29922">替代建议: 如果非要投这场，考虑总进球≤2.5或半全场平/平，方向更安全。</span>
+    </p>
+
+    <p><b style="color:#e6edf3">2. #3054 捷克vs墨西哥 — 让负 @3.50</b></p>
+    <p style="color:#8b949e;margin-bottom:12px">
+    <b>墨西哥6分已锁定小组第一。</b>R1规则触发——已出线球队必然轮换，替补阵容战力打折扣。
+    D-Gate判D（平局），d=0.395。方案要求墨西哥<b>赢2球+</b>——这需要轮换阵容客场碾压捷克。<br>
+    <span style="color:#f85149">强烈建议：直接放弃这场，或用捷克+1让胜/让平替换。</span>
+    </p>
+
+    <p><b style="color:#e6edf3">3. #3049 瑞士vs加拿大 — 让胜 @4.70</b></p>
+    <p style="color:#8b949e;margin-bottom:12px">
+    判型H方向对，但需赢2球+。信号显示双方防守都好，窄spread(0.02)→小比分概率高。
+    Top1比分1-0=让平。4.70高赔诱惑但-1盘口可能刚好卡住。<br>
+    <span style="color:#d29922">建议: 降为让平或改投1X2主胜。</span>
+    </p>
+
+    <p><b style="color:#e6edf3">4. #3052 摩洛哥vs海地 — 让胜 @2.19</b></p>
+    <p style="color:#8b949e;margin-bottom:12px">
+    -2深盘让胜需赢3球+。3-0在Top3内，但2-0概率更高。海地面对巴西也只输0-3，防守不崩盘。
+    2.19的低赔看似安全，但"赢2球打水漂"的风险被低估了。<br>
+    <span style="color:#d29922">建议: 考虑-1让胜或直接总进球2-3球。</span>
+    </p>
+
+    <p><b style="color:#3fb950">✅ 两场绿灯场次保留：</b></p>
+    <p style="color:#8b949e">
+    3050 波黑vs卡塔尔 让平 — 1-0预测精准卡线<br>
+    3053 南非vs韩国 让平 — 0-1预测完美匹配<br>
+    这两场可以作为串子的骨架保留。
+    </p>
+
+    <br>
+    <p style="font-size:16px;color:#e6edf3;border-top:1px solid #21262d;padding-top:16px;margin-top:8px">
+    <b>总体结论:</b> 这是一个6串方案中有<b style="color:#f85149">2场判型直接冲突</b>（苏格兰vs巴西判D、捷克vs墨西哥判D+R1）、
+    <b style="color:#d29922">2场盘口深度存疑</b>的串子。在竞彩让球串的赔付结构中，任何一场跑偏都会导致整个方案归零。
+    建议<b>保留3050+3053作为2串核心</b>，其余4场需重新权衡方案方向。
+    </p>
+  </div>
+</div>
+
+<div class="footer">
+  哨响AI v5.2.14 · D-Gate引擎 + Tournament Dynamics R1-R4 · 仅供分析参考，不构成投注建议
+</div>
+
+</div>
+</body>
+</html>

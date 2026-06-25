@@ -369,6 +369,9 @@ class CollaborationScheduler:
                     "error": f"timeout after {timeout}s",
                     "fallback": True,
                 }
+            except ImportError as e:
+                logger.warning(f"[{name}] 模块缺失: {e}")
+                results[name] = {"status": "error", "error": str(e), "fallback": True}
             except Exception as e:
                 logger.error(f"[{name}] 执行异常: {e}")
                 results[name] = {
@@ -392,6 +395,9 @@ class CollaborationScheduler:
             try:
                 result = executor_fn(name, data)
                 results[name] = result
+            except ImportError as e:
+                logger.warning(f"[{name}-serial] 模块缺失: {e}")
+                results[name] = {"status": "error", "error": str(e), "fallback": True}
             except Exception as e:
                 logger.error(f"[{name}] 执行异常: {e}")
                 results[name] = {"status": "error", "error": str(e), "fallback": True}

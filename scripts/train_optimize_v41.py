@@ -1,14 +1,11 @@
 """
-FootballAI v4.1 训练优化 — 修复 Draw 过度预测
-==============================================
+LEGACY: FootballAI v4.1 训练优化 — 修复 Draw 过度预测
+======================================================
+v5.2.14 状态: GBDT(LGBM/XGBoost)已被 JEPA v5.0 替代为主动擎。
+此脚本保留用于基线对比和回归测试, 不应作为生产训练管线。
+
 问题: v4.0 Acc=56.55%, Draw预测=52.6% (实际25%), Home召回仅41%
 目标: Acc≥59%, Draw-F1≥0.52, Home召回≥60%
-
-优化策略:
-  Phase 1 — 类别权重搜索 (Draw从1.3降)
-  Phase 2 — Meta模型超参 + DrawExpert 信号强度
-  Phase 3 — 阈值寻优 (替换argmax)
-  Phase 4 — 最优模型验证 + 保存
 """
 import os, sys, json, time, warnings, logging
 from datetime import datetime
@@ -18,8 +15,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import (
     accuracy_score, f1_score, roc_auc_score, matthews_corrcoef, confusion_matrix
 )
-from lightgbm import LGBMClassifier
-from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier  # LEGACY
+from xgboost import XGBClassifier    # LEGACY
 from sklearn.utils.class_weight import compute_class_weight
 import joblib
 
@@ -27,8 +24,15 @@ warnings.filterwarnings('ignore')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 
-FOOTBALLAI_ROOT = r"D:\AI\footballAI"
+# 路径解析: 优先环境变量, fallback 自动检测
 ARCH_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_fai_env = os.environ.get('FOOTBALLAI_ROOT', '')
+_fai_candidates = [
+    _fai_env,
+    os.path.join(os.path.dirname(ARCH_ROOT), 'footballAI'),
+    r'D:\AI\footballAI',   # 已知部署路径
+]
+FOOTBALLAI_ROOT = next((p for p in _fai_candidates if p and os.path.isdir(p)), ARCH_ROOT)
 sys.path.insert(0, FOOTBALLAI_ROOT)
 os.environ.setdefault('PROJECT_ROOT', FOOTBALLAI_ROOT)
 
@@ -57,8 +61,10 @@ def load_pipeline_and_data():
     if os.path.exists(nn_path):
         try:
             trainer.load_nn_model(nn_path)
-        except Exception:
-            logger.warning("NN 加载失败，跳过")
+        except (ImportError, FileNotFoundError):
+            logger.warning("NN 模型文件不可用, 跳过")
+        except RuntimeError as e:
+            logger.warning(f"NN 加载失败: {e}, 跳过")
 
     # 加载数据
     df = trainer.load_training_data()
@@ -71,17 +77,16 @@ def load_pipeline_and_data():
     df_oof = df[oof_mask].copy()
 
     logger.info(f"Train (pre-2023): {len(df_train)} | OOF (2023+): {len(df_oof)}")
-    # 标签列: SQLite 无 final_result, 从 home_score/away_score 推导
+    # 标签列: SQLite 无 final_result, 从 home_score/away_score 向量化推导
     if 'final_result' not in df_oof.columns:
-        df['final_result'] = df.apply(
-            lambda r: 'H' if r['home_score'] > r['away_score']
-            else ('A' if r['home_score'] < r['away_score'] else 'D'), axis=1)
-        df_train['final_result'] = df_train.apply(
-            lambda r: 'H' if r['home_score'] > r['away_score']
-            else ('A' if r['home_score'] < r['away_score'] else 'D'), axis=1)
-        df_oof['final_result'] = df_oof.apply(
-            lambda r: 'H' if r['home_score'] > r['away_score']
-            else ('A' if r['home_score'] < r['away_score'] else 'D'), axis=1)
+        _hs = df['home_score'].values
+        _as = df['away_score'].values
+        _labels = np.where(_hs > _as, 'H', np.where(_hs < _as, 'A', 'D'))
+        df['final_result'] = _labels
+        df_train['final_result'] = np.where(df_train['home_score'].values > df_train['away_score'].values, 'H',
+                                   np.where(df_train['home_score'].values < df_train['away_score'].values, 'A', 'D'))
+        df_oof['final_result'] = np.where(df_oof['home_score'].values > df_oof['away_score'].values, 'H',
+                                 np.where(df_oof['home_score'].values < df_oof['away_score'].values, 'A', 'D'))
 
     logger.info(f"OOF 标签分布: H={df_oof['final_result'].value_counts().get('H',0)}, "
                 f"D={df_oof['final_result'].value_counts().get('D',0)}, "
@@ -143,8 +148,8 @@ def phase1_class_weight_search(X_train, y_train, X_val, y_val):
             mcc = matthews_corrcoef(y_val, y_pred)
             try:
                 auc_val = roc_auc_score(np.eye(3)[y_val], proba, multi_class='ovr', average='macro')
-            except Exception:
-                auc_val = 0.0
+            except ValueError:
+                auc_val = 0.0  # 单类别, AUC未定义
 
             # Draw 预测率
             draw_pred_rate = (y_pred == 1).sum() / len(y_pred)
@@ -351,8 +356,8 @@ def main():
         mcc = matthews_corrcoef(y_val, y_pred)
         try:
             auc_val = roc_auc_score(np.eye(3)[y_val], val_probas, multi_class='ovr', average='macro')
-        except Exception:
-            auc_val = 0.0
+        except ValueError:
+            auc_val = 0.0  # 单类别, AUC未定义
         draw_rate = (y_pred == 1).sum() / len(y_pred)
 
         logger.info(f"\n  [{name}] Acc={acc*100:.2f}%, Draw-F1={f1_per[1]:.4f}, "

@@ -1,6 +1,9 @@
 """
-FootballAI v4.1 优化 — Meta-learner 聚焦版
-============================================
+LEGACY: FootballAI v4.1 优化 — Meta-learner 聚焦版
+====================================================
+v5.2.14 状态: GBDT(LGBM)已被 JEPA v5.0 替代为主动擎。
+此脚本保留用于基线对比, 不应作为生产训练管线。
+
 策略: 复用 v4.0 基模型 OOF → 在 meta-feature 空间搜索
 优化维度:
   1. DrawExpert 信号强度乘数 (0.25→2.0)
@@ -12,19 +15,28 @@ FootballAI v4.1 优化 — Meta-learner 聚焦版
 import os, sys, json, time, warnings, logging
 import numpy as np
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, matthews_corrcoef, confusion_matrix
-from lightgbm import LGBMClassifier
+from lightgbm import LGBMClassifier  # LEGACY
 from sklearn.utils.class_weight import compute_class_weight
 
 warnings.filterwarnings('ignore')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 
-FOOTBALLAI_ROOT = r"D:\AI\footballAI"
+# 路径解析: 优先环境变量, fallback 自动检测
 ARCH_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_fai_env = os.environ.get('FOOTBALLAI_ROOT', '')
+_fai_candidates = [
+    _fai_env,
+    os.path.join(os.path.dirname(ARCH_ROOT), 'footballAI'),
+    r'D:\AI\footballAI',
+]
+FOOTBALLAI_ROOT = next((p for p in _fai_candidates if p and os.path.isdir(p)), ARCH_ROOT)
 sys.path.insert(0, FOOTBALLAI_ROOT)
+sys.path.insert(0, ARCH_ROOT)  # 确保可以导入 utils.constants
 os.environ.setdefault('PROJECT_ROOT', FOOTBALLAI_ROOT)
 
 from ensemble_trainer import EnsembleTrainer
+from utils.constants import DEFAULT_HOME_PROB, DEFAULT_DRAW_PROB, DEFAULT_AWAY_PROB
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 import joblib
@@ -47,14 +59,15 @@ def load_and_prepare():
     if os.path.exists(nn_path):
         try:
             trainer.load_nn_model(nn_path)
-        except Exception:
-            pass
+        except (ImportError, FileNotFoundError, RuntimeError):
+            pass  # NN 不可用, 静默跳过
 
     # 加载数据
     df = trainer.load_training_data()
     df['match_date'] = pd.to_datetime(df['match_date'])
-    df['final_result'] = df.apply(lambda r: 'H' if r['home_score'] > r['away_score']
-                                  else ('A' if r['home_score'] < r['away_score'] else 'D'), axis=1)
+    _hs = df['home_score'].values
+    _as = df['away_score'].values
+    df['final_result'] = np.where(_hs > _as, 'H', np.where(_hs < _as, 'A', 'D'))
 
     oof_mask = df['match_date'] >= TRAIN_CUTOFF
     df_oof = df[oof_mask].copy()
@@ -120,8 +133,8 @@ def generate_oof_metafeatures(trainer, X_all, y_cls, df, draw_expert, de_scaler)
         try:
             p = trainer._heuristic_predict_proba(X_scaled[idx].reshape(1, -1))
             proba_heur[i] = p[0]
-        except Exception:
-            proba_heur[i] = [0.33, 0.34, 0.33]
+        except (ValueError, RuntimeError, AttributeError):
+            proba_heur[i] = [DEFAULT_HOME_PROB, DEFAULT_DRAW_PROB, DEFAULT_AWAY_PROB]
 
     # OddsExpert
     if trainer.odds_expert_model:
@@ -158,8 +171,10 @@ def generate_oof_metafeatures(trainer, X_all, y_cls, df, draw_expert, de_scaler)
                 logger.info(f"  DrawExpert P(Draw): mean={de_pdraw.mean():.4f}, std={de_pdraw.std():.4f}")
             else:
                 logger.warning(f"  DrawExpert 输出维度异常: {de_proba.shape}")
+        except (ImportError, FileNotFoundError, ValueError) as e:
+            logger.warning(f"  DrawExpert 不可用: {e}, 使用默认值 {DEFAULT_DRAW_PROB}")
         except Exception as e:
-            logger.warning(f"  DrawExpert 预测失败: {e}, 使用默认值 0.25")
+            logger.warning(f"  DrawExpert 预测失败: {e}, 使用默认值 {DEFAULT_DRAW_PROB}")
 
     # 构建 meta-features (v4.0 格式: 21维)
     meta = np.hstack([
@@ -356,8 +371,8 @@ def final_evaluation(meta_base, y_oof, de_pdraw, best_config):
         mcc = matthews_corrcoef(y_oof, y_pred)
         try:
             auc_val = roc_auc_score(np.eye(3)[y_oof], proba, multi_class='ovr', average='macro')
-        except Exception:
-            auc_val = 0.0
+        except ValueError:
+            auc_val = 0.0  # 单类别, AUC未定义
         draw_rate = (y_pred == 1).sum() / len(y_pred)
         cm = confusion_matrix(y_oof, y_pred)
 

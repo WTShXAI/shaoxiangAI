@@ -14,6 +14,8 @@
     - 最终输出强制归一化（H+D+A = 1.0）
     - 兼容 Windows 路径
 
+from utils.constants import DEFAULT_DRAW_PROB
+
 用法:
     from rules.domain_rules import apply_domain_knowledge
     adjusted = apply_domain_knowledge(features, base_proba)
@@ -101,7 +103,7 @@ def apply_domain_knowledge(
 
     # ── 提取原始概率 ──────────────────────────────────
     h = float(base_proba.get("home", 0.33))
-    d = float(base_proba.get("draw", 0.34))
+    d = float(base_proba.get("draw", DEFAULT_DRAW_PROB))
     a = float(base_proba.get("away", 0.33))
     raw_ml = {"home": round(h, 4), "draw": round(d, 4), "away": round(a, 4)}
 

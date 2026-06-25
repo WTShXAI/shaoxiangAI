@@ -68,7 +68,7 @@ from .expert_protocol import (
 )
 from .expert_registry import ExpertRegistry
 from .module_router import ModuleRouter, build_preset_scorers, create_default_scorer_from_meta
-from .expert_hub import ExpertHub
+from .expert_hub import ExpertHub           # LEGACY v3.0 — 新代码请用 ExpertHubV2
 from .progressive_optimizer import ProgressiveOptimizer
 
 # ---- v4.0 架构升级模块 (2026-06-18) ----

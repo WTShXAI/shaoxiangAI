@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-哨响AI — 专家中心调度器 (ExpertHub)
-=====================================
-多专家系统的统一入口和调度中心。
+LEGACY v3.0 — 哨响AI 专家中心调度器 (ExpertHub)
+=================================================
+v5.2.14 状态: 已被 expert_hub_v2 替代。此模块保留用于 v3 旧版 ExpertAgent
+向后兼容。新代码请使用 ExpertHubV2 + CollaborationScheduler。
 
 职责:
     1. 统一入口: 所有预测请求通过 Hub 分发

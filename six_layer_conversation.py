@@ -23,6 +23,7 @@
 作者: Architecture v4.0 · 2026-06-18
 """
 from __future__ import annotations
+from utils.constants import DEFAULT_DRAW_PROB
 import os, sys, json, logging, re, time, math, argparse
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
@@ -49,7 +50,7 @@ try:
     PURE_V32 = get_setting('global_switches.pure_v32_mode', False)
     logger.info(f"[SixLayer] 配置: Draw阈值={DEFAULT_DRAW_THRESHOLD} 纯净模式={PURE_V32}")
 except Exception:
-    DEFAULT_DRAW_THRESHOLD = 0.46
+    DEFAULT_DRAW_THRESHOLD = 0.32
     DEFAULT_HA_GAP = 0.0
     PURE_V32 = False
 
@@ -179,7 +180,7 @@ class SixLayerConversationEngine:
       - 自主优化: 赛后反馈驱动持续改进
 
     阈值配置 (从回测数据优化):
-      - draw_threshold: P(D) > X → 预测平局 (默认0.46, WC最优0.48)
+      - draw_threshold: P(D) > X → 预测平局 (P0判型优化: 0.32, 网格搜索最优)
       - ha_gap: P(H) > P(A) + X → 预测主胜 (默认0)
 
     杯赛/联赛属性差异 (v4.1):
@@ -196,12 +197,12 @@ class SixLayerConversationEngine:
     COLD_START_ROUNDS = {1}         # 第一轮=冷启动 (无历史积分)
 
     def __init__(self, model_path: str = None, enable_l6: bool = True,
-                 draw_threshold: float = 0.46, ha_gap: float = 0.0):
+                 draw_threshold: float = 0.32, ha_gap: float = 0.0):
         """
         Args:
             model_path: 模型文件路径 (默认自动查找)
             enable_l6: 是否启用 L6 自主优化层
-            draw_threshold: P(D)阈值 (v4.1默认0.46, WC回测最优0.48)
+            draw_threshold: P(D)阈值 (P0判型优化: 0.46→0.32, MacroF1 0.465→0.507)
             ha_gap: 主客预测gap
         """
         self.model_path = model_path
@@ -1445,7 +1446,7 @@ class SixLayerConversationEngine:
                 odds_spread = (1/(result.h_prob or 0.34)) - (1/(result.a_prob or 0.34))
                 config = engine_se.adapt(
                     home=home, away=away, league=league, matchday=1,
-                    odds={'home': 1/(result.h_prob or 0.34), 'draw': 1/(result.d_prob or 0.34), 'away': 1/(result.a_prob or 0.34)})
+                    odds={'home': 1/(result.h_prob or DEFAULT_DRAW_PROB), 'draw': 1/(result.d_prob or DEFAULT_DRAW_PROB), 'away': 1/(result.a_prob or DEFAULT_DRAW_PROB)})
                 lines.append(_se.ScenarioEngine.format_for_report(config))
             except Exception:
                 pass
@@ -1455,7 +1456,7 @@ class SixLayerConversationEngine:
             try:
                 approx_odds = {
                     'home': 1/(result.h_prob or 0.34) if result.h_prob > 0 else 2.5,
-                    'draw': 1/(result.d_prob or 0.34) if result.d_prob > 0 else 3.2,
+                    'draw': 1/(result.d_prob or DEFAULT_DRAW_PROB) if result.d_prob > 0 else 3.2,
                     'away': 1/(result.a_prob or 0.34) if result.a_prob > 0 else 3.0,
                 }
                 l0_ctx = self.knowledge_layer.consult(

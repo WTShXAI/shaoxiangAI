@@ -7,16 +7,12 @@ import os
 import requests
 import sqlite3
 import sqlalchemy
-import warnings
 from datetime import date, timedelta
 from fastapi import APIRouter, HTTPException, Query, Depends
 
 from api.deps import get_current_user
 from database.db_manager import get_db
 from config.api_config import API_CONFIG
-
-# 抑制 SSL 警告 (verify=False)
-warnings.filterwarnings("ignore", category=requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -67,7 +63,7 @@ def fetch_live_from_api() -> list:
             "dateTo": tomorrow,
             "limit": 100,
         }
-        resp = requests.get(url, headers=headers, params=params, timeout=10, verify=False)
+        resp = requests.get(url, headers=headers, params=params, timeout=10)
         if resp.status_code != 200:
             logger.warning(f"API 请求失败: {resp.status_code} {resp.text[:100]}")
             return []
