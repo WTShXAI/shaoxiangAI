@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>D-Gate v5.2 压力测试报告 — 2026-06-25</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f1117;color:#e0e0e0;padding:24px}
+  h1{font-size:22px;margin-bottom:4px;color:#fff}
+  .sub{color:#888;font-size:13px;margin-bottom:20px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:1100px}
+  .card{background:#1a1d28;border-radius:10px;padding:20px}
+  .card h2{font-size:15px;color:#aaa;margin-bottom:12px}
+  .card h3{font-size:13px;color:#777;margin-bottom:8px}
+  canvas{width:100%!important;max-height:260px}
+  .stat-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px}
+  .stat-label{color:#888;min-width:90px}
+  .stat-val{font-weight:600;font-family:'Cascadia Code',monospace}
+  .stat-badge{padding:1px 8px;border-radius:4px;font-size:11px;font-weight:600}
+  .bg-green{background:#1a3a2a;color:#4ade80}
+  .bg-red{background:#3a1a1a;color:#f87171}
+  .bg-yellow{background:#3a2a1a;color:#fbbf24}
+  .bg-blue{background:#1a2a3a;color:#60a5fa}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:#888;padding:6px 8px;border-bottom:1px solid #2a2d38}
+  td{padding:5px 8px;border-bottom:1px solid #1e2130}
+  .highlight{color:#fbbf24;font-weight:600}
+  .warn{color:#f87171}
+  .good{color:#4ade80}
+  .dim{color:#666}
+  .verdict{font-size:18px;text-align:center;padding:10px;background:#1a2a3a;border-radius:8px;margin-top:12px}
+</style>
+</head>
+<body>
+
+<h1>🔥 D-Gate v5.2 压力测试</h1>
+<div class="sub">哨响AI v5.2.14 · 2026-06-25 · SQLite 最近1000场 (有比分+赔率) · 真实分布 H=41.1% D=22.9% A=36.0%</div>
+
+<div class="grid">
+
+  <!-- 准确率对比 -->
+  <div class="card">
+    <h2>📊 准确率对比 (杯赛 vs 联赛 vs argmax)</h2>
+    <canvas id="accChart"></canvas>
+  </div>
+
+  <!-- F1 雷达 -->
+  <div class="card">
+    <h2>🎯 各类别 F1-Score</h2>
+    <canvas id="f1Chart"></canvas>
+  </div>
+
+  <!-- 模式触发 -->
+  <div class="card">
+    <h2>⚡ 模式触发分布</h2>
+    <canvas id="modeChart"></canvas>
+  </div>
+
+  <!-- 模式准确率 -->
+  <div class="card">
+    <h2>🎲 各模式命中率</h2>
+    <canvas id="modeAccChart"></canvas>
+  </div>
+
+</div>
+
+<!-- 数据表 -->
+<div class="card" style="margin-top:16px;max-width:1100px">
+  <h2>📋 详细数据</h2>
+  <table>
+  <tr><th>模式</th><th>赛事类型</th><th>触发数</th><th>命中</th><th>准确率</th><th>D-F1</th><th>备注</th></tr>
+  <tr><td><span class="stat-badge bg-blue">C</span></td><td>杯赛</td><td>12</td><td>3</td><td class="warn">25.0%</td><td class="dim">0.000</td><td>超热门翻车识别, 12场中9场是压倒性胜利</td></tr>
+  <tr><td><span class="stat-badge bg-yellow">C-away</span></td><td>杯赛</td><td>24</td><td>3</td><td class="warn">12.5%</td><td class="dim">0.000</td><td>客场强队翻车, 21场客队赢了</td></tr>
+  <tr><td><span class="stat-badge bg-green">none</span></td><td>杯赛</td><td>964</td><td>567</td><td>58.8%</td><td class="dim">0.046</td><td>无触发=argmax降级, 仅微弱draw recall</td></tr>
+  <tr><td><span class="stat-badge bg-green">none</span></td><td>联赛</td><td>1000</td><td>597</td><td class="good">59.7%</td><td class="dim">0.000</td><td>联赛模式零触发, D-Gate A/B阈值过严</td></tr>
+  <tr style="border-top:2px solid #2a2d38"><td><span class="stat-badge">argmax</span></td><td>基线</td><td>1000</td><td>597</td><td>59.7%</td><td class="warn">0.000</td><td>从不预测平局, 结构性缺陷</td></tr>
+  </table>
+</div>
+
+<div class="card" style="margin-top:16px;max-width:1100px">
+  <h3>💰 钱代驾诊断</h3>
+  <table>
+  <tr><td style="color:#fbbf24">1.</td><td>D-Gate A/B 模式在联赛数据中零触发 — imp 48-70% + OU≤2.5 + spread<0.15 条件过于严苛</td></tr>
+  <tr><td style="color:#fbbf24">2.</td><td>杯赛模式 C/C-away 准确率低 (12-25%) — 因为触发条件基于 imp 而非真实强队信号，多数触发是"假翻车"</td></tr>
+  <tr><td style="color:#4ade80">3.</td><td>联赛 argmax 基线已达 59.7% — D-Gate 的增量价值体现在杯赛/锦标赛 (高平局率场景)</td></tr>
+  <tr><td style="color:#4ade80">4.</td><td>D-Gate 设计目标正确: 仅在高风险场景介入，不漏杀正常比赛。96.4%不触发 = 策略克制。</td></tr>
+  <tr><td style="color:#f87171">5.</td><td>风险: Mode C 12.5-25% 的低命中率 — 若 C 触发后改判平局，可能将原本的强队胜改判为平局误判</td></tr>
+  </table>
+</div>
+
+<div class="verdict">🟡 D-Gate v5.2 杯赛模式可作为平局预警 (不直接改判) · 联赛模式需降低 A/B 阈值 · 当前最佳策略: 杯赛=C/D触发→风险标记, 联赛=argmax</div>
+
+<script>
+// ═══ Chart 1: 准确率对比 ═══
+new Chart(document.getElementById('accChart'), {
+  type: 'bar',
+  data: {
+    labels: ['杯赛 D-Gate','联赛 D-Gate','argmax 基线'],
+    datasets: [{
+      label: 'Overall Acc',
+      data: [57.3, 59.7, 59.7],
+      backgroundColor: ['#60a5fa','#4ade80','#666'],
+      borderRadius: 4
+    },{
+      label: 'H-F1',
+      data: [0.692, 0.692, 0.692],
+      backgroundColor: ['#818cf8','#818cf8','#818cf8'],
+      borderRadius: 4
+    },{
+      label: 'D-F1',
+      data: [0.045, 0.0, 0.0],
+      backgroundColor: ['#fbbf24','#fbbf24','#fbbf24'],
+      borderRadius: 4
+    },{
+      label: 'A-F1',
+      data: [0.607, 0.654, 0.654],
+      backgroundColor: ['#34d399','#34d399','#34d399'],
+      borderRadius: 4
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { labels: { color: '#888', font: { size: 11 }}}},
+    scales: {
+      x: { ticks: { color: '#888', font: { size: 11 }}},
+      y: { ticks: { color: '#666' }, grid: { color: '#1e2130' }}
+    }
+  }
+});
+
+// ═══ Chart 2: F1雷达 ═══
+new Chart(document.getElementById('f1Chart'), {
+  type: 'radar',
+  data: {
+    labels: ['主胜 F1','平局 F1','客胜 F1','Overall Acc'],
+    datasets: [{
+      label: '杯赛',
+      data: [0.692, 0.045, 0.607, 0.573],
+      borderColor: '#60a5fa',
+      backgroundColor: 'rgba(96,165,250,0.1)'
+    },{
+      label: '联赛',
+      data: [0.692, 0.0, 0.654, 0.597],
+      borderColor: '#4ade80',
+      backgroundColor: 'rgba(74,222,128,0.1)'
+    },{
+      label: 'argmax',
+      data: [0.692, 0.0, 0.654, 0.597],
+      borderColor: '#666',
+      backgroundColor: 'rgba(102,102,102,0.05)',
+      borderDash: [4,4]
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { labels: { color: '#888', font: { size: 11 }}}},
+    scales: {
+      r: {
+        min: 0, max: 0.8,
+        ticks: { color: '#666', backdropColor: 'transparent', font: { size: 10 }},
+        grid: { color: '#2a2d38' },
+        pointLabels: { color: '#aaa', font: { size: 11 }}
+      }
+    }
+  }
+});
+
+// ═══ Chart 3: 模式触发 ═══
+new Chart(document.getElementById('modeChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Mode C (杯赛)','Mode C-away (杯赛)','无触发 (杯赛)'],
+    datasets: [{
+      data: [12, 24, 964],
+      backgroundColor: ['#60a5fa','#fbbf24','#3a3d4a'],
+      borderColor: '#1a1d28',
+      borderWidth: 2
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'bottom', labels: { color: '#888', font: { size: 10 }, padding: 12 }}
+    }
+  }
+});
+
+// ═══ Chart 4: 模式命中率 ═══
+new Chart(document.getElementById('modeAccChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Mode C\n杯赛','Mode C-away\n杯赛','无触发\n杯赛','无触发\n联赛'],
+    datasets: [{
+      label: '准确率 %',
+      data: [25.0, 12.5, 58.8, 59.7],
+      backgroundColor: ['#60a5fa','#fbbf24','#4ade80','#34d399'],
+      borderRadius: 4
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false }},
+    scales: {
+      x: { ticks: { color: '#888', font: { size: 10 }}},
+      y: { ticks: { color: '#666' }, grid: { color: '#1e2130' }, max: 70 }
+    }
+  }
+});
+</script>
+</body>
+</html>

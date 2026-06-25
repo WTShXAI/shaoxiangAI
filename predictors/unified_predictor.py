@@ -393,32 +393,91 @@ class UnifiedPredictor:
         final_probs = sky_probs * self.sky_weight + vip_math_probs * (1 - self.sky_weight)
         final_probs = final_probs / final_probs.sum()
 
-        # ── [L4] DrawExpert 门控 (v4.1: 衰减 ×0.25) ──
+        # ── [L4] DrawGate v5.3: 平局专用识别 (D-Gate + DrawExpert 合并) ──
         draw_signal = 0.0
+        risk_tag = "clean"
+        dgate_mode = "none"
+        draw_threshold_eff = self.draw_threshold  # 默认0.32
+
+        # Step 1: 获取 DrawExpert 信号 (如可用)
         if self.trainer.draw_expert_model:
             try:
-                raw_draw = self._get_draw_expert_signal(home, away, odds_h, odds_d, odds_a,
-                                                         asian_handicap, ou_line)
-                draw_signal = raw_draw * self.de_mult  # v4.1 衰减
-                if draw_signal > self.draw_gate_threshold:
-                    # 弱信号提升 (v4.1: 降低提升幅度)
-                    boost = min(draw_signal * 0.15, 0.08)
-                    final_probs[1] += boost
-                    final_probs = final_probs / final_probs.sum()
+                draw_signal = self._get_draw_expert_signal(home, away, odds_h, odds_d, odds_a,
+                                                           asian_handicap, ou_line)
+                # v5.3: 线性ramp校准 (0.26→0.25x, 0.42→0.95x)
+                if draw_signal > 0:
+                    if draw_signal <= 0.26:
+                        draw_signal *= 0.25
+                    elif draw_signal >= 0.42:
+                        draw_signal *= 0.95
+                    else:
+                        t = (draw_signal - 0.26) / 0.16
+                        draw_signal *= 0.25 + t * 0.70
+                draw_signal = draw_signal * self.de_mult  # v4.1 衰减
             except Exception:
-                pass
+                draw_signal = 0.0
 
-        # ── [L5] 最终输出 (v4.1 阈值分类) ──
+        # Step 2: DrawGate v5.3 检测
+        try:
+            imp_h = 1.0/odds_h / (1.0/odds_h + 1.0/odds_d + 1.0/odds_a)
+            imp_d = 1.0/odds_d / (1.0/odds_h + 1.0/odds_d + 1.0/odds_a)
+            imp_a = 1.0/odds_a / (1.0/odds_h + 1.0/odds_d + 1.0/odds_a)
+
+            from rules.drawgate_v53 import apply_drawgate, detect_match_type
+            dg = apply_drawgate(
+                imp_h, imp_d, imp_a,
+                odds={'home': odds_h, 'draw': odds_d, 'away': odds_a},
+                handicap=asian_handicap, ou_line=ou_line,
+                match_type=detect_match_type(match_type or ''),
+                draw_expert_signal=draw_signal if draw_signal > 0 else None,
+            )
+
+            risk_tag = dg['risk_tag']
+            dgate_mode = dg['dgate_mode']
+            draw_threshold_eff = dg['draw_threshold_adj']
+
+            # Step 3: 置信度衰减 — 强队降权
+            if dg['confidence_mult'] < 1.0:
+                strong_idx = 0 if imp_h >= imp_a else 2
+                final_probs[strong_idx] *= dg['confidence_mult']
+
+            # Step 4: DrawExpert boost — 平局抬权
+            if dg['draw_boost'] > 0:
+                de_boost = min(dg['draw_boost'], 0.12)
+                final_probs[1] += de_boost
+
+            # Step 5: DrawExpert 原始信号辅助 boost (若前两步都触发)
+            if draw_signal > 0.30 and risk_tag != 'clean':
+                final_probs[1] += min(draw_signal * 0.10, 0.05)
+
+            final_probs = final_probs / final_probs.sum()
+
+            if dgate_mode != 'none':
+                result['warnings'].append(
+                    f"DrawGate[{dgate_mode}] {risk_tag}: "
+                    f"阈值{self.draw_threshold:.2f}→{draw_threshold_eff:.2f} "
+                    f"置信度×{dg['confidence_mult']:.2f} "
+                    f"DEboost=+{dg['draw_boost']:.3f}"
+                )
+
+        except Exception as e:
+            logger.debug(f"DrawGate跳过: {e}")
+            # 降级: 旧版 DrawExpert 弱信号提升
+            if draw_signal > self.draw_gate_threshold:
+                boost = min(draw_signal * 0.15, 0.08)
+                final_probs[1] += boost
+                final_probs = final_probs / final_probs.sum()
+
+        # ── [L5] 最终输出 (v4.1 阈值分类, v5.3 动态阈值) ──
         if self.use_threshold:
-            # v4.1: Draw>0.46 → Draw, else Home vs Away
             p_h, p_d, p_a = final_probs[0], final_probs[1], final_probs[2]
-            if p_d > self.draw_threshold:
+            if p_d > draw_threshold_eff:
                 prediction = 'D'
             elif p_h > p_a + self.ha_gap:
                 prediction = 'H'
             else:
                 prediction = 'A'
-            method = f'threshold(D>{self.draw_threshold:.2f})'
+            method = f'threshold(D>{draw_threshold_eff:.2f})'
         else:
             prediction = ['H', 'D', 'A'][int(np.argmax(final_probs))]
             method = 'argmax'
@@ -444,6 +503,9 @@ class UnifiedPredictor:
             'trap_type': trap_type,
             'trap_score': round(trap_score, 4),
             'draw_signal': round(draw_signal, 4),
+            'risk_tag': risk_tag,
+            'dgate_mode': dgate_mode,
+            'draw_threshold_eff': round(draw_threshold_eff, 4),
             'lambda_fusion': lambda_info,
             'channel_breakdown': {
                 'sky': [round(float(x), 4) for x in sky_probs],
@@ -503,10 +565,15 @@ class UnifiedPredictor:
                         de_p = self.trainer.draw_expert_model.predict_proba(X)
                         if de_p.shape[1] == 2:  # 二分类: [P(not draw), P(draw)]
                             de_d = float(de_p[0, 1])
-                            # 修复DrawExpert L2: 使用best_threshold=0.344校准
-                            # 原默认阈值0.5导致F1=0.0, best_threshold=0.344下F1=0.4265
-                            if de_d < 0.344:
-                                de_d = de_d * 0.5  # 低于阈值的压低
+                            # v5.3: 线性ramp校准 (无悬崖, 中高区保留)
+                            # 0.26→0.065 0.34→0.204 0.40→0.345 0.42→0.399
+                            if de_d <= 0.26:
+                                de_d *= 0.25
+                            elif de_d >= 0.42:
+                                de_d *= 0.95
+                            else:
+                                t = (de_d - 0.26) / 0.16
+                                de_d *= 0.25 + t * 0.70
                             de_signal = np.array([(1-de_d)*0.5, de_d, (1-de_d)*0.5])
                     except Exception as de_err:
                         logger.warning(f"[SKY冷启动] DrawExpert不可用, 使用中性等权: {de_err}")
