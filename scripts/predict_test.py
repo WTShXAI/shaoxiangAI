@@ -343,7 +343,8 @@ def main():
             if s:
                 try:
                     hg,ag=map(int,s.split('-'))
-                except: continue
+                except (ValueError, TypeError):
+                    continue
                 for t,gf_,ga_ in [(h,hg,ag),(a,ag,hg)]:
                     st_gf[t]+=gf_; st_ga[t]+=ga_; st_mp[t]+=1
                     if (t==h and r=='H') or (t==a and r=='A'): st_pts[t]+=3

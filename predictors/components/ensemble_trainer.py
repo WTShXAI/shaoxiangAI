@@ -2099,8 +2099,8 @@ class EnsembleTrainer:
             try:
                 import torch
                 nn_state = {k: v.cpu().clone() for k, v in self.nn_model.state_dict().items()}
-            except Exception:
-                pass
+            except Exception as e:
+                self.logger.warning("NN模型序列化失败: %s", e)
 
         pipeline = {
             'xgb_model': self.xgb_model,

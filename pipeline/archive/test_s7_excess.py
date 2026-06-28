@@ -2,7 +2,6 @@
 import sys,os,math,warnings;from pathlib import Path
 warnings.filterwarnings('ignore')
 p1=Path(r'D:/Architecture v4.0');p2=Path(r'D:/AI/footballAI')
-sys.path+=[str(p1),str(p1/'features'),str(p1/'predictors'),str(p2)]
 from predictors.unified_predictor import UnifiedPredictor
 up=UnifiedPredictor(model_path=str(p2/'saved_models'/'football_v4.1_production.joblib'),enable_trap=False,enable_dh=False,use_threshold=False)
 

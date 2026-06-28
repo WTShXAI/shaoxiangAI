@@ -442,23 +442,40 @@ class TheOddsCollector:
         # 先获取该联赛的所有当期赔率（1次API调用）
         live_odds = self.get_live_odds(sport_key)
 
-        for i, match in enumerate(matches):
-            # 从 live_odds 中查找匹配
-            found = False
-            for lo in live_odds:
-                home = match.get("home_team_name", "")
-                away = match.get("away_team_name", "")
-                if similar_team_name(lo.get("home_team", ""), home) and \
-                   similar_team_name(lo.get("away_team", ""), away):
-                    extracted = self.extract_best_odds(lo)
-                    if extracted:
-                        extracted["match_date"] = match.get("match_date", "")
-                        all_odds.append(extracted)
-                        stats["success"] += 1
-                        found = True
-                        break
+        # 构建 {home_away: match} 索引，O(n) 构建 → O(1) 查询
+        _live_idx: Dict[str, dict] = {}
+        # 额外模糊索引: 归一化球队名
+        _live_fuzzy_idx: Dict[str, dict] = {}
+        for lo in live_odds:
+            lo_home = lo.get("home_team", "")
+            lo_away = lo.get("away_team", "")
+            if lo_home and lo_away:
+                _live_idx[f"{lo_home}|{lo_away}"] = lo
+                # 归一化键（用于模糊匹配）
+                _nh = _normalize_team_name(lo_home)
+                _na = _normalize_team_name(lo_away)
+                if _nh and _na:
+                    _live_fuzzy_idx[f"{_nh}|{_na}"] = lo
 
-            if not found:
+        for i, match in enumerate(matches):
+            # 从索引中查找匹配（O(1) 查询，避免 O(n*m) 双层循环）
+            home = match.get("home_team_name", "")
+            away = match.get("away_team_name", "")
+            lo = _live_idx.get(f"{home}|{away}")
+            if lo is None:
+                # fallback: 归一化键模糊匹配（O(1)，避免嵌套循环）
+                _nh = _normalize_team_name(home)
+                _na = _normalize_team_name(away)
+                lo = _live_fuzzy_idx.get(f"{_nh}|{_na}") if _nh and _na else None
+            if lo:
+                extracted = self.extract_best_odds(lo)
+                if extracted:
+                    extracted["match_date"] = match.get("match_date", "")
+                    all_odds.append(extracted)
+                    stats["success"] += 1
+                else:
+                    stats["skipped"] += 1
+            else:
                 stats["skipped"] += 1
 
             # 每10个请求输出进度

@@ -323,7 +323,7 @@ class SixLayerConversationEngine:
                     import bookmaker_sim.risk_barrier_engine as _rbe
                     self._risk_barrier = _rbe.RiskBarrierEngine()
                     _tried = True
-                except:
+                except (ImportError, AttributeError):
                     pass
                 if not _tried:
                     # 回退: 直接用exec加载

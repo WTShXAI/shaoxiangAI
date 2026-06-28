@@ -86,7 +86,8 @@ def _label(s):
         if h > a: return '主胜'
         if h < a: return '客胜'
         return '平'
-    except: return '?'
+    except (ValueError, TypeError):
+        return '?'
 
 def _alt_label(s, primary_1x2):
     alts = []
@@ -95,7 +96,8 @@ def _alt_label(s, primary_1x2):
             h, a = map(int, sc.split('-'))
             d = '主胜' if h > a else ('客胜' if h < a else '平')
             if d != primary_1x2 and d not in alts: alts.append(d)
-        except: pass
+        except (ValueError, TypeError):
+            pass
     return alts[0] if alts else ('客胜' if primary_1x2 == '主胜' else '主胜')
 
 def _ou_label(ou_line):

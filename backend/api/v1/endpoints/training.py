@@ -94,11 +94,13 @@ async def _run_training(req: TrainingRequest):
     """后台训练执行器"""
     global _training_status
     try:
-        _training_status = TrainingStatus(status="running", progress=0.1, message="加载数据...")
+        async with _training_lock:
+            _training_status = TrainingStatus(status="running", progress=0.1, message="加载数据...")
         import sys, os
         from core.config import settings
 
-        _training_status = TrainingStatus(status="running", progress=0.3, message="训练中...")
+        async with _training_lock:
+            _training_status = TrainingStatus(status="running", progress=0.3, message="训练中...")
 
         # 调用现有训练流水线
         from training.training_pipeline import TrainingPipeline

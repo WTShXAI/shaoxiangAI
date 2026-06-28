@@ -195,7 +195,7 @@ def main():
                 ph = probs.get('H', 0)
                 pd = probs.get('D', 0)
                 pa = probs.get('A', 0)
-            except:
+            except (AttributeError, KeyError, TypeError):
                 total = 1/oh + 1/od + 1/oa
                 ph = 1/oh/total; pd = 1/od/total; pa = 1/oa/total
         else:
