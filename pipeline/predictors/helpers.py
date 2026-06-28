@@ -246,7 +246,7 @@ def _constrain_ou_to_line(ou_link: dict, match, form_result=None, silent: bool =
         logger.warning("加载截图OU数据失败: %s", e)
     
     # 2. 获取OU隐含总进球预期
-    honesty = OULinkageEngine.get_ou_honesty(ou_line)
+    honesty = OULinkageEngine.get_ou_honesty(ou_line, match=match)
     expected_total = honesty.get('exp_goals', ou_line)
     honesty_mult = honesty.get('honesty_mult', 1.0)
     

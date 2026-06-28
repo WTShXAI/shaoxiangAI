@@ -68,17 +68,30 @@ class OULinkageEngine:
     }
 
     @classmethod
-    def get_ou_honesty(cls, line: float) -> dict:
-        """获取OU诚实度分级"""
+    def get_ou_honesty(cls, line: float, match=None) -> dict:
+        """获取OU诚实度分级 (含WC校准)"""
         # 精确匹配
         if line in cls.OU_HONESTY:
             grade, exp_g, mult, note = cls.OU_HONESTY[line]
-            return {'line': line, 'grade': grade, 'exp_goals': exp_g, 'honesty_mult': mult, 'note': note}
-        # 近似匹配 (取最接近的)
-        closest = min(cls.OU_HONESTY.keys(), key=lambda x: abs(x - line))
-        grade, exp_g, mult, note = cls.OU_HONESTY[closest]
+        else:
+            closest = min(cls.OU_HONESTY.keys(), key=lambda x: abs(x - line))
+            grade, exp_g, mult, note = cls.OU_HONESTY[closest]
+            note = f'≈{closest}: {note}'
+
+        # WC校准: 31K交叉数据库偏移修正
+        calib = {'offset': 0, 'direction': 'neutral'}
+        if match and hasattr(match, 'odds_h') and match.odds_h > 0:
+            calib = cls.get_wc_ou_calibration(match)
+            if calib['direction'] != 'neutral' and calib['strength'] in ('medium', 'high'):
+                offset = calib['offset']
+                exp_g += offset
+                note += f' | WC{offset:+.1f}球'
+                if calib['strength'] == 'high' and calib['direction'] == 'down':
+                    if 'honest' in grade:
+                        note += ' (WC模式→该小)'
+        
         return {'line': line, 'grade': grade, 'exp_goals': exp_g, 'honesty_mult': mult,
-                'note': f'≈{closest}: {note}', 'matched_line': closest}
+                'note': note, 'wc_calibration': calib}
 
     @staticmethod
     def classify_ou(line: float) -> str:
@@ -135,6 +148,73 @@ class OULinkageEngine:
         ('level', 'large'):     ('平手大球', ['2-1', '1-1', '2-2'], 0.60, 'hcp≈0+OU大: 开放对攻'),
     }
 
+    # ═══ WC校准: 31K交叉数据库偏移 ═══
+    _crossref_cache = None
+
+    @classmethod
+    def _load_crossref(cls):
+        if cls._crossref_cache is not None:
+            return cls._crossref_cache
+        try:
+            import json
+            p = os.path.join(ROOT, 'data', 'ou_crossref_database.json')
+            if os.path.exists(p):
+                cls._crossref_cache = json.load(open(p, encoding='utf-8'))
+        except Exception:
+            cls._crossref_cache = {}
+        return cls._crossref_cache or {}
+
+    @classmethod
+    def get_wc_ou_calibration(cls, match: MatchInput) -> Dict[str, Any]:
+        """WC校准: 31K历史vs世界杯OU偏移修正 (加权KNN)
+        
+        用d_prob+spread查找最相似的3个历史bin, 距离加权计算偏移
+        """
+        cr = cls._load_crossref()
+        if not cr:
+            return {'offset': 0, 'direction': 'neutral', 'strength': 0}
+
+        oh, od, oa = match.odds_h, match.odds_d, match.odds_a
+        ti = 1/oh + 1/od + 1/oa
+        oid = round((1/od)/ti, 2)
+        spread = round(abs((1/oh)/ti - (1/oa)/ti), 2)
+        
+        # 加权KNN: 找最近的3个bin
+        neighbors = []
+        for key, entry in cr.items():
+            d_p = entry.get('d_prob', 0.2)
+            s_p = entry.get('spread', 0.4)
+            dist = abs(d_p - oid) + abs(s_p - spread)
+            neighbors.append((dist, entry))
+        neighbors.sort(key=lambda x: x[0])
+        
+        # 加权平均: 距离越近权重越大
+        total_w = 0; weighted_offset = 0; weighted_samples = 0
+        for dist, entry in neighbors[:3]:
+            if dist >= 0.20:  # 太远忽略
+                continue
+            w = 1.0 / (dist + 0.02)  # 防止除零
+            wc_avg = entry.get('wc_avg', 2.5)
+            hist_avg = entry.get('hist_avg', 2.5)
+            offset = wc_avg - hist_avg
+            weighted_offset += w * offset
+            weighted_samples += w * entry.get('hist_count', 0)
+            total_w += w
+        
+        if total_w == 0:
+            return {'offset': 0, 'direction': 'neutral', 'strength': 0}
+        
+        offset = weighted_offset / total_w
+        strength = 'high' if abs(offset) >= 0.8 else ('medium' if abs(offset) >= 0.4 else 'low')
+        direction = 'down' if offset < -0.1 else ('up' if offset > 0.1 else 'neutral')
+        
+        return {
+            'offset': round(offset, 2),
+            'direction': direction,
+            'strength': strength,
+            'hist_samples': int(weighted_samples / total_w) if total_w > 0 else 0
+        }
+
     @classmethod
     def infer(cls, match: MatchInput) -> Dict[str, Any]:
         """OU联动推理主入口"""
@@ -156,7 +236,7 @@ class OULinkageEngine:
         ou_band = cls.classify_ou(match.ou_line)
 
         # ═══ OU诚实度调整 v3.0 ═══
-        honesty = cls.get_ou_honesty(match.ou_line)
+        honesty = cls.get_ou_honesty(match.ou_line, match=match)
         honesty_mult = honesty['honesty_mult']
         exp_goals = honesty['exp_goals']
         honesty_grade = honesty['grade']
