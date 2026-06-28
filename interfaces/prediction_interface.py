@@ -1,6 +1,10 @@
 """
-预测服务抽象接口
-定义清晰的接口，降低模块间的直接依赖
+预测服务抽象接口 — ⚠️ 已废弃
+
+请使用 predictors/base.py (PredictorBase) 替代此接口。
+所有预测器已统一实现 predict_match(match) 接口。
+
+废弃时间: 2026-06-28 (预测接口统一)
 """
 
 from abc import ABC, abstractmethod
