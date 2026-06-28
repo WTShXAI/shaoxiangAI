@@ -3,6 +3,10 @@
 =====================================
 后端 HMAC-SHA256 签名方案: AK/SK 仅存服务端。
 端点: POST /api/v1/ocr/upload
+
+⚠️ 废弃声明 (2026-06-28 路由归一):
+   此文件在 backend/main.py 中动态加载，建议后续迁移至
+   backend/api/v1/endpoints/ 下的统一路由。
 """
 
 import base64, hashlib, hmac, logging, os

@@ -1,11 +1,8 @@
 """
-赛程查询端点 — 从 backend/main.py 拆分 (2026-06-28)
-================================================
-原 backend/main.py L1251-1340: upcoming_fixtures GET /api/v1/fixtures/upcoming
-
-拆分记录: 2026-06-28 God File 拆分 第3块
-"""
-import logging
+赛程查询端点 — 路由归一至 api/v1/endpoints/ (2026-06-28)
+====================================
+迁移说明: 原 backend/routers/ → 统一至 api/v1/endpoints/
+"""import logging
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter
 

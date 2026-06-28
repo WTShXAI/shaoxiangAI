@@ -1,11 +1,8 @@
 """
-图片预测端点 — 从 backend/main.py 拆分 (2026-06-28)
-=================================================
-原 backend/main.py L1344-1443: predict_image POST /api/v1/predict/image
-
-拆分记录: 2026-06-28 God File 拆分 第4块
-"""
-import json, asyncio, os, sys, logging, tempfile
+图片预测端点 — 路由归一至 api/v1/endpoints/ (2026-06-28)
+====================================
+迁移说明: 原 backend/routers/ → 统一至 api/v1/endpoints/
+"""import json, asyncio, os, sys, logging, tempfile
 from fastapi import APIRouter, UploadFile, File
 from fastapi.responses import StreamingResponse
 

@@ -1,11 +1,8 @@
 """
-杂项 HTTP 端点 — 从 backend/main.py 拆分 (2026-06-28)
-====================================================
-原 backend/main.py L267-291: API v1 根路径 + legacy 端点
-
-拆分记录: 2026-06-28 路由收归 第6步
-"""
-import logging
+杂项 HTTP 端点 — 路由归一至 api/v1/endpoints/ (2026-06-28)
+========================================
+迁移说明: 原 backend/routers/ → 统一至 api/v1/endpoints/
+"""import logging
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, JSONResponse
 import os

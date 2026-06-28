@@ -55,7 +55,7 @@ def _fetch_url(url, timeout=10):
         req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with urlopen(req, timeout=timeout) as resp:
             return resp.read().decode('utf-8', errors='ignore')
-    except Exception:
+    except (URLError, OSError):
         return None
 
 def _try_fetch_espn():

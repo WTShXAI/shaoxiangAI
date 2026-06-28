@@ -1,5 +1,11 @@
 """
 哨响AI v4.1 — FastAPI 对话/图片端点
+
+⚠️ 废弃声明 (2026-06-28 路由归一):
+   此文件功能已迁移至 backend/api/v1/endpoints/ 下的统一路由：
+   - chat_routes.py (聊天 SSE 端点)
+   - predict_image_routes.py (图片预测端点)
+   请使用 backend/ 下的统一 FastAPI 入口。
 """
 import json, time, asyncio, os, sys, io, logging
 

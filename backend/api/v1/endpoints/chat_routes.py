@@ -1,11 +1,7 @@
 """
-聊天 SSE 端点 — 从 backend/main.py 拆分 (2026-06-28)
-==================================================
-原 backend/main.py L738-1204:
-  - chat_endpoint    POST /api/v1/chat  (SSE 流式)
-  - chat_health      GET  /api/v1/chat/health
-
-拆分记录: 2026-06-28 God File 拆分 第2块
+聊天 SSE 端点 — 路由归一至 api/v1/endpoints/ (2026-06-28)
+=========================================================
+迁移说明: 原 backend/routers/chat.py → 统一至 api/v1/endpoints/
 """
 import json, asyncio, re, sys, os, logging
 from fastapi import APIRouter, Request

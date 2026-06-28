@@ -1,11 +1,8 @@
 """
-JEPA v5.0 预测端点 — 从 backend/main.py 拆分 (2026-06-28)
-=========================================================
-原 backend/main.py L184-212: v5_predict + v5_health
-
-拆分记录: 2026-06-28 路由收归 第6步
-"""
-import logging
+JEPA v5.0 预测端点 — 路由归一至 api/v1/endpoints/ (2026-06-28)
+============================================
+迁移说明: 原 backend/routers/ → 统一至 api/v1/endpoints/
+"""import logging
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 

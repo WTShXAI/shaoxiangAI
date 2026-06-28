@@ -218,20 +218,8 @@ try:
 except Exception as e:
     logger.warning(f"OCR routes not available: {e}")
 
-# ── 聊天/赛程/图片/JEPA/杂项 端点 (从 routers/ 拆出) ──
-import json as _json, asyncio as _asyncio, re as _re
-from backend.routers.chat import router as chat_router
-from backend.routers.fixtures import router as fixtures_router
-from backend.routers.predict_image import router as predict_image_router
-from backend.routers.jepa import router as jepa_router
-from backend.routers.misc import router as misc_router
-app.include_router(chat_router, prefix="/api/v1")
-app.include_router(fixtures_router, prefix="/api/v1")
-app.include_router(predict_image_router, prefix="/api/v1")
-app.include_router(jepa_router, prefix="/api/v1")
-app.include_router(misc_router)
-
-logger.info("Chat routes: POST /api/v1/chat, GET /api/v1/chat/health")
+# ── 聊天/赛程/图片/JEPA/杂项 端点 — 已迁移至 api/v1/endpoints/ (路由归一 2026-06-28) ──
+logger.info("Migrated routes active via api_router: chat, fixtures, predict_image, jepa, misc")
 
 # ── 静态文件挂载 ──────────────────────────
 _static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static')

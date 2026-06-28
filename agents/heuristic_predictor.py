@@ -198,7 +198,7 @@ class HeuristicPredictor:
             d = float(odds_data.get('draw', 0))
             a = float(odds_data.get('away', 0))
             return h > 1.01 and d > 1.01 and a > 1.01
-        except Exception:
+        except (TypeError, ValueError):
             return False
 
 # ── 自检 ──
