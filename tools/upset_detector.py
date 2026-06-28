@@ -3,18 +3,10 @@
 =====================================
 基于实战经验 + 数学模型的冷门/爆冷/高赔率检测系统
 
-核心理论：
-  1. Poisson比分预测 → 精确到具体比分，这是高赔率的数学基础
-  2. 市场无效性检测 → 找到庄家定价错误，是26sp/56sp的来源
-  3. 冷门信号融合 → 多维度信号合成 UpsetScore
-  4. Kelly投注策略 → 资金管理和价值判断
-
-使用方法:
-    python upset_detector.py                      # 分析所有待预测比赛
-    python upset_detector.py --match-id 123456    # 分析单场比赛
-    python upset_detector.py --league PL          # 按联赛分析
-    python upset_detector.py --backtest           # 回测历史冷门检测准确率
-"""
+⚠️ 废弃声明 (2026-06-28):
+   此文件为 v1.0 旧版，新版 v3.0 位于 modules/upset_detector.py (EnhancedUpsetDetector)。
+   所有导入请改用 from modules.upset_detector import EnhancedUpsetDetector。
+   此文件保留供 CLI 回测兼容，不再维护更新。"""
 
 import os
 import sys
