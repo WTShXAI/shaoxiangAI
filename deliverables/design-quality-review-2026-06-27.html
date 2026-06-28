@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FootballAI v4.9 → v5.7 设计质量审查报告</title>
+<style>
+:root{--bg:#0f1923;--card:#1a2332;--border:#2a3a4a;--accent:#00e5ff;--green:#00e676;--yellow:#ffea00;--red:#ff1744;--text:#e0e6ed;--muted:#8899aa}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;padding:0;line-height:1.6}
+.container{max-width:1100px;margin:0 auto;padding:40px 24px}
+h1{font-size:2.2em;margin-bottom:4px;background:linear-gradient(135deg,var(--accent),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+h1 small{font-size:.45em;display:block;-webkit-text-fill-color:var(--muted);margin-top:4px;font-weight:400}
+.subtitle{color:var(--muted);margin-bottom:32px;font-size:.95em}
+h2{font-size:1.3em;margin:32px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);color:var(--accent)}
+h3{font-size:1.1em;margin:20px 0 10px;color:var(--green)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.stat{text-align:center;padding:16px}
+.stat .num{font-size:2em;font-weight:bold;color:var(--accent)}
+.stat .label{font-size:.82em;color:var(--muted);margin-top:4px}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.8em;font-weight:600}
+.tag-green{background:#00e67622;color:var(--green)}
+.tag-yellow{background:#ffea0022;color:var(--yellow)}
+.tag-red{background:#ff174422;color:var(--red)}
+.tag-blue{background:#00e5ff22;color:var(--accent)}
+.schema{font-family:'Fira Code',monospace;font-size:.85em;background:#0a0f16;padding:12px 16px;border-radius:6px;overflow-x:auto;line-height:1.5;color:#c9d1d9;white-space:pre;margin:8px 0}
+ul{padding-left:20px;margin:8px 0}
+li{margin:4px 0;color:var(--text)}
+.ok{color:var(--green)}.warn{color:var(--yellow)}.err{color:var(--red)}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:.92em}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
+th{color:var(--accent);font-weight:600;font-size:.85em;text-transform:uppercase}
+tr:hover td{background:#ffffff08}
+.footer{text-align:center;color:var(--muted);font-size:.8em;padding:32px 0 16px;border-top:1px solid var(--border);margin-top:40px}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>设计质量审查 <small>FootballAI v4.9 → v5.7 · 2026-06-27</small></h1>
+<p class="subtitle">基于48场世界杯回测 + Agent三大技能映射 + 第三方质量审计的综合评估</p>
+
+<div class="grid">
+  <div class="card stat"><div class="num">7</div><div class="label">全链路层级</div></div>
+  <div class="card stat"><div class="num">48</div><div class="label">回测场次</div></div>
+  <div class="card stat"><div class="num">28.6%</div><div class="label">比分精确率</div></div>
+  <div class="card stat"><div class="num">83.3%</div><div class="label">让球准确率</div></div>
+</div>
+
+<h2>1. 系统架构设计</h2>
+<div class="card">
+<h3>核心架构：6层AI + 7链联动</h3>
+<p>系统采用分层架构，从数据输入到策略输出共6层，中间通过7链管道串联所有分析维度：</p>
+<div class="schema">
+输入: 欧赔(1X2) + 让球 + 大小球 + 阵容 + 战绩
+  │
+  ├─[链-1] TeamFormFetcher — 球队近10场真实战绩 (战绩优先铁律)
+  ├─[链0]  MatchContextAnalyzer — 战意/出线形势/R3轮换
+  ├─[链0.5] LiveMovementSignal — 临场升盘/诱盘检测
+  ├─[链1]  OULinkageEngine — OU锚定+诚实度 ⚓ 锚定层
+  ├─[链2]  D-Gate v5.3 🛡️ 风控层 (庄家意图+平局检测)
+  ├─[链3]  UnifiedPredictor v4.1 🤖 模型层 (Stacking概率)
+  └─[链4]  TaoGeStrategy 🎯 决策层 (智慧推荐类型选择)
+  │
+  ▼
+输出: 比赛判定 + 比分推荐 + 让球策略 + OU方向 + 推荐类型
+</div>
+<p><span class="tag tag-green">✅</span> <strong>关键设计决策</strong>：链-1优先级最高（战绩压倒赔率）；Priority Gate短路机制（屠杀/碾压直通链4）；让2球不穿律+进攻碾压豁免双路径</p>
+</div>
+
+<h2>2. Agent三大技能映射</h2>
+<div class="grid">
+<div class="card">
+<h3>🧠 思维设计</h3>
+<p><strong>三路径对比投票 v5.7</strong></p>
+<ul>
+<li>A: UnifiedPredictor v4.1 (权重0.6)</li>
+<li>B: D-Gate v5.3 规则 (权重0.9)</li>
+<li>C: 历史战绩/相似场 (权重0.5)</li>
+</ul>
+<p>裁决规则：两条一致→采用；全分歧→D-Gate &gt; 模型 &gt; 历史</p>
+<p><span class="tag tag-blue">自我检查</span> consistency_check() 7条铁律，发现矛盾自动剔除</p>
+</div>
+<div class="card">
+<h3>💾 记忆构建</h3>
+<p><strong>赛后学习闭环 v5.7</strong></p>
+<ul>
+<li>回测完自动调 learn_from_backtest()</li>
+<li>4类错误自动分类 (A/B/C/D)</li>
+<li>lessons.json 持久化 + get_active_rules()</li>
+<li>半场动态修正 (4类半场状况→置信度衰减10-50%)</li>
+</ul>
+</div>
+<div class="card">
+<h3>⚡ 外部行动</h3>
+<p><strong>淘汰赛晋级预测器</strong></p>
+<ul>
+<li>12组48队完整积分 (48/48)</li>
+<li>Elo+R3模拟→32强→16强→8强→4强→冠军</li>
+<li>智慧推荐类型选择 (不机械推让球)</li>
+<li>wc-predict 统一预测skill</li>
+</ul>
+</div>
+</div>
+
+<h2>3. 规则引擎设计</h2>
+<div class="card">
+<h3>D-Gate v5.3 三模式 + 情境过滤器</h3>
+<table>
+<tr><th>模式</th><th>触发条件</th><th>用途</th><th>效果</th></tr>
+<tr><td>Mode A</td><td>imp 50-70% + OU≤2.5 + ≥2庄家信号</td><td>均衡赔率平局检测</td><td>draw_alert标记</td></tr>
+<tr><td>Mode B</td><td>已废弃 (0%准确率)</td><td>—</td><td>—</td></tr>
+<tr><td>Mode C</td><td>imp&gt;72% + 平赔&lt;6.0 + OU≤3.0</td><td>超热门翻车识别</td><td>葡萄牙vs民刚果验证✅</td></tr>
+<tr><td><span class="tag tag-yellow">情境</span></td><td>imp&gt;85% + R3轮换/默契平局/OU≤2.5</td><td>晋级路线驱动的平局</td><td>西班牙1-1/葡萄牙1-1覆盖</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h3>铁律清单 (v5.7)</h3>
+<table>
+<tr><th>#</th><th>铁律</th><th>说明</th></tr>
+<tr><td>1</td><td>战绩优先</td><td>近10场战绩 > 所有赔率分析层</td></tr>
+<tr><td>2</td><td>让2球不穿律</td><td>竞彩让≥1.75球时走水路径优先，除非进攻碾压豁免</td></tr>
+<tr><td>3</td><td>进攻碾压豁免</td><td>弱队场均<0.5 + 强队≥2.0 → 破让2球不穿律</td></tr>
+<tr><td>4</td><td>一致性7条</td><td>让球/比分/方向/OU/对冲/冷门/屠杀全维度校验</td></tr>
+<tr><td>5</td><td>智慧推荐</td><td>小比分→1X2优先，大比分→让球优先</td></tr>
+<tr><td>6</td><td>赛前情境过滤</td><td>R3轮换/默契平局/双生存战 → 覆盖赔率判型</td></tr>
+</table>
+</div>
+
+<h2>4. 四维比分优化</h2>
+<div class="card">
+<p>比分推荐不再由Poisson λ单独决定，而是四维交叉约束后的交集：</p>
+<div class="schema">
+预测方向(1X2) × 让球(让胜/让平/让负) × 胜平负(竞彩) × OU(大小球)
+       ↓              ↓                ↓              ↓
+  过滤H/D/A      让2球走水       竞彩方向确认     总进球约束
+                           ↓
+                  最终推荐比分 (可解空间大幅缩减)
+</div>
+<p><span class="tag tag-green">✅</span> 旧版14.3% → v5.7 28.6% (+14.3pp) | Top3 42.9% (+14.3pp)</p>
+</div>
+
+<h2>5. 数据完整性</h2>
+<div class="card">
+<table>
+<tr><th>数据维度</th><th>状态</th><th>来源</th></tr>
+<tr><td>48队分组/积分</td><td><span class="ok">✅ 48/48</span></td><td>API缓存 + DB赛果 + Manual Supplement三源交叉</td></tr>
+<tr><td>MD1赛果 (6/15-17)</td><td><span class="ok">✅ 24场</span></td><td>FIFA API FINISHED缓存</td></tr>
+<tr><td>MD2赛果 (6/22-26)</td><td><span class="ok">✅ 24场</span></td><td>DB (sporttery.cn) + FINISHED缓存</td></tr>
+<tr><td>MD3赛果 (6/27-28)</td><td><span class="warn">⏳ 进行中</span></td><td>R3结束后入库</td></tr>
+<tr><td>淘汰赛预测</td><td><span class="ok">✅ 已建成</span></td><td>pipeline/knockout_predictor.py</td></tr>
+</table>
+</div>
+
+<h2>6. 设计评分</h2>
+<div class="grid">
+<div class="card stat"><div class="num">8.5/10</div><div class="label">架构完整性</div></div>
+<div class="card stat"><div class="num">7.5/10</div><div class="label">规则引擎</div></div>
+<div class="card stat"><div class="num">6.5/10</div><div class="label">数据覆盖率</div></div>
+<div class="card stat"><div class="num">7.0/10</div><div class="label">可扩展性</div></div>
+</div>
+
+<div class="footer">
+FootballAI v5.7 设计质量审查 · 哨响AI · 2026-06-27 18:30 CST
+</div>
+</div>
+</body>
+</html>

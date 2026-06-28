@@ -1,0 +1,86 @@
+[
+  {
+    "match": "克罗地亚 vs 加纳",
+    "primary": "主胜",
+    "secondary": "平",
+    "best_score": "1-1",
+    "alt_scores": [
+      "1-0",
+      "0-0"
+    ],
+    "strategy": "",
+    "strength_gap": "",
+    "context_reason": "克罗地亚非赢不可, 赔率判型被形势覆盖",
+    "massacre": false
+  },
+  {
+    "match": "巴拿马 vs 英格兰",
+    "primary": "让平",
+    "secondary": "让胜",
+    "best_score": "0-1",
+    "alt_scores": [
+      "1-1",
+      "0-0"
+    ],
+    "strategy": "",
+    "strength_gap": "",
+    "context_reason": "巴拿马非赢不可, 赔率判型被形势覆盖",
+    "massacre": false
+  },
+  {
+    "match": "哥伦比亚 vs 葡萄牙",
+    "primary": "平",
+    "secondary": "胜",
+    "best_score": "1-1",
+    "alt_scores": [
+      "1-0",
+      "0-0"
+    ],
+    "strategy": "",
+    "strength_gap": "",
+    "context_reason": "",
+    "massacre": false
+  },
+  {
+    "match": "民主刚果 vs 乌兹别克斯坦",
+    "primary": "胜",
+    "secondary": "客胜",
+    "best_score": "1-1",
+    "alt_scores": [
+      "1-0",
+      "0-0"
+    ],
+    "strategy": "",
+    "strength_gap": "",
+    "context_reason": "双求生战: 比赛开放, 大球+主队方向偏好",
+    "massacre": false
+  },
+  {
+    "match": "阿尔及利亚 vs 奥地利",
+    "primary": "胜",
+    "secondary": "客胜",
+    "best_score": "1-1",
+    "alt_scores": [
+      "1-0",
+      "0-0"
+    ],
+    "strategy": "",
+    "strength_gap": "",
+    "context_reason": "双求生战: 比赛开放, 大球+主队方向偏好",
+    "massacre": false
+  },
+  {
+    "match": "约旦 vs 阿根廷",
+    "primary": "让平",
+    "secondary": "让胜",
+    "best_score": "3-1",
+    "alt_scores": [
+      "3-2",
+      "2-1"
+    ],
+    "strategy": "",
+    "strength_gap": "",
+    "context_reason": "约旦非赢不可, 赔率判型被形势覆盖",
+    "massacre": true
+  }
+]

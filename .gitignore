@@ -22,7 +22,9 @@ build/
 # 环境
 .env
 .venv/
+.venv_*/
 venv/
+venv_*/
 
 # IDE
 .idea/
@@ -41,3 +43,7 @@ deliverables/*.zip
 *.bak
 *.backup
 *~
+
+# 日志
+logs/*.log
+logs/*.log.*

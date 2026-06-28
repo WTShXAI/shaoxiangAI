@@ -105,6 +105,7 @@ data:
     ix_drift_confidence: 0.0
     ix_sharp_draw: 0.0
     drift_d_signal: 0.0
+    drift_sharp_signal: 0
     ix_drift_even_draw: 0.0
     ix_a1_sigma: 0.0
     ix_a2_lambda: 0.0
@@ -194,6 +195,7 @@ data:
   - ix_drift_confidence
   - ix_sharp_draw
   - drift_d_signal
+  - drift_sharp_signal
   - ix_drift_even_draw
   - ix_a1_sigma
   - ix_a2_lambda

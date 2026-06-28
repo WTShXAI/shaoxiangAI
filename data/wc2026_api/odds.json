@@ -1,0 +1,326 @@
+[
+  {
+    "gameId": 4627858,
+    "homeTeam": "Ecuador",
+    "awayTeam": "Germany",
+    "startTime": "2026-06-25T20:00:00+00:00",
+    "statusText": "Scheduled",
+    "predictions": {
+      "predictions": [
+        {
+          "id": 1049472324,
+          "type": 1,
+          "title": "Who Will Win?",
+          "showVotes": true,
+          "totalVotes": 52834,
+          "options": [
+            {
+              "num": 1,
+              "name": "Ecuador",
+              "symbol": 0,
+              "vote": {
+                "count": 9327,
+                "key": "http://www.365scores.com/Objects/Game/WWW/?GameID=4627858",
+                "percentage": 18
+              }
+            },
+            {
+              "num": 2,
+              "name": "Draw",
+              "symbol": 0,
+              "vote": {
+                "count": 4758,
+                "key": "http://www.365scores.com/Objects/Game/WWW/?GameID=4627858",
+                "percentage": 9
+              }
+            },
+            {
+              "num": 3,
+              "name": "Germany",
+              "symbol": 0,
+              "vote": {
+                "count": 38749,
+                "key": "http://www.365scores.com/Objects/Game/WWW/?GameID=4627858",
+                "percentage": 73
+              }
+            }
+          ]
+        },
+        {
+          "id": -764762366,
+          "type": 3,
+          "title": "Total Goals In Match (2.5)",
+          "showVotes": true,
+          "totalVotes": 6409,
+          "options": [
+            {
+              "num": 1,
+              "name": "Under",
+              "symbol": 0,
+              "vote": {
+                "count": 1443,
+                "key": "http://www.365scores.com/Objects/Game/Prediction/?GameID=4627858&lt=3&p=2.5",
+                "percentage": 23
+              }
+            },
+            {
+              "num": 2,
+              "name": "Over",
+              "symbol": 0,
+              "vote": {
+                "count": 4966,
+                "key": "http://www.365scores.com/Objects/Game/Prediction/?GameID=4627858&lt=3&p=2.5",
+                "percentage": 77
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "odds": {},
+    "bookmakers": []
+  },
+  {
+    "gameId": 4627897,
+    "homeTeam": "Curacao",
+    "awayTeam": "Ivory Coast",
+    "startTime": "2026-06-25T20:00:00+00:00",
+    "statusText": "Scheduled",
+    "predictions": {
+      "predictions": [
+        {
+          "id": 29682981,
+          "type": 1,
+          "title": "Who Will Win?",
+          "showVotes": true,
+          "totalVotes": 28314,
+          "options": [
+            {
+              "num": 1,
+              "name": "Curacao",
+              "symbol": 0,
+              "vote": {
+                "count": 4488,
+                "key": "http://www.365scores.com/Objects/Game/WWW/?GameID=4627897",
+                "percentage": 16
+              }
+            },
+            {
+              "num": 2,
+              "name": "Draw",
+              "symbol": 0,
+              "vote": {
+                "count": 2973,
+                "key": "http://www.365scores.com/Objects/Game/WWW/?GameID=4627897",
+                "percentage": 11
+              }
+            },
+            {
+              "num": 3,
+              "name": "Ivory Coast",
+              "symbol": 0,
+              "vote": {
+                "count": 20853,
+                "key": "http://www.365scores.com/Objects/Game/WWW/?GameID=4627897",
+                "percentage": 73
+              }
+            }
+          ]
+        },
+        {
+          "id": -1876120543,
+          "type": 3,
+          "title": "Total Goals In Match (2.5)",
+          "showVotes": true,
+          "totalVotes": 1061,
+          "options": [
+            {
+              "num": 1,
+              "name": "Under",
+              "symbol": 0,
+              "vote": {
+                "count": 354,
+                "key": "http://www.365scores.com/Objects/Game/Prediction/?GameID=4627897&lt=3&p=2.5",
+                "percentage": 33
+              }
+            },
+            {
+              "num": 2,
+              "name": "Over",
+              "symbol": 0,
+              "vote": {
+                "count": 707,
+                "key": "http://www.365scores.com/Objects/Game/Prediction/?GameID=4627897&lt=3&p=2.5",
+                "percentage": 67
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "odds": {},
+    "bookmakers": []
+  },
+  {
+    "gameId": 4627874,
+    "homeTeam": "Tunisia",
+    "awayTeam": "Netherlands",
+    "startTime": "2026-06-25T23:00:00+00:00",
+    "statusText": "Scheduled",
+    "predictions": {
+      "predictions": [
+        {
+          "id": 1298844943,
+          "type": 1,
+          "title": "Who Will Win?",
+          "showVotes": true,
+          "totalVotes": 33948,
+          "options": [
+            {
+              "num": 1,
+              "name": "Tunisia",
+              "symbol": 0,
+              "vote": {
+                "count": 5605,
+                "key": "http://www.365scores.com/Objects/Game/WWW/?GameID=4627874",
+                "percentage": 17
+              }
+            },
+            {
+              "num": 2,
+              "name": "Draw",
+              "symbol": 0,
+              "vote": {
+                "count": 2408,
+                "key": "http://www.365scores.com/Objects/Game/WWW/?GameID=4627874",
+                "percentage": 7
+              }
+            },
+            {
+              "num": 3,
+              "name": "Netherlands",
+              "symbol": 0,
+              "vote": {
+                "count": 25935,
+                "key": "http://www.365scores.com/Objects/Game/WWW/?GameID=4627874",
+                "percentage": 76
+              }
+            }
+          ]
+        },
+        {
+          "id": 887096577,
+          "type": 3,
+          "title": "Total Goals In Match (2.5)",
+          "showVotes": true,
+          "totalVotes": 1505,
+          "options": [
+            {
+              "num": 1,
+              "name": "Under",
+              "symbol": 0,
+              "vote": {
+                "count": 343,
+                "key": "http://www.365scores.com/Objects/Game/Prediction/?GameID=4627874&lt=3&p=2.5",
+                "percentage": 23
+              }
+            },
+            {
+              "num": 2,
+              "name": "Over",
+              "symbol": 0,
+              "vote": {
+                "count": 1162,
+                "key": "http://www.365scores.com/Objects/Game/Prediction/?GameID=4627874&lt=3&p=2.5",
+                "percentage": 77
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "odds": {},
+    "bookmakers": []
+  },
+  {
+    "gameId": 4697707,
+    "homeTeam": "Japan",
+    "awayTeam": "Sweden",
+    "startTime": "2026-06-25T23:00:00+00:00",
+    "statusText": "Scheduled",
+    "predictions": {
+      "predictions": [
+        {
+          "id": 1922218022,
+          "type": 1,
+          "title": "Who Will Win?",
+          "showVotes": true,
+          "totalVotes": 29717,
+          "options": [
+            {
+              "num": 1,
+              "name": "Japan",
+              "symbol": 0,
+              "vote": {
+                "count": 19406,
+                "key": "http://www.365scores.com/Objects/Game/WWW/?GameID=4697707",
+                "percentage": 65
+              }
+            },
+            {
+              "num": 2,
+              "name": "Draw",
+              "symbol": 0,
+              "vote": {
+                "count": 3943,
+                "key": "http://www.365scores.com/Objects/Game/WWW/?GameID=4697707",
+                "percentage": 13
+              }
+            },
+            {
+              "num": 3,
+              "name": "Sweden",
+              "symbol": 0,
+              "vote": {
+                "count": 6368,
+                "key": "http://www.365scores.com/Objects/Game/WWW/?GameID=4697707",
+                "percentage": 22
+              }
+            }
+          ]
+        },
+        {
+          "id": 929659296,
+          "type": 3,
+          "title": "Total Goals In Match (2.5)",
+          "showVotes": true,
+          "totalVotes": 2766,
+          "options": [
+            {
+              "num": 1,
+              "name": "Under",
+              "symbol": 0,
+              "vote": {
+                "count": 834,
+                "key": "http://www.365scores.com/Objects/Game/Prediction/?GameID=4697707&lt=3&p=2.5",
+                "percentage": 30
+              }
+            },
+            {
+              "num": 2,
+              "name": "Over",
+              "symbol": 0,
+              "vote": {
+                "count": 1932,
+                "key": "http://www.365scores.com/Objects/Game/Prediction/?GameID=4697707&lt=3&p=2.5",
+                "percentage": 70
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "odds": {},
+    "bookmakers": []
+  }
+]

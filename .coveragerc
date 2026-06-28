@@ -1,0 +1,28 @@
+[run]
+source = rules,modules,backend
+omit =
+    */tests/*
+    */__pycache__/*
+    */.venv/*
+    */venv/*
+    */site-packages/*
+    *.pyc
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if __name__ == .__main__.:
+    raise AssertionError
+    raise NotImplementedError
+    logger.(debug|info|warning|error)
+    logging.(debug|info|warning|error)
+
+[html]
+directory = coverage_html
+
+[xml]
+output = coverage.xml
+
+# 目标覆盖率 60%
+fail_under = 60

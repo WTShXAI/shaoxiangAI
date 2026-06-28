@@ -78,8 +78,8 @@ def get_active_version() -> str:
             with open(registry_path, 'r') as f:
                 registry = json.load(f)
             return registry.get('active', '3.2')
-    except Exception:
-        pass
+    except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
+        logging.getLogger(__name__).warning("读取模型注册表失败: %s", e)
     return '3.2'
 
 class EnsembleTrainer:

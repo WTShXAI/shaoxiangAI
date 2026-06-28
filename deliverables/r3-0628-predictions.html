@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FootballAI v5.7 · R3最终预测 · 2026-06-28 (OU方向性修正v5)</title>
+<style>
+  :root { --bg:#f5f5f5;--card:#fff;--text:#222;--muted:#888;--accent:#d32f2f;--win:#2e7d32;--draw:#f57c00;--lose:#1565c0;--good:#e8f5e9;--warn:#fff3e0;--bad:#ffebee;--border:#e0e0e0;--radius:8px;--walk:#ff9800; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,'Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+  .container{max-width:1000px;margin:0 auto;padding:16px}
+  .header{background:linear-gradient(135deg,#1a237e 0%,#283593 50%,#d32f2f 100%);color:#fff;padding:24px 20px;border-radius:var(--radius);margin-bottom:20px}
+  .header h1{font-size:1.5em}.header .sub{font-size:.85em;opacity:.85;margin-top:4px}.header .meta{font-size:.75em;opacity:.7;margin-top:6px}
+
+  .match-card{background:var(--card);border-radius:var(--radius);padding:20px;margin-bottom:16px;border-left:4px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .match-card.flip{border-left-color:var(--accent)}
+  .match-card.ou-hit{border-left-color:#9c27b0}
+  .match-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .match-no{font-size:.75em;color:var(--muted);font-weight:600}
+  .match-teams{font-size:1.15em;font-weight:700}
+  .match-hcp{font-size:.8em;padding:2px 8px;border-radius:4px;background:#f0f0f0;color:#666}
+  .ou-diff{font-size:.75em;padding:2px 8px;border-radius:4px;font-weight:600}
+  .ou-diff.down{background:#e8f5e9;color:#2e7d32}
+  .ou-diff.up{background:#ffebee;color:#b71c1c}
+
+  .odds-row{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+  .odds-box{flex:1;min-width:56px;text-align:center;padding:5px 3px;border-radius:6px;background:#fafafa;border:1px solid var(--border)}
+  .odds-box .label{font-size:.65em;color:var(--muted)}
+  .odds-box .val{font-size:.95em;font-weight:700}
+
+  .verdict{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+  .verdict-main{font-size:1.2em;font-weight:800;padding:3px 12px;border-radius:6px;color:#fff}
+  .verdict-main.win{background:var(--win)}.verdict-main.draw{background:var(--draw)}.verdict-main.lose{background:var(--lose)}
+  .verdict-secondary{font-size:.85em;color:var(--muted);font-weight:600}
+  .score-main{font-size:1.1em;font-weight:800;padding:2px 10px;background:#e3f2fd;border-radius:6px;color:#1565c0}
+  .score-alt{font-size:.75em;color:var(--muted)}
+
+  .tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+  .tag{font-size:.7em;padding:2px 8px;border-radius:12px;font-weight:600}
+  .tag.context{background:#e8eaf6;color:#283593}
+  .tag.ou{background:var(--good);color:#2e7d32}
+  .tag.flip-tag{background:var(--bad);color:#b71c1c}
+  .tag.warn{background:var(--warn);color:#e65100}
+  .market-tag{font-size:.7em;padding:2px 8px;border-radius:12px;font-weight:600;background:#e0f2f1;color:#00695c;margin-left:8px}
+  .market-info{font-size:.72em;color:var(--muted);margin-top:4px}
+  .market-label{font-weight:600}
+
+  .layer-row{margin-top:8px}
+  .layer{display:inline-block;margin:2px 4px 2px 0;padding:3px 8px;background:#f5f5f5;border-radius:4px;font-size:.72em}
+  .layer strong{color:#1a237e}
+
+  .summary-table{width:100%;border-collapse:collapse;margin-top:16px;background:var(--card);border-radius:var(--radius);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .summary-table th{background:#1a237e;color:#fff;padding:8px 10px;font-size:.75em;text-align:left}
+  .summary-table td{padding:8px 10px;font-size:.78em;border-bottom:1px solid var(--border)}
+  .summary-table tr.flipped{background:#ffebee}
+  .summary-table tr.bugfix{background:#e8f5e9}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>⚽ FootballAI v5.7 · R3 外围OU修正预测 (v5-方向性修复)</h1>
+  <div class="sub">数据: Bing Sports + 11v11 + 外围OU(截图OCR) | 引擎: 7链 + D-Gate v5.3 + OU约束v4.0</div>
+  <div class="meta">2026-06-27 16:20 · 🔧 OU分裂线方向性修复: 2.75高侧陷阱→大球(非小球) · 标签与分析层一致</div>
+</div>
+
+<!-- ⚠️ Bug修复说明 -->
+<div style="background:#fff3e0;padding:12px;border-radius:var(--radius);margin-bottom:16px;font-size:.82em;border-left:4px solid #f57c00">
+  <b>🔧 v4→v5 核心修复:</b> OU_HONESTY分裂线方向性bug —
+  2.75/3.25为<b>高侧陷阱</b>(庄家诱导买小→实际大球), 但v4.0错误标为≤2球。
+  修复后2.75→exp_goals=3.0(原2.0), 2.75不再压低比分, 大球标签与比分一致。
+  <b>受影响场次:</b> 巴拿马vs英格兰 (OU=2.75) · 约旦vs阿根廷 (OU=3.0) 无变化。
+</div>
+
+
+<!-- M67: 克罗地亚vs加纳 -->
+<div class="match-card">
+  <div class="match-header">
+    <span class="match-no">067 · R3</span>
+    <span class="match-teams">克罗地亚 vs 加纳</span>
+    <span class="match-hcp">[+1.0] 主让1.0球</span>
+    <span class="ou-diff down">外围OU 2.25 (↓小球 · 分裂陷阱)</span>
+  </div>
+  <div class="odds-row">
+    <div class="odds-box"><div class="label">主胜</div><div class="val">1.65</div></div>
+    <div class="odds-box"><div class="label">平局</div><div class="val" style="color:var(--draw)">3.05</div></div>
+    <div class="odds-box"><div class="label">客胜</div><div class="val">5.11</div></div>
+    <div class="odds-box"><div class="label">外围OU</div><div class="val" style="color:#2e7d32">2.25</div></div>
+  </div>
+  <div class="tags">
+    <span class="tag context">🔴 搏命局 | 加纳4分打平出线</span>
+    <span class="tag ou">OU=2.25→分裂线陷阱≤1球</span>
+  </div>
+  <div class="verdict">
+    <span class="verdict-main win">客胜</span>
+    <span class="verdict-secondary">次选: 让负 (主让1.0球)</span>
+    <span class="score-main">克罗地亚 <b>0-1</b> 加纳</span>
+    <span class="score-alt">备选: 克罗地亚 1-0 加纳, 克罗地亚 0-1 加纳</span>
+    <span class="market-tag">推荐市场: AH, 1X2</span>
+  </div>
+  <div class="market-info">
+    <span class="market-label">推荐类型:</span>
+    <span class="market-value">双推(深让小比分:让球+1X2)</span>
+  </div>
+  <div class="layer-row">
+    <span class="layer"><strong>链-1</strong> 净胜差+0.20→even</span>
+    <span class="layer"><strong>链0</strong> 战意覆盖</span>
+    <span class="layer"><strong>链1</strong> OU=2.25 OU=2.25→分裂线陷阱≤1球</span>
+    <span class="layer"><strong>链2</strong> D-Gate: ?</span>
+    <span class="layer"><strong>🗳</strong> 三路投票</span>
+    <span class="layer"><strong>链4</strong> 客胜+让负 (主让1.0球)</span>
+  </div>
+</div>
+
+<!-- M68: 巴拿马vs英格兰 -->
+<div class="match-card">
+  <div class="match-header">
+    <span class="match-no">068 · R3</span>
+    <span class="match-teams">巴拿马 vs 英格兰</span>
+    <span class="match-hcp">[+2.0] 客让2.0球</span>
+    <span class="ou-diff down">外围OU 2.75 (🟠名气陷阱→小球)</span>
+  </div>
+  <div class="odds-row">
+    <div class="odds-box"><div class="label">主胜</div><div class="val">2.70</div></div>
+    <div class="odds-box"><div class="label">平局</div><div class="val" style="color:var(--draw)">4.10</div></div>
+    <div class="odds-box"><div class="label">客胜</div><div class="val">1.94</div></div>
+    <div class="odds-box"><div class="label">外围OU</div><div class="val" style="color:#2e7d32">2.75</div></div>
+  </div>
+  <div class="tags">
+    <span class="tag flip-tag">巴0分淘汰 | 英4分赢球头名</span>
+    <span class="tag ou">OU=2.75→R3轮换名气溢价,实际≤2球</span>
+    <span class="tag flip-tag">⚡ v4→v5 OU方向修复: 大球标签-比分一致</span>
+  </div>
+  <div class="verdict">
+    <span class="verdict-main lose">让负 (客让2.0球)</span>
+    <span class="verdict-secondary">次选: 客胜</span>
+    <span class="score-main">巴拿马 <b>1-3</b> 英格兰</span>
+    <span class="score-alt">备选: 巴拿马 2-2 英格兰, 巴拿马 1-2 英格兰</span>
+    <span class="market-tag">推荐市场: AH, 1X2</span>
+  </div>
+  <div class="market-info">
+    <span class="market-label">推荐类型:</span>
+    <span class="market-value">双推(大比分:让球+1X2)</span>
+  </div>
+  <div class="layer-row">
+    <span class="layer"><strong>链-1</strong> 净胜差-1.80→dominate</span>
+    <span class="layer"><strong>链0</strong> 战意覆盖</span>
+    <span class="layer"><strong>链1</strong> OU=2.75 OU=2.75→R3轮换名气溢价,实际≤2球</span>
+    <span class="layer"><strong>链2</strong> D-Gate: ?</span>
+    <span class="layer"><strong>🗳</strong> 三路投票</span>
+    <span class="layer"><strong>链4</strong> 让负 (客让2.0球)+客胜</span>
+  </div>
+</div>
+
+<!-- M69: 哥伦比亚vs葡萄牙 -->
+<div class="match-card">
+  <div class="match-header">
+    <span class="match-no">069 · R3</span>
+    <span class="match-teams">哥伦比亚 vs 葡萄牙</span>
+    <span class="match-hcp">[+1.0] 客让1.0球</span>
+    <span class="ou-diff down">外围OU 2.25 (↓小球 · 分裂陷阱)</span>
+  </div>
+  <div class="odds-row">
+    <div class="odds-box"><div class="label">主胜</div><div class="val">3.50</div></div>
+    <div class="odds-box"><div class="label">平局</div><div class="val" style="color:var(--draw)">3.68</div></div>
+    <div class="odds-box"><div class="label">客胜</div><div class="val">1.75</div></div>
+    <div class="odds-box"><div class="label">外围OU</div><div class="val" style="color:#2e7d32">2.25</div></div>
+  </div>
+  <div class="tags">
+    <span class="tag context">哥6分出线轮换 | 葡4分打平出线</span>
+    <span class="tag ou">OU=2.25→分裂线陷阱≤1球</span>
+  </div>
+  <div class="verdict">
+    <span class="verdict-main win">主胜</span>
+    <span class="verdict-secondary">次选: 平局</span>
+    <span class="score-main">哥伦比亚 <b>1-0</b> 葡萄牙</span>
+    <span class="score-alt">备选: 哥伦比亚 0-1 葡萄牙, 哥伦比亚 1-0 葡萄牙</span>
+    <span class="market-tag">推荐市场: 1X2</span>
+  </div>
+  <div class="market-info">
+    <span class="market-label">推荐类型:</span>
+    <span class="market-value">1X2优先(小比分)</span>
+  </div>
+  <div class="layer-row">
+    <span class="layer"><strong>链-1</strong> 净胜差-0.40→even</span>
+    <span class="layer"><strong>链0</strong> 战意覆盖</span>
+    <span class="layer"><strong>链1</strong> OU=2.25 OU=2.25→分裂线陷阱≤1球</span>
+    <span class="layer"><strong>链2</strong> D-Gate: ?</span>
+    <span class="layer"><strong>🗳</strong> 三路投票</span>
+    <span class="layer"><strong>链4</strong> 主胜+平局</span>
+  </div>
+</div>
+
+<!-- M70: 民主刚果vs乌兹别克斯坦 -->
+<div class="match-card">
+  <div class="match-header">
+    <span class="match-no">070 · R3</span>
+    <span class="match-teams">民主刚果 vs 乌兹别克斯坦</span>
+    <span class="match-hcp">[+1.0] 主让1.0球</span>
+    <span class="ou-diff down">外围OU 2.25 (↓小球 · 分裂陷阱)</span>
+  </div>
+  <div class="odds-row">
+    <div class="odds-box"><div class="label">主胜</div><div class="val">1.46</div></div>
+    <div class="odds-box"><div class="label">平局</div><div class="val" style="color:var(--draw)">4.10</div></div>
+    <div class="odds-box"><div class="label">客胜</div><div class="val">5.00</div></div>
+    <div class="odds-box"><div class="label">外围OU</div><div class="val" style="color:#2e7d32">2.25</div></div>
+  </div>
+  <div class="tags">
+    <span class="tag context">🔥双求生 | 刚果1分必须赢</span>
+    <span class="tag ou">OU=2.25→分裂线陷阱≤1球</span>
+  </div>
+  <div class="verdict">
+    <span class="verdict-main win">主胜</span>
+    <span class="verdict-secondary">次选: 客胜</span>
+    <span class="score-main">民主刚果 <b>1-0</b> 乌兹别克斯坦</span>
+    <span class="score-alt">备选: 民主刚果 0-1 乌兹别克斯坦, 民主刚果 1-0 乌兹别克斯坦</span>
+    <span class="market-tag">推荐市场: 1X2</span>
+  </div>
+  <div class="market-info">
+    <span class="market-label">推荐类型:</span>
+    <span class="market-value">1X2优先(小比分)</span>
+  </div>
+  <div class="layer-row">
+    <span class="layer"><strong>链-1</strong> 净胜差+0.90→edge</span>
+    <span class="layer"><strong>链0</strong> 战意覆盖</span>
+    <span class="layer"><strong>链1</strong> OU=2.25 OU=2.25→分裂线陷阱≤1球</span>
+    <span class="layer"><strong>链2</strong> D-Gate: ?</span>
+    <span class="layer"><strong>🗳</strong> 三路投票</span>
+    <span class="layer"><strong>链4</strong> 主胜+客胜</span>
+  </div>
+</div>
+
+<!-- M71: 阿尔及利亚vs奥地利 -->
+<div class="match-card">
+  <div class="match-header">
+    <span class="match-no">071 · R3</span>
+    <span class="match-teams">阿尔及利亚 vs 奥地利</span>
+    <span class="match-hcp">[+1.0] 客让1.0球</span>
+    <span class="ou-diff down">外围OU 2.25 (↓小球 · 分裂陷阱)</span>
+  </div>
+  <div class="odds-row">
+    <div class="odds-box"><div class="label">主胜</div><div class="val">3.70</div></div>
+    <div class="odds-box"><div class="label">平局</div><div class="val" style="color:var(--draw)">2.02</div></div>
+    <div class="odds-box"><div class="label">客胜</div><div class="val">2.75</div></div>
+    <div class="odds-box"><div class="label">外围OU</div><div class="val" style="color:#2e7d32">2.25</div></div>
+  </div>
+  <div class="tags">
+    <span class="tag context">🔥双求生 各3分 | 淘汰赛博弈</span>
+    <span class="tag ou">OU=2.25→分裂线陷阱≤1球</span>
+  </div>
+  <div class="verdict">
+    <span class="verdict-main win">主胜</span>
+    <span class="verdict-secondary">次选: 客胜</span>
+    <span class="score-main">阿尔及利亚 <b>1-0</b> 奥地利</span>
+    <span class="score-alt">备选: 阿尔及利亚 0-1 奥地利, 阿尔及利亚 1-0 奥地利</span>
+    <span class="market-tag">推荐市场: 1X2</span>
+  </div>
+  <div class="market-info">
+    <span class="market-label">推荐类型:</span>
+    <span class="market-value">1X2优先(小比分)</span>
+  </div>
+  <div class="layer-row">
+    <span class="layer"><strong>链-1</strong> 净胜差-0.60→even</span>
+    <span class="layer"><strong>链0</strong> 战意覆盖</span>
+    <span class="layer"><strong>链1</strong> OU=2.25 OU=2.25→分裂线陷阱≤1球</span>
+    <span class="layer"><strong>链2</strong> D-Gate: ?</span>
+    <span class="layer"><strong>🗳</strong> 三路投票</span>
+    <span class="layer"><strong>链4</strong> 主胜+客胜</span>
+  </div>
+</div>
+
+<!-- M72: 约旦vs阿根廷 -->
+<div class="match-card">
+  <div class="match-header">
+    <span class="match-no">072 · R3</span>
+    <span class="match-teams">约旦 vs 阿根廷</span>
+    <span class="match-hcp">[+2.0] 客让2.0球</span>
+    <span class="ou-diff up">外围OU 3.0 (↑↑大球 · 诚实盘)</span>
+  </div>
+  <div class="odds-row">
+    <div class="odds-box"><div class="label">主胜</div><div class="val">2.58</div></div>
+    <div class="odds-box"><div class="label">平局</div><div class="val" style="color:var(--draw)">3.90</div></div>
+    <div class="odds-box"><div class="label">客胜</div><div class="val">2.06</div></div>
+    <div class="odds-box"><div class="label">外围OU</div><div class="val" style="color:#b71c1c">3.0</div></div>
+  </div>
+  <div class="tags">
+    <span class="tag context">🇦🇷 6分头名→轮换 | 约旦0分淘汰</span>
+    <span class="tag ou">OU=3.0→诚实大球</span>
+    <span class="tag flip-tag">⚡ v4→v5 OU=3.0诚实大球·无变化</span>
+    <span class="tag warn">⚠️ 屠杀预警</span>
+  </div>
+  <div class="verdict">
+    <span class="verdict-main lose">让负 (客让2.0球)</span>
+    <span class="verdict-secondary">次选: 客胜</span>
+    <span class="score-main">约旦 <b>1-5</b> 阿根廷</span>
+    <span class="score-alt">备选: 约旦 2-4 阿根廷, 约旦 1-4 阿根廷</span>
+    <span class="market-tag">推荐市场: AH, 1X2</span>
+  </div>
+  <div class="market-info">
+    <span class="market-label">推荐类型:</span>
+    <span class="market-value">双推(大比分:让球+1X2)</span>
+  </div>
+  <div class="layer-row">
+    <span class="layer"><strong>链-1</strong> 净胜差-2.80→massacre</span>
+    <span class="layer"><strong>链0</strong> 战意覆盖</span>
+    <span class="layer"><strong>链1</strong> OU=3.0 OU=3.0→诚实大球</span>
+    <span class="layer"><strong>链2</strong> D-Gate: ?</span>
+    <span class="layer"><strong>🗳</strong> 三路投票</span>
+    <span class="layer"><strong>链4</strong> 让负 (客让2.0球)+客胜</span>
+  </div>
+</div>
+
+<!-- Summary -->
+<h2 style="font-size:1.1em;margin-top:20px;">📊 五版演进</h2>
+<table class="summary-table">
+  <thead><tr><th>比赛</th><th>v1(2场WC)</th><th>v2(估算)</th><th>v3(11v11)</th><th>v4(外围OU·有bug)</th><th>v5(方向修复)</th><th>翻转</th></tr></thead>
+  <tbody>
+    <tr class=""><td>067 克罗地亚vs加纳</td><td>主胜/平 1-1</td><td>主胜/平 1-1</td><td>主胜/平 1-1</td><td>主胜/平 0-0</td><td><b>客胜/让负 (主让1.0球) 克罗地亚 0-1 加纳</b></td><td>比分↓(v3→v4)</td></tr>
+    <tr class=" flipped"><td>068 巴拿马vs英格兰</td><td>让负/客胜 0-3</td><td>让负/客胜 0-3</td><td>让平/让胜 0-1</td><td>客胜/让负 0-1</td><td><b>让负 (客让2.0球)/客胜 巴拿马 1-3 英格兰</b></td><td>🔥方向(v3→v4)</td></tr>
+    <tr class=""><td>069 哥伦比亚vs葡萄牙</td><td>平/胜 1-1</td><td>平/胜 1-1</td><td>平/胜 1-1</td><td>平/胜 0-0</td><td><b>主胜/平局 哥伦比亚 1-0 葡萄牙</b></td><td>比分↓(v3→v4)</td></tr>
+    <tr class=""><td>070 刚果vs乌兹别克</td><td>让胜/主胜 3-1</td><td>胜/客胜 1-1</td><td>胜/客胜 1-1</td><td>胜/客胜 0-0</td><td><b>主胜/客胜 民主刚果 1-0 乌兹别克斯坦</b></td><td>比分↓(v3→v4)</td></tr>
+    <tr class=""><td>071 阿尔及利亚vs奥地利</td><td>胜/客胜 1-1</td><td>胜/客胜 1-1</td><td>胜/客胜 1-1</td><td>胜/客胜 0-0</td><td><b>主胜/客胜 阿尔及利亚 1-0 奥地利</b></td><td>比分↓(v3→v4)</td></tr>
+    <tr class=" flipped"><td>072 约旦vs阿根廷</td><td>让负/客胜 0-4</td><td>让平/让胜 1-3</td><td>让平/让胜 1-3</td><td>让负/客胜 0-3</td><td><b>让负 (客让2.0球)/客胜 约旦 1-5 阿根廷</b></td><td>🔥方向(v3→v4)</td></tr>
+  </tbody>
+</table>
+
+<div class="legend" style="margin-top:12px;padding:12px;background:var(--card);border-radius:var(--radius);font-size:.78em">
+  <b>🔧 v5核心修复 (OU方向性):</b><br>
+  · <b>概念bug</b>: v4.0将<b>所有</b>分裂线统一降进球 → OU=2.75被错误标为"trap_mid/≤2球", 但实际2.75高于标准2.5, 庄家诱导买小, 实际进球偏高<br>
+  · <b>修复</b>: 2.75 → trap_high_side (exp_goals=3.0→2.0) · 3.25 → trap_high (exp_goals=3.8→2.5) · honesty_mult从0.8→1.1<br>
+  · <b>受影响</b>: 巴拿马vs英格兰 (OU=2.75) — v4标签"↑大球"但比分低, v5一致修复<br>
+  · <b>OCR管道</b>: 2026WC/{date}/*.png → rapidocr → ou_screenshot → 链3.5 OU约束 ✅ 固定路径已建立<br>
+  · <b>代码变更</b>: pipeline/full_linkage_predictor.py · OU_HONESTY v4.0 · 行159-176
+</div>
+
+</div>
+</body>
+</html>

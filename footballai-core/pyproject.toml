@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["footballai"]
+
+[project]
+name = "footballai-core"
+version = "5.7.0"
+description = "D-Gate赔率逆向工程引擎 — 庄家意图反推 + Poisson λ + Dixon-Coles"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+]

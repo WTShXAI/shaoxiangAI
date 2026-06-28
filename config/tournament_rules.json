@@ -9,8 +9,8 @@
     "draw_threshold": 0.28,
     "dgate": {
       "mode_c": {
-        "_desc": "超热门翻车 — imp≥70%触发spread反转(×boost), 反过滤od>9.5",
-        "imp_min": 0.70,
+        "_desc": "超热门翻车 — imp≥72%触发spread反转(×boost), 反过滤od>9.5",
+        "imp_min": 0.72,
         "boost_tier1": 2.2, "tier1_imp": 0.75, "tier1_hcp": 1.75,
         "boost_tier2": 1.8,
         "threshold": 0.14,
@@ -23,15 +23,15 @@
         "threshold": 0.14
       },
       "mode_a": {
-        "_desc": "中等热门 — imp 48-70%, d_boost阈值判定(含S7+S1过滤)",
-        "imp_min": 0.48, "imp_max": 0.70,
+        "_desc": "中等热门 — imp 50-72%, d_boost阈值判定(含S7+S1过滤)",
+        "imp_min": 0.50, "imp_max": 0.72,
         "threshold": 0.28,
         "spread_power": 0.30, "ou_boost": 1.05,
         "s7_threshold": 3.5, "s1_threshold": 1.30, "s7s1_penalty": 0.70
       },
       "mode_b": {
-        "_desc": "均衡赛 — spread<0.15, 高门槛d_boost>0.43",
-        "spread_max": 0.15,
+        "_desc": "均衡赛 — spread<0.20, 高门槛d_boost>0.43",
+        "spread_max": 0.20,
         "boost": 1.20,
         "threshold": 0.43
       },
@@ -54,13 +54,13 @@
         "anti_od": 9.5, "anti_ou": 3.5, "anti_hcp": 2.5
       },
       "mode_a": {
-        "imp_min": 0.48, "imp_max": 0.68,
+        "imp_min": 0.48, "imp_max": 0.70,
         "threshold": 0.32,
         "spread_power": 0.35, "ou_boost": 1.03,
         "s7_threshold": 3.5, "s1_threshold": 1.25, "s7s1_penalty": 0.65
       },
       "mode_b": {
-        "spread_max": 0.12,
+        "spread_max": 0.16,
         "boost": 1.15,
         "threshold": 0.45
       },

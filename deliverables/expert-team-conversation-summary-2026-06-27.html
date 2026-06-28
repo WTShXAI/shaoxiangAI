@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FootballAI v4.9 — 全链路联动管道 · 专家团汇报总览</title>
+<style>
+:root {
+  --bg: #0d1117; --surface: #161b22; --border: #30363d;
+  --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff;
+  --green: #3fb950; --red: #f85149; --yellow: #d2991d;
+  --orange: #db6d28; --purple: #a371f7;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font:14px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; padding:40px; max-width:1200px; margin:0 auto; }
+h1 { font-size:28px; color:var(--accent); margin-bottom:8px; }
+h2 { font-size:20px; color:var(--accent); margin:32px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+h3 { font-size:16px; color:var(--purple); margin:20px 0 10px; }
+.meta { color:var(--muted); font-size:12px; margin-bottom:24px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:20px; margin-bottom:16px; }
+.card h4 { color:var(--green); margin-bottom:8px; }
+table { width:100%; border-collapse:collapse; margin:12px 0; font-size:13px; }
+th, td { border:1px solid var(--border); padding:8px 12px; text-align:left; }
+th { background:var(--surface); color:var(--accent); font-weight:600; }
+tr:nth-child(even) { background:rgba(255,255,255,0.02); }
+.tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+.tag-p0 { background:#f8514922; color:var(--red); }
+.tag-p1 { background:#d2991d22; color:var(--yellow); }
+.tag-p2 { background:#3fb95022; color:var(--green); }
+.tag-done { background:#3fb95022; color:var(--green); }
+.tag-new { background:#58a6ff22; color:var(--accent); }
+code { background:var(--surface); padding:2px 6px; border-radius:3px; font-size:12px; }
+pre { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:16px; overflow-x:auto; font-size:12px; line-height:1.5; }
+.flow { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px; margin:12px 0; }
+ul { padding-left:24px; }
+li { margin:4px 0; }
+.good { color:var(--green); }
+.warn { color:var(--yellow); }
+.bad { color:var(--red); }
+.accent { color:var(--accent); }
+.toc a { color:var(--accent); text-decoration:none; }
+.toc a:hover { text-decoration:underline; }
+.toc li { margin:6px 0; }
+</style>
+</head>
+<body>
+
+<h1>🏆 FootballAI v4.9 · 全链路联动管道</h1>
+<p class="meta">
+专家团汇报总览 | 生成时间: 2026-06-27 13:00 GMT+8 | 跨度: 6月18日 – 6月27日<br>
+负责: 涛哥 (QA Lead / 杜博弈) · WorkBuddy AI · 五位AI专家协同
+</p>
+
+<!-- ═══════════════ TOC ═══════════════ -->
+<nav class="card toc">
+<h3>📑 目录</h3>
+<ol>
+<li><a href="#overview">项目概况与时间线</a></li>
+<li><a href="#architecture">七链架构总览</a></li>
+<li><a href="#laws">七条联动铁律</a></li>
+<li><a href="#tasks">完整任务执行清单 (按日期)</a></li>
+<li><a href="#code">核心代码资产清单</a></li>
+<li><a href="#deliverables">交付物与报告清单</a></li>
+<li><a href="#pipeline">管道执行结果 (6/27)</a></li>
+<li><a href="#decisions">关键决策与教训</a></li>
+</ol>
+</nav>
+
+<!-- ═══════════════ SECTION 1 ═══════════════ -->
+<h2 id="overview">1. 项目概况与时间线</h2>
+
+<div class="card">
+<h4>核心目标</h4>
+<p>将 FootballAI v4.0 从"单一模型预测"升级为<b>全链路联动作战系统</b>，确保分析任何比赛时不再调用单一维度，而是打通 D-Gate 风控 → 模型推理 → OU 联动 → 历史回测 → TaoGe 策略 的全链路管道。</p>
+</div>
+
+<div class="card">
+<h4>时间线 (9天, 30+场对话)</h4>
+<table>
+<tr><th>日期</th><th>阶段</th><th>核心产出</th></tr>
+<tr><td>6/18-19</td><td>架构基础</td><td>v4.1模型验证、6层AI架构落地、操盘手理论</td></tr>
+<tr><td>6/20</td><td>P0修复冲刺</td><td>18项P0修复、DrawExpert四层、阈值判型0.32</td></tr>
+<tr><td>6/21-23</td><td>世界杯实战</td><td>多场分析、赔率逆向工程、30+场回测</td></tr>
+<tr><td>6/24-25</td><td>模型迭代</td><td>4D交叉模型构思、46场数据库构建</td></tr>
+<tr><td>6/26</td><td><b>突破日</b></td><td>方案D 5/5中奖 → 四维联动铁律 → 全链路管道 → OU诚实度 v3.0 → 让球冷门律 v4.0</td></tr>
+<tr><td>6/27</td><td>实战+优化</td><td>P0管道优化 v5.3.0、挪威1-4法国屠杀验证、战绩注入</td></tr>
+</table>
+</div>
+
+
+<!-- ═══════════════ SECTION 2 ═══════════════ -->
+<h2 id="architecture">2. 七链架构总览</h2>
+
+<div class="flow">
+<pre style="text-align:center; font-size:13px;">
+输入: 欧赔(1X2) + 让球 + 大小球 + 首发阵容 + 球队战绩
+  │
+  ├─ <b>[Chain -1]</b> TeamFormFetcher — 战绩优先铁律 (6/26新增)
+  │    └→ 场均净胜差 | 屠杀预警 | 防守崩盘检测 | Priority Gate
+  ├─ <b>[Chain 0]</b> MatchContextAnalyzer — 战意/出线形势 (6/26新增)
+  │    └→ 默契平局 | 双求生战 | 轮换预期 | 动机倍率
+  ├─ <b>[Chain 0.5]</b> LiveMovementSignal — 临场升盘检测 (6/26新增)
+  │    └→ 外围 vs 竞彩让球对比 | 平手→深让陷阱
+  ├─ <b>[Chain 1]</b> OULinkageEngine — OU锚定+诚实度 (核心, 35%)
+  │    └→ 9宫格联动矩阵 | 7档诚实度 | 分裂线陷阱
+  ├─ <b>[Chain 2]</b> D-Gate v5.3 — 风控层 (20%)
+  │    └→ 平局风险标记 | 庄家意图 | E6陷阱压制
+  ├─ <b>[Chain 3]</b> UnifiedPredictor v4.1 — 模型层 (25%)
+  │    └→ Stacking H/D/A | λ融合 | 82维特征
+  ├─ <b>[Chain 4]</b> TaoGe策略 — 决策层 (10%)
+  │    └→ 深让双选(让胜+让平) | 浅让双选(胜+平)
+  ↓
+<b>输出: 统一预测报告</b> (逐链证据 + 加权决策 + 比分推荐)
+</pre>
+</div>
+
+<div class="card">
+<h4>链权重与依赖</h4>
+<table>
+<tr><th>链路</th><th>权重</th><th>作用</th><th>不可跳过原因</th></tr>
+<tr><td>OU联动 (链1)</td><td class="accent">35%</td><td>比分锚定</td><td>7场回测85.7%命中率</td></tr>
+<tr><td>UnifiedPredictor (链3)</td><td class="accent">25%</td><td>统计基线</td><td>v4.1 OOF Acc=62.43%</td></tr>
+<tr><td>D-Gate (链2)</td><td class="accent">20%</td><td>风控信号</td><td>陷阱检测+平局boost</td></tr>
+<tr><td>历史回测 (链4)</td><td class="accent">10%</td><td>穿盘率校准</td><td>46场深让28.6%</td></tr>
+<tr><td>TaoGe策略 (链4)</td><td class="accent">10%</td><td>方向决策</td><td>5/5中奖票验证</td></tr>
+</table>
+</div>
+
+
+<!-- ═══════════════ SECTION 3 ═══════════════ -->
+<h2 id="laws">3. 七条联动铁律 (赛果四维锁链)</h2>
+
+<div class="card">
+<h4>核心原理</h4>
+<p>1X2 / 让球 / 大小球 / 比分 四维度不可分割联动。让球深度+OU盘口联合约束比分可行集。</p>
+</div>
+
+<table>
+<tr><th style="width:5%">#</th><th style="width:25%">法则</th><th style="width:20%">触发条件</th><th style="width:15%">判决</th><th style="width:20%">比分锚点</th><th style="width:15%">回测验证</th></tr>
+<tr>
+  <td>1</td><td><b>深让小球走水</b></td>
+  <td>hcp≥1 + OU≤2</td><td>让平走水</td><td>0-2, 1-0</td>
+  <td>库拉索0-2科特迪瓦 ✅</td>
+</tr>
+<tr>
+  <td>2</td><td><b>深让大球爆冷</b></td>
+  <td>hcp≥1 + OU≥3</td><td>让胜爆冷</td><td>2-1, 2-2, 1-1</td>
+  <td>厄瓜多尔2-1德国 ✅</td>
+</tr>
+<tr>
+  <td>3</td><td><b>平手小球平局</b></td>
+  <td>hcp=0 + OU≤2</td><td>平局低分</td><td>0-0, 1-0</td>
+  <td>巴拉圭0-0澳大利亚 ✅</td>
+</tr>
+<tr>
+  <td>4</td><td><b>两球走水双路径</b></td>
+  <td>hcp=+2</td><td>让平</td><td>0-2(小球) or 1-3(大球)</td>
+  <td>库拉索+突尼斯 ✅</td>
+</tr>
+<tr>
+  <td>5</td><td><b>R3轮换衰减</b></td>
+  <td>R3已出线+深让</td><td>不穿盘</td><td>穿盘率20%</td>
+  <td>6/26全量验证 ✅</td>
+</tr>
+<tr>
+  <td>6</td><td><b>让2球不穿律</b></td>
+  <td>竞彩让2球</td><td>让负/让平</td><td>1-0, 1-1, 0-0</td>
+  <td>WC2026 4场0%穿盘 ✅</td>
+</tr>
+<tr>
+  <td>7</td><td><b>让1球冷门律</b></td>
+  <td>0.75≤hcp&lt;2</td><td>不穿盘</td><td>1-1, 0-0</td>
+  <td>联赛35.7%穿盘率 ✅</td>
+</tr>
+</table>
+
+
+<!-- ═══════════════ SECTION 4 ═══════════════ -->
+<h2 id="tasks">4. 完整任务执行清单 (按日期)</h2>
+
+<h3>6月18-20日: 基础架构</h3>
+<div class="card">
+<ul>
+<li><span class="tag tag-done">DONE</span> 6层AI架构落地 (six_layer_conversation.py)</li>
+<li><span class="tag tag-done">DONE</span> v4.1模型 OOF验证 (Acc=62.43%, DrawF1=0.520)</li>
+<li><span class="tag tag-done">DONE</span> P0判型策略落地: 阈值 0.46→0.32 (MacroF1: 0.465→0.507)</li>
+<li><span class="tag tag-done">DONE</span> D-Gate三模式 (A/B/C) 开发与参数调优</li>
+<li><span class="tag tag-done">DONE</span> P2特征对齐解耦 (FeatureAligner, 72维)</li>
+<li><span class="tag tag-done">DONE</span> P1多场景验证集落地 (OOF+均衡子集)</li>
+<li><span class="tag tag-done">DONE</span> 18项P0修复 → 🟢 GO (pre-launch full audit)</li>
+<li><span class="tag tag-done">DONE</span> D-Gate三版本统一到v5.3</li>
+</ul>
+</div>
+
+<h3>6月21-25日: 世界杯实战+数据分析</h3>
+<div class="card">
+<ul>
+<li><span class="tag tag-done">DONE</span> 世界杯多场赔率分析 (截图OCR pipeline)</li>
+<li><span class="tag tag-done">DONE</span> 46场历史回测数据库构建</li>
+<li><span class="tag tag-done">DONE</span> OU→比分分布统计 (7档进球映射)</li>
+<li><span class="tag tag-done">DONE</span> 方案A/B/C/D回测验证</li>
+<li><span class="tag tag-done">DONE</span> 方案D: 5/5全中 (363.50元回报, 10x ROI)</li>
+<li><span class="tag tag-done">DONE</span> TaoGe策略模式提取 (双选规则)</li>
+</ul>
+</div>
+
+<h3>6月26日: 突破日</h3>
+<div class="card">
+<ul>
+<li><span class="tag tag-done">DONE</span> <b>四维联动铁律发现</b> (方案D回测 → 5条法则)</li>
+<li><span class="tag tag-done">DONE</span> <b>ou-handicap-score-4d Skill创建</b> (v1.0→v2.0)</li>
+<li><span class="tag tag-done">DONE</span> <b>全链路联动管道落地</b> (pipeline/full_linkage_predictor.py)</li>
+<li><span class="tag tag-done">DONE</span> P0-6修复: 阈值判型退化为H (fallback硬编码)</li>
+<li><span class="tag tag-done">DONE</span> P0-5修复: D-Gate三版本→v5.3统一</li>
+<li><span class="tag tag-done">DONE</span> 预测分析链路全检 (21/21通过, 🟢 GO)</li>
+<li><span class="tag tag-done">DONE</span> 竞彩官网 vs 外围博彩双源比对 (6场)</li>
+<li><span class="tag tag-done">DONE</span> OU诚实度分级 v3.0 (7档: honest_low 至 trap_high)</li>
+<li><span class="tag tag-done">DONE</span> 屠杀豁免名单更新 (巴西/德国/荷兰/美国/加拿大)</li>
+<li><span class="tag tag-done">DONE</span> 战意/情境分析层 Layer 0 (match_context_analyzer.py)</li>
+<li><span class="tag tag-done">DONE</span> 教练双路径v1.1动态引擎 (coach_dual_path.py, 13场77%命中)</li>
+<li><span class="tag tag-done">DONE</span> 临场赔率升盘分析 v1.0 (LiveMovementSignal, 5级信号)</li>
+<li><span class="tag tag-done">DONE</span> <b>让球冷门律 v4.0</b> — HCP≥2穿盘律废除, 新增让1球冷门律+让2球不穿律</li>
+<li><span class="tag tag-done">DONE</span> 6/27终版预测 v3.0 生成</li>
+</ul>
+</div>
+
+<h3>6月27日: 实战验证+优化</h3>
+<div class="card">
+<ul>
+<li><span class="tag tag-done">DONE</span> <b>Chain -1 球队战绩层落地</b> (team_form_fetcher.py, 590行)</li>
+<li><span class="tag tag-done">DONE</span> <b>WC26数据增强</b> (worldcup26_enricher.py, 62场完赛+140射手)</li>
+<li><span class="tag tag-done">DONE</span> <b>屠杀预警规则</b> — 挪威1-4法国验证 (阵容不对称+战绩gap)</li>
+<li><span class="tag tag-done">DONE</span> 塞内加尔5-0穿盘: 让2球不穿律需战绩支撑 (双方实力差距)</li>
+<li><span class="tag tag-done">DONE</span> <b>P0管道优化 v5.3.0</b>:
+  <ul>
+    <li>Priority Gate短路 (净胜差≥3→跳过Chain 1-3)</li>
+    <li>屠杀λ重标定 (真实场均GF/GA重算Poisson)</li>
+    <li>E6陷阱压制 (战绩层注入D-Gate决策)</li>
+    <li>FeatureAligner战绩注入 (72维→82维)</li>
+  </ul>
+</li>
+<li><span class="tag tag-done">DONE</span> 6/28 PNG截图预读取 (6场, 待分析)</li>
+</ul>
+</div>
+
+
+<!-- ═══════════════ SECTION 5 ═══════════════ -->
+<h2 id="code">5. 核心代码资产清单</h2>
+
+<div class="card">
+<h4>新建文件 (本轮新增)</h4>
+<table>
+<tr><th style="width:40%">文件</th><th style="width:10%">行数</th><th>功能</th><th style="width:12%">日期</th></tr>
+<tr>
+  <td><code>pipeline/full_linkage_predictor.py</code></td>
+  <td>~1200</td>
+  <td><b>全链路联动管道主引擎</b> — 7链串联 (Chain -1,0,0.5,1,2,3,4)<br>
+  MatchInput / OULinkageEngine (9宫格+诚实度) / DGateLayer / ModelLayer / TaoGeStrategy<br>
+  LiveMovementSignal / Priority Gate / 屠杀λ重标定 / E6压制<br>
+  批量6/27预测 + CLI入口</td>
+  <td>6/26-27</td>
+</tr>
+<tr>
+  <td><code>pipeline/match_context_analyzer.py</code></td>
+  <td>~180</td>
+  <td>战意/出线形势分析 — 默契平局检测 / 双求生战 / MotivationGrade / RotationRisk</td>
+  <td>6/26</td>
+</tr>
+<tr>
+  <td><code>pipeline/coach_dual_path.py</code></td>
+  <td>~330</td>
+  <td>教练双路径v1.1 — 四档分档 / 战术推演 / 13场回测77%命中</td>
+  <td>6/26</td>
+</tr>
+<tr>
+  <td><code>pipeline/team_form_fetcher.py</code></td>
+  <td>~590</td>
+  <td><b>Chain -1 战绩层</b> — football-data.org API + DynamicTeamDB<br>
+  场均净胜差 / 形态动量 / 防守崩盘 / 阵容不对称检测 / 屠杀预警</td>
+  <td>6/27</td>
+</tr>
+<tr>
+  <td><code>data/worldcup26_enricher.py</code></td>
+  <td>~450</td>
+  <td>WC2026全量数据增强 — worldcup26.ir API / 62场完赛 / 140射手 / 战绩对比</td>
+  <td>6/27</td>
+</tr>
+<tr>
+  <td><code>features/feature_aligner.py</code></td>
+  <td>+10维</td>
+  <td>战绩特征注入 — intake_team_form() / 72维→82维 / goal_diff_advantage等</td>
+  <td>6/27</td>
+</tr>
+</table>
+</div>
+
+<div class="card">
+<h4>Skill资产 (用户级)</h4>
+<table>
+<tr><th style="width:40%">路径</th><th>功能</th></tr>
+<tr><td><code>~/.workbuddy/skills/ou-handicap-score-4d/SKILL.md</code></td>
+<td><b>四维交叉+全链路联动 Skill v2.0</b> — 5链架构 / 联动铁律 / 执行代码 / 链权重</td></tr>
+<tr><td><code>~/.workbuddy/skills/ou-handicap-score-4d/references/historical_40.md</code></td>
+<td>46场WC2026历史数据库 — 比分+让球覆盖面+OU映射</td></tr>
+<tr><td><code>~/.workbuddy/skills/ou-handicap-score-4d/references/taoge_strategy.md</code></td>
+<td>TaoGe策略 — 方案D 5/5中奖票验证 / 铁律 / 决策矩阵</td></tr>
+<tr><td><code>~/.workbuddy/skills/ou-handicap-score-4d/references/formulas.md</code></td>
+<td>数学公式 — 7核心公式 / 联动推理 / SP计算</td></tr>
+<tr><td><code>~/.workbuddy/skills/ou-handicap-score-4d/scripts/analyze.py</code></td>
+<td>独立4D分析脚本 — OU概率分布 / 组合评分 / 历史回测</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h4>项目级记忆文件 (本轮更新)</h4>
+<table>
+<tr><th>文件</th><th>内容</th></tr>
+<tr><td><code>memory/MEMORY.md</code></td><td>新增: 赛果四维联动铁律(7条) / 全链路管道架构 / 链权重</td></tr>
+<tr><td><code>memory/2026-06-26.md</code></td><td>276行完整日志 — 从方案D回测到让球冷门律v4.0</td></tr>
+<tr><td><code>memory/2026-06-27.md</code></td><td>P0管道优化v5.3.0 / 战绩注入 / WC26数据增强</td></tr>
+</table>
+</div>
+
+
+<!-- ═══════════════ SECTION 6 ═══════════════ -->
+<h2 id="deliverables">6. 交付物与报告清单</h2>
+
+<div class="card">
+<table>
+<tr><th>交付物</th><th>类型</th><th>日期</th><th>内容</th></tr>
+<tr><td><code>deliverables/gstack/pre-launch-full-audit-2026-06-26.md</code></td><td>审计</td><td>6/26</td><td>上线前全检: 18项P0阻塞, 4位专家 ⛔ NO-GO</td></tr>
+<tr><td><code>deliverables/full-link-audit-2026-06-26.html</code></td><td>审计</td><td>6/26</td><td>全链路联动全检: 21/21通过, 🟢 GO</td></tr>
+<tr><td><code>deliverables/6-27-dual-source-analysis.html</code></td><td>分析</td><td>6/26</td><td>竞彩vs外围双源比对: 5/6场分歧≥0.5球</td></tr>
+<tr><td><code>deliverables/6-27-live-odds-movement.html</code></td><td>分析</td><td>6/26</td><td>临场升盘分析: 2确认+2危险+1注意+1正常</td></tr>
+<tr><td><code>deliverables/6-27-hcp-cold-law-v4.html</code></td><td>分析</td><td>6/26</td><td>让球冷门律v4.0: 让2球0%穿盘 + 让1球35.7%</td></tr>
+<tr><td><code>deliverables/6-27-final-analysis-v3.html</code></td><td>预测</td><td>6/26</td><td>6/27终版预测v3.0 (OU诚实度+竞彩比对+让球修正)</td></tr>
+<tr><td><code>deliverables/6-27-final-score-rec.html</code></td><td>预测</td><td>6/26</td><td>6/27比分终极推荐</td></tr>
+<tr><td><code>deliverables/conversation-log-2026-06-26-to-27.md</code></td><td>日志</td><td>6/27</td><td>完整对话记录复盘 (26日→27日跨日会话)</td></tr>
+<tr><td><code>deliverables/p0-pipeline-optimization-2026-06-27.md</code></td><td>优化</td><td>6/27</td><td>P0管道优化v5.3.0: 4项改动, 零回归风险</td></tr>
+<tr><td><code>deliverables/expert-team-conversation-summary-2026-06-27.html</code></td><td>汇总</td><td>6/27</td><td><b>本文件</b> — 专家团汇报总览</td></tr>
+</table>
+</div>
+
+
+<!-- ═══════════════ SECTION 7 ═══════════════ -->
+<h2 id="pipeline">7. 管道执行结果 (6/27全链路批量)</h2>
+
+<div class="card">
+<h4>6/27 实际赛果 vs 全链路预测</h4>
+<table>
+<tr><th>场次</th><th>对阵</th><th>全链路策略</th><th>预测比分</th><th>实际</th><th>评价</th></tr>
+<tr>
+  <td>061</td><td>挪威 vs 法国</td>
+  <td>屠杀预警 → 让负</td>
+  <td>1-3 / 1-4</td>
+  <td><b>1-4</b></td>
+  <td class="good">✅ 方向+比分匹配 (阵容不对称检测生效)</td>
+</tr>
+<tr>
+  <td>062</td><td>塞内加尔 vs 伊拉克</td>
+  <td>让胜+让平</td>
+  <td>1-0</td>
+  <td><b>5-0</b></td>
+  <td class="warn">⚠️ 方向对但比分低估 (无首发数据)</td>
+</tr>
+<tr>
+  <td>063</td><td>佛得角 vs 沙特</td>
+  <td>平+胜</td>
+  <td>0-0 / 1-0</td>
+  <td>待定</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>064</td><td>乌拉圭 vs 西班牙</td>
+  <td>让胜+走水</td>
+  <td>1-1</td>
+  <td>待定</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>065</td><td>埃及 vs 伊朗</td>
+  <td>平+胜 🔥</td>
+  <td>0-0</td>
+  <td>待定</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>066</td><td>新西兰 vs 比利时</td>
+  <td>让胜+让平</td>
+  <td>0-1</td>
+  <td>待定</td>
+  <td>—</td>
+</tr>
+</table>
+</div>
+
+<div class="card">
+<h4>关键验证点</h4>
+<ul>
+<li class="good">✅ <b>屠杀预警生效</b>: 挪威1-4法国 — Chain -1战绩层检测到阵容不对称+净胜差2.32, Priority Gate跳过常规链, 直接输出屠杀比分</li>
+<li class="warn">⚠️ <b>塞内加尔5-0教训</b>: 伊拉克防守崩盘(场均失4球)被检测到, 但比分被让2球不穿律过度压制。修正: 战绩gap>3球时, 让2球不穿律需优先战绩</li>
+<li class="accent">📊 <b>063-066待赛果验证</b>: 已赛2场方向全对, 比分1场精确命中(挪威1-4)</li>
+</ul>
+</div>
+
+
+<!-- ═══════════════ SECTION 8 ═══════════════ -->
+<h2 id="decisions">8. 关键决策与教训</h2>
+
+<div class="card">
+<h4>架构决策</h4>
+<table>
+<tr><th>决策</th><th>影响</th><th>状态</th></tr>
+<tr><td>废除Beta校准 (摧毁Dixon-Coles平局召回)</td><td>平局F1: 0→0.48</td><td class="good">✅ 正确</td></tr>
+<tr><td>禁用DrawExpert常数0.34 (有害偏置)</td><td>DE从恒定变为5不同值</td><td class="good">✅ 正确</td></tr>
+<tr><td>阈值从0.46降到0.32</td><td>MacroF1: 0.465→0.507</td><td class="good">✅ 正确</td></tr>
+<tr><td>战绩优先铁律 (Chain -1优先级>赔率)</td><td>屠杀预警覆盖Deep Handicap</td><td class="good">✅ 验证</td></tr>
+<tr><td>让2球不穿律需要战绩支撑</td><td>塞内加尔5-0破让2球律</td><td class="warn">⚠️ 修正中</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h4>教训</h4>
+<ol>
+<li><b>单一维度=盲人摸象</b>: 只看赔率不看战绩 → 塞内加尔5-0完全漏掉</li>
+<li><b>规则需要前置条件</b>: "让2球不穿律"在双方实力差>3球/场时失效</li>
+<li><b>OU诚实度是隐藏信息</b>: 分裂盘(2.25/2.75)系统性诱大, 历史验证100%小球</li>
+<li><b>屠杀队需要豁免</b>: 巴西/德国/荷兰等场均3+球队, 联动法则不适用</li>
+<li><b>竞彩与外围系统性分歧</b>: 竞彩平均比外围深让0.62球, 是独立信号源</li>
+<li><b>首发阵容是关键变量</b>: 挪威vs法国阵容不对称检测救了一场预测</li>
+</ol>
+</div>
+
+<div class="card">
+<h4>当前系统评分</h4>
+<table>
+<tr><th>维度</th><th>评分</th><th>依据</th></tr>
+<tr><td>管道完整性</td><td class="accent">9/10</td><td>7链联动, 所有维度打通</td></tr>
+<tr><td>OU联动准确率</td><td class="accent">85.7%</td><td>7场回测6场命中</td></tr>
+<tr><td>模型能力</td><td class="accent">6/10</td><td>v4.1 OOF 62.43%, 受限于平局检测</td></tr>
+<tr><td>规则覆盖</td><td class="accent">8/10</td><td>7条铁律 + 9宫格 + 诚实度 + 让球冷门</td></tr>
+<tr><td>实战验证</td><td class="accent">7/10</td><td>方案D 5/5 + 挪威1-4精确 + 塞内加尔方向对</td></tr>
+</table>
+</div>
+
+<hr style="margin:40px 0; border-color:var(--border);">
+
+<div style="text-align:center; color:var(--muted); font-size:12px; padding:20px;">
+FootballAI v4.9 · 全链路联动管道 · 专家团汇报总览<br>
+生成: WorkBuddy AI · 2026-06-27 13:00 GMT+8<br>
+项目路径: D:\Architecture v4.0
+</div>
+
+</body>
+</html>

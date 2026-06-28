@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>6/27 世界杯终版分析 — 全链路v3.0 + 教练v1.2 + OU诚实度</title>
+<style>
+:root{--bg:#0d1117;--card:#161b22;--border:#30363d;--text:#c9d1d9;--g:#3fb950;--y:#d29922;--r:#f85149;--b:#58a6ff;--a:#8b949e;--p:#bc8cff}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.6;padding:20px;max-width:1100px;margin:0 auto}
+h1{font-size:1.5em;color:var(--b);border-bottom:2px solid var(--border);padding-bottom:8px;margin-bottom:4px}
+h2{font-size:1.15em;color:var(--text);margin:20px 0 10px}
+.sub{color:var(--a);font-size:.85em;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin:10px 0}
+.match{margin:16px 0;padding:16px;border-radius:8px;border:1px solid var(--border);background:var(--card)}
+.match.star{border:2px solid var(--y);background:#1a1810}
+.match.silver{border:1px solid var(--b);background:#101a20}
+table{width:100%;border-collapse:collapse;margin:8px 0;font-size:.88em}
+th,td{padding:6px 10px;text-align:center;border-bottom:1px solid var(--border)}
+th{background:#1c2433;color:var(--a);font-weight:600;font-size:.82em}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.75em;font-weight:bold}
+.tg{background:#1a3a1a;color:var(--g)}.tr{background:#3a1a1a;color:var(--r)}
+.ty{background:#3a2a1a;color:var(--y)}.tb{background:#1a2a3a;color:var(--b)}
+.tp{background:#2a1a3a;color:var(--p)}
+.sig{border-left:3px solid var(--y);padding:4px 10px;margin:6px 0;background:#1a1a10;border-radius:0 4px 4px 0;font-size:.85em}
+.sig.red{border-left-color:var(--r);background:#1a1010}
+.sig.green{border-left-color:var(--g);background:#101a10}
+.highlight{background:#2a1a1a;padding:1px 5px;border-radius:3px}
+.v{font-size:1.2em;font-weight:bold}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.small{font-size:.8em;color:var(--a)}
+.correct{color:var(--r);font-weight:bold}
+.pred{display:inline-block;padding:6px 16px;border-radius:20px;font-weight:bold;margin:4px 0}
+.pgold{background:#2a2010;border:1px solid var(--y);color:var(--y)}
+.psilver{background:#1a2030;border:1px solid var(--b);color:var(--b)}
+.law{font-size:.85em;margin:4px 0}
+</style>
+</head>
+<body>
+
+<h1>🏆 6/27 世界杯R3 · 终版分析</h1>
+<div class="sub">全链路v3.0 + 教练v1.2 + OU诚实度 + 竞彩比对 · 自动优化修正 · 2026-06-26 15:48</div>
+
+<div class="sig green">
+<strong>🔄 v2.0→v3.0 关键修正:</strong><br>
+· 佛得角vs沙特: OU从默认2.5→<span class="correct">截图实盘2.25(分裂线陷阱)</span>, 比分从1-1→<span class="correct">0-0/1-0</span><br>
+· 埃及vs伊朗: 比分从1-1→<span class="correct">0-0</span>(OU=2.0诚实小球+竞彩平赔2.50双重锁定)<br>
+· 挪威vs法国: 加入<span class="correct">法国轮换因子</span>, 挪威战意优势被模型低估<br>
+· 乌拉圭vs西班牙: 加入<span class="correct">西班牙战略困境</span>(可能故意不赢避阿根廷)<br>
+· <span class="correct">塞内加尔vs伊拉克: HCP-2穿盘律! 双方淘汰无压力→屠杀 1-1→3-0</span><br>
+· <span class="correct">新西兰vs比利时: HCP+2穿盘律! 比利时至少进2球 2-1→0-2</span>
+</div>
+
+<!-- ═══════ 061 ═══════ -->
+<div class="match silver">
+<h2>061 挪威 vs 法国 <span class="tag tb">法国轮换因子</span></h2>
+
+<div class="grid2">
+<div>
+  <strong>数据层</strong>
+  <div class="law">OU=2.5 <span class="tag tg">honest_mid</span> 滚球核心场</div>
+  <div class="law">竞彩平赔<span class="correct">4.25</span>(外围3.55) 客胜<span class="correct">1.52</span> → 压平抬法</div>
+  <div class="law">战意: ⚡<span class="correct">挪威生死战</span> vs 法国轮换</div>
+  <div class="law">教练: 挪威开局抢攻 / 法国控球消磨</div>
+</div>
+<div>
+  <strong>链分析</strong>
+  <div class="law">链0: ⚡挪威生死战vs法国已出线轮换 → 挪威优势</div>
+  <div class="law">链1: medium+medium → 让胜/走水</div>
+  <div class="law">链2: D-Gate draw_alert 平局boost=0.130</div>
+  <div class="law">链3: 模型判D D-Prob=0.415</div>
+  <div class="pred psilver">策略: 让胜+走水 | 比分: 1-1 | conf=0.68</div>
+</div>
+</div>
+
+<div class="sig">
+<strong>🎯 修正思路:</strong> wc-predict基线预测法国1-2客胜, 但忽略了法国已<span class="correct">6分出线轮换</span>这个关键因子。法国德尚没有理由让主力拼一场无关紧要的比赛。挪威的生存压力(+85%)让这场比赛的实际天平倾斜。<span class="correct">1-1平局是双方都能接受的结果。</span>
+</div>
+</div>
+
+<!-- ═══════ 062 ═══════ -->
+<div class="match star">
+<h2>062 塞内加尔 vs 伊拉克 <span class="tag ty">⭐ HCP-2屠杀信号</span></h2>
+
+<div class="grid2">
+<div>
+  <strong>数据层 <span class="correct">(已修正)</span></strong>
+  <div class="law">OU=2.5 <span class="tag tg">honest_mid</span></div>
+  <div class="law">竞彩<span class="correct">让-2球!</span> 1X2未开</div>
+  <div class="law">战意: <span class="correct">双方已淘汰 → 无压力对攻</span></div>
+  <div class="law">教练: 塞内加尔身体碾压 / 伊拉克可能崩盘</div>
+  <div class="law"><span class="small">(旧预测1-1, 忽略HCP-2信号)</span></div>
+</div>
+<div>
+  <strong>链分析</strong>
+  <div class="law">HCP≥2穿盘律: 让2球=强队至少进2球</div>
+  <div class="law">历史: 德国7-1(-2) 巴西3-0(-2) 100%穿盘</div>
+  <div class="law">双方淘汰=无压力=实力差距放大</div>
+  <div class="pred pgold">⭐ 策略: 让胜(穿盘) | 比分: 3-0 | 3-1</div>
+</div>
+</div>
+
+<div class="sig red">
+<strong>⚠️ 关键修正:</strong> 竞彩敢在双方都淘汰的比赛开-2球 = 极度确信塞内加尔屠杀。无压力的对攻战只会放大实力差距。<span class="correct">更正为: 塞内加尔穿盘, 3-0或3-1。</span>
+</div>
+</div>
+
+<!-- ═══════ 063 ═══════ -->
+<div class="match star">
+<h2>063 佛得角 vs 沙特 <span class="tag ty">⭐ 关键修正</span></h2>
+
+<div class="grid2">
+<div>
+  <strong>数据层 <span class="correct">(已修正)</span></strong>
+  <div class="law">OU=<span class="correct">2.25</span> <span class="tag tr">trap_low</span> ⚠️分裂线陷阱!</div>
+  <div class="law"><span class="small">(wc-predict默认OU=2.5 → 错误!)</span></div>
+  <div class="law">竞彩佛得角<span class="correct">让-1球</span> (外围平手!) ← 方向逆转</div>
+  <div class="law">战意: 佛得角2分争出线 vs 沙特1分理论可能</div>
+  <div class="law">教练: 佛得角控制中场 / 沙特技术渗透</div>
+</div>
+<div>
+  <strong>链分析</strong>
+  <div class="law">链0: 双方都需要赢 → 70分钟后Plan B激活</div>
+  <div class="law">链1: flat+medium [trap_low] → <span class="correct"><1球</span></div>
+  <div class="law">分裂线陷阱: 排除高分→比分锚[1-0,1-1,0-0]</div>
+  <div class="law">链2: D-Gate clean | conf衰减0.75→<span class="correct">0.49</span></div>
+  <div class="pred pgold">⭐ 策略: 平+胜 | 比分: 1-0 | conf=0.49</div>
+</div>
+</div>
+
+<div class="sig red">
+<strong>⚠️ 修正说明:</strong> wc-predict基线预测沙特客胜0-1, 使用默认OU=2.5。但截图实盘OU=<span class="correct">2.25(分裂线陷阱)</span>, 庄家诱导买大但实际倾向≤1球。竞彩方向性逆转(让佛得角-1)对基线构成强烈反驳。<span class="correct">修正后: 佛得角有不败的更高概率, 1-0或0-0。</span>
+</div>
+</div>
+
+<!-- ═══════ 064 ═══════ -->
+<div class="match silver">
+<h2>064 乌拉圭 vs 西班牙 <span class="tag tp">战略困境</span></h2>
+
+<div class="grid2">
+<div>
+  <strong>数据层</strong>
+  <div class="law">OU=2.5 <span class="tag tg">honest_mid</span></div>
+  <div class="law">竞彩客胜<span class="correct">1.41</span>(外围1.63) → 极度倾斜西班牙</div>
+  <div class="law">战意: 乌拉圭必须赢(压力90%) vs 西班牙守平出线</div>
+  <div class="law"><span class="correct">⚠️西班牙战略困境: 赢球可能碰阿根廷</span></div>
+</div>
+<div>
+  <strong>链分析</strong>
+  <div class="law">链0: 西班牙4分平局即H1但可能故意不赢</div>
+  <div class="law">链1: medium+medium → 让胜/走水</div>
+  <div class="law">链2: D-Gate clean</div>
+  <div class="law">链3: 模型判A(客胜)</div>
+  <div class="pred psilver">策略: 让胜+走水 | 比分: 1-1 | conf=0.68</div>
+</div>
+</div>
+
+<div class="sig red">
+<strong>🎯 关键矛盾:</strong> 模型判A(西班牙胜) vs 战略困境(西班牙可能不赢)。竞彩压低客胜到1.41正在<span class="correct">诱导买西班牙</span>。如果西班牙真的不想赢→平局甚至乌拉圭偷一个。这个矛盾无法用数据解决, 只能<span class="correct">回避</span>。
+</div>
+</div>
+
+<!-- ═══════ 065 ═══════ -->
+<div class="match star">
+<h2>065 埃及 vs 伊朗 <span class="tag ty">⭐⭐ 本日最强信号</span></h2>
+
+<div class="grid2">
+<div>
+  <strong>数据层</strong>
+  <div class="law">OU=2.0 <span class="tag tg">honest_low</span> 庄家诚实小球</div>
+  <div class="law">竞彩平赔 <span class="correct v">2.50</span> (外围3.00, 差-0.50)</div>
+  <div class="law">竞彩HCP <span class="correct">-1</span> (外围-0.25, 差0.75)</div>
+  <div class="law">战意: 埃及守平出线(保守) vs 伊朗必须赢(狂攻)</div>
+  <div class="law">教练: 埃及死守+萨拉赫反击 / 伊朗高位压迫</div>
+</div>
+<div>
+  <strong>链分析</strong>
+  <div class="law">链0: 埃及守平即可→策略保守 / 伊朗2分必须赢</div>
+  <div class="law">链1: flat+small → <span class="correct">平局低分</span> 比分锚[0-0,1-0,0-1]</div>
+  <div class="law">链2: D-Gate draw_alert | D-Prob=0.333</div>
+  <div class="law">链3: 模型判<span class="correct">D</span> | D-Prob=0.420</div>
+  <div class="pred pgold">⭐⭐ 策略: 平+胜 | 比分: 0-0 | conf=0.77</div>
+</div>
+</div>
+
+<div class="sig">
+<strong>🎯 为何锁定0-0:</strong> OU=2.0诚实小球(庄家不指望滚球) + 竞彩平赔2.50(庄家保护平局) + 联动律flat+small平局低分 + 模型D-Prob=0.420 → <span class="correct">四维共振, 无可争议</span>。埃及不会冒险进攻(守平即出线), 伊朗狂攻60分钟无果后体能下降。
+</div>
+</div>
+
+<!-- ═══════ 066 ═══════ -->
+<div class="match">
+<h2>066 新西兰 vs 比利时 <span class="tag tb">HCP+2 比利时需穿</span></h2>
+
+<div class="grid2">
+<div>
+  <strong>数据层</strong>
+  <div class="law">OU=2.75 <span class="tag tr">trap_mid</span></div>
+  <div class="law">竞彩让<span class="correct">+2球</span> 1X2未开</div>
+  <div class="law">战意: 🔥双求生战! 不同于062, 双方都拼命</div>
+  <div class="law">教练: 新西兰定位球偷袭 / 比利时围攻</div>
+</div>
+<div>
+  <strong>链分析</strong>
+  <div class="law">HCP≥2穿盘律: 比利时至少进2球</div>
+  <div class="law">但双方求生≠无压力对攻 → 新西兰会死守</div>
+  <div class="law">比利时历史平局多(2场2平), 穿2球有难度</div>
+  <div class="pred psilver">策略: 让平(走水) | 比分: 0-2 | 1-2</div>
+</div>
+</div>
+<div class="sig">HCP+2=比利时至少进2球, 但双求生战意味着双方都会保守。比利时历史2场只进1球, 穿2球是挑战。<span class="correct">0-2走水是最可能结果。</span></div>
+</div>
+
+<!-- ═══════ SUMMARY TABLE ═══════ -->
+<h2>📊 终版预测速查</h2>
+<div class="card">
+<table>
+<tr><th>#</th><th>比赛</th><th>策略</th><th>比分</th><th>conf</th><th>竞彩信号</th><th>OU诚实</th></tr>
+<tr><td>061</td><td style="text-align:left">挪威 vs 法国</td><td><span class="tag tb">让胜+走水</span></td><td>1-1</td><td>0.68</td><td>压平抬法</td><td>🟢诚实</td></tr>
+<tr style="background:#1a1a10"><td>062</td><td style="text-align:left">塞内加尔 vs 伊拉克 ⭐</td><td><span class="tag ty">让胜(穿盘)</span></td><td><span class="correct">3-0</span></td><td>0.75</td><td>HCP-2!</td><td>🟢诚实+HCP律</td></tr>
+<tr style="background:#1a1a10"><td>063</td><td style="text-align:left">佛得角 vs 沙特 ⭐</td><td><span class="tag ty">平+胜</span></td><td><span class="correct">1-0</span></td><td>0.49</td><td>方向逆转!</td><td>⚠️陷阱</td></tr>
+<tr><td>064</td><td style="text-align:left">乌拉圭 vs 西班牙</td><td><span class="tag tb">让胜+走水</span></td><td>1-1</td><td>0.68</td><td>诱导西班牙</td><td>🟢诚实</td></tr>
+<tr style="background:#1a1810"><td>065</td><td style="text-align:left">埃及 vs 伊朗 ⭐⭐</td><td><span class="tag ty">平+胜</span></td><td><span class="correct">0-0</span></td><td>0.77</td><td>平赔2.50!</td><td>🟡诚实小球</td></tr>
+<tr><td>066</td><td style="text-align:left">新西兰 vs 比利时</td><td><span class="tag tb">让平(走水)</span></td><td>0-2</td><td>0.55</td><td>HCP+2</td><td>⚠️偏陷阱</td></tr>
+</table>
+</div>
+
+<div class="card" style="background:#1a1810;border:1px solid var(--y);margin-top:12px">
+<strong style="color:var(--y)">🎫 推荐方案</strong><br>
+<strong>3串1:</strong> 埃及平+胜(0-0) × 佛得角平+胜(1-0) × 挪威让胜+走水(1-1)<br>
+<span style="color:var(--a);font-size:.85em">回避: 062/066(竞彩1X2未开) | 064(战略困境不可解)</span>
+</div>
+
+<div style="text-align:center;padding:14px;color:var(--a);font-size:.8em">
+FootballAI v4.0 · 哨响AI (ShXAI) v5.0 · 全链路v3.0 · 教练v1.2 · OU诚实度v3.0<br>
+数据: 竞彩官网 + 2026WC截图 + WC2026 API · 2026-06-26
+</div>
+
+</body>
+</html>

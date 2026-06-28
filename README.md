@@ -80,17 +80,18 @@ START → Commander(路由) → DataAgent → MathAgent → Explainer → Comman
   ollama pull phi4:14b
   ollama pull qwen3:8b
   ```
-- 模型文件: `saved_models/football_balanced_production.joblib`
+- 模型文件: `saved_models/football_v4.1_production.joblib`
 - 数据库: `data/football_data.db`
 
 ### 启动
 
-```powershell
+```bash
 # 创建虚拟环境并安装依赖
-.\setup_env.ps1
+pip install -r requirements.txt
 
 # 激活虚拟环境
-.\.venv\Scripts\Activate.ps1
+# Windows: .venv\Scripts\activate
+# Linux/Mac: source .venv/bin/activate
 
 # 启动后端 (开发模式)
 python main.py backend --dev
@@ -146,10 +147,11 @@ footballAI/
 ├── rules/                   # 领域知识规则
 │   ├── domain_rules.py
 │   └── football_kb.yaml
-├── saved_models/            # 生产模型 (仅 4 文件)
-│   ├── football_balanced_production.joblib  # 锁定生产模型
+├── saved_models/            # 生产模型 (仅 5 文件)
+│   ├── football_v4.1_production.joblib      # 锁定生产模型
 │   ├── footballai_compressed_features.json  # 特征名列表
-│   ├── footballai_v4_latest.joblib          # v4 训练产物 (参考)
+│   ├── football_nn_20260616_125617.pth      # 神经网络模型
+│   ├── draw_expert_v1.joblib                # DrawExpert 模型
 │   └── model_registry_v2b.json              # 模型注册表
 ├── data/                    # 数据
 │   └── football_data.db     # SQLite 主库

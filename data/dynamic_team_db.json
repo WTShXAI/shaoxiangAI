@@ -1,0 +1,1410 @@
+{
+  "乌兹别克斯坦": {
+    "team": "乌兹别克斯坦",
+    "tier": 4,
+    "pts": 0,
+    "gp": 2,
+    "gf": 1,
+    "ga": 8,
+    "results": [
+      {
+        "opp": "哥伦比亚",
+        "gf": 1,
+        "ga": 3,
+        "md": 1
+      }
+    ],
+    "avg_gf": 0.5,
+    "avg_ga": 4.0,
+    "pts_per_game": 0.0,
+    "scout_pattern": "均衡型: 1场0胜0平1负, 场均1.0进/3.0失",
+    "scout_weakness": "防守漏洞大(场均失3.0)",
+    "fifa_rank": 50,
+    "w": 0,
+    "d": 0,
+    "l": 2,
+    "gd": -7,
+    "data_source": "Bing Sports",
+    "group": "K"
+  },
+  "乌拉圭": {
+    "team": "乌拉圭",
+    "tier": 3,
+    "pts": 2,
+    "gp": 2,
+    "gf": 3,
+    "ga": 3,
+    "results": [
+      {
+        "opp": "沙特",
+        "gf": 1,
+        "ga": 1,
+        "md": 1
+      }
+    ],
+    "avg_gf": 1.5,
+    "avg_ga": 1.5,
+    "pts_per_game": 1.0,
+    "scout_pattern": "平局大师: 1场1平, 场均进球1.0, 难分胜负",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 16,
+    "w": 0,
+    "d": 2,
+    "l": 0,
+    "gd": 0,
+    "data_source": "Bing Sports",
+    "group": "H"
+  },
+  "伊拉克": {
+    "team": "伊拉克",
+    "tier": 4,
+    "pts": 0,
+    "gp": 2,
+    "gf": 1,
+    "ga": 7,
+    "results": [
+      {
+        "opp": "挪威",
+        "gf": 1,
+        "ga": 4,
+        "md": 1
+      }
+    ],
+    "avg_gf": 0.5,
+    "avg_ga": 3.5,
+    "pts_per_game": 0.0,
+    "scout_pattern": "均衡型: 1场0胜0平1负, 场均1.0进/4.0失",
+    "scout_weakness": "防守漏洞大(场均失4.0)",
+    "fifa_rank": 57,
+    "w": 0,
+    "d": 0,
+    "l": 2,
+    "gd": -6,
+    "data_source": "Bing Sports",
+    "group": "I"
+  },
+  "伊朗": {
+    "team": "伊朗",
+    "tier": 3,
+    "pts": 2,
+    "gp": 2,
+    "gf": 2,
+    "ga": 2,
+    "results": [
+      {
+        "opp": "新西兰",
+        "gf": 2,
+        "ga": 2,
+        "md": 1
+      }
+    ],
+    "avg_gf": 1.0,
+    "avg_ga": 1.0,
+    "pts_per_game": 1.0,
+    "scout_pattern": "平局大师: 1场1平, 场均进球2.0, 难分胜负",
+    "scout_weakness": "防守漏洞大(场均失2.0)",
+    "fifa_rank": 20,
+    "w": 0,
+    "d": 2,
+    "l": 0,
+    "gd": 0,
+    "data_source": "Bing Sports",
+    "group": "G"
+  },
+  "佛得角": {
+    "team": "佛得角",
+    "tier": 3,
+    "pts": 2,
+    "gp": 2,
+    "gf": 2,
+    "ga": 2,
+    "results": [
+      {
+        "opp": "西班牙",
+        "gf": 0,
+        "ga": 0,
+        "md": 1
+      }
+    ],
+    "avg_gf": 1.0,
+    "avg_ga": 1.0,
+    "pts_per_game": 1.0,
+    "scout_pattern": "平局大师: 1场1平, 场均进球0.0, 难分胜负",
+    "scout_weakness": "进攻哑火(场均进0.0)",
+    "fifa_rank": 67,
+    "w": 0,
+    "d": 2,
+    "l": 0,
+    "gd": 0,
+    "data_source": "Bing Sports",
+    "group": "H"
+  },
+  "克罗地亚": {
+    "team": "克罗地亚",
+    "tier": 2,
+    "pts": 3,
+    "gp": 2,
+    "gf": 3,
+    "ga": 4,
+    "results": [
+      {
+        "opp": "英格兰",
+        "gf": 2,
+        "ga": 4,
+        "md": 1
+      }
+    ],
+    "avg_gf": 1.5,
+    "avg_ga": 2.0,
+    "pts_per_game": 1.5,
+    "scout_pattern": "均衡型: 1场0胜0平1负, 场均2.0进/4.0失",
+    "scout_weakness": "防守漏洞大(场均失4.0)",
+    "fifa_rank": 11,
+    "w": 1,
+    "d": 0,
+    "l": 1,
+    "gd": -1,
+    "data_source": "Bing Sports",
+    "group": "L"
+  },
+  "加拿大": {
+    "team": "加拿大",
+    "tier": 2,
+    "pts": 4,
+    "gp": 3,
+    "gf": 8,
+    "ga": 3,
+    "results": [
+      {
+        "opp": "Bosnia-Herzegovina",
+        "gf": 1,
+        "ga": 1,
+        "md": 1
+      },
+      {
+        "opp": "卡塔尔",
+        "gf": 6,
+        "ga": 0,
+        "md": 2
+      }
+    ],
+    "avg_gf": 2.67,
+    "avg_ga": 1.0,
+    "pts_per_game": 1.33,
+    "scout_pattern": "平局大师: 2场1平, 场均进球3.5, 难分胜负",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 30,
+    "w": 1,
+    "d": 1,
+    "l": 1,
+    "gd": 5,
+    "data_source": "Bing Sports",
+    "group": "B"
+  },
+  "加纳": {
+    "team": "加纳",
+    "tier": 2,
+    "pts": 4,
+    "gp": 2,
+    "gf": 1,
+    "ga": 0,
+    "results": [
+      {
+        "opp": "巴拿马",
+        "gf": 1,
+        "ga": 0,
+        "md": 1
+      }
+    ],
+    "avg_gf": 0.5,
+    "avg_ga": 0.0,
+    "pts_per_game": 2.0,
+    "scout_pattern": "强势队: 1场1胜0平0负, 场均1.0球, 攻防俱佳",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 73,
+    "w": 1,
+    "d": 1,
+    "l": 0,
+    "gd": 1,
+    "data_source": "Bing Sports",
+    "group": "L"
+  },
+  "南非": {
+    "team": "南非",
+    "tier": 3,
+    "pts": 4,
+    "gp": 3,
+    "gf": 2,
+    "ga": 3,
+    "results": [
+      {
+        "opp": "墨西哥",
+        "gf": 0,
+        "ga": 2,
+        "md": 1
+      },
+      {
+        "opp": "Czechia",
+        "gf": 1,
+        "ga": 1,
+        "md": 2
+      }
+    ],
+    "avg_gf": 0.67,
+    "avg_ga": 1.0,
+    "pts_per_game": 1.33,
+    "scout_pattern": "平局大师: 2场1平, 场均进球0.5, 难分胜负",
+    "scout_weakness": "进攻哑火(场均进0.5)",
+    "fifa_rank": 60,
+    "w": 1,
+    "d": 1,
+    "l": 1,
+    "gd": -1,
+    "data_source": "Bing Sports",
+    "group": "A"
+  },
+  "卡塔尔": {
+    "team": "卡塔尔",
+    "tier": 3,
+    "pts": 1,
+    "gp": 3,
+    "gf": 2,
+    "ga": 10,
+    "results": [
+      {
+        "opp": "瑞士",
+        "gf": 1,
+        "ga": 1,
+        "md": 1
+      },
+      {
+        "opp": "加拿大",
+        "gf": 0,
+        "ga": 6,
+        "md": 2
+      }
+    ],
+    "avg_gf": 0.67,
+    "avg_ga": 3.33,
+    "pts_per_game": 0.33,
+    "scout_pattern": "平局大师: 2场1平, 场均进球0.5, 难分胜负",
+    "scout_weakness": "防守漏洞大(场均失3.5); 进攻哑火(场均进0.5)",
+    "fifa_rank": 56,
+    "w": 0,
+    "d": 1,
+    "l": 2,
+    "gd": -8,
+    "data_source": "Bing Sports",
+    "group": "B"
+  },
+  "厄瓜多尔": {
+    "team": "厄瓜多尔",
+    "tier": 3,
+    "pts": 4,
+    "gp": 3,
+    "gf": 2,
+    "ga": 2,
+    "results": [
+      {
+        "opp": "科特迪瓦",
+        "gf": 0,
+        "ga": 1,
+        "md": 1
+      }
+    ],
+    "avg_gf": 0.67,
+    "avg_ga": 0.67,
+    "pts_per_game": 1.33,
+    "scout_pattern": "小比分型: 1场场均仅1.0球, 攻弱守稳",
+    "scout_weakness": "进攻哑火(场均进0.0)",
+    "fifa_rank": 23,
+    "w": 1,
+    "d": 1,
+    "l": 1,
+    "gd": 0,
+    "data_source": "Bing Sports",
+    "group": "E"
+  },
+  "哥伦比亚": {
+    "team": "哥伦比亚",
+    "tier": 1,
+    "pts": 6,
+    "gp": 2,
+    "gf": 4,
+    "ga": 1,
+    "results": [
+      {
+        "opp": "乌兹别克斯坦",
+        "gf": 3,
+        "ga": 1,
+        "md": 1
+      }
+    ],
+    "avg_gf": 2.0,
+    "avg_ga": 0.5,
+    "pts_per_game": 3.0,
+    "scout_pattern": "强势队: 1场1胜0平0负, 场均3.0球, 攻防俱佳",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 13,
+    "w": 2,
+    "d": 0,
+    "l": 0,
+    "gd": 3,
+    "data_source": "Bing Sports",
+    "group": "K"
+  },
+  "土耳其": {
+    "team": "土耳其",
+    "tier": 4,
+    "pts": 3,
+    "gp": 3,
+    "gf": 3,
+    "ga": 5,
+    "results": [
+      {
+        "opp": "澳大利亚",
+        "gf": 0,
+        "ga": 2,
+        "md": 1
+      },
+      {
+        "opp": "巴拉圭",
+        "gf": 0,
+        "ga": 1,
+        "md": 2
+      }
+    ],
+    "avg_gf": 1.0,
+    "avg_ga": 1.67,
+    "pts_per_game": 1.0,
+    "scout_pattern": "小比分型: 2场场均仅1.5球, 攻弱守稳",
+    "scout_weakness": "进攻哑火(场均进0.0); 面对强队连败(2负)",
+    "fifa_rank": 22,
+    "w": 1,
+    "d": 0,
+    "l": 2,
+    "gd": -2,
+    "data_source": "Bing Sports",
+    "group": "D"
+  },
+  "埃及": {
+    "team": "埃及",
+    "tier": 2,
+    "pts": 4,
+    "gp": 2,
+    "gf": 4,
+    "ga": 2,
+    "results": [
+      {
+        "opp": "比利时",
+        "gf": 1,
+        "ga": 1,
+        "md": 1
+      }
+    ],
+    "avg_gf": 2.0,
+    "avg_ga": 1.0,
+    "pts_per_game": 2.0,
+    "scout_pattern": "平局大师: 1场1平, 场均进球1.0, 难分胜负",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 29,
+    "w": 1,
+    "d": 1,
+    "l": 0,
+    "gd": 2,
+    "data_source": "Bing Sports",
+    "group": "G"
+  },
+  "塞内加尔": {
+    "team": "塞内加尔",
+    "tier": 4,
+    "pts": 0,
+    "gp": 2,
+    "gf": 3,
+    "ga": 6,
+    "results": [
+      {
+        "opp": "法国",
+        "gf": 1,
+        "ga": 3,
+        "md": 1
+      }
+    ],
+    "avg_gf": 1.5,
+    "avg_ga": 3.0,
+    "pts_per_game": 0.0,
+    "scout_pattern": "均衡型: 1场0胜0平1负, 场均1.0进/3.0失",
+    "scout_weakness": "防守漏洞大(场均失3.0)",
+    "fifa_rank": 15,
+    "w": 0,
+    "d": 0,
+    "l": 2,
+    "gd": -3,
+    "data_source": "Bing Sports",
+    "group": "I"
+  },
+  "墨西哥": {
+    "team": "墨西哥",
+    "tier": 1,
+    "pts": 9,
+    "gp": 3,
+    "gf": 6,
+    "ga": 0,
+    "results": [
+      {
+        "opp": "南非",
+        "gf": 2,
+        "ga": 0,
+        "md": 1
+      },
+      {
+        "opp": "韩国",
+        "gf": 1,
+        "ga": 0,
+        "md": 2
+      }
+    ],
+    "avg_gf": 2.0,
+    "avg_ga": 0.0,
+    "pts_per_game": 3.0,
+    "scout_pattern": "强势队: 2场2胜0平0负, 场均1.5球, 攻防俱佳",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 14,
+    "w": 3,
+    "d": 0,
+    "l": 0,
+    "gd": 6,
+    "data_source": "Bing Sports",
+    "group": "A"
+  },
+  "奥地利": {
+    "team": "奥地利",
+    "tier": 2,
+    "pts": 3,
+    "gp": 2,
+    "gf": 3,
+    "ga": 3,
+    "results": [
+      {
+        "opp": "约旦",
+        "gf": 3,
+        "ga": 1,
+        "md": 1
+      }
+    ],
+    "avg_gf": 1.5,
+    "avg_ga": 1.5,
+    "pts_per_game": 1.5,
+    "scout_pattern": "强势队: 1场1胜0平0负, 场均3.0球, 攻防俱佳",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 24,
+    "w": 1,
+    "d": 0,
+    "l": 1,
+    "gd": 0,
+    "data_source": "Bing Sports",
+    "group": "J"
+  },
+  "巴拉圭": {
+    "team": "巴拉圭",
+    "tier": 2,
+    "pts": 4,
+    "gp": 3,
+    "gf": 2,
+    "ga": 4,
+    "results": [
+      {
+        "opp": "美国",
+        "gf": 1,
+        "ga": 4,
+        "md": 1
+      },
+      {
+        "opp": "土耳其",
+        "gf": 1,
+        "ga": 0,
+        "md": 2
+      }
+    ],
+    "avg_gf": 0.67,
+    "avg_ga": 1.33,
+    "pts_per_game": 1.33,
+    "scout_pattern": "均衡型: 2场1胜0平1负, 场均1.0进/2.0失",
+    "scout_weakness": "防守漏洞大(场均失2.0)",
+    "fifa_rank": 41,
+    "w": 1,
+    "d": 1,
+    "l": 1,
+    "gd": -2,
+    "data_source": "Bing Sports",
+    "group": "D"
+  },
+  "巴拿马": {
+    "team": "巴拿马",
+    "tier": 4,
+    "pts": 0,
+    "gp": 2,
+    "gf": 0,
+    "ga": 2,
+    "results": [
+      {
+        "opp": "加纳",
+        "gf": 0,
+        "ga": 1,
+        "md": 1
+      }
+    ],
+    "avg_gf": 0.0,
+    "avg_ga": 1.0,
+    "pts_per_game": 0.0,
+    "scout_pattern": "小比分型: 1场场均仅1.0球, 攻弱守稳",
+    "scout_weakness": "进攻哑火(场均进0.0)",
+    "fifa_rank": 34,
+    "w": 0,
+    "d": 0,
+    "l": 2,
+    "gd": -2,
+    "data_source": "Bing Sports",
+    "group": "L"
+  },
+  "巴西": {
+    "team": "巴西",
+    "tier": 2,
+    "pts": 7,
+    "gp": 3,
+    "gf": 7,
+    "ga": 1,
+    "results": [
+      {
+        "opp": "摩洛哥",
+        "gf": 1,
+        "ga": 1,
+        "md": 1
+      },
+      {
+        "opp": "海地",
+        "gf": 3,
+        "ga": 0,
+        "md": 2
+      }
+    ],
+    "avg_gf": 2.33,
+    "avg_ga": 0.33,
+    "pts_per_game": 2.33,
+    "scout_pattern": "平局大师: 2场1平, 场均进球2.0, 难分胜负",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 6,
+    "w": 2,
+    "d": 1,
+    "l": 0,
+    "gd": 6,
+    "data_source": "Bing Sports",
+    "group": "C"
+  },
+  "库拉索": {
+    "team": "库拉索",
+    "tier": 4,
+    "pts": 1,
+    "gp": 3,
+    "gf": 1,
+    "ga": 9,
+    "results": [
+      {
+        "opp": "德国",
+        "gf": 1,
+        "ga": 7,
+        "md": 1
+      }
+    ],
+    "avg_gf": 0.33,
+    "avg_ga": 3.0,
+    "pts_per_game": 0.33,
+    "scout_pattern": "均衡型: 1场0胜0平1负, 场均1.0进/7.0失",
+    "scout_weakness": "防守漏洞大(场均失7.0)",
+    "fifa_rank": 82,
+    "w": 0,
+    "d": 1,
+    "l": 2,
+    "gd": -8,
+    "data_source": "Bing Sports",
+    "group": "E"
+  },
+  "德国": {
+    "team": "德国",
+    "tier": 2,
+    "pts": 6,
+    "gp": 3,
+    "gf": 10,
+    "ga": 4,
+    "results": [
+      {
+        "opp": "库拉索",
+        "gf": 7,
+        "ga": 1,
+        "md": 1
+      }
+    ],
+    "avg_gf": 3.33,
+    "avg_ga": 1.33,
+    "pts_per_game": 2.0,
+    "scout_pattern": "强势队: 1场1胜0平0负, 场均7.0球, 攻防俱佳",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 10,
+    "w": 2,
+    "d": 0,
+    "l": 1,
+    "gd": 6,
+    "data_source": "Bing Sports",
+    "group": "E"
+  },
+  "挪威": {
+    "team": "挪威",
+    "tier": 2,
+    "pts": 6,
+    "gp": 2,
+    "gf": 7,
+    "ga": 3,
+    "results": [
+      {
+        "opp": "伊拉克",
+        "gf": 4,
+        "ga": 1,
+        "md": 1
+      }
+    ],
+    "avg_gf": 3.5,
+    "avg_ga": 1.5,
+    "pts_per_game": 3.0,
+    "scout_pattern": "强势队: 1场1胜0平0负, 场均4.0球, 攻防俱佳",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 31,
+    "w": 2,
+    "d": 0,
+    "l": 0,
+    "gd": 4,
+    "data_source": "Bing Sports",
+    "group": "I"
+  },
+  "捷克": {
+    "team": "捷克",
+    "tier": 3,
+    "pts": 1,
+    "gp": 3,
+    "gf": 2,
+    "ga": 6,
+    "results": [],
+    "avg_gf": 0.67,
+    "avg_ga": 2.0,
+    "pts_per_game": 0.33,
+    "scout_pattern": "捷克尚未在本届世界杯亮相, 实力参考FIFA排名",
+    "scout_weakness": "缺乏比赛数据, 只能依赖赛前排名判断",
+    "fifa_rank": 40,
+    "w": 0,
+    "d": 1,
+    "l": 2,
+    "gd": -4,
+    "data_source": "Bing Sports",
+    "group": "A"
+  },
+  "摩洛哥": {
+    "team": "摩洛哥",
+    "tier": 2,
+    "pts": 7,
+    "gp": 3,
+    "gf": 6,
+    "ga": 3,
+    "results": [
+      {
+        "opp": "巴西",
+        "gf": 1,
+        "ga": 1,
+        "md": 1
+      },
+      {
+        "opp": "苏格兰",
+        "gf": 1,
+        "ga": 0,
+        "md": 2
+      }
+    ],
+    "avg_gf": 2.0,
+    "avg_ga": 1.0,
+    "pts_per_game": 2.33,
+    "scout_pattern": "平局大师: 2场1平, 场均进球1.0, 难分胜负",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 7,
+    "w": 2,
+    "d": 1,
+    "l": 0,
+    "gd": 3,
+    "data_source": "Bing Sports",
+    "group": "C"
+  },
+  "新西兰": {
+    "team": "新西兰",
+    "tier": 3,
+    "pts": 1,
+    "gp": 2,
+    "gf": 3,
+    "ga": 5,
+    "results": [
+      {
+        "opp": "伊朗",
+        "gf": 2,
+        "ga": 2,
+        "md": 1
+      }
+    ],
+    "avg_gf": 1.5,
+    "avg_ga": 2.5,
+    "pts_per_game": 0.5,
+    "scout_pattern": "平局大师: 1场1平, 场均进球2.0, 难分胜负",
+    "scout_weakness": "防守漏洞大(场均失2.0)",
+    "fifa_rank": 85,
+    "w": 0,
+    "d": 1,
+    "l": 1,
+    "gd": -2,
+    "data_source": "Bing Sports",
+    "group": "G"
+  },
+  "日本": {
+    "team": "日本",
+    "tier": 3,
+    "pts": 5,
+    "gp": 3,
+    "gf": 7,
+    "ga": 3,
+    "results": [
+      {
+        "opp": "荷兰",
+        "gf": 2,
+        "ga": 2,
+        "md": 1
+      }
+    ],
+    "avg_gf": 2.33,
+    "avg_ga": 1.0,
+    "pts_per_game": 1.67,
+    "scout_pattern": "平局大师: 1场1平, 场均进球2.0, 难分胜负",
+    "scout_weakness": "防守漏洞大(场均失2.0)",
+    "fifa_rank": 18,
+    "w": 1,
+    "d": 2,
+    "l": 0,
+    "gd": 4,
+    "data_source": "Bing Sports",
+    "group": "F"
+  },
+  "比利时": {
+    "team": "比利时",
+    "tier": 3,
+    "pts": 2,
+    "gp": 2,
+    "gf": 1,
+    "ga": 1,
+    "results": [
+      {
+        "opp": "埃及",
+        "gf": 1,
+        "ga": 1,
+        "md": 1
+      }
+    ],
+    "avg_gf": 0.5,
+    "avg_ga": 0.5,
+    "pts_per_game": 1.0,
+    "scout_pattern": "平局大师: 1场1平, 场均进球1.0, 难分胜负",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 9,
+    "w": 0,
+    "d": 2,
+    "l": 0,
+    "gd": 0,
+    "data_source": "Bing Sports",
+    "group": "G"
+  },
+  "民主刚果": {
+    "team": "民主刚果",
+    "tier": 3,
+    "pts": 1,
+    "gp": 2,
+    "gf": 1,
+    "ga": 2,
+    "results": [
+      {
+        "opp": "葡萄牙",
+        "gf": 1,
+        "ga": 1,
+        "md": 1
+      }
+    ],
+    "avg_gf": 0.5,
+    "avg_ga": 1.0,
+    "pts_per_game": 0.5,
+    "scout_pattern": "平局大师: 1场1平, 场均进球1.0, 难分胜负",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 46,
+    "w": 0,
+    "d": 1,
+    "l": 1,
+    "gd": -1,
+    "data_source": "Bing Sports",
+    "group": "K"
+  },
+  "沙特": {
+    "team": "沙特",
+    "tier": 3,
+    "pts": 1,
+    "gp": 2,
+    "gf": 1,
+    "ga": 5,
+    "results": [
+      {
+        "opp": "乌拉圭",
+        "gf": 1,
+        "ga": 1,
+        "md": 1
+      }
+    ],
+    "avg_gf": 0.5,
+    "avg_ga": 2.5,
+    "pts_per_game": 0.5,
+    "scout_pattern": "平局大师: 1场1平, 场均进球1.0, 难分胜负",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 61,
+    "w": 0,
+    "d": 1,
+    "l": 1,
+    "gd": -4,
+    "data_source": "Bing Sports",
+    "group": "H"
+  },
+  "法国": {
+    "team": "法国",
+    "tier": 1,
+    "pts": 6,
+    "gp": 2,
+    "gf": 6,
+    "ga": 1,
+    "results": [
+      {
+        "opp": "塞内加尔",
+        "gf": 3,
+        "ga": 1,
+        "md": 1
+      }
+    ],
+    "avg_gf": 3.0,
+    "avg_ga": 0.5,
+    "pts_per_game": 3.0,
+    "scout_pattern": "强势队: 1场1胜0平0负, 场均3.0球, 攻防俱佳",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 3,
+    "w": 2,
+    "d": 0,
+    "l": 0,
+    "gd": 5,
+    "data_source": "Bing Sports",
+    "group": "I"
+  },
+  "波黑": {
+    "team": "波黑",
+    "tier": 3,
+    "pts": 1,
+    "gp": 2,
+    "gf": 2,
+    "ga": 5,
+    "results": [],
+    "avg_gf": 1.0,
+    "avg_ga": 2.5,
+    "pts_per_game": 0.5,
+    "scout_pattern": "波黑尚未在本届世界杯亮相, 实力参考FIFA排名",
+    "scout_weakness": "缺乏比赛数据, 只能依赖赛前排名判断",
+    "fifa_rank": 64
+  },
+  "海地": {
+    "team": "海地",
+    "tier": 4,
+    "pts": 0,
+    "gp": 3,
+    "gf": 2,
+    "ga": 8,
+    "results": [
+      {
+        "opp": "苏格兰",
+        "gf": 0,
+        "ga": 1,
+        "md": 1
+      },
+      {
+        "opp": "巴西",
+        "gf": 0,
+        "ga": 3,
+        "md": 2
+      }
+    ],
+    "avg_gf": 0.67,
+    "avg_ga": 2.67,
+    "pts_per_game": 0.0,
+    "scout_pattern": "小比分型: 2场场均仅2.0球, 攻弱守稳",
+    "scout_weakness": "防守漏洞大(场均失2.0); 进攻哑火(场均进0.0); 面对强队连败(2负)",
+    "fifa_rank": 83,
+    "w": 0,
+    "d": 0,
+    "l": 3,
+    "gd": -6,
+    "data_source": "Bing Sports",
+    "group": "C"
+  },
+  "澳大利亚": {
+    "team": "澳大利亚",
+    "tier": 2,
+    "pts": 4,
+    "gp": 3,
+    "gf": 2,
+    "ga": 2,
+    "results": [
+      {
+        "opp": "土耳其",
+        "gf": 2,
+        "ga": 0,
+        "md": 1
+      },
+      {
+        "opp": "美国",
+        "gf": 0,
+        "ga": 2,
+        "md": 2
+      }
+    ],
+    "avg_gf": 0.67,
+    "avg_ga": 0.67,
+    "pts_per_game": 1.33,
+    "scout_pattern": "小比分型: 2场场均仅2.0球, 攻弱守稳",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 27,
+    "w": 1,
+    "d": 1,
+    "l": 1,
+    "gd": 0,
+    "data_source": "Bing Sports",
+    "group": "D"
+  },
+  "瑞典": {
+    "team": "瑞典",
+    "tier": 2,
+    "pts": 4,
+    "gp": 3,
+    "gf": 7,
+    "ga": 7,
+    "results": [
+      {
+        "opp": "突尼斯",
+        "gf": 5,
+        "ga": 1,
+        "md": 1
+      }
+    ],
+    "avg_gf": 2.33,
+    "avg_ga": 2.33,
+    "pts_per_game": 1.33,
+    "scout_pattern": "强势队: 1场1胜0平0负, 场均5.0球, 攻防俱佳",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 38,
+    "w": 1,
+    "d": 1,
+    "l": 1,
+    "gd": 0,
+    "data_source": "Bing Sports",
+    "group": "F"
+  },
+  "瑞士": {
+    "team": "瑞士",
+    "tier": 2,
+    "pts": 7,
+    "gp": 3,
+    "gf": 7,
+    "ga": 3,
+    "results": [
+      {
+        "opp": "卡塔尔",
+        "gf": 1,
+        "ga": 1,
+        "md": 1
+      },
+      {
+        "opp": "Bosnia-Herzegovina",
+        "gf": 4,
+        "ga": 1,
+        "md": 2
+      }
+    ],
+    "avg_gf": 2.33,
+    "avg_ga": 1.0,
+    "pts_per_game": 2.33,
+    "scout_pattern": "平局大师: 2场1平, 场均进球2.5, 难分胜负",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 19,
+    "w": 2,
+    "d": 1,
+    "l": 0,
+    "gd": 4,
+    "data_source": "Bing Sports",
+    "group": "B"
+  },
+  "科特迪瓦": {
+    "team": "科特迪瓦",
+    "tier": 1,
+    "pts": 6,
+    "gp": 3,
+    "gf": 4,
+    "ga": 2,
+    "results": [
+      {
+        "opp": "厄瓜多尔",
+        "gf": 1,
+        "ga": 0,
+        "md": 1
+      }
+    ],
+    "avg_gf": 1.33,
+    "avg_ga": 0.67,
+    "pts_per_game": 2.0,
+    "scout_pattern": "强势队: 1场1胜0平0负, 场均1.0球, 攻防俱佳",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 33,
+    "w": 2,
+    "d": 0,
+    "l": 1,
+    "gd": 2,
+    "data_source": "Bing Sports",
+    "group": "E"
+  },
+  "突尼斯": {
+    "team": "突尼斯",
+    "tier": 4,
+    "pts": 0,
+    "gp": 3,
+    "gf": 2,
+    "ga": 12,
+    "results": [
+      {
+        "opp": "瑞典",
+        "gf": 1,
+        "ga": 5,
+        "md": 1
+      }
+    ],
+    "avg_gf": 0.67,
+    "avg_ga": 4.0,
+    "pts_per_game": 0.0,
+    "scout_pattern": "均衡型: 1场0胜0平1负, 场均1.0进/5.0失",
+    "scout_weakness": "防守漏洞大(场均失5.0)",
+    "fifa_rank": 45,
+    "w": 0,
+    "d": 0,
+    "l": 3,
+    "gd": -10,
+    "data_source": "Bing Sports",
+    "group": "F"
+  },
+  "约旦": {
+    "team": "约旦",
+    "tier": 4,
+    "pts": 0,
+    "gp": 2,
+    "gf": 2,
+    "ga": 5,
+    "results": [
+      {
+        "opp": "奥地利",
+        "gf": 1,
+        "ga": 3,
+        "md": 1
+      }
+    ],
+    "avg_gf": 1.0,
+    "avg_ga": 2.5,
+    "pts_per_game": 0.0,
+    "scout_pattern": "均衡型: 1场0胜0平1负, 场均1.0进/3.0失",
+    "scout_weakness": "防守漏洞大(场均失3.0)",
+    "fifa_rank": 63,
+    "w": 0,
+    "d": 0,
+    "l": 2,
+    "gd": -3,
+    "data_source": "Bing Sports",
+    "group": "J"
+  },
+  "美国": {
+    "team": "美国",
+    "tier": 1,
+    "pts": 6,
+    "gp": 3,
+    "gf": 8,
+    "ga": 4,
+    "results": [
+      {
+        "opp": "巴拉圭",
+        "gf": 4,
+        "ga": 1,
+        "md": 1
+      },
+      {
+        "opp": "澳大利亚",
+        "gf": 2,
+        "ga": 0,
+        "md": 2
+      }
+    ],
+    "avg_gf": 2.67,
+    "avg_ga": 1.33,
+    "pts_per_game": 2.0,
+    "scout_pattern": "强势队: 2场2胜0平0负, 场均3.0球, 攻防俱佳",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 17,
+    "w": 2,
+    "d": 0,
+    "l": 1,
+    "gd": 4,
+    "data_source": "Bing Sports",
+    "group": "D"
+  },
+  "苏格兰": {
+    "team": "苏格兰",
+    "tier": 2,
+    "pts": 3,
+    "gp": 3,
+    "gf": 1,
+    "ga": 4,
+    "results": [
+      {
+        "opp": "海地",
+        "gf": 1,
+        "ga": 0,
+        "md": 1
+      },
+      {
+        "opp": "摩洛哥",
+        "gf": 0,
+        "ga": 1,
+        "md": 2
+      }
+    ],
+    "avg_gf": 0.33,
+    "avg_ga": 1.33,
+    "pts_per_game": 1.0,
+    "scout_pattern": "铁壁防守: 2场仅失1球, 场均失0.5, 进攻乏力(0.5/场)",
+    "scout_weakness": "进攻哑火(场均进0.5)",
+    "fifa_rank": 42,
+    "w": 1,
+    "d": 0,
+    "l": 2,
+    "gd": -3,
+    "data_source": "Bing Sports",
+    "group": "C"
+  },
+  "英格兰": {
+    "team": "英格兰",
+    "tier": 1,
+    "pts": 4,
+    "gp": 2,
+    "gf": 4,
+    "ga": 2,
+    "results": [
+      {
+        "opp": "克罗地亚",
+        "gf": 4,
+        "ga": 2,
+        "md": 1
+      }
+    ],
+    "avg_gf": 2.0,
+    "avg_ga": 1.0,
+    "pts_per_game": 2.0,
+    "scout_pattern": "强势队: 1场1胜0平0负, 场均4.0球, 攻防俱佳",
+    "scout_weakness": "防守漏洞大(场均失2.0)",
+    "fifa_rank": 4,
+    "w": 1,
+    "d": 1,
+    "l": 0,
+    "gd": 2,
+    "data_source": "Bing Sports",
+    "group": "L"
+  },
+  "荷兰": {
+    "team": "荷兰",
+    "tier": 2,
+    "pts": 7,
+    "gp": 3,
+    "gf": 10,
+    "ga": 4,
+    "results": [
+      {
+        "opp": "日本",
+        "gf": 2,
+        "ga": 2,
+        "md": 1
+      }
+    ],
+    "avg_gf": 3.33,
+    "avg_ga": 1.33,
+    "pts_per_game": 2.33,
+    "scout_pattern": "平局大师: 1场1平, 场均进球2.0, 难分胜负",
+    "scout_weakness": "防守漏洞大(场均失2.0)",
+    "fifa_rank": 8,
+    "w": 2,
+    "d": 1,
+    "l": 0,
+    "gd": 6,
+    "data_source": "Bing Sports",
+    "group": "F"
+  },
+  "葡萄牙": {
+    "team": "葡萄牙",
+    "tier": 3,
+    "pts": 4,
+    "gp": 2,
+    "gf": 6,
+    "ga": 1,
+    "results": [
+      {
+        "opp": "民主刚果",
+        "gf": 1,
+        "ga": 1,
+        "md": 1
+      }
+    ],
+    "avg_gf": 3.0,
+    "avg_ga": 0.5,
+    "pts_per_game": 2.0,
+    "scout_pattern": "平局大师: 1场1平, 场均进球1.0, 难分胜负",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 5,
+    "w": 1,
+    "d": 1,
+    "l": 0,
+    "gd": 5,
+    "data_source": "Bing Sports",
+    "group": "K"
+  },
+  "西班牙": {
+    "team": "西班牙",
+    "tier": 2,
+    "pts": 4,
+    "gp": 2,
+    "gf": 4,
+    "ga": 0,
+    "results": [
+      {
+        "opp": "佛得角",
+        "gf": 0,
+        "ga": 0,
+        "md": 1
+      }
+    ],
+    "avg_gf": 2.0,
+    "avg_ga": 0.0,
+    "pts_per_game": 2.0,
+    "scout_pattern": "平局大师: 1场1平, 场均进球0.0, 难分胜负",
+    "scout_weakness": "进攻哑火(场均进0.0)",
+    "fifa_rank": 2,
+    "w": 1,
+    "d": 1,
+    "l": 0,
+    "gd": 4,
+    "data_source": "Bing Sports",
+    "group": "H"
+  },
+  "阿尔及利亚": {
+    "team": "阿尔及利亚",
+    "tier": 2,
+    "pts": 3,
+    "gp": 2,
+    "gf": 2,
+    "ga": 4,
+    "results": [
+      {
+        "opp": "阿根廷",
+        "gf": 0,
+        "ga": 3,
+        "md": 1
+      }
+    ],
+    "avg_gf": 1.0,
+    "avg_ga": 2.0,
+    "pts_per_game": 1.5,
+    "scout_pattern": "均衡型: 1场0胜0平1负, 场均0.0进/3.0失",
+    "scout_weakness": "防守漏洞大(场均失3.0); 进攻哑火(场均进0.0)",
+    "fifa_rank": 28,
+    "w": 1,
+    "d": 0,
+    "l": 1,
+    "gd": -2,
+    "data_source": "Bing Sports",
+    "group": "J"
+  },
+  "阿根廷": {
+    "team": "阿根廷",
+    "tier": 1,
+    "pts": 6,
+    "gp": 2,
+    "gf": 5,
+    "ga": 0,
+    "results": [
+      {
+        "opp": "阿尔及利亚",
+        "gf": 3,
+        "ga": 0,
+        "md": 1
+      }
+    ],
+    "avg_gf": 2.5,
+    "avg_ga": 0.0,
+    "pts_per_game": 3.0,
+    "scout_pattern": "强势队: 1场1胜0平0负, 场均3.0球, 攻防俱佳",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 1,
+    "w": 2,
+    "d": 0,
+    "l": 0,
+    "gd": 5,
+    "data_source": "Bing Sports",
+    "group": "J"
+  },
+  "韩国": {
+    "team": "韩国",
+    "tier": 2,
+    "pts": 3,
+    "gp": 3,
+    "gf": 2,
+    "ga": 3,
+    "results": [
+      {
+        "opp": "Czechia",
+        "gf": 2,
+        "ga": 1,
+        "md": 1
+      },
+      {
+        "opp": "墨西哥",
+        "gf": 0,
+        "ga": 1,
+        "md": 2
+      }
+    ],
+    "avg_gf": 0.67,
+    "avg_ga": 1.0,
+    "pts_per_game": 1.0,
+    "scout_pattern": "小比分型: 2场场均仅2.0球, 攻弱守稳",
+    "scout_weakness": "无明显短板",
+    "fifa_rank": 25,
+    "w": 1,
+    "d": 0,
+    "l": 2,
+    "gd": -1,
+    "data_source": "Bing Sports",
+    "group": "A"
+  }
+}
