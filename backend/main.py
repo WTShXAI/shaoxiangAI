@@ -16,12 +16,15 @@ import os as _os
 _os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
 import sys
 import os
+import json as _json_module
 from datetime import datetime
 _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _project_root not in sys.path:
 
 import time
 import logging
+import uuid
+import contextvars
 from logging.handlers import RotatingFileHandler
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
@@ -38,27 +41,67 @@ sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.config import settings
 from core.database import engine, Base
 
+# ── request_id 上下文 ─────────────────────
+_request_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="")
+
+
+def _get_request_id() -> str:
+    return _request_id_ctx.get()
+
+
+class JsonFormatter(logging.Formatter):
+    """JSON 结构化日志格式化器"""
+    def format(self, record: logging.LogRecord) -> str:
+        log_entry = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "name": record.name,
+            "message": record.getMessage(),
+            "request_id": _get_request_id(),
+        }
+        if record.exc_info and record.exc_info[0]:
+            log_entry["exception"] = self.formatException(record.exc_info)
+        return _json_module.dumps(log_entry, ensure_ascii=False)
+
+
+class RequestIdFilter(logging.Filter):
+    """将 request_id 注入日志记录 (兼容非 JSON handler)"""
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.request_id = _get_request_id() or "-"
+        return True
+
+
 # ── 日志 ──────────────────────────────────
 _log_dir = os.path.join(_project_root, "logs")
 os.makedirs(_log_dir, exist_ok=True)
-_log_formatter = logging.Formatter(
-    fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+
+# 文件 handler — JSON 格式
 _file_handler = RotatingFileHandler(
     filename=os.path.join(_log_dir, "app.log"),
     maxBytes=10 * 1024 * 1024,  # 10MB
     backupCount=5,
     encoding="utf-8",
 )
-_file_handler.setFormatter(_log_formatter)
+_file_handler.setFormatter(JsonFormatter())
+
+# 控制台 handler — 文本格式
+_console_handler = logging.StreamHandler()
+_console_handler.setFormatter(
+    logging.Formatter(
+        fmt="%(asctime)s [%(levelname)s] [%(request_id)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+)
+
 logging.basicConfig(
     level=getattr(logging, settings.LOG_LEVEL),
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[_file_handler, logging.StreamHandler()],
+    handlers=[_file_handler, _console_handler],
 )
+_root_logger = logging.getLogger()
+_root_logger.addFilter(RequestIdFilter())
+
 logger = logging.getLogger(__name__)
-logger.info(f"日志已配置: {os.path.join(_log_dir, 'app.log')} (10MB轮转, 保留5份)")
+logger.info(f"结构化日志已配置: {os.path.join(_log_dir, 'app.log')} (JSON/10MB轮转/保留5份)")
 
 # ── P1-2: FIFA 排名数据加载 ──────────────
 _FIFA_RANKINGS = {}
@@ -149,10 +192,13 @@ app.add_middleware(
 )
 
 @app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
+async def add_request_id_and_process_time(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+    _request_id_ctx.set(request_id)
     start_time = time.time()
     response = await call_next(request)
     process_time = time.time() - start_time
+    response.headers["X-Request-ID"] = request_id
     response.headers["X-Process-Time"] = str(round(process_time, 4))
     return response
 
@@ -235,16 +281,6 @@ async def websocket_health(websocket: WebSocket):
         pass
 
 # ── Prometheus 指标端点 ──────────────────
-@app.get("/metrics")
-async def metrics():
-    try:
-        from utils.metrics_exporter import get_metrics_exporter
-        exporter = get_metrics_exporter()
-        return exporter.render()
-    except ImportError:
-        return JSONResponse(status_code=501, content={"error": "metrics_exporter not installed"})
-
-# ── Flask Legacy WSGI 挂载 ────────────────
 @app.get("/metrics")
 async def metrics():
     try:
