@@ -144,63 +144,60 @@ def _score_dir(sc):
     return 'H' if h>a else ('A' if a>h else 'D')
 
 def triple_constraint_scores(match, hcp_outcome, direction, ou_dir):
-    """涛哥三维约束模型: 让球结果 + 方向 + OU → 有效比分交集
+    """涛哥三维约束模型 v2: 让球+方向硬约束, OU软约束(排序加权)
+    
+    优化: OU不再硬过滤, 而是做加权排序。
+    - 让球&方向&OU: 权重3 (金标准)
+    - 让球&方向: 权重2 (方向对但OU偏差)
+    - 让球|方向+OU: 权重1.5 (OU辅助修正)
+    - 让球|方向: 权重1 (基础约束)
     
     Args:
-        match: MatchInput (需要hcp/ou_line)
+        match: MatchInput
         hcp_outcome: '让胜'/'让平'/'让负'
-        direction: '胜'/'平'/'负' (1X2方向)
+        direction: '胜'/'平'/'负'
         ou_dir: '大'/'小'
     
     Returns:
-        按总球数排序的有效比分列表
+        按加权优先级排序的比分列表
     """
     hcp = match.hcp
     ou_line = match.ou_line
     
-    # 第一维: 让球约束
-    s_hcp = set()
+    scored = []
     for h in range(8):
         for a in range(8):
-            if hcp > 0:      adjusted = h + hcp - a
-            elif hcp < 0:    adjusted = h - a + hcp
-            else:            adjusted = h - a
-            
-            if hcp_outcome == '让胜' and adjusted > 0:
-                s_hcp.add(f'{h}-{a}')
-            elif hcp_outcome == '让平' and adjusted == 0:
-                s_hcp.add(f'{h}-{a}')
-            elif hcp_outcome == '让负' and adjusted < 0:
-                s_hcp.add(f'{h}-{a}')
-    
-    # 第二维: 方向约束
-    s_dir = set()
-    for h in range(8):
-        for a in range(8):
-            if direction == '胜' and h > a:
-                s_dir.add(f'{h}-{a}')
-            elif direction == '平' and h == a:
-                s_dir.add(f'{h}-{a}')
-            elif direction == '负' and a > h:
-                s_dir.add(f'{h}-{a}')
-    
-    # 第三维: OU约束
-    s_ou = set()
-    for h in range(8):
-        for a in range(8):
+            sc = f'{h}-{a}'
             total = h + a
-            if ou_dir == '大' and total > ou_line:
-                s_ou.add(f'{h}-{a}')
-            elif ou_dir == '小' and total < ou_line:
-                s_ou.add(f'{h}-{a}')
+            
+            # 让球匹配
+            adjusted = h + hcp - a if hcp > 0 else (h - a + hcp if hcp < 0 else h - a)
+            hcp_ok = (hcp_outcome == '让胜' and adjusted > 0) or \
+                     (hcp_outcome == '让平' and adjusted == 0) or \
+                     (hcp_outcome == '让负' and adjusted < 0)
+            
+            # 方向匹配
+            dir_ok = (direction == '胜' and h > a) or \
+                     (direction == '平' and h == a) or \
+                     (direction == '负' and a > h)
+            
+            # OU匹配
+            ou_ok = (ou_dir == '大' and total > ou_line) or \
+                    (ou_dir == '小' and total < ou_line)
+            
+            # 加权: hcp=2, dir=2, ou=1
+            weight = 0
+            if hcp_ok: weight += 2
+            if dir_ok: weight += 2
+            if ou_ok:  weight += 1
+            
+            # 至少匹配让球或方向
+            if hcp_ok or dir_ok:
+                scored.append((weight, total, sc))
     
-    # 交集
-    result = s_hcp & s_dir & s_ou
-    
-    # 按总球排序
-    scored = [(int(sc.split('-')[0]) + int(sc.split('-')[1]), sc) for sc in result]
-    scored.sort()
-    return [s for _, s in scored]
+    # 按权重降序, 同权重按总球升序
+    scored.sort(key=lambda x: (-x[0], x[1]))
+    return [s for _, _, s in scored]
 
 
 def _score_dir(sc):
