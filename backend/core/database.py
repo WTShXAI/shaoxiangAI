@@ -3,7 +3,7 @@
 """
 import sys
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 from core.config import settings
 
@@ -23,6 +23,12 @@ engine = create_engine(
     echo=settings.DEBUG,
     pool_pre_ping=True,
 )
+
+# ── SQLite WAL 模式 ───────────────────────
+# 开启 WAL (Write-Ahead Logging) 提高并发读写性能
+with engine.connect() as conn:
+    conn.execute(text("PRAGMA journal_mode=WAL"))
+    conn.commit()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
