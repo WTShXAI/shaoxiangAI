@@ -1,0 +1,23 @@
+{
+  "meta": {"source": "historicalsoccer.com + checkbestodds.com", "note": "2022世界杯全部64场赛果+赔率"},
+  "data": [
+    {"date":"11/20","home":"卡塔尔","away":"厄瓜多尔","oh":100.00,"od":13.50,"oa":2.41,"hs":0,"aws":2,"stage":"group","group":"A"},
+    {"date":"11/21","home":"塞内加尔","away":"荷兰","oh":6.28,"od":3.75,"oa":2.09,"hs":0,"aws":2,"stage":"group","group":"A"},
+    {"date":"11/25","home":"卡塔尔","away":"塞内加尔","oh":18.00,"od":6.20,"oa":1.77,"hs":1,"aws":3,"stage":"group","group":"A"},
+    {"date":"11/25","home":"荷兰","away":"厄瓜多尔","oh":1.90,"od":4.70,"oa":15.00,"hs":1,"aws":1,"stage":"group","group":"A"},
+    {"date":"11/29","home":"荷兰","away":"卡塔尔","oh":1.22,"od":10.00,"oa":60.00,"hs":2,"aws":0,"stage":"group","group":"A"},
+    {"date":"11/29","home":"厄瓜多尔","away":"塞内加尔","oh":6.80,"od":4.00,"oa":3.35,"hs":1,"aws":2,"stage":"group","group":"A"},
+    {"date":"11/21","home":"英格兰","away":"伊朗","oh":1.40,"od":10.50,"oa":110.00,"hs":6,"aws":2,"stage":"group","group":"B"},
+    {"date":"11/21","home":"美国","away":"威尔士","oh":2.53,"od":4.60,"oa":12.50,"hs":1,"aws":1,"stage":"group","group":"B"},
+    {"date":"11/25","home":"威尔士","away":"伊朗","oh":2.61,"od":3.26,"oa":4.31,"hs":0,"aws":2,"stage":"group","group":"B"},
+    {"date":"11/25","home":"英格兰","away":"美国","oh":1.91,"od":4.45,"oa":9.08,"hs":0,"aws":0,"stage":"group","group":"B"},
+    {"date":"11/29","home":"伊朗","away":"美国","oh":18.00,"od":5.40,"oa":2.05,"hs":0,"aws":1,"stage":"group","group":"B"},
+    {"date":"11/29","home":"威尔士","away":"英格兰","oh":9.91,"od":4.70,"oa":1.56,"hs":0,"aws":3,"stage":"group","group":"B"},
+    {"date":"11/22","home":"阿根廷","away":"沙特","oh":1.14,"od":17.00,"oa":90.00,"hs":1,"aws":2,"stage":"group","group":"C"},
+    {"date":"11/22","home":"墨西哥","away":"波兰","oh":2.59,"od":3.25,"oa":4.50,"hs":0,"aws":0,"stage":"group","group":"C"},
+    {"date":"11/26","home":"波兰","away":"沙特","oh":1.75,"od":3.70,"oa":5.80,"hs":2,"aws":0,"stage":"group","group":"C"},
+    {"date":"11/26","home":"阿根廷","away":"墨西哥","oh":2.12,"od":4.10,"oa":7.97,"hs":2,"aws":0,"stage":"group","group":"C"},
+    {"date":"11/30","home":"沙特","away":"墨西哥","oh":5.10,"od":4.20,"oa":1.74,"hs":1,"aws":2,"stage":"group","group":"C"},
+    {"date":"11/30","home":"波兰","away":"阿根廷","oh":9.20,"od":4.50,"oa":1.49,"hs":0,"aws":2,"stage":"group","group":"C"}
+  ]
+}
