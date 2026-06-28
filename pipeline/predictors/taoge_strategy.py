@@ -362,6 +362,39 @@ class TaoGeStrategy:
             if matched:
                 best_score = matched[0]
 
+        # ═══ 备选比分一致性过滤器 ═══
+        # 1. 移除与best_score重复的备选
+        # 2. 优先保留匹配secondary方向的比分
+        # 3. 若无可匹配secondary的比分，从全量OU分数中补充
+        filtered_alts = []
+        # 先匹配secondary方向
+        for s in top_scores + ou_link.get('scores', []):
+            if s == best_score:
+                continue
+            if s in filtered_alts:
+                continue
+            if _score_matches_verdict(s, secondary, match.hcp):
+                filtered_alts.append(s)
+            if len(filtered_alts) >= 2:
+                break
+        # 如secondary方向不够，用primary方向补
+        if len(filtered_alts) < 2:
+            for s in top_scores + ou_link.get('scores', []):
+                if s == best_score:
+                    continue
+                if s in filtered_alts:
+                    continue
+                if _score_matches_verdict(s, primary, match.hcp):
+                    filtered_alts.append(s)
+                if len(filtered_alts) >= 2:
+                    break
+        # 最后兜底
+        if not filtered_alts:
+            for s in top_scores:
+                if s != best_score and s not in filtered_alts:
+                    filtered_alts.append(s)
+        alt_scores = filtered_alts[:2]
+
         return {
             'strategy': strategy,
             'primary': primary,
