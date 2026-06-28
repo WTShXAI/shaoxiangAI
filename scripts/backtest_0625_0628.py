@@ -5,7 +5,7 @@ import sys, json
 from pathlib import Path
 
 ARCH = Path(__file__).parent.parent
-sys.path.insert(0, str(ARCH))
+
 from pipeline.full_linkage_predictor import (
     MatchInput, FullLinkagePipeline, OULinkageEngine
 )
@@ -57,7 +57,6 @@ ALL = [
     ('6/28', MatchInput('约旦', '阿根廷', 2.58, 3.90, 2.06, +2.0, 3.0,  r3_rotation=True)),
 ]
 
-
 def _ou_tag(ou_line, match=None):
     """OU标签"""
     h = OULinkageEngine.get_ou_honesty(ou_line)
@@ -90,7 +89,7 @@ def _best_score_to_1x2(score_str):
         if h > a: return '主胜'
         if h < a: return '客胜'
         return '平'
-    except:
+    except (ValueError, TypeError):
         return '?'
 
 def _display_label(p, s, m, strategy):
@@ -104,7 +103,6 @@ def _display_label(p, s, m, strategy):
             alts.append(d)
     secondary = alts[0] if alts else ('客胜' if primary_1x2 == '主胜' else '主胜')
     return primary_1x2, secondary
-
 
 def generate_html(results_by_date):
     h = '''<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
@@ -170,7 +168,6 @@ P0修复后: trap_low降权 | 已出线→1X2胜平 | 亚盘联动恢复 | 禁�
     h += '</div></body></html>'
     return h
 
-
 def main():
     print("=" * 50)
     print("FootballAI v5.10 · 6/25-28 四天全量预测")
@@ -198,7 +195,6 @@ def main():
     with open(out, 'w', encoding='utf-8') as f:
         f.write(html)
     print(f"\n✅ 报告: {out}")
-
 
 if __name__ == '__main__':
     main()

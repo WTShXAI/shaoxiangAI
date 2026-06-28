@@ -33,8 +33,11 @@ FootballAI v4.9 • 全链路联动预测管道
 """
 
 import os, sys, json, math
+import logging
 from typing import Dict, List, Tuple, Any, Optional
 from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
 
 try:
     import numpy as np
@@ -53,7 +56,6 @@ except ImportError:
         def sum(self): return sum(self.data)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
 
 # ════════════════════════════════════════════════════
 # Layer 0: 数据结构
@@ -116,7 +118,6 @@ class MatchInput:
             r3_rotation=r3
         )
 
-
 @dataclass
 class ChainResult:
     """单链输出"""
@@ -126,7 +127,6 @@ class ChainResult:
     confidence: float
     signals: List[str]
     metadata: Dict = field(default_factory=dict)
-
 
 # ════════════════════════════════════════════════════
 # Layer 1: OU联动推理引擎 (核心)
@@ -350,7 +350,6 @@ class OULinkageEngine:
             'hcp_override': hcp_override_note,
         }
 
-
 # ════════════════════════════════════════════════════
 # Layer 2: D-Gate v5.3 风险层
 # ════════════════════════════════════════════════════
@@ -484,7 +483,6 @@ class DGateLayer:
                 signals=[f'DGATE_ERR:{e}'],
             )
 
-
 # ════════════════════════════════════════════════════
 # Layer 3: UnifiedPredictor 模型推理层
 # ════════════════════════════════════════════════════
@@ -538,7 +536,6 @@ class ModelLayer:
                 confidence=0.3,
                 signals=[f'MODEL_ERR:{e}'],
             )
-
 
 # ════════════════════════════════════════════════════
 # Layer 3.5: 临场升盘信号层 (Live Movement Signal)
@@ -712,7 +709,6 @@ class LiveMovementSignal:
                 'interpretation': analysis['interpretation'][:30],
             })
         return rows
-
 
 # ════════════════════════════════════════════════════
 # Layer 4: TaoGe 策略决策层
@@ -926,7 +922,7 @@ class TaoGeStrategy:
             bs_h, bs_a = map(int, best_score.split('-'))
             bs_total = bs_h + bs_a
             bs_diff = abs(bs_h - bs_a)
-        except:
+        except (ValueError, TypeError):
             bs_total, bs_diff = 2, 1
 
         # 条件判断
@@ -1071,7 +1067,6 @@ class TaoGeStrategy:
             'context_reason': context_override_reason,
         }
 
-
 # ════════════════════════════════════════════════════
 # 主管道
 # ════════════════════════════════════════════════════
@@ -1114,8 +1109,8 @@ def _constrain_ou_to_line(ou_link: dict, match, form_result=None, silent: bool =
                 ou_line = screenshot_ou[match_key]
                 if not silent:
                     print(f"\n  [OU截图] {match_key}: 外围OU={ou_line} (竞彩={match.ou_line})")
-    except Exception:
-        pass
+    except (json.JSONDecodeError, FileNotFoundError) as e:
+        logger.warning("加载截图OU数据失败: %s", e)
     
     # 2. 获取OU隐含总进球预期
     honesty = OULinkageEngine.get_ou_honesty(ou_line)
@@ -1180,7 +1175,6 @@ def _constrain_ou_to_line(ou_link: dict, match, form_result=None, silent: bool =
         'lambda_away': lam_away,
     }
 
-
 # ════════════════════════════════════════════════════
 # 🔥 P0: 三路径对比投票 (v5.7 Agent思维设计)
 # 路径A=模型v4.1 | 路径B=D-Gate规则 | 路径C=历史相似场
@@ -1229,7 +1223,7 @@ def _vote_three_paths(model_verdict: str, dgate_verdict: str, form_result,
     # 让2球场景历史相似场检索
     similar_match_ref = None
     if abs(hcp) >= 1.5:
-        from rules.d_gate_v52 import ALL_RESULTS
+        from rules.d_gate_utils import ALL_RESULTS
         for h, a, hg, ag, hcp_ref, _ in ALL_RESULTS:
             if abs(hcp_ref - abs(hcp)) <= 0.5 and abs((hg + ag) - ou_line) <= 1.0:
                 similar_match_ref = f'{h}vs{a} {hg}-{ag}(hcp={hcp_ref})'
@@ -1243,7 +1237,6 @@ def _vote_three_paths(model_verdict: str, dgate_verdict: str, form_result,
         'paths': f'A(model)={path_a} B(D-Gate)={path_b} C(history)={path_c}',
         'similar_match': similar_match_ref,
     }
-
 
 # ════════════════════════════════════════════════════
 # 🔥 P0: 半场动态修正 (v5.7 Agent思维设计)
@@ -1261,7 +1254,7 @@ def _half_time_adjust(ht_home: int, ht_away: int, full_pred: dict,
     best_score = full_pred.get('best_score', '0-0')
     try:
         pred_h, pred_a = map(int, best_score.split('-'))
-    except:
+    except (ValueError, TypeError):
         pred_h, pred_a = 1, 1
     
     need_h = pred_h - ht_home
@@ -1310,7 +1303,6 @@ def _half_time_adjust(ht_home: int, ht_away: int, full_pred: dict,
         'need_second_half': f'{need_h}:{need_a}',
         'notes': adj_notes,
     }
-
 
 class FullLinkagePipeline:
     """
@@ -1410,7 +1402,7 @@ class FullLinkagePipeline:
             if context_adj.get('survival_clash'):
                 print(f"    🔥 双求生战! 比赛开放, 进攻偏移={context_adj['offensive_bias']:+.2f}")
         except Exception as e:
-            pass  # 情境分析失败不阻塞
+            logger.warning("情境分析失败(不阻塞): %s", e)
 
         # ── 链0.5: 临场升盘信号 (Live Movement) ──
         print("\n  [链0.5] 临场升盘分析...")
@@ -1634,7 +1626,6 @@ class FullLinkagePipeline:
             ),
         }
 
-
 # ════════════════════════════════════════════════════
 # 批量管道: 6/27 六场全链路分析
 # ════════════════════════════════════════════════════
@@ -1664,7 +1655,6 @@ MATCHES_6_27 = [
                sporttery_hcp=+2.0),    # 竞彩[+2]: 新西兰受让2球(比利时让2球)
 ]
 
-
 def run_6_27_full_linkage():
     """批量运行6/27全链路联动分析"""
     pipeline = FullLinkagePipeline()
@@ -1693,7 +1683,6 @@ def run_6_27_full_linkage():
               f"| conf={conf:.2f}")
 
     return results
-
 
 # ════════════════════════════════════════════════════
 # CLI入口

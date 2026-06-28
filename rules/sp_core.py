@@ -34,7 +34,6 @@ from typing import Dict, List, Optional
 import json
 import os
 
-
 # ================================================================================
 # 破解参数配置 (可训练优化)
 # ================================================================================
@@ -105,7 +104,6 @@ DEFAULT_CRACK_PARAMS = {
 
 CRACK_PARAMS_PATH = os.path.join(os.path.dirname(__file__), 'crack_params.json')
 
-
 def load_crack_params() -> Dict:
     """加载破解参数 (优先从文件,否则用默认)"""
     if os.path.exists(CRACK_PARAMS_PATH):
@@ -113,13 +111,11 @@ def load_crack_params() -> Dict:
             return json.load(f)
     return DEFAULT_CRACK_PARAMS.copy()
 
-
 def save_crack_params(params: Dict):
     """保存破解参数到文件"""
     os.makedirs(os.path.dirname(CRACK_PARAMS_PATH), exist_ok=True)
     with open(CRACK_PARAMS_PATH, 'w', encoding='utf-8') as f:
         json.dump(params, f, ensure_ascii=False, indent=2)
-
 
 # ================================================================================
 # 第一把钥匙: 反常指数
@@ -262,7 +258,6 @@ class AnomalyIndex:
             'extreme_fav': min_odds < params['anomaly_extreme_fav_threshold'],
         }
 
-
 # ================================================================================
 # 第二把钥匙: 孙子兵法
 # ================================================================================
@@ -333,7 +328,6 @@ class ArtOfWar:
                 })
 
         return detected
-
 
 # ================================================================================
 # 第三把钥匙: 历史验证
@@ -458,7 +452,6 @@ class HistoryValidator:
             'bookmaker_odds': top3[0][1],
             'top3': [{'score': s, 'odds': o} for s, o in top3],
         }
-
 
 # ================================================================================
 # 第四把钥匙: OTSM (赔率时序状态机)
@@ -604,7 +597,6 @@ class OTSM:
             'reason': f'状态={state}(LC={lock_confidence:.2f}) 漂移指向{drift_direction}(Δ={drift_magnitude:.3f})',
         }
 
-
 # ================================================================================
 # 核心入口: 一行破解
 # ================================================================================
@@ -672,7 +664,7 @@ def crack(home: str, away: str, h: float, d: float, a: float,
                 direction_confidence = cs_confidence
                 direction_reason = f'波胆最低{cs_score}@{cs_odds_val:.2f} → {cs_dir}方'
                 cs_direction_hit = True
-        except:
+        except (ValueError, TypeError, IndexError):
             pass
 
     if not cs_direction_hit:
@@ -856,7 +848,6 @@ def crack(home: str, away: str, h: float, d: float, a: float,
         'cs_result': cs_result,
         'recommended_scores': recommended_scores,
     }
-
 
 # ================================================================================
 # 自检

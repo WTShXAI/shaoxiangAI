@@ -15,7 +15,6 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 DB_PATH = PROJECT_ROOT / "data" / "football_data.db"
 
-
 def load_data():
     """加载校准所需的三张表"""
     db = sqlite3.connect(str(DB_PATH))
@@ -45,7 +44,6 @@ def load_data():
     db.close()
     return upsets, odds, features
 
-
 def calibrate_odds_thresholds(upsets):
     """校准冷门赔率相关阈值"""
     odds_vals = [float(u['underdog_odds']) for u in upsets 
@@ -65,8 +63,8 @@ def calibrate_odds_thresholds(upsets):
         if u.get('underdog_odds'):
             try:
                 levels[lv].append(float(u['underdog_odds']))
-            except:
-                pass
+            except (ValueError, TypeError) as e:
+                print(f"[WARN] 无效赔率值: {u.get('underdog_odds')} ({e})")
     
     result = {
         # 原值 3.0 → 冷门赔率峰值在 2.5-4.0，25分位更合理
@@ -78,7 +76,6 @@ def calibrate_odds_thresholds(upsets):
                           for k, v in levels.items()},
     }
     return result
-
 
 def calibrate_score_thresholds(upsets):
     """
@@ -95,8 +92,8 @@ def calibrate_score_thresholds(upsets):
             gd = abs(int(u.get('goal_diff', 1)) or 1)
             strength = (odds - 1.0) * gd / 10.0
             scores.append(strength)
-        except:
-            pass
+        except (ValueError, TypeError) as e:
+            print(f"[WARN] 计算冷门强度失败: {e}")
 
     scores.sort()
     if not scores:
@@ -116,7 +113,6 @@ def calibrate_score_thresholds(upsets):
         'EV_THRESHOLD': 0.05,
     }
     return result
-
 
 def calibrate_league_d_priors(upsets, odds):
     """从真实数据计算联赛平局率"""
@@ -141,7 +137,6 @@ def calibrate_league_d_priors(upsets, odds):
     sorted_priors = sorted(priors.items(), key=lambda x: -x[1])[:15]
     return dict(sorted_priors)
 
-
 def calibrate_spread_d_rates(odds):
     """从真实数据计算各 spread 区间的平局率"""
     buckets = {
@@ -164,7 +159,6 @@ def calibrate_spread_d_rates(odds):
         rates[key] = round(draws / total, 3) if total > 10 else 0.250
     
     return rates
-
 
 def generate_calibrated_config():
     """主校准流程"""
@@ -216,7 +210,6 @@ def generate_calibrated_config():
     print(f"\n✅ 校准配置已保存: {config_path}")
     
     return config
-
 
 if __name__ == "__main__":
     cfg = generate_calibrated_config()

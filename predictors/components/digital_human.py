@@ -36,7 +36,6 @@ from datetime import datetime
 from collections import defaultdict
 import json
 
-
 # ════════════════════════════════════════════════════════════════
 # 数据类
 # ════════════════════════════════════════════════════════════════
@@ -54,7 +53,6 @@ class PredictionIteration:
     reasoning: str = ""   # 推理说明
     timestamp: str = ""
 
-
 @dataclass
 class MatchResult:
     """比赛结果"""
@@ -67,7 +65,6 @@ class MatchResult:
     goals_conceded: int
     date: str = ""
     result: str = ""     # "W"/"D"/"L"
-
 
 @dataclass
 class CommonOpponentCompare:
@@ -82,7 +79,6 @@ class CommonOpponentCompare:
     advantage: str              # "A更强"/"B更强"/"相当"
     key_diff: str               # 关键差异描述
 
-
 @dataclass
 class LineupImpact:
     """阵容影响分析"""
@@ -94,7 +90,6 @@ class LineupImpact:
     defense_impact: float       # 防守影响 [-1, +1]
     creativity_change: float    # 创造力变化 [-1, +1]
     expected_goal_change: float # 预期进球变化
-
 
 @dataclass
 class PsychologicalFactors:
@@ -109,7 +104,6 @@ class PsychologicalFactors:
     composite_attack_modifier: float  # 综合进攻修正
     composite_defense_modifier: float # 综合防守修正
 
-
 @dataclass
 class DefensiveTrend:
     """防守趋势分析"""
@@ -122,7 +116,6 @@ class DefensiveTrend:
     weighted_avg_conceded: float       # 加权平均丢球
     time_weighted_decay: float         # 时间衰减因子
 
-
 @dataclass
 class OddsContradiction:
     """赔率矛盾检测"""
@@ -134,7 +127,6 @@ class OddsContradiction:
     interpretation: str      # 解读
     trap_indication: str     # 诱盘指示
 
-
 @dataclass
 class BookmakerPnlMatrix:
     """操盘手盈亏矩阵"""
@@ -143,7 +135,6 @@ class BookmakerPnlMatrix:
     max_loss_amount: float   # 最大亏损额(相对)
     max_profit_score: str    # 庄家最大盈利比分
     risk_distribution: str   # 风险分布描述
-
 
 @dataclass
 class CounterHypothesis:
@@ -155,7 +146,6 @@ class CounterHypothesis:
     probability: float       # 假设成立概率
     evidence_for: List[str]  # 支持证据
     evidence_against: List[str]  # 反对证据
-
 
 # ════════════════════════════════════════════════════════════════
 # 主类: 数字人引擎
@@ -407,7 +397,7 @@ class DigitalHuman:
             try:
                 parts = fm.split('-')
                 return int(parts[0])
-            except:
+            except (ValueError, TypeError, IndexError):
                 return 2
 
         old_fwd = count_forwards(old_fm)
@@ -1261,7 +1251,6 @@ class DigitalHuman:
             goals_scored=gs, goals_conceded=gc,
             date=date, result=result,
         )
-
 
 # ════════════════════════════════════════════════════════════════
 # 验证: 葡萄牙 1-1 刚果 案例

@@ -6,7 +6,6 @@ import json, time, asyncio, os, sys, io, logging
 # 确保项目根在路径中
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, _PROJECT_ROOT)
 
 from fastapi import APIRouter, Request, UploadFile, File
 from fastapi.responses import StreamingResponse
@@ -20,7 +19,6 @@ async def chat_health():
     from config.settings import get_setting
     return {"status":"ok","version":"v4.1","pure_v32":get_setting("global_switches.pure_v32_mode",False)}
 
-
 async def _stream_response(generator_func):
     """通用SSE流式包装"""
     async def event_stream():
@@ -28,7 +26,6 @@ async def _stream_response(generator_func):
             yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
         yield "data: {\"type\": \"done\"}\n\n"
     return StreamingResponse(event_stream(), media_type="text/event-stream")
-
 
 @router.post("/chat")
 async def chat_endpoint(request: Request):
@@ -43,15 +40,15 @@ async def chat_endpoint(request: Request):
     """
     try:
         body = await request.json()
-    except:
-        body = {}
+        except json.JSONDecodeError:
+            body = {}
     message = body.get("message", "")
     session_id = body.get("session_id", "default")
 
     async def generate():
         start = time.perf_counter()
         try:
-            from six_layer_conversation import SixLayerConversationEngine
+            from modules.six_layer_conversation import SixLayerConversationEngine
             engine = SixLayerConversationEngine(enable_l6=False)
 
             # 从消息中提取比赛信息
@@ -108,7 +105,6 @@ async def chat_endpoint(request: Request):
 
     return await _stream_response(generate)
 
-
 @router.post("/predict/image")
 async def predict_image(file: UploadFile = File(...)):
     """
@@ -144,7 +140,7 @@ async def predict_image(file: UploadFile = File(...)):
             yield {"type": "text", "content": f"✅ 识别到 {result.valid_count} 场比赛\n\n"}
 
             # 对每场比赛跑6层引擎
-            from six_layer_conversation import SixLayerConversationEngine
+            from modules.six_layer_conversation import SixLayerConversationEngine
             engine = SixLayerConversationEngine(enable_l6=False)
 
             for i, match in enumerate(result.matches):
@@ -170,7 +166,6 @@ async def predict_image(file: UploadFile = File(...)):
             yield {"type": "error", "content": f"处理异常: {str(e)}"}
 
     return await _stream_response(generate)
-
 
 @router.get("/health")
 async def health_check():

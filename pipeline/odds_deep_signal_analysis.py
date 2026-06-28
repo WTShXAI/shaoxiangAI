@@ -14,10 +14,6 @@ warnings.filterwarnings('ignore')
 
 ARCH_ROOT = Path(r"D:/Architecture v4.0")
 FAI_ROOT = Path(r"D:/AI/footballAI")
-sys.path.insert(0, str(ARCH_ROOT))
-sys.path.insert(0, str(ARCH_ROOT / "features"))
-sys.path.insert(0, str(ARCH_ROOT / "predictors"))
-sys.path.insert(0, str(FAI_ROOT))
 
 MATCHES = [
     ['加拿大','波黑',1.84,3.45,4.60,-0.5,2.5,'D','1-1','6.13'],
@@ -142,7 +138,7 @@ def analyze():
                           asian_handicap=f['hcp'], ou_line=f['ou'])
             probs = r.get('probabilities', {})
             f['model_pd'] = probs.get('D', f['imp_d'])
-        except:
+        except (KeyError, TypeError, AttributeError):
             f['model_pd'] = f['imp_d']
     
     # D-Gate v5.0 aggressive版判定

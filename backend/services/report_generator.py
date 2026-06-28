@@ -31,24 +31,24 @@ _TEMPLATE = r"""<!DOCTYPE html>
 <style>
   * {{ box-sizing: border-box; margin:0; padding:0; }}
   body {{
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: #f5f5f3; color: #2c2c2a;
-    padding: 24px 28px; line-height: 1.6;
-    max-width: 760px; margin: 0 auto;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif
+    background: #f5f5f3; color: #2c2c2a
+    padding: 24px 28px; line-height: 1.6
+    max-width: 760px; margin: 0 auto
   }}
   .report-header {{ margin-bottom: 24px; }}
   .report-header h1 {{ font-size: 20px; font-weight: 700; margin-bottom: 2px; }}
   .report-sub {{ font-size: 13px; color: #888780; }}
-  .protocol-badge {{ display: inline-block; background: #e6f4d8; color: #27500a;
+  .protocol-badge {{ display: inline-block; background: #e6f4d8; color: #27500a
                      border-radius: 6px; padding: 2px 10px; font-size: 11px; font-weight: 600; }}
   .card {{
-    background: #fff; border-radius: 12px;
-    border: 1px solid rgba(0,0,0,0.10);
-    padding: 18px 22px; margin-bottom: 18px;
+    background: #fff; border-radius: 12px
+    border: 1px solid rgba(0,0,0,0.10)
+    padding: 18px 22px; margin-bottom: 18px
   }}
   .card-title {{ font-size: 15px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }}
   .card-title .ic {{ font-size: 17px; }}
-  .section-num {{ display: inline-block; background: #378add; color: #fff; border-radius: 50%;
+  .section-num {{ display: inline-block; background: #378add; color: #fff; border-radius: 50%
                   width: 22px; height: 22px; text-align: center; line-height: 22px; font-size: 12px; font-weight: 600; }}
   /* 赛前准备清单 */
   .checklist {{ list-style: none; padding: 0; }}
@@ -101,9 +101,9 @@ _TEMPLATE = r"""<!DOCTYPE html>
   .bt.i {{ background: #e6f4d8; color: #27500a; }}
   .bt.w {{ background: #fef8e8; color: #633806; }}
   .bt.p {{ background: #fce8e8; color: #791f1f; }}
-  .divider {{ font-size: 13px; font-weight: 600; color: #378add; margin: 20px 0 10px 0;
+  .divider {{ font-size: 13px; font-weight: 600; color: #378add; margin: 20px 0 10px 0
                padding-bottom: 5px; border-bottom: 1px solid rgba(55,138,221,0.18); }}
-  .os {{ background: #f0efe7; border-radius: 8px; padding: 9px 14px; font-size: 12px; color: #444;
+  .os {{ background: #f0efe7; border-radius: 8px; padding: 9px 14px; font-size: 12px; color: #444
              display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 14px; }}
   .os-item {{ display: flex; gap: 5px; align-items: center; }}
   .os-val {{ font-weight: 600; color: #2c2c2a; }}
@@ -204,7 +204,6 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
 </body>
 </html>"""
-
 
 def render_html(report_data: Dict) -> str:
     """
@@ -384,7 +383,6 @@ def render_html(report_data: Dict) -> str:
     )
     return html
 
-
 def build_report_data(match_info: Dict, odds: Dict, pred_result: Dict, intent: List[str]) -> Dict:
     """
     从预测服务输出构建 report_data。
@@ -407,7 +405,7 @@ def build_report_data(match_info: Dict, odds: Dict, pred_result: Dict, intent: L
                 score_str = s.get('score', '0-0')
                 try:
                     gh, ga = map(int, score_str.split('-'))
-                except:
+                except (ValueError, TypeError):
                     gh, ga = 0, 0
                 outcome_map = {'home': '主胜', 'away': '客胜', 'draw': '平局'}
                 res = outcome_map.get(s.get('outcome', ''), s.get('outcome', ''))

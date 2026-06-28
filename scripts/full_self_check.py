@@ -3,9 +3,6 @@
 import os, sys, json, importlib.util, warnings, sqlite3
 from collections import Counter
 warnings.filterwarnings('ignore')
-sys.path.insert(0, 'D:/Architecture v4.0')
-sys.path.insert(0, 'D:/AI/footballAI')
-sys.path.insert(0, 'D:/Architecture v4.0/rules')
 
 ROOT = 'D:/Architecture v4.0'
 checks = []
@@ -28,7 +25,7 @@ for name, path in {
 for name, path in {
     'UnifiedPredictor':'predictors/unified_predictor.py',
     'SKY Predictor':'predictors/sky/sky_predictor.py',
-    'SixLayer引擎':'six_layer_conversation.py',
+    'SixLayer引擎':'modules/six_layer_conversation.py',
     'EnsembleTrainer':'predictors/components/ensemble_trainer.py',
     'FeatureAligner':'features/feature_aligner.py',
 }.items():
@@ -120,12 +117,12 @@ except Exception as e:
 try:
     jl.load(os.path.join(ROOT, 'saved_models/draw_expert_v1.joblib'))
     check('LOAD', 'DrawExpert可加载', True)
-except:
+except Exception as e:
     check('LOAD', 'DrawExpert加载', False)
 
 # ═══ 11. DrawExpert实时推理 ═══
 try:
-    from ensemble_trainer import EnsembleTrainer
+    from predictors.components.ensemble_trainer import EnsembleTrainer
     trainer = EnsembleTrainer.load_pipeline(os.path.join(ROOT, 'saved_models/football_v4.1_production.joblib'))
     spec = importlib.util.spec_from_file_location('fa', os.path.join(ROOT, 'features/feature_aligner.py'))
     fa_mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(fa_mod)
@@ -138,7 +135,7 @@ except Exception as e:
 
 # ═══ 12. DrawGate ═══
 try:
-    from drawgate_v53 import apply_drawgate, imp_from_odds
+    from rules.drawgate_v53 import apply_drawgate, imp_from_odds
     imp_h, imp_d, imp_a = imp_from_odds(1.36, 5.50, 7.00)
     dg = apply_drawgate(imp_h, imp_d, imp_a, {'home':1.36,'draw':5.50,'away':7.00}, match_type='tournament')
     check('INFER', 'DrawGate v5.3加载', True, f'mode={dg["dgate_mode"]} tag={dg["risk_tag"]}')

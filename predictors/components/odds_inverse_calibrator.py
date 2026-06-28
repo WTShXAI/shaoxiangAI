@@ -41,7 +41,6 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-
 # ════════════════════════════════════════════════════════════════
 # 数据类
 # ════════════════════════════════════════════════════════════════
@@ -55,7 +54,6 @@ class CalibrateResult:
     train_loss: List[float] = field(default_factory=list)
     val_loss: List[float] = field(default_factory=list)
     messages: List[str] = field(default_factory=list)
-
 
 @dataclass
 class MatchRecord:
@@ -78,7 +76,6 @@ class MatchRecord:
     risk_tier: int = 0   # 0=常规 1=轻度风控 2=重度防线
     rp_max: float = 1.0  # 最大比分风控溢价
     rp_features: Dict = field(default_factory=dict)
-
 
 # ════════════════════════════════════════════════════════════════
 # 主校准器
@@ -228,7 +225,7 @@ class OddsInverseCalibrator:
                 p_book = np.array([1/(oh*raw_sum), 1/(od*raw_sum), 1/(oa*raw_sum)])
                 # 估计 λ: 二分搜索
                 lam_h, lam_a = self._solve_lambda_from_probs(p_book)
-            except:
+            except (ValueError, TypeError, ZeroDivisionError):
                 continue
 
             match = MatchRecord(
@@ -264,7 +261,7 @@ class OddsInverseCalibrator:
                     r.posterior_probs.get('draw', 1/3),
                     r.posterior_probs.get('away', 1/3),
                 ])
-            except:
+            except (ValueError, TypeError, ZeroDivisionError):
                 continue
 
             match = MatchRecord(
@@ -1169,7 +1166,6 @@ class OddsInverseCalibrator:
             self._calibrated_bayes = data['bayes_params']
         self._msg(f"加载校准参数: {path}")
 
-
 # ════════════════════════════════════════════════════════════════
 # 便捷函数
 # ════════════════════════════════════════════════════════════════
@@ -1192,7 +1188,6 @@ def quick_calibrate(db_path: str = "data/football_data.db",
         fast_mode=fast_mode,
     )
 
-
 def full_calibrate(db_path: str = "data/football_data.db",
                    max_samples: int = 200000,
                    fast_mode: bool = True) -> CalibrateResult:
@@ -1210,7 +1205,6 @@ def full_calibrate(db_path: str = "data/football_data.db",
         fast_mode=fast_mode,
     )
 
-
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
     result = quick_calibrate(max_samples=5000)
@@ -1219,7 +1213,6 @@ if __name__ == '__main__':
     print(f"  γ: {result.bayes_params.get('global_gamma', 'N/A')}")
     for msg in result.messages:
         print(f"  → {msg}")
-
 
 def apply_goal_segment_correction(p_raw, total_goals):
     if total_goals <= 1: return p_raw * 1.08
