@@ -1,0 +1,93 @@
+{
+  "meta": {
+    "description": "WC2026 48队阵容深度评级 (用于已出线队轮换影响判断)",
+    "tiers": {
+      "S": "超级阵容深度—轮换11人都能赢, 轮换影响≈0",
+      "A": "深度良好—轮换3-4人不影响整体战力",
+      "B": "中等深度—轮换3人以上显著下降",
+      "C": "浅阵容—轮换2人以上明显变弱",
+      "D": "极度依赖首发—轮换1-2个核心即崩"
+    }
+  },
+  "teams": {
+    "A组": {
+      "墨西哥": {"tier": "A", "stars": ["Ochoa(GK)", "Alvarez(c)", "Quinones"], "bench_depth": "good", "rotation_impact": "low"},
+      "捷克": {"tier": "C", "stars": ["Soucek", "Schick", "Holes"], "bench_depth": "limited", "rotation_impact": "high"},
+      "南非": {"tier": "C", "stars": [], "bench_depth": "limited", "rotation_impact": "high"},
+      "韩国": {"tier": "B+", "stars": ["Son(min)", "Kim min-jae"], "bench_depth": "moderate", "rotation_impact": "medium"}
+    },
+    "B组": {
+      "瑞士": {"tier": "B", "stars": ["Shaqiri", "Xhaka", "Akanji"], "bench_depth": "moderate", "rotation_impact": "medium"},
+      "加拿大": {"tier": "B", "stars": ["Davies", "David", "Eustaquio"], "bench_depth": "moderate", "rotation_impact": "medium"},
+      "波黑": {"tier": "C", "stars": ["Dzeko(age)"], "bench_depth": "limited", "rotation_impact": "high"},
+      "卡塔尔": {"tier": "D", "stars": ["Afif"], "bench_depth": "thin", "rotation_impact": "critical"}
+    },
+    "C组": {
+      "巴西": {"tier": "S", "stars": ["Vini Jr", "Alisson", "Marquinhos", "Paqueta", "Cunha", "Rayan", "Casemiro", "Bruno G"], "bench_depth": "exceptional", "rotation_impact": "minimal"},
+      "摩洛哥": {"tier": "B+", "stars": ["Hakimi", "Ziyech", "En-Nesyri"], "bench_depth": "moderate", "rotation_impact": "medium"},
+      "苏格兰": {"tier": "C+", "stars": ["Robertson", "McGinn", "McTominay"], "bench_depth": "limited", "rotation_impact": "high"},
+      "海地": {"tier": "D", "stars": [], "bench_depth": "thin", "rotation_impact": "critical"}
+    },
+    "D组": {
+      "美国": {"tier": "B", "stars": ["Pulisic", "McKennie", "Adams", "Reyna", "Balogun", "Dest", "A.Robinson"], "bench_depth": "moderate", "rotation_impact": "high"},
+      "澳大利亚": {"tier": "C+", "stars": [], "bench_depth": "limited", "rotation_impact": "high"},
+      "巴拉圭": {"tier": "C+", "stars": [], "bench_depth": "limited", "rotation_impact": "high"},
+      "土耳其": {"tier": "B", "stars": ["Calhanoglu", "Guler", "Yildiz", "Kokcu"], "bench_depth": "moderate", "rotation_impact": "medium"}
+    },
+    "E组": {
+      "德国": {"tier": "S", "stars": ["Musiala", "Wirtz", "Kimmich", "Havertz", "Neuer", "Sane", "Pavlovic", "Rudiger"], "bench_depth": "exceptional", "rotation_impact": "minimal"},
+      "科特迪瓦": {"tier": "B+", "stars": ["Haller", "Kessie", "Aurier", "Fofana"], "bench_depth": "moderate", "rotation_impact": "medium"},
+      "厄瓜多尔": {"tier": "B", "stars": ["Caicedo", "Pacho", "Hincapie", "Valencia", "Estupinan"], "bench_depth": "moderate", "rotation_impact": "medium"},
+      "库拉索": {"tier": "D", "stars": [], "bench_depth": "thin", "rotation_impact": "critical"}
+    },
+    "F组": {
+      "荷兰": {"tier": "S", "stars": ["van Dijk", "de Ligt", "de Jong", "Gakpo", "Xavi Simons", "Depay", "Reijnders"], "bench_depth": "exceptional", "rotation_impact": "minimal"},
+      "日本": {"tier": "B+", "stars": ["Mitoma", "Kubo", "Endo", "Kamada", "Ito"], "bench_depth": "good", "rotation_impact": "medium"},
+      "瑞典": {"tier": "B", "stars": ["Isak", "Kulusevski", "Gyokeres", "Lindelof"], "bench_depth": "moderate", "rotation_impact": "medium"},
+      "突尼斯": {"tier": "C+", "stars": [], "bench_depth": "limited", "rotation_impact": "high"}
+    },
+    "G组": {
+      "比利时": {"tier": "A", "stars": ["De Bruyne", "Lukaku", "Courtois", "Trossard", "Doku"], "bench_depth": "good", "rotation_impact": "low"},
+      "埃及": {"tier": "B", "stars": ["Salah"], "bench_depth": "moderate", "rotation_impact": "high"},
+      "伊朗": {"tier": "B", "stars": ["Taremi", "Azmoun"], "bench_depth": "moderate", "rotation_impact": "medium"},
+      "新西兰": {"tier": "C+", "stars": ["Wood"], "bench_depth": "limited", "rotation_impact": "high"}
+    },
+    "H组": {
+      "西班牙": {"tier": "S", "stars": ["Rodri", "Yamal", "Pedri", "Morata", "Laporte", "Carvajal", "Merino"], "bench_depth": "exceptional", "rotation_impact": "minimal"},
+      "乌拉圭": {"tier": "A", "stars": ["Valverde", "Nunez", "Araujo", "Ugarte", "Bentancur"], "bench_depth": "good", "rotation_impact": "low"},
+      "佛得角": {"tier": "D", "stars": [], "bench_depth": "thin", "rotation_impact": "critical"},
+      "沙特": {"tier": "D", "stars": [], "bench_depth": "thin", "rotation_impact": "critical"}
+    },
+    "I组": {
+      "法国": {"tier": "S", "stars": ["Mbappe", "Griezmann", "Tchouameni", "Upamecano", "Maignan", "Camavinga", "Barcola", "Olise", "Zaire-Emery"], "bench_depth": "exceptional", "rotation_impact": "minimal"},
+      "挪威": {"tier": "B", "stars": ["Haaland", "Odegaard"], "bench_depth": "limited", "rotation_impact": "high"},
+      "塞内加尔": {"tier": "B+", "stars": ["Mane", "Sarr", "Koulibaly", "Mendy(GK)"], "bench_depth": "good", "rotation_impact": "medium"},
+      "伊拉克": {"tier": "D", "stars": [], "bench_depth": "thin", "rotation_impact": "critical"}
+    },
+    "J组": {
+      "阿根廷": {"tier": "S", "stars": ["Messi", "Alvarez", "Mac Allister", "Enzo", "Romero", "Martinez(GK)", "De Paul", "Fernandez"], "bench_depth": "exceptional", "rotation_impact": "minimal"},
+      "奥地利": {"tier": "B", "stars": ["Sabitzer", "Baumgartner", "Arnautovic", "Laimer", "Schlager"], "bench_depth": "moderate", "rotation_impact": "medium"},
+      "阿尔及利亚": {"tier": "B+", "stars": ["Mahrez", "Bennacer", "Bounedjah"], "bench_depth": "moderate", "rotation_impact": "medium"},
+      "约旦": {"tier": "D", "stars": ["Al-Tamari", "Al-Naimat"], "bench_depth": "thin", "rotation_impact": "critical"}
+    },
+    "K组": {
+      "哥伦比亚": {"tier": "A", "stars": ["Diaz", "James", "Arias", "Cordoba", "Uribe", "Cuesta"], "bench_depth": "good", "rotation_impact": "low"},
+      "葡萄牙": {"tier": "S", "stars": ["Ronaldo(age)", "Leao", "Bernardo", "Bruno F", "Palhinha", "Ramos", "Dias", "Cancelo", "Felix"], "bench_depth": "exceptional", "rotation_impact": "minimal"},
+      "民主刚果": {"tier": "C+", "stars": [], "bench_depth": "limited", "rotation_impact": "high"},
+      "乌兹别克": {"tier": "C+", "stars": [], "bench_depth": "limited", "rotation_impact": "high"}
+    },
+    "L组": {
+      "英格兰": {"tier": "S", "stars": ["Kane", "Bellingham", "Foden", "Saka", "Rice", "Stones", "Pickford", "Palmer", "Gordon"], "bench_depth": "exceptional", "rotation_impact": "minimal"},
+      "加纳": {"tier": "B+", "stars": ["Kudus", "Salisu"], "bench_depth": "moderate", "rotation_impact": "medium"},
+      "克罗地亚": {"tier": "A", "stars": ["Modric(age)", "Kovacic", "Gvardiol", "Sosa", "Livakovic"], "bench_depth": "good", "rotation_impact": "low"},
+      "巴拿马": {"tier": "D", "stars": [], "bench_depth": "thin", "rotation_impact": "critical"}
+    }
+  },
+  "rotation_guidelines": {
+    "S_tier": "已出线时轮换5-8人仍可维持战力, 方向不受影响",
+    "A_tier": "已出线时轮换3-5人仍可维持, 弱队可搏冷",
+    "B_tier": "已出线时轮换3人以上战力下降明显, 弱队搏冷有效",
+    "C_tier": "已出线时轮换2人即显著下降, 弱队反超概率高",
+    "D_tier": "已出线时轮换1人即崩, 几乎必输"
+  }
+}
