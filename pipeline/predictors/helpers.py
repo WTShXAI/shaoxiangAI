@@ -104,6 +104,41 @@ def smart_score_rank(target_dir, target_ou_flag, ou_line, top_n=5):
     ranked.sort(key=lambda x: -x[0])
     return [s for _, s in ranked[:top_n]]
 
+def fault_tolerant_scores(target_dir, target_ou, ou_line, top_n=5):
+    """容错多约束评分: best_score保持预测方向, alt_scores含反向容错
+    
+    返回结构: [best(预测方向), alt1(预测方向), alt2(反方向/平局容错), ...]
+    
+    策略:
+    - best_score: 从预测方向硬约束中选Top-1 (保持主业)
+    - alt_scores[0]: 从预测方向中选Top-2 (方向对但比分差一点)
+    - alt_scores[1]: 从最可能的反向中选Top-1 (方向错时的容错)
+    """
+    # 预测方向Top-3
+    primary_scores = smart_score_rank(target_dir, target_ou, ou_line, top_n=3)
+    
+    # 容错方向: 如果预测是H, 容错选D和A的Top-1
+    other_dirs = [d for d in ['H', 'A', 'D'] if d != target_dir]
+    contingency = []
+    for d in other_dirs:
+        scores = smart_score_rank(d, target_ou, ou_line, top_n=1)
+        if scores:
+            contingency.append(scores[0])
+    
+    # 组合: primary[0]为best, primary[1]为alt1, contingency[0]为alt2
+    result = list(primary_scores[:2])
+    # 加入最高频的反向比分作为容错
+    if contingency:
+        # 优先加入平局(如果预测不是平局), 因为平局是最常见的方向误判
+        if 'D' in other_dirs:
+            draw_scores = smart_score_rank('D', target_ou, ou_line, top_n=1)
+            if draw_scores:
+                result.append(draw_scores[0])
+        else:
+            result.append(contingency[0])
+    
+    return result[:5]
+
 def _score_dir(sc):
     h,a = map(int, sc.split('-'))
     return 'H' if h>a else ('A' if a>h else 'D')
