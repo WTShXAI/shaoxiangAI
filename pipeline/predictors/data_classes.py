@@ -1,0 +1,95 @@
+"""Full Linkage Predictor — 拆分子模块"""
+import os, sys, json, math
+import logging
+from typing import Dict, List, Tuple, Any, Optional
+from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
+
+try:
+    import numpy as np
+    _HAS_NUMPY = True
+except ImportError:
+    np = None
+    _HAS_NUMPY = False
+    class _FakeArray:
+        def __init__(self, data):
+            self.data = list(data)
+        def copy(self): return _FakeArray(self.data)
+        def __iter__(self): return iter(self.data)
+        def __getitem__(self, i): return self.data[i]
+        def __len__(self): return len(self.data)
+        def sum(self): return sum(self.data)
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+@dataclass
+class MatchInput:
+    """比赛原始输入"""
+    home: str
+    away: str
+    odds_h: float
+    odds_d: float
+    odds_a: float
+    hcp: float           # 让球 (-1=主让1球, +0.5=主受让0.5) — 外围初盘
+    ou_line: float       # 大小球盘口 (2.0, 2.25, 2.5, 2.75, 3.0)
+    over_water: float = 1.90
+    under_water: float = 1.92
+    matchday: int = 3
+    r3_rotation: bool = False  # R3轮换信号
+    # Chain -1 阵容信息 (从首发分析获得)
+    home_formation: str = ''       # 主队阵型 (如 '4-1-2-3')
+    away_formation: str = ''       # 客队阵型
+    home_full_strength: bool = True  # 主队是否全主力
+    away_full_strength: bool = True  # 客队是否全主力
+    home_missing_stars: str = ''     # 主队缺阵球星 (如 '哈兰德,厄德高')
+    away_missing_stars: str = ''     # 客队缺阵球星
+    sporttery_hcp: float = 0.0       # 竞彩让球 (0=无竞彩数据, 非零=竞彩实盘)
+
+    @property
+    def hcp_depth(self) -> float:
+        """让球深度 (优先竞彩, 回退外围)"""
+        if self.sporttery_hcp:
+            return abs(self.sporttery_hcp)
+        return abs(self.hcp)
+
+    @property
+    def hcp_direction(self) -> str:
+        """让球方向"""
+        if self.hcp < 0:
+            return '主让'
+        elif self.hcp > 0:
+            return '客让'
+        return '平手'
+
+    @classmethod
+    def from_odds_snapshot(cls, home: str, away: str,
+                           odds_1x2: str, hcp_str: str, ou_str: str,
+                           ou_odds: str = "1.90/1.92",
+                           r3: bool = False) -> 'MatchInput':
+        """从截图格式快速构造"""
+        oh, od, oa = map(float, odds_1x2.split(','))
+        hcp = float(hcp_str)
+        ou_line = float(ou_str)
+        over_w, under_w = map(float, ou_odds.split('/'))
+        return cls(
+            home=home, away=away,
+            odds_h=oh, odds_d=od, odds_a=oa,
+            hcp=hcp, ou_line=ou_line,
+            over_water=over_w, under_water=under_w,
+            r3_rotation=r3
+        )
+
+@dataclass
+class ChainResult:
+    """单链输出"""
+    chain_name: str
+    verdict: str           # H/A/D
+    draw_prob: float
+    confidence: float
+    signals: List[str]
+    metadata: Dict = field(default_factory=dict)
+
+# ════════════════════════════════════════════════════
+# Layer 1: OU联动推理引擎 (核心)
+# ════════════════════════════════════════════════════
