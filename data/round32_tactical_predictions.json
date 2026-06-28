@@ -1,0 +1,274 @@
+[
+  {
+    "time": "6/29 03:00",
+    "home": "南非",
+    "away": "加拿大",
+    "verdict": "让负+客胜",
+    "score": "0-3",
+    "alts": [
+      "1-2",
+      "0-4"
+    ],
+    "tactical": {
+      "total_goals": 0,
+      "draw_boost": 0,
+      "upset_boost": 0
+    },
+    "ou_grade": "?"
+  },
+  {
+    "time": "6/30 01:00",
+    "home": "巴西",
+    "away": "日本",
+    "verdict": "让胜+主胜",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "tactical": {
+      "total_goals": 0.3,
+      "draw_boost": 0,
+      "upset_boost": 0.15
+    },
+    "ou_grade": "?"
+  },
+  {
+    "time": "6/30 04:30",
+    "home": "德国",
+    "away": "巴拉圭",
+    "verdict": "让胜+主胜",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "tactical": {
+      "total_goals": -0.5,
+      "draw_boost": 0,
+      "upset_boost": 0.1
+    },
+    "ou_grade": "?"
+  },
+  {
+    "time": "6/30 09:00",
+    "home": "荷兰",
+    "away": "摩洛哥",
+    "verdict": "让胜+主胜",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "tactical": {
+      "total_goals": 0,
+      "draw_boost": 0,
+      "upset_boost": 0
+    },
+    "ou_grade": "?"
+  },
+  {
+    "time": "7/1 01:00",
+    "home": "科特迪瓦",
+    "away": "挪威",
+    "verdict": "主胜+平局",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "tactical": {
+      "total_goals": 0,
+      "draw_boost": 0,
+      "upset_boost": 0
+    },
+    "ou_grade": "honest_mid"
+  },
+  {
+    "time": "7/1 05:00",
+    "home": "法国",
+    "away": "瑞典",
+    "verdict": "让胜+主胜",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "tactical": {
+      "total_goals": 0,
+      "draw_boost": 0,
+      "upset_boost": 0
+    },
+    "ou_grade": "honest_mid"
+  },
+  {
+    "time": "7/1 09:00",
+    "home": "墨西哥",
+    "away": "厄瓜多尔",
+    "verdict": "让胜+主胜",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "tactical": {
+      "total_goals": 0,
+      "draw_boost": 0,
+      "upset_boost": 0
+    },
+    "ou_grade": "honest_mid"
+  },
+  {
+    "time": "7/2 00:00",
+    "home": "英格兰",
+    "away": "民主刚果",
+    "verdict": "主胜+平局",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "tactical": {
+      "total_goals": 0,
+      "draw_boost": 0.05,
+      "upset_boost": 0
+    },
+    "ou_grade": "honest_mid"
+  },
+  {
+    "time": "7/2 04:00",
+    "home": "比利时",
+    "away": "塞内加尔",
+    "verdict": "主胜+客胜",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "tactical": {
+      "total_goals": 0,
+      "draw_boost": 0,
+      "upset_boost": 0
+    },
+    "ou_grade": "honest_mid"
+  },
+  {
+    "time": "7/2 08:00",
+    "home": "美国",
+    "away": "波黑",
+    "verdict": "让胜+主胜",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "tactical": {
+      "total_goals": 0,
+      "draw_boost": 0,
+      "upset_boost": 0
+    },
+    "ou_grade": "?"
+  },
+  {
+    "time": "7/3 03:00",
+    "home": "西班牙",
+    "away": "奥地利",
+    "verdict": "主胜+平局",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "tactical": {
+      "total_goals": 0,
+      "draw_boost": 0,
+      "upset_boost": 0
+    },
+    "ou_grade": "honest_mid"
+  },
+  {
+    "time": "7/3 07:00",
+    "home": "葡萄牙",
+    "away": "克罗地亚",
+    "verdict": "主胜+平局",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "tactical": {
+      "total_goals": -0.3,
+      "draw_boost": 0.1,
+      "upset_boost": 0
+    },
+    "ou_grade": "honest_mid"
+  },
+  {
+    "time": "7/3 11:00",
+    "home": "瑞士",
+    "away": "阿尔及利亚",
+    "verdict": "主胜+平局",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "tactical": {
+      "total_goals": 0,
+      "draw_boost": 0,
+      "upset_boost": 0
+    },
+    "ou_grade": "honest_mid"
+  },
+  {
+    "time": "7/4 02:00",
+    "home": "澳大利亚",
+    "away": "埃及",
+    "verdict": "平局+平局",
+    "score": "2-2",
+    "alts": [
+      "3-3",
+      "4-4"
+    ],
+    "tactical": {
+      "total_goals": 0,
+      "draw_boost": 0,
+      "upset_boost": 0
+    },
+    "ou_grade": "honest_mid"
+  },
+  {
+    "time": "7/4 06:00",
+    "home": "阿根廷",
+    "away": "佛得角",
+    "verdict": "让胜+主胜",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "tactical": {
+      "total_goals": -0.5,
+      "draw_boost": 0.15,
+      "upset_boost": 0
+    },
+    "ou_grade": "honest_mid"
+  },
+  {
+    "time": "7/4 09:30",
+    "home": "哥伦比亚",
+    "away": "加纳",
+    "verdict": "主胜+平局",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "tactical": {
+      "total_goals": 0,
+      "draw_boost": 0,
+      "upset_boost": 0
+    },
+    "ou_grade": "honest_mid"
+  }
+]
