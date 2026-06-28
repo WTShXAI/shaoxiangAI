@@ -80,6 +80,14 @@ class MatchInput:
     away_full_strength: bool = True  # 客队是否全主力
     home_missing_stars: str = ''     # 主队缺阵球星 (如 '哈兰德,厄德高')
     away_missing_stars: str = ''     # 客队缺阵球星
+    sporttery_hcp: float = 0.0       # 竞彩让球 (0=无竞彩数据, 非零=竞彩实盘)
+
+    @property
+    def hcp_depth(self) -> float:
+        """让球深度 (优先竞彩, 回退外围)"""
+        if self.sporttery_hcp:
+            return abs(self.sporttery_hcp)
+        return abs(self.hcp)
 
     @property
     def hcp_direction(self) -> str:
@@ -188,6 +196,53 @@ class OULinkageEngine:
             return 'medium'
         return 'large'
 
+    @staticmethod
+    def classify_hcp(hcp: float) -> str:
+        """让球深度分级 (外围/竞彩让球)
+        
+        分级标准:
+          very_deep ≥ 1.75 (让2球+)
+          deep      ≥ 0.75 (让1球)
+          medium    ≥ 0.25 (让半球)
+          level     ≈ 0    (平手)
+        """
+        depth = abs(hcp)
+        if depth >= 1.75:
+            return 'very_deep'
+        elif depth >= 0.75:
+            return 'deep'
+        elif depth >= 0.25:
+            return 'medium'
+        return 'level'
+
+    # ═══ HCP+OU 交叉联动矩阵 ═══
+    # 赛果四维联动铁律: 让球深度+OU盘口联合约束比分可行集
+    # 法则1: 深让小球走水 (hcp≥0.75+OU≤2)
+    # 法则2: 深让大球偏冷 (hcp≥0.75+OU≥2.75)
+    # 法则3: 平手小球平局 (hcp≈0+OU≤2)
+    # 法则4: 两球走水双路径 (hcp≥1.75)
+    LINKAGE_MATRIX = {
+        # (hcp_class, ou_band) → (verdict, scores, confidence, note)
+        # 法则1: 深让小球走水
+        ('deep', 'small'):      ('深让小球走水', ['0-2', '1-0', '0-1'], 0.80, 'hcp≥0.75+OU≤2: 强队赢但净胜≈盘口'),
+        # 法则2: 深让大球偏冷
+        ('deep', 'large'):      ('深让大球偏冷', ['2-1', '1-1', '2-2'], 0.65, 'hcp≥0.75+OU≥2.75: 弱队有进球能力'),
+        # 法则3: 平手小球平局
+        ('level', 'small'):     ('平手小球平局', ['0-0', '1-0', '0-1'], 0.75, 'hcp≈0+OU≤2: 双方保守低分'),
+        # 法则4: 两球走水双路径
+        ('very_deep', 'small'): ('两球走水(小球)', ['0-2', '1-0', '0-0'], 0.75, 'hcp≥1.75+OU≤2: 走水0-2路径'),
+        ('very_deep', 'medium'):('两球走水(中球)', ['0-2', '1-1', '1-0'], 0.70, 'hcp≥1.75+OU中: 走水或1球小胜'),
+        ('very_deep', 'large'): ('两球走水(大球)', ['1-3', '2-2', '1-2'], 0.65, 'hcp≥1.75+OU≥2.75: 走水1-3路径'),
+        # 中让 (0.25-0.75)
+        ('medium', 'small'):    ('中让小球', ['1-0', '0-0', '0-1'], 0.70, 'hcp≈0.25-0.75+OU小: 低分'),
+        ('medium', 'medium'):   ('中让中球', ['1-0', '1-1', '2-1'], 0.65, 'hcp≈0.25-0.75+OU中: 中性'),
+        ('medium', 'large'):    ('中让大球', ['2-1', '1-1', '1-2'], 0.60, 'hcp≈0.25-0.75+OU大: 偏大'),
+        # 其他组合
+        ('deep', 'medium'):     ('深让中球', ['1-0', '2-1', '1-1'], 0.70, 'hcp≥0.75+OU中: 稳健1球胜'),
+        ('level', 'medium'):    ('平手中球', ['1-1', '1-0', '0-1'], 0.65, 'hcp≈0+OU中: 中性'),
+        ('level', 'large'):     ('平手大球', ['2-1', '1-1', '2-2'], 0.60, 'hcp≈0+OU大: 开放对攻'),
+    }
+
     @classmethod
     def infer(cls, match: MatchInput) -> Dict[str, Any]:
         """OU联动推理主入口"""
@@ -248,6 +303,21 @@ class OULinkageEngine:
         }
         verdict, scores, conf = OU_SCORE_MAP.get(ou_band, ('手动判断', ['1-1', '1-0', '0-1'], 0.50))
 
+        # ═══ HCP深度联动 (让球+OU交叉, 赛果四维铁律) ═══
+        # 让球深度+OU盘口联合约束比分可行集
+        # 当HCP深度≥0.25时, LINKAGE_MATRIX覆盖OU默认判决
+        hcp_class = cls.classify_hcp(match.hcp_depth)
+        link_key = (hcp_class, ou_band)
+        if link_key in cls.LINKAGE_MATRIX and hcp_class != 'level':
+            law_override, hcp_scores, hcp_conf, hcp_note = cls.LINKAGE_MATRIX[link_key]
+            verdict = law_override
+            scores = hcp_scores[:]
+            conf = hcp_conf
+            # 记录HCP联动覆盖 (供TaoGe策略参考)
+            hcp_override_note = hcp_note
+        else:
+            hcp_override_note = None
+
         # ═══ v5.10: 分裂线陷阱降权 (替代硬排除) ═══
         if 'trap' in honesty_grade and honesty_mult < 0.95:
             conf = min(conf, 0.70)
@@ -276,6 +346,8 @@ class OULinkageEngine:
                 'note': honesty['note'],
                 'multiplier': honesty_mult,
             },
+            'hcp_class': hcp_class,
+            'hcp_override': hcp_override_note,
         }
 
 
@@ -513,7 +585,14 @@ class LiveMovementSignal:
         """分析临场升盘信号"""
         key = (match.home, match.away)
 
-        if key not in cls.SPORTTERY_HCP_627:
+        # 竞彩让球数据来源优先级: 硬编码字典 → match.sporttery_hcp → 无数据
+        sporttery_hcp = None
+        if key in cls.SPORTTERY_HCP_627:
+            sporttery_hcp = cls.SPORTTERY_HCP_627[key]
+        elif match.sporttery_hcp and abs(match.sporttery_hcp) > 0.01:
+            sporttery_hcp = match.sporttery_hcp
+
+        if sporttery_hcp is None:
             return {
                 'signal': 'no_data',
                 'depth_diff': 0,
@@ -524,8 +603,6 @@ class LiveMovementSignal:
                 'trap_risk': 0.0,
                 'adjustment': {},
             }
-
-        sporttery_hcp = cls.SPORTTERY_HCP_627[key]
         offshore_hcp = match.hcp
 
         # 计算深度差 (取绝对值的差异)
@@ -1503,6 +1580,8 @@ class FullLinkagePipeline:
                     'scores': ou_link['scores'],
                     'confidence': ou_link['confidence'],
                     'ou_honesty': ou_link.get('ou_honesty', {}),
+                    'hcp_class': ou_link.get('hcp_class', 'level'),
+                    'hcp_override': ou_link.get('hcp_override', None),
                 },
                 'Live_Movement': {
                     'signal': live_movement.get('signal', 'no_data'),
@@ -1562,17 +1641,25 @@ MATCHES_6_27 = [
     # 格式: MatchInput(主队, 客队, 独赢H/D/A, 让球(外围), OU, r3,
     #                   home_formation=主队阵型, away_formation=客队阵型,
     #                   home_full_strength=主力, away_full_strength=主力,
-    #                   home_missing_stars=缺阵, away_missing_stars=缺阵)
+    #                   home_missing_stars=缺阵, away_missing_stars=缺阵,
+    #                   sporttery_hcp=竞彩让球)
     # 让球: 负值=主队让球, 正值=主队受让 (来自外围截图原始赔率)
+    # 竞彩让球数据来源: sporttery.cn 实时赔率 (6/27截图)
     MatchInput('挪威', '法国',       4.05, 3.55, 1.80, +0.5,   2.5,   r3_rotation=True,
                home_formation='4-1-2-3', away_formation='4-2-3-1',
                home_full_strength=False, away_full_strength=True,
-               home_missing_stars='哈兰德,厄德高'),
-    MatchInput('塞内加尔', '伊拉克',  1.40, 4.40, 7.00, -1.25, 2.5,   r3_rotation=True),
-    MatchInput('佛得角共和国', '沙特阿拉伯', 2.47, 3.35, 2.62, 0.0,   2.25),
-    MatchInput('乌拉圭', '西班牙',   4.70, 3.90, 1.63, +0.75, 2.5,   r3_rotation=True),
-    MatchInput('埃及', '伊朗',       2.16, 3.00, 3.40, -0.25, 2.0),
-    MatchInput('新西兰', '比利时',   9.00, 5.20, 1.28, +1.5,  2.5,   r3_rotation=True),
+               home_missing_stars='哈兰德,厄德高',
+               sporttery_hcp=+1.0),    # 竞彩[+1]: 挪威受让1球(法国让1球)
+    MatchInput('塞内加尔', '伊拉克',  1.40, 4.40, 7.00, -1.25, 2.5,   r3_rotation=True,
+               sporttery_hcp=-2.0),    # 竞彩[-2]: 塞内加尔让2球
+    MatchInput('佛得角共和国', '沙特阿拉伯', 2.47, 3.35, 2.62, 0.0,   2.25,
+               sporttery_hcp=-1.0),    # 竞彩[-1]: 佛得角让1球
+    MatchInput('乌拉圭', '西班牙',   4.70, 3.90, 1.63, +0.75, 2.5,   r3_rotation=True,
+               sporttery_hcp=+1.0),    # 竞彩[+1]: 乌拉圭受让1球(西班牙让1球)
+    MatchInput('埃及', '伊朗',       2.16, 3.00, 3.40, -0.25, 2.0,
+               sporttery_hcp=-1.0),    # 竞彩[-1]: 埃及让1球
+    MatchInput('新西兰', '比利时',   9.00, 5.20, 1.28, +1.5,  2.5,   r3_rotation=True,
+               sporttery_hcp=+2.0),    # 竞彩[+2]: 新西兰受让2球(比利时让2球)
 ]
 
 
