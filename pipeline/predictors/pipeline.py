@@ -136,20 +136,6 @@ class FullLinkagePipeline:
         except Exception as e:
             logger.warning("情境分析失败(不阻塞): %s", e)
 
-        # ═══ 链0→Priority Gate回灌: 已出线队抑制虚假屠杀 ═══
-        if short_circuit and form_result and form_result.massacre_warning:
-            hm = context_adj.get('home_motivation', '')
-            am = context_adj.get('away_motivation', '')
-            strong_home = form_result.goal_diff_advantage > 0
-            strong_is_qualified = (strong_home and hm == 'qualified_free') or (not strong_home and am == 'qualified_free')
-            if strong_is_qualified:
-                short_circuit = False
-                short_circuit_reason = ''
-                form_result.massacre_warning = False  # 关键: 抑制TaoGe策略层的屠杀方向强制
-                strong_name = form_result.home.team if strong_home else form_result.away.team
-                print(f"\n  ⚡ [链0回灌] Priority Gate + 策略层 屠杀预警被否决 — {strong_name}已出线(轮换)")
-                print(f"      → 恢复Chain 1-3正常推理, TaoGe策略走常态路径")
-
         # ── 链0.5: 临场升盘信号 (Live Movement) ──
         print("\n  [链0.5] 临场升盘分析...")
         live_movement = LiveMovementSignal.analyze(match)
