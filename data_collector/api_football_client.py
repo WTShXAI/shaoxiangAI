@@ -55,6 +55,9 @@ class ApiFootballCollector:
         self.request_count = 0
         self.max_daily = 100  # 免费层日配额
         self._last_request_time = 0.0
+        # 缓存: 避免重复API调用 (N+1问题修复)
+        self._stats_cache: Dict[str, Optional[Dict]] = {}
+        self._injuries_cache: Dict[str, List[Dict]] = {}
 
     @property
     def is_configured(self) -> bool:
@@ -141,6 +144,9 @@ class ApiFootballCollector:
               type: "Injury"|"Suspension", reason, fixture: {...}}]
         """
         season = season or datetime.now(timezone.utc).year
+        cache_key = f"injuries:{team_id}:{season}"
+        if cache_key in self._injuries_cache:
+            return self._injuries_cache[cache_key]
         params = {"team": team_id, "season": season}
         data = self._api_call("/players/sidelined", params)
         if not data:
@@ -160,6 +166,7 @@ class ApiFootballCollector:
             })
 
         logger.info(f"伤病/禁赛: team_id={team_id} → {len(injuries)} 人")
+        self._injuries_cache[cache_key] = injuries
         return injuries
 
     def get_injuries_by_league(self, league_id: int, season: int = None) -> List[Dict]:
@@ -222,6 +229,9 @@ class ApiFootballCollector:
         """
         api_league = LEAGUE_ID_MAP.get(league_id, league_id)
         season = season or datetime.now(timezone.utc).year
+        cache_key = f"stats:{team_id}:{api_league}:{season}"
+        if cache_key in self._stats_cache:
+            return self._stats_cache[cache_key]
         params = {"team": team_id, "league": api_league, "season": season}
         data = self._api_call("/teams/statistics", params)
         if not data or not data.get("response"):
@@ -246,7 +256,7 @@ class ApiFootballCollector:
         if lineups:
             top_formation = max(lineups, key=lambda l: l.get("played", 0))
 
-        return {
+        result = {
             "team_id": resp.get("team", {}).get("id"),
             "team_name": resp.get("team", {}).get("name"),
             "league_id": league_id,
@@ -265,6 +275,8 @@ class ApiFootballCollector:
             "top_formation": top_formation.get("formation") if top_formation else None,
             "is_high_press": form_score >= 10,  # 近5场≥10分=状态好
         }
+        self._stats_cache[cache_key] = result
+        return result
 
     # ─── 首发阵容 ───
 
