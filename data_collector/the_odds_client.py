@@ -486,17 +486,18 @@ class TheOddsCollector:
                      f"跳过{stats['skipped']}, 共{self.request_count}次API调用")
         return all_odds, stats
 
-def similar_team_name(name1: str, name2: str) -> bool:
-    """球队名模糊匹配（去掉 FC, AFC 等后缀后比较）"""
-    def normalize(s: str) -> str:
-        s = s.lower().strip()
-        for suffix in [" fc", " afc", " cf", " ac", " united", " city", " town"]:
-            if s.endswith(suffix):
-                s = s[:-len(suffix)]
-        return s
+def _normalize_team_name(name: str) -> str:
+    """归一化球队名（去掉 FC, AFC 等后缀后比较）"""
+    s = name.lower().strip()
+    for suffix in [" fc", " afc", " cf", " ac", " united", " city", " town"]:
+        if s.endswith(suffix):
+            s = s[:-len(suffix)]
+    return s
 
-    n1 = normalize(name1)
-    n2 = normalize(name2)
+def similar_team_name(name1: str, name2: str) -> bool:
+    """球队名模糊匹配"""
+    n1 = _normalize_team_name(name1)
+    n2 = _normalize_team_name(name2)
     return n1 in n2 or n2 in n1
 
 # ─── 便捷函数 ───
