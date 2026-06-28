@@ -640,7 +640,10 @@ class SelectivePredictor:
         """加载模型管道"""
         pipeline = joblib.load(self.model_path)
         
-        from ensemble_trainer import EnsembleTrainer
+        try:
+    from ensemble_trainer import EnsembleTrainer
+except ImportError:
+    from predictors.components.ensemble_trainer import EnsembleTrainer
         self.trainer = EnsembleTrainer.__new__(EnsembleTrainer)
         for k, v in pipeline.items():
             setattr(self.trainer, k, v)

@@ -37,6 +37,7 @@ class MatchInput:
     under_water: float = 1.92
     matchday: int = 3
     r3_rotation: bool = False  # R3轮换信号
+    stage: str = 'group'       # 比赛阶段: group/knockout/final
     # Chain -1 阵容信息 (从首发分析获得)
     home_formation: str = ''       # 主队阵型 (如 '4-1-2-3')
     away_formation: str = ''       # 客队阵型

@@ -125,7 +125,7 @@ class FullLinkagePipeline:
             if self.context_analyzer is None:
                 from pipeline.match_context_analyzer import MatchContextAnalyzer
                 self.context_analyzer = MatchContextAnalyzer
-            context_adj = self.context_analyzer.get_adjustment(match.home, match.away)
+            context_adj = self.context_analyzer.get_adjustment(match.home, match.away, stage=getattr(match, 'stage', 'group'))
             print(f"\n  [链0] 战意/情境分析...")
             for note in context_adj.get('notes', [])[:4]:
                 print(f"    → {note}")

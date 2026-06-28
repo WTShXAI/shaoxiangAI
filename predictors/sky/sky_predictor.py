@@ -59,7 +59,10 @@ class SKYPredictor(PredictorBase):
 
     def _load(self):
         """加载模型"""
-        from ensemble_trainer import EnsembleTrainer
+        try:
+    from ensemble_trainer import EnsembleTrainer
+except ImportError:
+    from predictors.components.ensemble_trainer import EnsembleTrainer
 
         logger.info(f"[SKY] 加载模型: {self.model_path}")
         self.trainer = EnsembleTrainer.load_pipeline(self.model_path)

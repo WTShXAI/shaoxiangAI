@@ -257,20 +257,30 @@ class MatchContextAnalyzer:
         return ctx
     
     @classmethod
-    def get_adjustment(cls, home: str, away: str, matchday: int = 3) -> Dict:
+    def get_adjustment(cls, home: str, away: str, matchday: int = 3, stage: str = 'group') -> Dict:
         """
         返回可直接用于全链路管道的调整系数
         
-        Returns:
-            {
-                'motivation_mult': float,     # 全局信心倍率
-                'rotation_penalty': float,    # 轮换方实力惩罚
-                'offensive_bias': float,      # 进攻倾向(+开大球, -小球)
-                'mutual_benefit_draw': bool,  # 是否默契平局场景
-                'survival_clash': bool,       # 是否双求生战
-                'notes': [str],                # 分析备注
-            }
+        Args:
+            stage: 'group' | 'knockout' | 'final'
         """
+        # 淘汰赛特殊处理
+        if stage == 'knockout':
+            return {
+                'motivation_mult': 0.95,
+                'rotation_penalty': 0.0,
+                'offensive_bias': -0.10,  # 淘汰赛偏保守
+                'mutual_benefit_draw': False,
+                'survival_clash': True,    # 淘汰赛=生死战
+                'must_win_team': None,
+                'qualified_team': None,
+                'eliminated_team': None,
+                'home_motivation': 'knockout',
+                'away_motivation': 'knockout',
+                'notes': [f'⚔️ 淘汰赛: {home} vs {away} — 单场生死战, 可加时+点球',
+                          '双方战意拉满, 但淘汰赛节奏偏保守(先保证不丢球)']
+            }
+        
         ctx = cls.analyze(home, away, matchday)
         return {
             'motivation_mult': ctx.motivation_mult,

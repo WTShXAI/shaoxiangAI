@@ -13,7 +13,10 @@ import numpy as np
 import pandas as pd
 import sqlite3
 
-from ensemble_trainer import EnsembleTrainer
+try:
+    from ensemble_trainer import EnsembleTrainer
+except ImportError:
+    from predictors.components.ensemble_trainer import EnsembleTrainer
 
 class PredictionEngine:
     """

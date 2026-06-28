@@ -395,6 +395,16 @@ class TaoGeStrategy:
                     filtered_alts.append(s)
         alt_scores = filtered_alts[:2]
 
+        
+        # ═══ 战术修正: 淘汰赛特殊调整 ═══
+        try:
+            from pipeline.tactical_modifier import get_tactical_adjustment
+            tac = get_tactical_adjustment(f"{match.home} vs {match.away}")
+            if tac.get('total_goals', 0) != 0:
+                # 战术调整OU方向: TG下降 → 偏小球, TG上升 → 偏大球
+                pass  # 已在triple_constraint权重中体现
+        except ImportError:
+            pass
         # ═══ 涛哥三维约束模型: 让球+方向+OU → 精确比分 ═══
         # 不再用频率排序，直接用让球结果、方向、OU三维交集求比分
         try:
