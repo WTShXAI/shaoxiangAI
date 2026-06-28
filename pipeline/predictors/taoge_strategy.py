@@ -395,33 +395,52 @@ class TaoGeStrategy:
                     filtered_alts.append(s)
         alt_scores = filtered_alts[:2]
 
-        # ═══ 多约束评分优化 (WC2026真实数据 + 方向容错) ═══
-        # best_score: 预测方向硬约束Top-1
-        # alt_scores[0]: 预测方向Top-2 (方向对比分差一点)
-        # alt_scores[1]: 反向/平局容错Top-1 (方向错时兜底)
+        # ═══ 涛哥三维约束模型: 让球+方向+OU → 精确比分 ═══
+        # 不再用频率排序，直接用让球结果、方向、OU三维交集求比分
         try:
-            from pipeline.predictors.helpers import fault_tolerant_scores, _score_dir
-            target_dir = _score_dir(best_score)
+            from pipeline.predictors.helpers import triple_constraint_scores
+            
+            # 确定让球结果
+            if '让胜' in str(primary):    hcp_out = '让胜'
+            elif '让平' in str(primary):  hcp_out = '让平'
+            elif '让负' in str(primary):  hcp_out = '让负'
+            else:
+                # 从primary推导让球结果
+                ph, pa = map(int, best_score.split('-'))
+                adjusted = ph + match.hcp - pa if match.hcp > 0 else (ph - pa + match.hcp if match.hcp < 0 else ph - pa)
+                hcp_out = '让胜' if adjusted > 0 else ('让平' if adjusted == 0 else '让负')
+            
+            # 确定方向
+            if '主胜' in str(primary) or primary == '胜':   direction = '胜'
+            elif '客胜' in str(primary) or primary == '负':  direction = '负'
+            elif '平' in str(primary):                       direction = '平'
+            else:
+                ph, pa = map(int, best_score.split('-'))
+                direction = '胜' if ph>pa else ('负' if pa>ph else '平')
+            
+            # 确定OU方向
             honesty = ou_link.get('ou_honesty', {})
             ou_grade = honesty.get('grade', 'honest_mid')
             is_under = 'trap_low' in ou_grade or 'honest_low' in ou_grade \
                        or ou_link.get('verdict', '').startswith('OU小')
-            target_ou = 'U' if is_under else 'O'
+            ou_dir = '小' if is_under else '大'
             
-            ft_scores = fault_tolerant_scores(target_dir, target_ou, match.ou_line)
-            if ft_scores:
-                best_score = ft_scores[0]
-                alt_scores = ft_scores[1:3]
-                top_scores = ft_scores
-                # 标注容错方向
-                if len(ft_scores) >= 3:
-                    alt_dir = _score_dir(ft_scores[2])
-                    if alt_dir != target_dir:
-                        evidence.append(f'🛡️ 容错: {target_dir}→{best_score}, 备选含{alt_dir}方向{ft_scores[2]}')
-                    else:
-                        evidence.append(f'📊 优化: {target_dir}方向+{target_ou}球 → {best_score}')
-                else:
-                    evidence.append(f'📊 优化: {target_dir}方向+{target_ou}球 → {best_score}')
+            # 三维约束 → 精确比分
+            constrained = triple_constraint_scores(match, hcp_out, direction, ou_dir)
+            if constrained:
+                best_score = constrained[0]
+                alt_scores = constrained[1:3] if len(constrained) > 1 else []
+                top_scores = constrained
+                evidence.append(f'🎯 三维约束: {hcp_out}|{direction}|{ou_dir} → {len(constrained)}个比分 {constrained[:3]}')
+            else:
+                # 交集为空 → 放宽OU约束
+                alt_ou = '小' if ou_dir == '大' else '大'
+                constrained = triple_constraint_scores(match, hcp_out, direction, alt_ou)
+                if constrained:
+                    best_score = constrained[0]
+                    alt_scores = constrained[1:3] if len(constrained) > 1 else []
+                    top_scores = constrained
+                    evidence.append(f'🎯 三维约束(OU放宽): {hcp_out}|{direction}|{alt_ou} → {len(constrained)}个比分 {constrained[:3]}')
         except Exception as e:
             pass  # 降级: 用原始比分锚
 

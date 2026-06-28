@@ -143,6 +143,70 @@ def _score_dir(sc):
     h,a = map(int, sc.split('-'))
     return 'H' if h>a else ('A' if a>h else 'D')
 
+def triple_constraint_scores(match, hcp_outcome, direction, ou_dir):
+    """涛哥三维约束模型: 让球结果 + 方向 + OU → 有效比分交集
+    
+    Args:
+        match: MatchInput (需要hcp/ou_line)
+        hcp_outcome: '让胜'/'让平'/'让负'
+        direction: '胜'/'平'/'负' (1X2方向)
+        ou_dir: '大'/'小'
+    
+    Returns:
+        按总球数排序的有效比分列表
+    """
+    hcp = match.hcp
+    ou_line = match.ou_line
+    
+    # 第一维: 让球约束
+    s_hcp = set()
+    for h in range(8):
+        for a in range(8):
+            if hcp > 0:      adjusted = h + hcp - a
+            elif hcp < 0:    adjusted = h - a + hcp
+            else:            adjusted = h - a
+            
+            if hcp_outcome == '让胜' and adjusted > 0:
+                s_hcp.add(f'{h}-{a}')
+            elif hcp_outcome == '让平' and adjusted == 0:
+                s_hcp.add(f'{h}-{a}')
+            elif hcp_outcome == '让负' and adjusted < 0:
+                s_hcp.add(f'{h}-{a}')
+    
+    # 第二维: 方向约束
+    s_dir = set()
+    for h in range(8):
+        for a in range(8):
+            if direction == '胜' and h > a:
+                s_dir.add(f'{h}-{a}')
+            elif direction == '平' and h == a:
+                s_dir.add(f'{h}-{a}')
+            elif direction == '负' and a > h:
+                s_dir.add(f'{h}-{a}')
+    
+    # 第三维: OU约束
+    s_ou = set()
+    for h in range(8):
+        for a in range(8):
+            total = h + a
+            if ou_dir == '大' and total > ou_line:
+                s_ou.add(f'{h}-{a}')
+            elif ou_dir == '小' and total < ou_line:
+                s_ou.add(f'{h}-{a}')
+    
+    # 交集
+    result = s_hcp & s_dir & s_ou
+    
+    # 按总球排序
+    scored = [(int(sc.split('-')[0]) + int(sc.split('-')[1]), sc) for sc in result]
+    scored.sort()
+    return [s for _, s in scored]
+
+
+def _score_dir(sc):
+    h,a = map(int, sc.split('-'))
+    return 'H' if h>a else ('A' if a>h else 'D')
+
 def _constrain_ou_to_line(ou_link: dict, match, form_result=None, silent: bool = False) -> dict:
     """
     P0-5: 外围OU盘口约束总进球 (何执策)
