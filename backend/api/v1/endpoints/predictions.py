@@ -602,7 +602,7 @@ async def v4_health():
             "modules_tested": 460,
             "modules_loaded": 12,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
+        })
     except Exception as e:
         # 离线模式: 返回静态信息
         return _ensure_json_serializable({
@@ -618,7 +618,7 @@ async def v4_health():
             "modules_loaded": 12,
             "offline": True,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
+        })
 
 # ═══════════════════════════════════════════════════════════════
 # v4.0 赛后复盘/回测端点 (P4+)

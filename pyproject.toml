@@ -1,14 +1,12 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=64.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "footballai-architecture-v4"
-version = "4.0.0"
-description = "FootballAI Architecture v4.0"
-requires-python = ">=3.11"
-dependencies = []
+name = "shaoxiang-ai"
+version = "5.10.0"
+description = "ShaoxiangAI — World Cup 2026 football prediction system"
+requires-python = ">=3.10"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["*"]
+[tool.setuptools]
+packages = ["pipeline", "predictors", "rules", "features", "modules", "data_collector", "backend", "database", "bookmaker_sim", "config", "data", "ml", "optimize", "validation", "training", "core", "knowledge_base", "interfaces", "agents"]
