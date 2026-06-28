@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Query, Depends, Response
 from pydantic import BaseModel, Field, field_validator
 
 from utils.constants import DEFAULT_HOME_PROB, DEFAULT_DRAW_PROB, DEFAULT_AWAY_PROB
+from core.config import settings
 
 from api.deps import get_current_user
 
@@ -24,6 +25,27 @@ def _get_report_tools():
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# ── numpy→JSON序列化辅助 ─────────────────
+import numpy as _np
+
+def _ensure_json_serializable(obj):
+    """递归将numpy类型转换为Python原生类型，确保JSON可序列化"""
+    if isinstance(obj, dict):
+        return {k: _ensure_json_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [_ensure_json_serializable(v) for v in obj]
+    elif isinstance(obj, _np.floating):
+        return float(obj)
+    elif isinstance(obj, _np.integer):
+        return int(obj)
+    elif isinstance(obj, _np.bool_):
+        return bool(obj)
+    elif isinstance(obj, _np.ndarray):
+        return _ensure_json_serializable(obj.tolist())
+    elif isinstance(obj, _np.generic):
+        return obj.item()
+    return obj
 
 # ── 响应模型 ─────────────────────────────
 
@@ -90,7 +112,7 @@ async def predict_next_match(
         result = svc.predict_next_match()
         if result is None:
             raise HTTPException(status_code=404, detail="暂无待预测比赛")
-        return result
+        return _ensure_json_serializable(result)
     except ValueError as e:
         logger.error(f"参数错误: {e}")
         raise HTTPException(status_code=400, detail=f"参数错误: {str(e)}")
@@ -114,7 +136,7 @@ async def predict_single_match(
         result = svc.predict_single(req.home_team, req.away_team, req.league)
         if result is None:
             raise HTTPException(status_code=404, detail="无法计算预测")
-        return result
+        return _ensure_json_serializable(result)
     except ValueError as e:
         logger.error(f"参数错误: {e}")
         raise HTTPException(status_code=400, detail=f"参数错误: {str(e)}")
@@ -156,7 +178,7 @@ async def get_prediction_history(
     try:
         svc = _get_prediction_service()
         history = svc.get_history(limit=limit, league=league)
-        return {"predictions": history, "total": len(history)}
+        return _ensure_json_serializable({"predictions": history, "total": len(history)})
     except (ValueError, KeyError, FileNotFoundError) as e:
         logger.error(f"获取预测历史失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="获取历史记录失败")
@@ -168,7 +190,7 @@ async def get_prediction_stats(
     """获取预测统计信息"""
     try:
         svc = _get_prediction_service()
-        return svc.get_stats()
+        return _ensure_json_serializable(svc.get_stats())
     except ValueError as e:
         logger.error(f"参数错误: {e}")
         raise HTTPException(status_code=400, detail=f"参数错误: {str(e)}")
@@ -235,11 +257,12 @@ async def generate_prediction_report(req: ReportRequest):
         try:
             svc = _get_prediction_service()
             pred_result = svc.predict_single(req.home_team, req.away_team, req.league)
-            # 调试：保存模型输出
-            import json
-            _debug_path = os.path.join(_backend_dir, 'debug_model_output.json')
-            with open(_debug_path, 'w', encoding='utf-8') as _f:
-                json.dump(pred_result, _f, default=str, ensure_ascii=False)
+            # 调试：保存模型输出（仅DEBUG模式）
+            if settings.DEBUG:
+                import json
+                _debug_path = os.path.join(_backend_dir, 'debug_model_output.json')
+                with open(_debug_path, 'w', encoding='utf-8') as _f:
+                    json.dump(_ensure_json_serializable(pred_result), _f, ensure_ascii=False)
         except FileNotFoundError as e:
             logger.warning(f"模型文件不存在，fallback到赔率: {e}")
         except ValueError as e:
@@ -376,8 +399,8 @@ async def predict_multi_market(req: PredictionRequest):
                 model = svc.model
                 if model and 'feature_names' in model:
                     feature_names = list(model['feature_names'])
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("获取特征名fallback失败: %s", e)
 
         if feature_names:
             vec = np.zeros((1, len(feature_names)))
@@ -394,11 +417,11 @@ async def predict_multi_market(req: PredictionRequest):
             home_team=req.home_team, away_team=req.away_team, league=req.league,
             prediction_1x2={'prediction': result_1x2.get('prediction'),
                            'confidence': result_1x2.get('confidence'),
-                           'probabilities': result_1x2.get('probabilities')},
-            handicap=multi_result.get('handicap'),
-            over_under=multi_result.get('over_under'),
-            goals=multi_result.get('goals'),
-            score_prediction=result_1x2.get('score_prediction'),
+                           'probabilities': _ensure_json_serializable(result_1x2.get('probabilities'))},
+            handicap=_ensure_json_serializable(multi_result.get('handicap')),
+            over_under=_ensure_json_serializable(multi_result.get('over_under')),
+            goals=_ensure_json_serializable(multi_result.get('goals')),
+            score_prediction=_ensure_json_serializable(result_1x2.get('score_prediction')),
             model_version='multi_v1.1',
         )
 
@@ -558,7 +581,7 @@ async def v4_health():
         status = opt.status_summary()
         kb_stats = kb.get_stats()
 
-        return {
+        return _ensure_json_serializable({
             "version": "v4.0-p4",
             "health": status["health"],
             "health_advice": status["health_advice"],
@@ -582,7 +605,7 @@ async def v4_health():
         }
     except Exception as e:
         # 离线模式: 返回静态信息
-        return {
+        return _ensure_json_serializable({
             "version": "v4.0-p4",
             "health": "healthy",
             "health_advice": "✅ 系统健康",
