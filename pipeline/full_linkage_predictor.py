@@ -865,7 +865,9 @@ class TaoGeStrategy:
 
         # ═══ v5.10: 已出线队后置检查 ═══
         # 只要场上有6分已出线队 → 保守轮换, 1X2优于让球
-        if qualified_team or hm == 'qualified_free' or am == 'qualified_free':
+        # ⚠️ 例外: 屠杀预警压倒一切, 已出线保守不可覆盖屠杀判决
+        if (qualified_team or hm == 'qualified_free' or am == 'qualified_free') \
+                and not (form_result and form_result.massacre_warning):
             if any('让' in str(x) for x in (primary, secondary)):
                 primary, secondary = '胜', '平'
                 strategy = f'{strategy}→1X2(已出线保守)'
