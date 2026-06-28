@@ -141,9 +141,9 @@ class UnifiedPredictor(PredictorBase):
     def _load_model(self, model_path=None):
         """加载模型: v4.1 > v4.0 > v3.2"""
         try:
-            from ensemble_trainer import EnsembleTrainer
-        except ImportError:
             from predictors.components.ensemble_trainer import EnsembleTrainer
+        except ImportError:
+            from ensemble_trainer import EnsembleTrainer
 
         if model_path is None:
             # 自动搜索: 优先 v4.1, 项目内路径优先
@@ -624,9 +624,9 @@ class UnifiedPredictor(PredictorBase):
 
         # Fallback: 独立加载 DrawExpert
         try:
-    from draw_expert import DrawExpert
-except ImportError:
-    from predictors.components.draw_expert import DrawExpert
+            from predictors.components.draw_expert import DrawExpert
+        except ImportError:
+            from draw_expert import DrawExpert
         import joblib
 
         de_path = os.path.join(ROOT, 'models', 'draw_expert', 'draw_expert_v1.joblib')
