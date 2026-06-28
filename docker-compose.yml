@@ -1,0 +1,113 @@
+# =============================================================================
+# 哨响AI (ShXAI) - FootballAI 微服务 Docker Compose
+# =============================================================================
+# 服务: FastAPI 后端 + Redis + Celery Worker + MLflow Tracking Server
+# =============================================================================
+
+version: "3.9"
+
+x-defaults: &defaults
+  restart: unless-stopped
+  networks:
+    - footballai-net
+
+services:
+  # ═══════════════════════════════════════════════
+  # Redis (Celery Broker & Result Backend)
+  # ═══════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    <<: *defaults
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+
+  # ═══════════════════════════════════════════════
+  # FastAPI 后端
+  # ═══════════════════════════════════════════════
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    <<: *defaults
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./saved_models:/app/saved_models
+      - ./config:/app/config
+    environment:
+      - DATABASE_URL=sqlite:///data/football_data.db
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - MLFLOW_TRACKING_URI=http://mlflow:5001
+      - LOG_LEVEL=INFO
+      - DEBUG=false
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # ═══════════════════════════════════════════════
+  # Celery Worker（异步任务执行）
+  # ═══════════════════════════════════════════════
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    <<: *defaults
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./saved_models:/app/saved_models
+      - ./config:/app/config
+    environment:
+      - DATABASE_URL=sqlite:///data/football_data.db
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - MLFLOW_TRACKING_URI=http://mlflow:5001
+      - LOG_LEVEL=INFO
+      - DEBUG=false
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: celery -A backend.tasks.celery_app worker --loglevel=info --concurrency=2
+
+  # ═══════════════════════════════════════════════
+  # MLflow Tracking Server（实验追踪）
+  # ═══════════════════════════════════════════════
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.14.0
+    <<: *defaults
+    ports:
+      - "5001:5000"
+    volumes:
+      - mlflow-artifacts:/mlflow/artifacts
+      - ./mlruns:/mlflow/mlruns
+    environment:
+      - MLFLOW_TRACKING_URI=sqlite:///mlflow/mlflow.db
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:///mlflow/mlflow.db
+      --default-artifact-root /mlflow/artifacts
+
+volumes:
+  redis-data:
+    driver: local
+  mlflow-artifacts:
+    driver: local
+
+networks:
+  footballai-net:
+    driver: bridge
