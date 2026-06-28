@@ -118,6 +118,27 @@ class DGateLayer:
                 if not risk_tag:
                     risk_tag = 'neutral'
 
+            # 陷-检联动: ignore_draw 压倒 D-Gate (铁律)
+            try:
+                from bookmaker_trap_detector import BookmakerTrapDetector
+                trap = BookmakerTrapDetector()
+                trap_data = {
+                    "home": match.home,
+                    "away": match.away,
+                    "league": getattr(match, 'league', 'WC2026'),
+                    "odds_h": match.odds_h,
+                    "odds_d": match.odds_d,
+                    "odds_a": match.odds_a,
+                    "asian_handicap": match.hcp,
+                }
+                trap_report = trap.detect(trap_data)
+                for sig in trap_report.signals:
+                    if getattr(sig, 'direction', '') == 'ignore_draw':
+                        risk_tag = 'ignore_draw' if risk_tag in ('neutral', 'clean') else f'ignore_draw_{risk_tag}'
+                        break
+            except Exception:
+                pass  # 陷-检失败不影响主流程
+
             if dgate_active:
                 signals.append(f'D-Gate激活:{dg_result.get("dgate_mode","?")}')
             if risk_tag != 'neutral':

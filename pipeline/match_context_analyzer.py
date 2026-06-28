@@ -117,11 +117,57 @@ class MatchContextAnalyzer:
     }
     
     @classmethod
-    def get_team_pts(cls, team: str) -> int:
-        """获取球队当前积分 (来自DynamicTeamDB)"""
+    def _get_match_cache(cls):
+        """惰性加载: 所有比赛结果缓存 (用于反推赛前积分)"""
+        if not hasattr(cls, '_match_result_cache'):
+            import json, os
+            cache_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                'data', 'wc2026_72matches_with_odds.json'
+            )
+            try:
+                with open(cache_path, encoding='utf-8') as f:
+                    cls._match_result_cache = json.load(f)
+            except (FileNotFoundError, json.JSONDecodeError):
+                cls._match_result_cache = []
+        return cls._match_result_cache
+    
+    @classmethod
+    def get_team_pts(cls, team: str, opponent: str = None, matchday: int = 3) -> int:
+        """
+        获取球队赛前积分 (来自DynamicTeamDB, v5.12修复泄露)
+        
+        如果DB存的是终态积分(gp>matchday-1), 自动反推赛前积分:
+        - 查找 (team vs opponent) 的比赛结果
+        - 从终态积分中减去该场得分, 得到赛前积分
+        """
         from data.dynamic_team_db_module import DynamicTeamDB
         t = DynamicTeamDB.get_team(team)
-        return t.get('pts', 0)
+        final_pts = t.get('pts', 0)
+        gp = t.get('gp', 0)
+        
+        # 反推: 如果DB已计入当前比赛, 需要减去
+        expected_gp = matchday - 1  # 赛前应已打完的比赛数
+        if gp > expected_gp and opponent:
+            # 查找当前比赛结果
+            cache = cls._get_match_cache()
+            for m in cache:
+                if (m.get('home') == team and m.get('away') == opponent) or \
+                   (m.get('home') == opponent and m.get('away') == team):
+                    hs, aws = m.get('hs', 0), m.get('aws', 0)
+                    is_home = (m.get('home') == team)
+                    my_goals = hs if is_home else aws
+                    opp_goals = aws if is_home else hs
+                    # 减去该场比赛得分
+                    if my_goals > opp_goals:
+                        pre_pts = final_pts - 3
+                    elif my_goals == opp_goals:
+                        pre_pts = final_pts - 1
+                    else:
+                        pre_pts = final_pts  # 输了得0分, 不变
+                    return max(0, pre_pts)
+        
+        return final_pts
     
     @classmethod
     def get_team_gp(cls, team: str) -> int:
@@ -136,7 +182,7 @@ class MatchContextAnalyzer:
         return cls.GROUP_MAP.get(team, '?')
     
     @classmethod
-    def analyze_motivation(cls, team: str, opponent: str) -> TeamContext:
+    def analyze_motivation(cls, team: str, opponent: str, matchday: int = 3) -> TeamContext:
         """
         分析单队战意
         
@@ -147,7 +193,7 @@ class MatchContextAnalyzer:
           1-2pts → 生死战(必须赢), 还需看另一场结果
           0pts → 基本淘汰, 为荣誉而战
         """
-        pts = cls.get_team_pts(team)
+        pts = cls.get_team_pts(team, opponent=opponent, matchday=matchday)
         grp = cls.get_group(team)
         
         ctx = TeamContext(team=team, points=pts, games_played=2, position=1)
@@ -213,8 +259,8 @@ class MatchContextAnalyzer:
         Returns:
             MatchContext with motivation adjustments and analysis notes
         """
-        home_ctx = cls.analyze_motivation(home, away)
-        away_ctx = cls.analyze_motivation(away, home)
+        home_ctx = cls.analyze_motivation(home, away, matchday)
+        away_ctx = cls.analyze_motivation(away, home, matchday)
         
         ctx = MatchContext(home_context=home_ctx, away_context=away_ctx)
         

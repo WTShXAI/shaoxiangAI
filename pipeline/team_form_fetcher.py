@@ -80,6 +80,11 @@ def _init_name_maps():
 
 _init_name_maps()
 
+# 补充缺失的中文名映射 (football_data_live 中不包含的变体)
+_ZH_TO_EN.setdefault('乌兹别克', 'Uzbekistan')
+_ZH_TO_EN.setdefault('沙特', 'Saudi Arabia')
+_ZH_TO_EN.setdefault('佛得角', 'Cape Verde')
+
 def _zh_to_en(name: str) -> str:
     """中文队名→英文队名"""
     _init_name_maps()

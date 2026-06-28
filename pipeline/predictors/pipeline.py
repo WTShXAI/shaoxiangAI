@@ -54,7 +54,7 @@ class FullLinkagePipeline:
         """主预测入口: 全链路联动 (7层: Chain -1,0,0.5,1,2,3,4)"""
 
         print(f"\n{'='*60}")
-        print(f"  🔗 全链路联动预测: {match.home} vs {match.away}")
+        print(f"  [FULL] {match.home} vs {match.away}")
         print(f"  HCP={match.hcp:+} | OU={match.ou_line} | 1X2={match.odds_h}/{match.odds_d}/{match.odds_a}")
         if match.home_formation or match.away_formation:
             fmt_info = []
@@ -107,14 +107,14 @@ class FullLinkagePipeline:
             small_sample = min_samples <= 5  # WC小组赛仅3场数据
 
             if small_sample:
-                # 小样本下仅最极端的差距才短路(≥5球)
-                if abs_gap >= 5.0:
+                # 小样本下仅最极端的差距才短路(≥3球)
+                if abs_gap >= 3.0:
                     short_circuit = True
                     short_circuit_level = -1
-                    short_circuit_reason = f'净胜差≥5(小样本)'
-                    print(f"\n  ⚡ [Priority Gate] 净胜差≥5球({abs_gap:.1f}, 仅{min_samples}场样本) → 阻断")
+                    short_circuit_reason = f'净胜差≥3(小样本)'
+                    print(f"\n  ⚡ [Priority Gate] 净胜差≥3球({abs_gap:.1f}, 仅{min_samples}场样本) → 阻断")
                     print(f"      方向: {'跟主' if form_result.goal_diff_advantage > 0 else '跟客'}")
-                elif form_result.massacre_warning and abs_gap >= 4.0:
+                elif form_result.massacre_warning and abs_gap >= 2.5:
                     short_circuit = True
                     short_circuit_level = -1
                     short_circuit_reason = f'屠杀预警(小样本高阈值)'
@@ -122,6 +122,13 @@ class FullLinkagePipeline:
                     print(f"      强队: {form_result.home.team if form_result.goal_diff_advantage > 0 else form_result.away.team}")
                 else:
                     print(f"\n  [Priority Gate] 小样本({min_samples}场)抑制 — 阈值不足, 不短路")
+                    # ═══ v5.16: MD1小样本下屠杀警告降级 ═══
+                    # MD1数据全部来自友谊赛/预选赛, 场均GA不可靠
+                    # MD2+有WC真实数据, 3场足够判断屠杀趋势
+                    matchday_val = getattr(match, 'matchday', 3)
+                    if matchday_val <= 1 and form_result and form_result.massacre_warning:
+                        form_result.massacre_warning = False
+                        print(f"      🟡 v5.16: MD1屠杀警告降级 (gap={abs_gap:.1f}), 友谊赛数据不强制方向")
             else:
                 # 正常样本(≥6场): 使用标准阈值
                 if abs_gap >= 3.0:
@@ -143,7 +150,11 @@ class FullLinkagePipeline:
             if self.context_analyzer is None:
                 from pipeline.match_context_analyzer import MatchContextAnalyzer
                 self.context_analyzer = MatchContextAnalyzer
-            context_adj = self.context_analyzer.get_adjustment(match.home, match.away, stage=getattr(match, 'stage', 'group'))
+            context_adj = self.context_analyzer.get_adjustment(
+                match.home, match.away, 
+                matchday=getattr(match, 'matchday', 3),
+                stage=getattr(match, 'stage', 'group')
+            )
             print(f"\n  [链0] 战意/情境分析...")
             for note in context_adj.get('notes', [])[:4]:
                 print(f"    → {note}")
@@ -218,9 +229,9 @@ class FullLinkagePipeline:
             print(f"    → 预测: {model_result.verdict} | D-Prob: {model_result.draw_prob:.3f}")
             print(f"    → 信号: {model_result.signals}")
 
-        # ═══ P0-2: 屠杀λ重标定 (毕正验) ═══
-        # 屠杀场景下，用真实场均GF/GA覆写Poisson λ再算比分分布
-        if form_result and form_result.massacre_warning and not short_circuit:
+        # ═══ P0-2: 屠杀λ重标定 ═══
+        # 不论是否短路, 屠杀场景都用真实GF/GA覆写λ (方向由短路决定, λ影响比分精度)
+        if form_result and form_result.massacre_warning:
             print(f"\n  [链3.5] 屠杀λ重标定...")
             # 获取真实场均数据
             if form_result.goal_diff_advantage > 0:
@@ -229,14 +240,49 @@ class FullLinkagePipeline:
             else:
                 real_gf_strong = form_result.away.avg_gf
                 real_ga_weak = form_result.home.avg_ga
-            # 使用真实场均构建λ (保守下界：不低于赔率λ)
-            # 改动2: 屠杀预警λ放大 ×1.3 (P1回测修复: 屠杀场次强队进球数低估, 27B预测2-3实际5-0)
-            lam_strong = max(real_gf_strong, 1.5) * 1.3
-            lam_weak = max(real_ga_weak, 0.8)
+            # ═══ v5.19: 动态λ放大系数 + OU约束比分Top-5 ═══
+            # 放大系数: GA差距越大 → 屠杀越狠; OU线越高 → 比分越大
+            # ═══ v5.22: Dixon-Coles λ重标定 ═══
+            # 修正: λ应基于攻防交叉(DC模型), 而非孤立GF/GA
+            # λ_strong = (强队GF + 弱队GA)/2 × mult  — 强队进攻 vs 弱队防守
+            # λ_weak  = (弱队GF + 强队GA)/2          — 弱队进攻 vs 强队防守
+            # 旧版: lam_weak=max(GA_weak,0.8)错误地用弱队失球当λ
+            # 案例: 挪威GF=2.67→旧λ=2.33(失球), 新λ=(2.67+0.67)/2=1.67(进攻)
+            ga_gap = real_ga_weak
+            gap_val = abs(form_result.goal_diff_advantage)
+            
+            # 获取强弱双方的完整数据
+            if form_result.goal_diff_advantage > 0:
+                # 主队是强队
+                gf_strong = form_result.home.avg_gf
+                ga_strong = form_result.home.avg_ga
+                gf_weak = form_result.away.avg_gf
+                ga_weak = form_result.away.avg_ga
+            else:
+                gf_strong = form_result.away.avg_gf
+                ga_strong = form_result.away.avg_ga
+                gf_weak = form_result.home.avg_gf
+                ga_weak = form_result.home.avg_ga
+            
+            # DC交叉λ
+            lam_strong_raw = (gf_strong + ga_weak) / 2
+            lam_weak_raw = (gf_weak + ga_strong) / 2
+            
+            # 动态放大: gap越大屠杀越狠
+            if gap_val >= 3.5:   mult = 1.5
+            elif gap_val >= 2.5: mult = 1.4
+            elif gap_val >= 2.0: mult = 1.3
+            else:                mult = 1.2
+            
+            if match.ou_line > 3.5: mult += 0.1
+            elif match.ou_line < 2.0: mult -= 0.1
+            
+            lam_strong = max(lam_strong_raw, 1.5) * max(mult, 1.0)
+            lam_weak = max(lam_weak_raw, 0.5)   # 弱队至少0.5, 但不再取GA_weak
             # 确定强队在哪一侧 (用于正确分配λ)
             strong_is_home = form_result.goal_diff_advantage > 0
-            print(f"    → 真实场均: 强队GF={real_gf_strong:.2f} 弱队GA={real_ga_weak:.2f}")
-            print(f"    → 重标定λ(×1.3放大): strong={lam_strong:.2f} weak={lam_weak:.2f}")
+            print(f"    → Dixon-Coles: 强队(GF={gf_strong:.1f})×弱队(GA={ga_weak:.1f}) 弱队(GF={gf_weak:.1f})×强队(GA={ga_strong:.1f})")
+            print(f"    → 重标定λ(×{mult:.1f}): strong={lam_strong:.2f} weak={lam_weak:.2f}")
             # Poisson比分Top-5
             massacre_scores = []
             max_score = 7
@@ -255,8 +301,27 @@ class FullLinkagePipeline:
                     except (OverflowError, ValueError):
                         continue
             score_probs.sort(reverse=True, key=lambda x: x[0])
-            massacre_scores = [s for _, s in score_probs[:5]]
-            print(f"    → 重标定比分: {massacre_scores}")
+            
+            # ═══ v5.19: OU约束Top-5 ═══
+            # 屠杀场景: 仅用OU做宽松锚(容忍度=min(OU*1.5, 4)), 避免过度过滤
+            ou_line = match.ou_line
+            ou_tolerance = min(max(3.0, ou_line * 1.5), 5.0)
+            filtered = []
+            for prob, s in score_probs:
+                try:
+                    sh, sa = map(int, s.split('-'))
+                    total = sh + sa
+                    if abs(total - ou_line) <= ou_tolerance:
+                        filtered.append((prob, s))
+                except:
+                    filtered.append((prob, s))
+            
+            if len(filtered) >= 3:
+                massacre_scores = [s for _, s in filtered[:5]]
+            else:
+                massacre_scores = [s for _, s in score_probs[:5]]
+            
+            print(f"    → 重标定比分(OU={ou_line}约束): {massacre_scores}")
             # 覆写OU联动比分锚
             ou_link['scores'] = massacre_scores
             ou_link['massacre_rescaled'] = True

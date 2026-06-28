@@ -63,10 +63,14 @@ class OddsDecoder:
         raw_imp = [round((1/oh)/ti, 4), round((1/od)/ti, 4), round((1/oa)/ti, 4)]
         
         # 用简单模型概率: 赔率内含的返奖率偏差
+        # 校准数据来源: WC2026小组赛70场实际胜率校准, Jun 2026
+        # WC2026 70场统计: H=40.0%, D=28.6%, A=31.4%
+        # 市场隐含概率平均: H=44.7%, D=27.1%, A=28.2%
+        # 校准乘数: H=0.895, D=1.055, A=1.113
         model_est = [
-            max(0.25, min(0.70, raw_imp[0] * 0.92)),
-            max(0.18, min(0.40, raw_imp[1] * 1.08)),
-            max(0.15, min(0.55, raw_imp[2] * 0.92))
+            max(0.20, min(0.75, raw_imp[0] * 0.895)),
+            max(0.15, min(0.45, raw_imp[1] * 1.055)),
+            max(0.10, min(0.60, raw_imp[2] * 1.113))
         ]
         model_est = [round(p / sum(model_est), 4) for p in model_est]
         
@@ -97,7 +101,7 @@ class PointsPathReconstructor:
             data = json.load(open(p, 'r', encoding='utf-8'))
             standings = data.get('standings', {})
             if group_id in standings:
-                return {team: stats for team, pts, gd, gf, ga, pos in standings[group_id]}
+                return {t[0]: {'pts': t[1], 'gd': t[2], 'gf': t[3], 'ga': t[4], 'pos': t[5]} for t in standings[group_id]}
         return {}
 
     @staticmethod
@@ -133,59 +137,337 @@ class PointsPathReconstructor:
 
 
 # ═══════════════════════════════════════════════
-# 三、赛会赛制师 (2026 Bracket Tree)
+# 三、赛会赛制师 (2026 美加墨 48→32 对阵树 · 规则锚)
+# ═══════════════════════════════════════════════
+#
+# 底层规则 (FIFA 官方):
+#   1. 12组 A-L, 每组前二(24队) + 8最佳第三(跨组PK: 积分→GD→GF→公平竞赛→FIFA排名) → 32强
+#   2. R16 不抽签, 对阵树锁死. 12组拆成四个方块: 左上(ACD)、右上(DEF)、左下(GHI)、右下(JKL)
+#   3. A/B/D/E/G/I/K/L 组第一 → 打小组第三; C/F/H/J 组第一 → 打别组第二
+#   4. 同组半决赛前不碰 (唯一保护)
+#   5. 上半区 (Top Half) = A/B/C/D/E/F; 下半区 (Bottom Half) = G/H/I/J/K/L
+#
+# 关键反直觉点:
+#   - C1(巴西)打2D不打第三 → C1枝"硬"
+#   - J1(阿根廷)打2K/2L不打第三 → J1枝碰不到欧洲豪门, 相对"软"
+#   - E1(德国)第三候选池含C3 → C3(巴西/摩洛哥)末轮掉链子可能撞E1!
+#   - I1(法国)第三候选池含C和H → C3巴西或H3西班牙皆可能
 # ═══════════════════════════════════════════════
 
+# ── 8个"组第一 vs 第三"坑位 (FIFA 495组合查表键) ──
+THIRD_PLACE_SLOTS = {
+    'M74': {'winner': '1E', 'team': '德国', 'pool': ('A','B','C','D','F'), 'pool_teams': 'A/B/C/D/F组第三'},
+    'M77': {'winner': '1I', 'team': '法国', 'pool': ('C','D','F','G','H'), 'pool_teams': 'C/D/F/G/H组第三'},
+    'M79': {'winner': '1A', 'team': '墨西哥', 'pool': ('C','E','F','H','I'), 'pool_teams': 'C/E/F/H/I组第三'},
+    'M80': {'winner': '1L', 'team': '英格兰', 'pool': ('E','H','I','J','K'), 'pool_teams': 'E/H/I/J/K组第三'},
+    'M81': {'winner': '1D', 'team': '美国', 'pool': ('B','E','F','I','J'), 'pool_teams': 'B/E/F/I/J组第三'},
+    'M82': {'winner': '1G', 'team': '比利时', 'pool': ('A','E','H','I','J'), 'pool_teams': 'A/E/H/I/J组第三'},
+    'M85': {'winner': '1B', 'team': '加拿大', 'pool': ('E','F','G','I','J'), 'pool_teams': 'E/F/G/I/J组第三'},
+    'M87': {'winner': '1K', 'team': '葡萄牙', 'pool': ('D','E','I','J','L'), 'pool_teams': 'D/E/I/J/L组第三'},
+}
+
+# ── 4个"组第一 vs 组第二"固定场 (不打第三) ──
+WINNER_VS_RUNNERUP = {
+    'M75': {'match': '1C vs 2D', 'note': 'C1(巴西)打D组第二 — 枝硬, 巴西无动机轮换'},
+    'M78': {'match': '1F vs 2E', 'note': 'F1(荷兰)打E组第二 — E组含德国/科特迪瓦/厄瓜多尔'},
+    'M83': {'match': '1H vs 2G', 'note': 'H1(西班牙)打G组第二 — 西班牙枝不软不硬'},
+    'M84': {'match': '1J vs 2K(或2L)', 'note': 'J1(阿根廷)打K或L组第二 — 阿根廷枝相对软'},
+}
+
+# ── 组第一分流规则 ──
+GROUPS_VS_THIRD = {'A','B','D','E','G','I','K','L'}   # 8个组第一打第三
+GROUPS_VS_SECOND = {'C','F','H','J'}                     # 4个组第一打别组第二
+
+# ── 半区归属 ──
+TOP_HALF_GROUPS = {'A','B','C','D','E','F'}
+BOTTOM_HALF_GROUPS = {'G','H','I','J','K','L'}
+
+# ── 上半区树 (A/B/C/D/E/F 六组出线队) ──
+UPPER_BRANCH = {
+    'M74': {'type': 'R16', 'winner_slot': '1E', 'opponent_slot': '3rd_pool', 'pool_key': 'M74',
+            'QF': 'M90', 'QF_opponent': 'M75_winner',
+            'SF': 'M98', 'SF_opponent': 'M94_winner'},
+    'M75': {'type': 'R16', 'match': '1C vs 2D',
+            'QF': 'M90', 'QF_opponent': 'M74_winner',
+            'SF': 'M98', 'SF_opponent': 'M94_winner'},
+    'M76': {'type': 'R16', 'winner_slot': '1B', 'opponent_slot': '3rd_pool', 'pool_key': 'M85',
+            'QF': 'M94', 'QF_opponent': 'M77_winner',
+            'SF': 'M98', 'SF_opponent': 'M90_winner'},
+    'M77': {'type': 'R16', 'winner_slot': '1D', 'opponent_slot': '3rd_pool', 'pool_key': 'M81',
+            'QF': 'M94', 'QF_opponent': 'M76_winner',
+            'SF': 'M98', 'SF_opponent': 'M90_winner'},
+    'M78': {'type': 'R16', 'match': '1F vs 2E',
+            'QF': 'M91', 'QF_opponent': 'M79_winner',
+            'SF': 'M95', 'SF_opponent': ''},
+    'M79': {'type': 'R16', 'winner_slot': '1A', 'opponent_slot': '3rd_pool', 'pool_key': 'M79',
+            'QF': 'M91', 'QF_opponent': 'M78_winner',
+            'SF': 'M95', 'SF_opponent': ''},
+}
+
+# ── 下半区树 (G/H/I/J/K/L 六组出线队) ──
+LOWER_BRANCH = {
+    'M82': {'type': 'R16', 'winner_slot': '1I', 'opponent_slot': '3rd_pool', 'pool_key': 'M77',
+            'QF': 'M92', 'QF_opponent': 'M83_winner',
+            'SF': 'M99', 'SF_opponent': 'M96_winner'},
+    'M83': {'type': 'R16', 'match': '1K vs 3rd_pool', 'pool_key': 'M87',
+            'QF': 'M92', 'QF_opponent': 'M82_winner',
+            'SF': 'M99', 'SF_opponent': 'M96_winner'},
+    'M84': {'type': 'R16', 'match': '1J vs 2K/2L',
+            'QF': 'M96', 'QF_opponent': 'M85_winner',
+            'SF': 'M99', 'SF_opponent': 'M92_winner'},
+    'M85': {'type': 'R16', 'winner_slot': '1L', 'opponent_slot': '3rd_pool', 'pool_key': 'M80',
+            'QF': 'M96', 'QF_opponent': 'M84_winner',
+            'SF': 'M99', 'SF_opponent': 'M92_winner'},
+    'M86': {'type': 'R16', 'match': '1H vs 2G',
+            'QF': 'M93', 'QF_opponent': 'M87_winner',
+            'SF': 'M97', 'SF_opponent': ''},
+    'M87': {'type': 'R16', 'winner_slot': '1G', 'opponent_slot': '3rd_pool', 'pool_key': 'M82',
+            'QF': 'M93', 'QF_opponent': 'M86_winner',
+            'SF': 'M97', 'SF_opponent': ''},
+}
+
 BRACKET_2026 = """
-╔══════════════════════════════════════════════════════════════╗
-║            2026美加墨世界杯 R32 淘汰赛对阵树                    ║
-╠══════════════════════════════════════════════════════════════╣
-║                                                              ║
-║  上半区 (Top Half)                                            ║
-║  ┌──────────────────────────────────────────────────────┐    ║
-║  │ R32: A2(南非) vs B2(加拿大) → 胜者v ?                │    ║
-║  │ R32: C1(巴西) vs F2(日本)   → 胜者v ?                │    ║
-║  │ R32: E1(德国) vs D3(巴拉圭) → 胜者v ?                │    ║
-║  │ R32: F1(荷兰) vs C2(摩洛哥) → 胜者v ?                │    ║
-║  │ R32: E2(科特迪瓦) vs I2(挪威)→ 胜者v ?               │    ║
-║  │ R32: I1(法国) vs F3(瑞典)   → 胜者v ?                │    ║
-║  │ R32: A1(墨西哥) vs E3(厄瓜多尔)→ 胜者v ?             │    ║
-║  │ R32: L1(英格兰) vs K3(民主刚果)→ 胜者v ?             │    ║
-║  └──────────────────────────────────────────────────────┘    ║
-║                                                              ║
-║  下半区 (Bottom Half)                                         ║
-║  ┌──────────────────────────────────────────────────────┐    ║
-║  │ R32: G1(比利时) vs I3(塞内加尔)→ 胜者v ?             │    ║
-║  │ R32: D1(美国) vs B3(波黑)    → 胜者v ?               │    ║
-║  │ R32: H1(西班牙) vs J2(奥地利) → 胜者v ?              │    ║
-║  │ R32: K2(葡萄牙) vs L2(克罗地亚)→ 胜者v ?             │    ║
-║  │ R32: B1(瑞士) vs J3(阿尔及利亚)→ 胜者v ?             │    ║
-║  │ R32: D2(澳大利亚) vs G2(埃及) → 胜者v ?              │    ║
-║  │ R32: J1(阿根廷) vs H2(佛得角) → 胜者v ?              │    ║
-║  │ R32: K1(哥伦比亚) vs L3(加纳) → 胜者v ?              │    ║
-║  └──────────────────────────────────────────────────────┘    ║
-║                                                              ║
-║  ⚠️ 关键: 上下半区交叉规则 (同一半区内走)                     ║
-║  上半区强队: 巴西/法国/英格兰/德国/荷兰                       ║
-║  下半区强队: 阿根廷/西班牙/葡萄牙/比利时/哥伦比亚             ║
-║  死亡半区判定: 下半区(阿根廷vs西班牙在QF可能相遇)             ║
-╚══════════════════════════════════════════════════════════════╝
+               2026 美加墨 R16 对阵树（上半区 / 下半区 · 规则锚）
+================================================================================
+
+   【上半区】A/B/C/D/E/F 六组 → 12+4队                            【下半区】G/H/I/J/K/L 六组 → 12+4队
+
+  M74: 1E(德国) vs 3rd(A/B/C/D/F)                                 M82: 1I(法国) vs 3rd(C/D/F/G/H)
+  M75: 1C(巴西) vs 2D                   ┐                         M83: 1K(葡萄牙) vs 3rd(D/E/I/J/L)    ┐
+  ├─ M90 ──┐                          │                         M84: 1J(阿根廷) vs 2K或2L             │
+  M76: 1B(加拿大) vs 3rd(E/F/G/I/J)    │                         M85: 1L(英格兰) vs 3rd(E/H/I/J/K)    ├─
+  M77: 1D(美国) vs 3rd(B/E/F/I/J)     ┘                         M86: 1H(西班牙) vs 2G                │
+    └── M94 ──┘                                                    M87: 1G(比利时) vs 3rd(A/E/H/I/J)    ┘
+         └── M98 (SF1) ──┐                                            └── M99 (SF2) ──┐
+  M78: 1F(荷兰) vs 2E      │                                        (上半区决胜)      │
+  M79: 1A(墨西哥) vs 3rd(C/E/F/H/I) ┐                                M88: ...         │
+    └── M91 ──┘                      │                                  └── M95 ──┘    │
+         └── M95 ──┐                 │                                                  │
+                    ├── M100 (Final) │                                                  │
+                    │                │                                                  │
+
+  ⚠️ 关键反直觉:
+  · C1(巴西)打2D→枝硬, 巴西无动机轮换
+  · J1(阿根廷)打2K/2L→枝软, 阿根廷锁头名后末轮动机=保二放队友?
+  · E1(德国)第三候选池含C3→巴西末轮掉链子可能撞德国!
+  · I1(法国)第三候选池含C和H→C3(巴西/摩洛哥)或H3(西班牙/乌拉圭)皆可能
+  · 同组半决赛前不碰 (唯一保护) | 一张黄牌可能决定最佳第三PK
+================================================================================
 """
 
+
 class TournamentArchitect:
-    """赛会赛制师: 2026对阵树 + 半区分析"""
+    """赛会赛制师: 2026 美加墨 48→32 对阵树 · 规则锚
+    
+    Built-in knowledge:
+    - 12组 A-L → 32强完整R16对阵树 (16场)
+    - 8个"组第一 vs 第三"坑位 + 候选池 (FIFA 495组合查表键)
+    - 4个"组第一 vs 组第二"固定场
+    - 上下半区分流 + 同组保护规则
+    """
     
     BRACKET = BRACKET_2026
+    THIRD_SLOTS = THIRD_PLACE_SLOTS
+    WINNER_VS_RUNNER_UP = WINNER_VS_RUNNERUP
+    TOP_HALF = TOP_HALF_GROUPS
+    BOTTOM_HALF = BOTTOM_HALF_GROUPS
+    VS_THIRD = GROUPS_VS_THIRD
+    VS_SECOND = GROUPS_VS_SECOND
     
-    @staticmethod
-    def get_half(team: str) -> str:
-        """返回球队在哪个半区"""
-        top_half = {'巴西','德国','荷兰','法国','英格兰','墨西哥','科特迪瓦','挪威',
-                     '日本','瑞典','巴拉圭','厄瓜多尔','加拿大','南非','摩洛哥','民主刚果'}
-        return 'top' if team in top_half else 'bottom'
+    @classmethod
+    def lookup_third_slot(cls, qualified_thirds: List[str]) -> Dict[str, str]:
+        """核心: 输入8个晋级第三来自哪8组 → 输出8个坑位各塞谁
+        
+        Args:
+            qualified_thirds: 8个字母, 如 ['A','C','E','F','H','I','J','K']
+        
+        Returns:
+            {坑位: 对手组别} dict, 如 {'M74': 'C3', 'M77': 'F3', ...}
+            'unmapped' 键包含无法分配的组合
+        
+        算法: 先尝试简单贪婪匹配(按字母序依次填坑),
+              若失败则回溯搜索所有8!种排列找可行解。
+        """
+        thirds = sorted(qualified_thirds)
+        slot_order = ['M74','M77','M79','M80','M81','M82','M85','M87']
+        
+        def is_valid(assignment):
+            used = set()
+            for slot_key, t in assignment.items():
+                if t in used:
+                    return False
+                if t not in cls.THIRD_SLOTS[slot_key]['pool']:
+                    return False
+                used.add(t)
+            return len(used) == 8
+        
+        # 简单贪婪
+        result = {}
+        used = set()
+        failed = False
+        for slot_key in slot_order:
+            pool = cls.THIRD_SLOTS[slot_key]['pool']
+            assigned = False
+            for t in thirds:
+                if t in pool and t not in used:
+                    result[slot_key] = f"{t}3"
+                    used.add(t)
+                    assigned = True
+                    break
+            if not assigned:
+                failed = True
+        
+        if failed:
+            # 回溯搜索: 尝试所有8!种排列 (40320种, 便宜)
+            import itertools
+            for perm in itertools.permutations(thirds):
+                assignment = {}
+                ok = True
+                for i, slot_key in enumerate(slot_order):
+                    t = perm[i]
+                    if t not in cls.THIRD_SLOTS[slot_key]['pool']:
+                        ok = False
+                        break
+                    assignment[slot_key] = f"{t}3"
+                if ok:
+                    return assignment
+            # 无可行解
+            result['unmapped'] = '无法分配: 此8组第三组合在FIFA规则下不可行'
+        
+        return result
     
-    @staticmethod
-    def bracket_ascii() -> str:
+    @classmethod
+    def get_half(cls, group: str) -> str:
+        """返回球队所在半区 (基于组别)"""
+        g = group.upper() if len(group) == 1 else cls._group_from_team(group)
+        return 'top' if g in cls.TOP_HALF else 'bottom'
+    
+    @classmethod
+    def get_opponent_path(cls, group: str, position: int) -> Dict:
+        """返回某组第X名的R16对手路径
+        
+        Args:
+            group: 组别字母 (A-L)
+            position: 名次 (1, 2, 3)
+        
+        Returns:
+            dict with 'match', 'opponent_type', 'candidate_pool', 'half', 'hardness'
+        """
+        g = group.upper()
+        half = cls.get_half(g)
+        
+        if position == 1:
+            if g in cls.VS_THIRD:
+                # 找对应坑位
+                for slot_key, slot in cls.THIRD_SLOTS.items():
+                    if slot['winner'] == f'1{g}':
+                        return {
+                            'match': slot_key,
+                            'opponent_type': '3rd_place',
+                            'candidate_pool': slot['pool_teams'],
+                            'half': half,
+                            'hardness': 'soft' if len(slot['pool']) <= 5 else 'medium',
+                            'note': f"{slot['team']}({g}1)将打{slot['pool_teams']}"
+                        }
+            else:
+                # VS_SECOND
+                for slot_key, info in cls.WINNER_VS_RUNNER_UP.items():
+                    if info['match'].startswith(f'1{g}'):
+                        return {
+                            'match': slot_key,
+                            'opponent_type': 'runner_up',
+                            'candidate_pool': info['match'],
+                            'half': half,
+                            'hardness': 'hard' if g in ('C','J') else 'medium',
+                            'note': f"固定打{info['match']} — {info['note']}"
+                        }
+        
+        elif position == 2:
+            return {
+                'match': 'varies',
+                'opponent_type': 'group_winner',
+                'candidate_pool': '取决于分组归属',
+                'half': half,
+                'hardness': 'varies',
+                'note': f'{g}2将碰某组第一, 具体看分组归属'
+            }
+        
+        elif position == 3:
+            # 第三名: 可能被8个坑位之一选中
+            possible_slots = []
+            for slot_key, slot in cls.THIRD_SLOTS.items():
+                if g in slot['pool']:
+                    possible_slots.append(f"{slot_key}(vs {slot['team']})")
+            return {
+                'match': 'not_guaranteed',
+                'opponent_type': 'group_winner',
+                'candidate_pool': possible_slots,
+                'half': half,
+                'hardness': 'survival',
+                'note': f'{g}3若晋级TOP8第三, 可能碰: {", ".join(possible_slots)}'
+            }
+        
+        return {'match': 'eliminated', 'opponent_type': 'N/A', 'note': '未出线'}
+    
+    @classmethod
+    def check_motivation_conflict(cls, team: str, group: str, current_position: int, 
+                                   can_control: bool = True) -> Dict:
+        """核心逆向: 球队是否有"挑对手"动机?
+        
+        场景:
+        - 巴西末轮若锁头名 → C1打2D(枝硬) → 动机: 轮换保主力
+        - 阿根廷末轮若锁头名 → J1打2K/2L(枝软) → 动机: 冲头名无阻力
+        - 德国E1第三池含C3 → 若C3是巴西 → 德国动机: 可能"让"到第二避巴西?
+        """
+        g = group.upper()
+        path = cls.get_opponent_path(g, current_position)
+        
+        conflict = {
+            'team': team,
+            'group': g,
+            'position': current_position,
+            'current_path': path,
+            'has_conflict': False,
+            'suggested_action': '正常打',
+            'reasoning': []
+        }
+        
+        # 反直觉检测1: 锁头名但枝太硬 → 有动机"让"到第二走软枝
+        if current_position == 1 and can_control and path['hardness'] == 'hard':
+            conflict['has_conflict'] = True
+            conflict['suggested_action'] = '⚠️ 可考虑让到第二走软半区'
+            conflict['reasoning'].append(f"锁头名但路径硬({path['note']}), 可能有动机控分")
+        
+        # 反直觉检测2: E1德国情况 — 第三池含C3
+        if g == 'E' and current_position == 1:
+            conflict['has_conflict'] = True
+            conflict['reasoning'].append('E1第三候选池含C3: 若C3是巴西, 德国的"台阶"接不接?')
+            conflict['suggested_action'] = '⚠️ 关注C组末轮赛果 → 巴西若掉第三, 德国可能"演"'
+        
+        # 反直觉检测3: I1法国 — 第三池含C和H
+        if g == 'I' and current_position == 1:
+            conflict['reasoning'].append('I1第三候选池含C(巴西枝)和H(西班牙枝)——法国枝有暗雷')
+        
+        # 反直觉检测4: J1阿根廷 — 枝相对软
+        if g == 'J' and current_position == 1:
+            conflict['reasoning'].append('J1打2K/2L(非欧洲豪门), 枝相对软 → 阿根廷锁头名后无压力')
+        
+        return conflict
+    
+    @classmethod
+    def _group_from_team(cls, team: str) -> str:
+        """从球队名反查组别 (需要积分数据)"""
+        p = ROOT / 'data' / 'final_group_standings_v2.json'
+        if p.exists():
+            data = json.load(open(p, 'r', encoding='utf-8'))
+            for g_id, teams in data.get('standings', {}).items():
+                for ti in teams:
+                    if ti[0] == team:
+                        return g_id
+        return '?'
+    
+    @classmethod
+    def bracket_ascii(cls) -> str:
         return BRACKET_2026
 
 

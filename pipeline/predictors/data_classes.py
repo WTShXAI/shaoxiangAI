@@ -91,6 +91,29 @@ class ChainResult:
     signals: List[str]
     metadata: Dict = field(default_factory=dict)
 
+class RiskTag(str):
+    """统一风险标签 — 哨响AI v5.2 标准枚举"""
+    CLEAN = 'clean'
+    IGNORE_DRAW = 'ignore_draw'           # 陷阱信号: 庄家诱平
+    WEAK_IGNORE_DRAW = 'weak_ignore_draw'  # 弱陷阱信号
+    FAVOR_DRAW = 'favor_draw'              # 倾向平局
+    WEAK_DRAW = 'weak_draw'                # 弱平局信号
+    UPSET_WARNING = 'upset_warning'         # 冷门预警(超热门翻车)
+    DRAW_ALERT = 'draw_alert'              # 平局警报
+    NEUTRAL = 'neutral'                    # 中性
+
+    @classmethod
+    def normalize(cls, tag):
+        """标准化risk_tag: 合并历史3态和新5态"""
+        if not tag:
+            return cls.NEUTRAL
+        if 'ignore_draw' in tag:
+            return cls.IGNORE_DRAW if tag == 'ignore_draw' else tag
+        if tag in ('clean',):
+            return cls.NEUTRAL
+        return tag
+
+
 # ════════════════════════════════════════════════════
 # Layer 1: OU联动推理引擎 (核心)
 # ════════════════════════════════════════════════════
