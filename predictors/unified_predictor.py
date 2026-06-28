@@ -623,10 +623,20 @@ class UnifiedPredictor(PredictorBase):
                 logger.warning(f"DrawExpert (trainer内置) 失败, 尝试独立加载: {e}")
 
         # Fallback: 独立加载 DrawExpert
-        try:
-            from predictors.components.draw_expert import DrawExpert
-        except ImportError:
-            from draw_expert import DrawExpert
+        import importlib.util
+        DrawExpert = None
+        for mod_path in ['predictors.components.draw_expert', 'draw_expert']:
+            try:
+                spec = importlib.util.find_spec(mod_path)
+                if spec:
+                    mod = importlib.import_module(mod_path)
+                    DrawExpert = mod.DrawExpert
+                    break
+            except Exception:
+                continue
+        if DrawExpert is None:
+            logger.warning("DrawExpert模块完全不可用, 跳过平局概率")
+            return 0.5
         import joblib
 
         de_path = os.path.join(ROOT, 'models', 'draw_expert', 'draw_expert_v1.joblib')

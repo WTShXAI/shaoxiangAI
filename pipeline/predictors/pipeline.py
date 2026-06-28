@@ -97,27 +97,45 @@ class FullLinkagePipeline:
             form_result = None
 
         # ═══ P0-1: Priority Gate 短路机制 (费深谋+何执策) ═══
-        # 净胜差≥3球或屠杀预警 → 跳过Chain 1-3, 方向由战绩直接决定
-        # P0-fix (6/27回测): 竞彩让2球+abs_gap<3 → 让2球不穿律优先, 不短路
-        # P0-fix3 (6/27回测): 进攻碾压豁免 — 弱队无进球能力+强队碾压 → 破让2球不穿律
+        # v5.11修复: 小样本(≤5场WC数据)抑制 — 3场小组赛数据不足以判定屠杀
         short_circuit = False
-        short_circuit_level = 4  # 默认不短路
+        short_circuit_level = 4
         short_circuit_reason = ''
         if form_result and form_result.is_valid:
             abs_gap = abs(form_result.goal_diff_advantage)
+            min_samples = min(form_result.home.matches, form_result.away.matches)
+            small_sample = min_samples <= 5  # WC小组赛仅3场数据
 
-            if abs_gap >= 3.0:
-                short_circuit = True
-                short_circuit_level = -1
-                short_circuit_reason = f'净胜差≥3'
-                print(f"\n  ⚡ [Priority Gate] 净胜差≥3球 ({abs_gap:.1f}) → 阻断Chain 1-3")
-                print(f"      方向锁定: {'强队方向(跟主)' if form_result.goal_diff_advantage > 0 else '强队方向(跟客)'}")
-            elif form_result.massacre_warning:
-                short_circuit = True
-                short_circuit_level = -1
-                short_circuit_reason = '屠杀预警'
-                print(f"\n  ⚡ [Priority Gate] 屠杀预警 → 阻断Chain 1-3")
-                print(f"      强队: {form_result.home.team if form_result.goal_diff_advantage > 0 else form_result.away.team}")
+            if small_sample:
+                # 小样本下仅最极端的差距才短路(≥5球)
+                if abs_gap >= 5.0:
+                    short_circuit = True
+                    short_circuit_level = -1
+                    short_circuit_reason = f'净胜差≥5(小样本)'
+                    print(f"\n  ⚡ [Priority Gate] 净胜差≥5球({abs_gap:.1f}, 仅{min_samples}场样本) → 阻断")
+                    print(f"      方向: {'跟主' if form_result.goal_diff_advantage > 0 else '跟客'}")
+                elif form_result.massacre_warning and abs_gap >= 4.0:
+                    short_circuit = True
+                    short_circuit_level = -1
+                    short_circuit_reason = f'屠杀预警(小样本高阈值)'
+                    print(f"\n  ⚡ [Priority Gate] 屠杀预警({abs_gap:.1f}, 仅{min_samples}场) → 阻断")
+                    print(f"      强队: {form_result.home.team if form_result.goal_diff_advantage > 0 else form_result.away.team}")
+                else:
+                    print(f"\n  [Priority Gate] 小样本({min_samples}场)抑制 — 阈值不足, 不短路")
+            else:
+                # 正常样本(≥6场): 使用标准阈值
+                if abs_gap >= 3.0:
+                    short_circuit = True
+                    short_circuit_level = -1
+                    short_circuit_reason = f'净胜差≥3'
+                    print(f"\n  ⚡ [Priority Gate] 净胜差≥3球 ({abs_gap:.1f}) → 阻断Chain 1-3")
+                    print(f"      方向锁定: {'强队方向(跟主)' if form_result.goal_diff_advantage > 0 else '强队方向(跟客)'}")
+                elif form_result.massacre_warning:
+                    short_circuit = True
+                    short_circuit_level = -1
+                    short_circuit_reason = '屠杀预警'
+                    print(f"\n  ⚡ [Priority Gate] 屠杀预警 → 阻断Chain 1-3")
+                    print(f"      强队: {form_result.home.team if form_result.goal_diff_advantage > 0 else form_result.away.team}")
 
         # ── 链0: 战意/情境分析 (动机层) ──
         context_adj = {}

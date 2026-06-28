@@ -1,0 +1,1298 @@
+[
+  {
+    "date": "6/11",
+    "home": "墨西哥",
+    "away": "南非",
+    "pred": "让胜+主胜",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "actual": "2-0",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.4%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "墨西哥 强势 | 半区=top | 动机=maintain"
+  },
+  {
+    "date": "6/12",
+    "home": "韩国",
+    "away": "捷克",
+    "pred": "主胜+客胜",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "actual": "2-1",
+    "dir": "✅",
+    "exact": "✅",
+    "top3": "✅",
+    "vig": "8.1%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "韩国 中势 | 半区=bottom | 动机=push"
+  },
+  {
+    "date": "6/12",
+    "home": "加拿大",
+    "away": "波黑",
+    "pred": "让胜+主胜",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "actual": "1-1",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "7.2%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "加拿大 强势 | 半区=top | 动机=maintain"
+  },
+  {
+    "date": "6/13",
+    "home": "美国",
+    "away": "巴拉圭",
+    "pred": "让胜+主胜",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "actual": "4-1",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "9.6%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "美国 强势 | 半区=bottom | 动机=maintain"
+  },
+  {
+    "date": "6/13",
+    "home": "卡塔尔",
+    "away": "瑞士",
+    "pred": "让负+客胜",
+    "score": "0-3",
+    "alts": [
+      "0-4",
+      "1-3"
+    ],
+    "actual": "1-1",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "6.3%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "卡塔尔 中势 | 半区=bottom | 动机=survive"
+  },
+  {
+    "date": "6/13",
+    "home": "巴西",
+    "away": "摩洛哥",
+    "pred": "让胜+主胜",
+    "score": "3-0",
+    "alts": [
+      "3-1",
+      "4-0"
+    ],
+    "actual": "1-1",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.4%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "巴西 强势 | 半区=top | 动机=maintain"
+  },
+  {
+    "date": "6/14",
+    "home": "海地",
+    "away": "苏格兰",
+    "pred": "主胜+客胜",
+    "score": "1-0",
+    "alts": [
+      "2-0",
+      "2-1"
+    ],
+    "actual": "0-1",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "7.4%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "海地 中势 | 半区=bottom | 动机=push"
+  },
+  {
+    "date": "6/14",
+    "home": "澳大利亚",
+    "away": "土耳其",
+    "pred": "主胜+平局",
+    "score": "1-0",
+    "alts": [
+      "2-0",
+      "2-1"
+    ],
+    "actual": "2-0",
+    "dir": "✅",
+    "exact": " ",
+    "top3": "✅",
+    "vig": "8.1%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "澳大利亚 强势 | 半区=bottom | 动机=push"
+  },
+  {
+    "date": "6/14",
+    "home": "德国",
+    "away": "库拉索",
+    "pred": "让胜+主胜",
+    "score": "4-0",
+    "alts": [
+      "5-0",
+      "5-1"
+    ],
+    "actual": "7-1",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "5.8%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "德国 强势 | 半区=top | 动机=maintain"
+  },
+  {
+    "date": "6/14",
+    "home": "荷兰",
+    "away": "日本",
+    "pred": "让胜+主胜",
+    "score": "3-0",
+    "alts": [
+      "3-1",
+      "4-0"
+    ],
+    "actual": "2-2",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "5.9%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "荷兰 强势 | 半区=top | 动机=maintain"
+  },
+  {
+    "date": "6/14",
+    "home": "科特迪瓦",
+    "away": "厄瓜多尔",
+    "pred": "主胜+平局",
+    "score": "1-0",
+    "alts": [
+      "2-0",
+      "2-1"
+    ],
+    "actual": "1-0",
+    "dir": "✅",
+    "exact": "✅",
+    "top3": "✅",
+    "vig": "6.3%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "科特迪瓦 强势 | 半区=top | 动机=push"
+  },
+  {
+    "date": "6/15",
+    "home": "瑞典",
+    "away": "突尼斯",
+    "pred": "让胜+主胜",
+    "score": "3-0",
+    "alts": [
+      "3-1",
+      "4-0"
+    ],
+    "actual": "5-1",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "9.0%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "瑞典 强势 | 半区=top | 动机=maintain"
+  },
+  {
+    "date": "6/15",
+    "home": "西班牙",
+    "away": "佛得角",
+    "pred": "让负+客胜",
+    "score": "0-4",
+    "alts": [
+      "1-3",
+      "0-5"
+    ],
+    "actual": "0-0",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "4.3%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "西班牙 强势 | 半区=bottom | 动机=maintain"
+  },
+  {
+    "date": "6/15",
+    "home": "比利时",
+    "away": "埃及",
+    "pred": "客胜+让负",
+    "score": "0-3",
+    "alts": [
+      "1-2",
+      "2-1"
+    ],
+    "actual": "1-1",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "9.5%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "比利时 强势 | 半区=bottom | 动机=maintain"
+  },
+  {
+    "date": "6/15",
+    "home": "沙特",
+    "away": "乌拉圭",
+    "pred": "主胜+客胜",
+    "score": "1-0",
+    "alts": [
+      "2-0",
+      "2-1"
+    ],
+    "actual": "1-1",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "5.5%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "沙特 弱势 | 半区=bottom | 动机=survive"
+  },
+  {
+    "date": "6/16",
+    "home": "伊朗",
+    "away": "新西兰",
+    "pred": "让胜+主胜",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "actual": "2-2",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.8%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "伊朗 强势 | 半区=bottom | 动机=maintain"
+  },
+  {
+    "date": "6/16",
+    "home": "法国",
+    "away": "塞内加尔",
+    "pred": "让胜+主胜",
+    "score": "3-0",
+    "alts": [
+      "3-1",
+      "4-0"
+    ],
+    "actual": "3-1",
+    "dir": "✅",
+    "exact": " ",
+    "top3": "✅",
+    "vig": "9.0%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "法国 强势 | 半区=top | 动机=maintain"
+  },
+  {
+    "date": "6/16",
+    "home": "伊拉克",
+    "away": "挪威",
+    "pred": "让负+客胜",
+    "score": "0-3",
+    "alts": [
+      "0-4",
+      "1-3"
+    ],
+    "actual": "1-4",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.5%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "伊拉克 弱势 | 半区=bottom | 动机=survive"
+  },
+  {
+    "date": "6/17",
+    "home": "阿根廷",
+    "away": "阿尔及利亚",
+    "pred": "让胜+主胜",
+    "score": "0-3",
+    "alts": [
+      "1-2",
+      "3-0"
+    ],
+    "actual": "3-0",
+    "dir": "❌",
+    "exact": " ",
+    "top3": "✅",
+    "vig": "8.2%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "阿根廷 强势 | 半区=bottom | 动机=maintain"
+  },
+  {
+    "date": "6/17",
+    "home": "奥地利",
+    "away": "约旦",
+    "pred": "让胜+主胜",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "actual": "3-1",
+    "dir": "✅",
+    "exact": " ",
+    "top3": "✅",
+    "vig": "8.4%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "奥地利 强势 | 半区=bottom | 动机=maintain"
+  },
+  {
+    "date": "6/17",
+    "home": "葡萄牙",
+    "away": "民主刚果",
+    "pred": "让负+客胜",
+    "score": "2-1",
+    "alts": [
+      "3-2",
+      "4-3"
+    ],
+    "actual": "1-1",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.5%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "葡萄牙 强势 | 半区=bottom | 动机=maintain"
+  },
+  {
+    "date": "6/17",
+    "home": "英格兰",
+    "away": "克罗地亚",
+    "pred": "让负+客胜",
+    "score": "2-2",
+    "alts": [
+      "3-3",
+      "4-4"
+    ],
+    "actual": "4-2",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "9.0%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "英格兰 强势 | 半区=top | 动机=maintain"
+  },
+  {
+    "date": "6/17",
+    "home": "加纳",
+    "away": "巴拿马",
+    "pred": "主胜+平局",
+    "score": "1-0",
+    "alts": [
+      "2-0",
+      "2-1"
+    ],
+    "actual": "1-0",
+    "dir": "✅",
+    "exact": "✅",
+    "top3": "✅",
+    "vig": "7.4%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "加纳 强势 | 半区=bottom | 动机=maintain"
+  },
+  {
+    "date": "6/18",
+    "home": "乌兹别克",
+    "away": "哥伦比亚",
+    "pred": "让负+客胜",
+    "score": "0-3",
+    "alts": [
+      "0-4",
+      "1-3"
+    ],
+    "actual": "1-3",
+    "dir": "✅",
+    "exact": " ",
+    "top3": "✅",
+    "vig": "7.5%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "乌兹别克 弱势 | 半区=bottom | 动机=survive"
+  },
+  {
+    "date": "6/18",
+    "home": "捷克",
+    "away": "南非",
+    "pred": "主胜+平局",
+    "score": "1-0",
+    "alts": [
+      "2-0",
+      "2-1"
+    ],
+    "actual": "1-1",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "7.4%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "捷克 强势 | 半区=bottom | 动机=maintain"
+  },
+  {
+    "date": "6/18",
+    "home": "瑞士",
+    "away": "波黑",
+    "pred": "让胜+主胜",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "actual": "4-1",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "7.9%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "瑞士 强势 | 半区=bottom | 动机=maintain"
+  },
+  {
+    "date": "6/18",
+    "home": "加拿大",
+    "away": "卡塔尔",
+    "pred": "让胜+主胜",
+    "score": "3-0",
+    "alts": [
+      "3-1",
+      "4-0"
+    ],
+    "actual": "6-0",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.5%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "加拿大 强势 | 半区=top | 动机=maintain"
+  },
+  {
+    "date": "6/19",
+    "home": "墨西哥",
+    "away": "韩国",
+    "pred": "让胜+主胜",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "actual": "1-0",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.4%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "墨西哥 强势 | 半区=top | 动机=maintain"
+  },
+  {
+    "date": "6/19",
+    "home": "美国",
+    "away": "澳大利亚",
+    "pred": "让胜+主胜",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "actual": "2-0",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "9.6%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "美国 强势 | 半区=bottom | 动机=maintain"
+  },
+  {
+    "date": "6/19",
+    "home": "苏格兰",
+    "away": "摩洛哥",
+    "pred": "让负+客胜",
+    "score": "0-1",
+    "alts": [
+      "0-2",
+      "0-3"
+    ],
+    "actual": "0-1",
+    "dir": "✅",
+    "exact": "✅",
+    "top3": "✅",
+    "vig": "7.4%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "苏格兰 中势 | 半区=bottom | 动机=push"
+  },
+  {
+    "date": "6/20",
+    "home": "巴西",
+    "away": "海地",
+    "pred": "让胜+主胜",
+    "score": "4-0",
+    "alts": [
+      "4-1",
+      "5-0"
+    ],
+    "actual": "3-0",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "5.7%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "巴西 强势 | 半区=top | 动机=maintain"
+  },
+  {
+    "date": "6/20",
+    "home": "土耳其",
+    "away": "巴拉圭",
+    "pred": "主胜+平局",
+    "score": "1-0",
+    "alts": [
+      "2-0",
+      "2-1"
+    ],
+    "actual": "0-1",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.1%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "土耳其 强势 | 半区=bottom | 动机=push"
+  },
+  {
+    "date": "6/20",
+    "home": "荷兰",
+    "away": "瑞典",
+    "pred": "让胜+主胜",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "actual": "5-1",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.9%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "荷兰 强势 | 半区=top | 动机=maintain"
+  },
+  {
+    "date": "6/20",
+    "home": "德国",
+    "away": "科特迪瓦",
+    "pred": "让胜+主胜",
+    "score": "3-0",
+    "alts": [
+      "3-1",
+      "4-0"
+    ],
+    "actual": "2-1",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "9.5%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "德国 强势 | 半区=top | 动机=maintain"
+  },
+  {
+    "date": "6/21",
+    "home": "厄瓜多尔",
+    "away": "库拉索",
+    "pred": "让胜+主胜",
+    "score": "3-0",
+    "alts": [
+      "3-1",
+      "4-0"
+    ],
+    "actual": "0-0",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "10.3%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "厄瓜多尔 强势 | 半区=top | 动机=maintain"
+  },
+  {
+    "date": "6/21",
+    "home": "突尼斯",
+    "away": "日本",
+    "pred": "让负+客胜",
+    "score": "0-3",
+    "alts": [
+      "1-2",
+      "0-4"
+    ],
+    "actual": "0-4",
+    "dir": "✅",
+    "exact": " ",
+    "top3": "✅",
+    "vig": "7.0%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "突尼斯 中势 | 半区=bottom | 动机=push"
+  },
+  {
+    "date": "6/21",
+    "home": "西班牙",
+    "away": "沙特",
+    "pred": "让胜+主胜",
+    "score": "2-2",
+    "alts": [
+      "4-0",
+      "4-1"
+    ],
+    "actual": "4-0",
+    "dir": "❌",
+    "exact": " ",
+    "top3": "✅",
+    "vig": "5.7%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "西班牙 强势 | 半区=bottom | 动机=maintain"
+  },
+  {
+    "date": "6/21",
+    "home": "比利时",
+    "away": "伊朗",
+    "pred": "主胜+客胜",
+    "score": "2-1",
+    "alts": [
+      "3-2",
+      "4-3"
+    ],
+    "actual": "0-0",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.4%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "比利时 强势 | 半区=bottom | 动机=maintain"
+  },
+  {
+    "date": "6/21",
+    "home": "乌拉圭",
+    "away": "佛得角",
+    "pred": "主胜+客胜",
+    "score": "1-0",
+    "alts": [
+      "2-0",
+      "2-1"
+    ],
+    "actual": "2-2",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "9.0%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "乌拉圭 强势 | 半区=bottom | 动机=maintain"
+  },
+  {
+    "date": "6/22",
+    "home": "新西兰",
+    "away": "埃及",
+    "pred": "让负+客胜",
+    "score": "0-1",
+    "alts": [
+      "0-2",
+      "0-3"
+    ],
+    "actual": "1-3",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.1%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "新西兰 中势 | 半区=bottom | 动机=survive"
+  },
+  {
+    "date": "6/22",
+    "home": "阿根廷",
+    "away": "奥地利",
+    "pred": "主胜+平局",
+    "score": "2-1",
+    "alts": [
+      "3-2",
+      "4-3"
+    ],
+    "actual": "2-0",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "10.3%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "阿根廷 强势 | 半区=bottom | 动机=maintain"
+  },
+  {
+    "date": "6/22",
+    "home": "法国",
+    "away": "伊拉克",
+    "pred": "让胜+主胜",
+    "score": "3-0",
+    "alts": [
+      "4-0",
+      "4-1"
+    ],
+    "actual": "3-0",
+    "dir": "✅",
+    "exact": "✅",
+    "top3": "✅",
+    "vig": "8.2%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "法国 强势 | 半区=top | 动机=maintain"
+  },
+  {
+    "date": "6/23",
+    "home": "挪威",
+    "away": "塞内加尔",
+    "pred": "主胜+平局",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "actual": "3-2",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.9%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "挪威 强势 | 半区=top | 动机=maintain"
+  },
+  {
+    "date": "6/23",
+    "home": "约旦",
+    "away": "阿尔及利亚",
+    "pred": "主胜+客胜",
+    "score": "1-0",
+    "alts": [
+      "2-0",
+      "2-1"
+    ],
+    "actual": "1-2",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.1%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "约旦 中势 | 半区=bottom | 动机=survive"
+  },
+  {
+    "date": "6/23",
+    "home": "葡萄牙",
+    "away": "乌兹别克",
+    "pred": "让胜+主胜",
+    "score": "3-0",
+    "alts": [
+      "4-0",
+      "4-1"
+    ],
+    "actual": "5-0",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.2%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "葡萄牙 强势 | 半区=bottom | 动机=maintain"
+  },
+  {
+    "date": "6/23",
+    "home": "英格兰",
+    "away": "加纳",
+    "pred": "让胜+主胜",
+    "score": "3-0",
+    "alts": [
+      "3-1",
+      "4-0"
+    ],
+    "actual": "0-0",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "9.5%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "英格兰 强势 | 半区=top | 动机=maintain"
+  },
+  {
+    "date": "6/23",
+    "home": "巴拿马",
+    "away": "克罗地亚",
+    "pred": "主胜+客胜",
+    "score": "1-0",
+    "alts": [
+      "2-0",
+      "2-1"
+    ],
+    "actual": "0-1",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "6.2%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "巴拿马 弱势 | 半区=bottom | 动机=survive"
+  },
+  {
+    "date": "6/24",
+    "home": "哥伦比亚",
+    "away": "民主刚果",
+    "pred": "主胜+平局",
+    "score": "1-0",
+    "alts": [
+      "2-1",
+      "3-2"
+    ],
+    "actual": "1-0",
+    "dir": "✅",
+    "exact": "✅",
+    "top3": "✅",
+    "vig": "8.8%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "哥伦比亚 强势 | 半区=bottom | 动机=maintain"
+  },
+  {
+    "date": "6/24",
+    "home": "瑞士",
+    "away": "加拿大",
+    "pred": "主胜+平局",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "actual": "2-1",
+    "dir": "✅",
+    "exact": "✅",
+    "top3": "✅",
+    "vig": "8.1%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "瑞士 强势 | 半区=bottom | 动机=push"
+  },
+  {
+    "date": "6/24",
+    "home": "波黑",
+    "away": "卡塔尔",
+    "pred": "让胜+主胜",
+    "score": "1-0",
+    "alts": [
+      "2-0",
+      "2-1"
+    ],
+    "actual": "3-1",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "7.5%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "波黑 中势 | 半区=bottom | 动机=push"
+  },
+  {
+    "date": "6/24",
+    "home": "摩洛哥",
+    "away": "海地",
+    "pred": "让胜+主胜",
+    "score": "3-0",
+    "alts": [
+      "3-1",
+      "4-0"
+    ],
+    "actual": "4-2",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "9.5%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "摩洛哥 强势 | 半区=top | 动机=maintain"
+  },
+  {
+    "date": "6/24",
+    "home": "苏格兰",
+    "away": "巴西",
+    "pred": "让负+客胜",
+    "score": "0-3",
+    "alts": [
+      "0-4",
+      "1-3"
+    ],
+    "actual": "0-3",
+    "dir": "✅",
+    "exact": "✅",
+    "top3": "✅",
+    "vig": "8.5%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "苏格兰 弱势 | 半区=bottom | 动机=survive"
+  },
+  {
+    "date": "6/25",
+    "home": "捷克",
+    "away": "墨西哥",
+    "pred": "让负+客胜",
+    "score": "0-3",
+    "alts": [
+      "1-2",
+      "0-4"
+    ],
+    "actual": "0-3",
+    "dir": "✅",
+    "exact": "✅",
+    "top3": "✅",
+    "vig": "8.0%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "捷克 中势 | 半区=bottom | 动机=push"
+  },
+  {
+    "date": "6/25",
+    "home": "南非",
+    "away": "韩国",
+    "pred": "主胜+平局",
+    "score": "2-1",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "actual": "1-0",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "7.4%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "南非 中势 | 半区=top | 动机=push"
+  },
+  {
+    "date": "6/25",
+    "home": "厄瓜多尔",
+    "away": "德国",
+    "pred": "让负+客胜",
+    "score": "0-3",
+    "alts": [
+      "0-4",
+      "1-3"
+    ],
+    "actual": "2-1",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "6.4%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "厄瓜多尔 中势 | 半区=top | 动机=survive"
+  },
+  {
+    "date": "6/25",
+    "home": "库拉索",
+    "away": "科特迪瓦",
+    "pred": "让负+客胜",
+    "score": "0-3",
+    "alts": [
+      "0-4",
+      "0-5"
+    ],
+    "actual": "0-2",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.1%",
+    "anomaly": "normal",
+    "conclusion": "库拉索 中势 | 半区=bottom | 动机=push"
+  },
+  {
+    "date": "6/25",
+    "home": "日本",
+    "away": "瑞典",
+    "pred": "主胜+平局",
+    "score": "1-0",
+    "alts": [
+      "2-0",
+      "2-1"
+    ],
+    "actual": "1-1",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "7.4%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "日本 强势 | 半区=top | 动机=push"
+  },
+  {
+    "date": "6/25",
+    "home": "突尼斯",
+    "away": "荷兰",
+    "pred": "让负+客胜",
+    "score": "0-3",
+    "alts": [
+      "0-4",
+      "0-5"
+    ],
+    "actual": "1-3",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "9.0%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "突尼斯 中势 | 半区=bottom | 动机=survive"
+  },
+  {
+    "date": "6/26",
+    "home": "土耳其",
+    "away": "美国",
+    "pred": "让负+客胜",
+    "score": "0-3",
+    "alts": [
+      "1-2",
+      "0-4"
+    ],
+    "actual": "3-2",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "7.5%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "土耳其 中势 | 半区=bottom | 动机=push"
+  },
+  {
+    "date": "6/26",
+    "home": "巴拉圭",
+    "away": "澳大利亚",
+    "pred": "平局+平局",
+    "score": "0-0",
+    "alts": [
+      "1-1",
+      "2-2"
+    ],
+    "actual": "0-0",
+    "dir": "✅",
+    "exact": "✅",
+    "top3": "✅",
+    "vig": "7.3%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "巴拉圭 强势 | 半区=top | 动机=push"
+  },
+  {
+    "date": "6/26",
+    "home": "塞内加尔",
+    "away": "伊拉克",
+    "pred": "让胜+主胜",
+    "score": "3-0",
+    "alts": [
+      "3-1",
+      "4-0"
+    ],
+    "actual": "5-0",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.4%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "塞内加尔 强势 | 半区=bottom | 动机=maintain"
+  },
+  {
+    "date": "6/26",
+    "home": "挪威",
+    "away": "法国",
+    "pred": "让负+客胜",
+    "score": "0-3",
+    "alts": [
+      "1-2",
+      "0-4"
+    ],
+    "actual": "1-4",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.4%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "挪威 中势 | 半区=top | 动机=survive"
+  },
+  {
+    "date": "6/27",
+    "home": "乌拉圭",
+    "away": "西班牙",
+    "pred": "让负+客胜",
+    "score": "0-3",
+    "alts": [
+      "1-2",
+      "0-4"
+    ],
+    "actual": "0-1",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.3%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "乌拉圭 中势 | 半区=bottom | 动机=survive"
+  },
+  {
+    "date": "6/27",
+    "home": "佛得角",
+    "away": "沙特",
+    "pred": "主胜+客胜",
+    "score": "1-0",
+    "alts": [
+      "2-0",
+      "2-1"
+    ],
+    "actual": "0-0",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.5%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "佛得角 强势 | 半区=bottom | 动机=push"
+  },
+  {
+    "date": "6/27",
+    "home": "埃及",
+    "away": "伊朗",
+    "pred": "主胜+平局",
+    "score": "1-0",
+    "alts": [
+      "2-0",
+      "2-1"
+    ],
+    "actual": "1-1",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "9.0%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "埃及 强势 | 半区=bottom | 动机=push"
+  },
+  {
+    "date": "6/27",
+    "home": "新西兰",
+    "away": "比利时",
+    "pred": "让负+客胜",
+    "score": "0-3",
+    "alts": [
+      "0-4",
+      "1-3"
+    ],
+    "actual": "1-5",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "8.5%",
+    "anomaly": "overvalued_by_market",
+    "conclusion": "新西兰 弱势 | 半区=bottom | 动机=survive"
+  },
+  {
+    "date": "6/27",
+    "home": "克罗地亚",
+    "away": "加纳",
+    "pred": "客胜+让负",
+    "score": "0-1",
+    "alts": [
+      "0-2",
+      "0-3"
+    ],
+    "actual": "2-1",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "13.0%",
+    "anomaly": "undervalued_by_market",
+    "conclusion": "克罗地亚 强势 | 半区=bottom | 动机=maintain"
+  },
+  {
+    "date": "6/27",
+    "home": "巴拿马",
+    "away": "英格兰",
+    "pred": "让负+客胜",
+    "score": "0-3",
+    "alts": [
+      "0-4",
+      "0-5"
+    ],
+    "actual": "0-2",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "13.0%",
+    "anomaly": "normal",
+    "conclusion": "巴拿马 中势 | 半区=bottom | 动机=push"
+  },
+  {
+    "date": "6/27",
+    "home": "哥伦比亚",
+    "away": "葡萄牙",
+    "pred": "主胜+平局",
+    "score": "1-0",
+    "alts": [
+      "2-0",
+      "2-1"
+    ],
+    "actual": "0-0",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "12.9%",
+    "anomaly": "normal",
+    "conclusion": "哥伦比亚 中势 | 半区=bottom | 动机=push"
+  },
+  {
+    "date": "6/27",
+    "home": "民主刚果",
+    "away": "乌兹别克",
+    "pred": "让胜+主胜",
+    "score": "2-0",
+    "alts": [
+      "3-0",
+      "3-1"
+    ],
+    "actual": "3-1",
+    "dir": "✅",
+    "exact": " ",
+    "top3": "✅",
+    "vig": "12.9%",
+    "anomaly": "normal",
+    "conclusion": "民主刚果 强势 | 半区=top | 动机=maintain"
+  },
+  {
+    "date": "6/28",
+    "home": "阿尔及利亚",
+    "away": "奥地利",
+    "pred": "主胜+客胜",
+    "score": "1-0",
+    "alts": [
+      "2-0",
+      "2-1"
+    ],
+    "actual": "3-3",
+    "dir": "❌",
+    "exact": " ",
+    "top3": " ",
+    "vig": "12.9%",
+    "anomaly": "normal",
+    "conclusion": "阿尔及利亚 中势 | 半区=bottom | 动机=push"
+  },
+  {
+    "date": "6/28",
+    "home": "约旦",
+    "away": "阿根廷",
+    "pred": "让负+客胜",
+    "score": "0-4",
+    "alts": [
+      "0-5",
+      "1-4"
+    ],
+    "actual": "1-3",
+    "dir": "✅",
+    "exact": " ",
+    "top3": " ",
+    "vig": "12.9%",
+    "anomaly": "normal",
+    "conclusion": "约旦 中势 | 半区=bottom | 动机=push"
+  }
+]
