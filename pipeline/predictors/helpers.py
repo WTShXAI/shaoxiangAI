@@ -23,6 +23,7 @@ except ImportError:
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from pipeline.predictors.data_classes import *  # noqa: F401, F403
+from pipeline.predictors.ou_linkage import OULinkageEngine
 
 def _constrain_ou_to_line(ou_link: dict, match, form_result=None, silent: bool = False) -> dict:
     """
