@@ -11,7 +11,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
 class FeatureCalculator:
     """特征计算器 - 实现第零章全部公式"""
 

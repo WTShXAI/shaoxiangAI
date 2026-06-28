@@ -16,7 +16,7 @@ import sys
 import json
 import time
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Tuple, Dict, Optional
 
 import numpy as np
@@ -36,7 +36,6 @@ from sklearn.preprocessing import StandardScaler
 
 # ── 路径设置 ──
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -44,7 +43,6 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger('FootballNN')
-
 
 class FootballNN(nn.Module):
     """足球预测神经网络：72维 → 多层 → 3维(HDA概率)"""
@@ -106,7 +104,6 @@ class FootballNN(nn.Module):
         proba = self.predict_proba(x)
         return np.argmax(proba, axis=1)
 
-
 def load_training_data() -> Tuple[np.ndarray, np.ndarray, StandardScaler]:
     """
     使用 EnsembleTrainer 的数据管道加载训练数据。
@@ -131,8 +128,8 @@ def load_training_data() -> Tuple[np.ndarray, np.ndarray, StandardScaler]:
                 # 只使用扩展训练集作为赔率专家模型的训练数据
                 # 神经网络用主训练集
                 logger.info(f"扩展训练集: {len(df_ext)} 条（不参与NN训练）")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("加载扩展训练集失败: %s", e)
 
     # 特征工程
     X, y = trainer.prepare_features(df, add_interactions=True)
@@ -146,7 +143,6 @@ def load_training_data() -> Tuple[np.ndarray, np.ndarray, StandardScaler]:
 
     return X_scaled, y.values, scaler, list(X.columns)
 
-
 def temporal_train_test_split(
     X: np.ndarray, y: np.ndarray, test_ratio: float = 0.10
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -154,14 +150,12 @@ def temporal_train_test_split(
     split_idx = int(len(X) * (1 - test_ratio))
     return X[:split_idx], X[split_idx:], y[:split_idx], y[split_idx:]
 
-
 def compute_class_weights(y: np.ndarray) -> torch.Tensor:
     """计算类别权重（平衡不平衡数据）"""
     unique, counts = np.unique(y, return_counts=True)
     total = len(y)
     weights = total / (len(unique) * counts)
     return torch.tensor(weights, dtype=torch.float32)
-
 
 def train_epoch(
     model: nn.Module,
@@ -182,7 +176,6 @@ def train_epoch(
         optimizer.step()
         total_loss += loss.item()
     return total_loss / len(loader)
-
 
 @torch.no_grad()
 def evaluate(
@@ -236,7 +229,6 @@ def evaluate(
         'f1_macro': f1_macro,
         'n_samples': len(labels_np),
     }
-
 
 def train_model(
     X_train: np.ndarray,
@@ -353,7 +345,6 @@ def train_model(
 
     return model, best_metrics, best_state
 
-
 def run_temporal_cv(
     X: np.ndarray,
     y: np.ndarray,
@@ -395,10 +386,9 @@ def run_temporal_cv(
 
     return results
 
-
 def save_model(model: FootballNN, state: Dict, scaler: StandardScaler, feature_names: list, output_dir: str) -> str:
     """保存模型到文件"""
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
     filename = f'football_nn_{timestamp}.pth'
     filepath = os.path.join(output_dir, filename)
 
@@ -428,7 +418,6 @@ def save_model(model: FootballNN, state: Dict, scaler: StandardScaler, feature_n
     logger.info(f"兼容文件已保存: {jl_path}")
 
     return filepath
-
 
 def compare_with_ensemble(nn_metrics: Dict, ensemble_metrics: Dict) -> str:
     """对比NN与集成模型"""
@@ -473,7 +462,6 @@ def compare_with_ensemble(nn_metrics: Dict, ensemble_metrics: Dict) -> str:
 
     lines.append("=" * 60)
     return '\n'.join(lines)
-
 
 def main():
     logger.info("=" * 60)
@@ -548,7 +536,7 @@ def main():
             'label_distribution': {'H': int((y == 0).sum()), 'D': int((y == 1).sum()), 'A': int((y == 2).sum())},
         },
         'model_path': save_path,
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': datetime.now(timezone.utc).isoformat(),
     }
     report_path = os.path.join(output_dir, 'nn_training_report.json')
     with open(report_path, 'w', encoding='utf-8') as f:
@@ -557,7 +545,6 @@ def main():
 
     logger.info("\n训练完成!")
     return model, nn_metrics, cv_results
-
 
 if __name__ == '__main__':
     main()

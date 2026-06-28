@@ -34,7 +34,6 @@ from enum import Enum
 
 logger = logging.getLogger('ScenarioEngine')
 
-
 # ═══════════════════════════════════════════════════════════════
 # 1. 场景定义
 # ═══════════════════════════════════════════════════════════════
@@ -47,7 +46,6 @@ class Scenario(Enum):
     FINAL = "final"              # 决赛
     STRONG_FAVORITE = "gap"      # 强弱悬殊
     DERBY = "derby"              # 德比战
-
 
 @dataclass
 class ScenarioConfig:
@@ -96,7 +94,6 @@ class ScenarioConfig:
         if self.trap_threshold_mult != 1.0:
             parts.append(f"陷阱×{self.trap_threshold_mult:.1f}")
         return " | ".join(parts)
-
 
 # ═══════════════════════════════════════════════════════════════
 # 2. 场景适配引擎
@@ -379,7 +376,6 @@ class ScenarioEngine:
             lines.append(f"  ⚠️ 风险级别: {config.risk_warning_level.upper()}")
 
         return "\n".join(lines)
-
 
 # ═══════════════════════════════════════════════════════════════
 # 3. 单例

@@ -17,12 +17,11 @@ MLflow 实验追踪服务 — 封装 MLflow Python API
 import os
 import sys
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
-
 
 class MLflowTracker:
     """MLflow 实验追踪器"""
@@ -55,7 +54,7 @@ class MLflowTracker:
     def start_run(self, run_name: str = None):
         """上下文管理器 — 自动开始/结束 run"""
         if run_name is None:
-            run_name = f"train_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            run_name = f"train_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
 
         try:
             self._mlflow.start_run(
@@ -173,10 +172,8 @@ class MLflowTracker:
             logger.warning(f"MLflow 加载模型失败: {e}")
             return None
 
-
 # ── 全局单例 ──────────────────────────────
 _tracker: Optional[MLflowTracker] = None
-
 
 def get_mlflow_tracker() -> MLflowTracker:
     """获取 MLflow 追踪器单例"""

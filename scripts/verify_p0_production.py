@@ -3,7 +3,7 @@
 """验证 P0 修改后的 UnifiedPredictor 生产配置回测"""
 import sys, os, json, warnings
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 warnings.filterwarnings('ignore')
 
@@ -11,9 +11,7 @@ ARCH_ROOT = Path(r"D:/Architecture v4.0")
 FAI_ROOT = Path(r"D:/AI/footballAI")
 MODELS_DIR = FAI_ROOT / "saved_models"
 
-sys.path.insert(0, str(ARCH_ROOT))
-sys.path.insert(0, str(ARCH_ROOT / "predictors" / "components"))
-sys.path.insert(0, str(FAI_ROOT))
+# P0-6修复: FAI_ROOT 必须在 ARCH_ROOT 之后, 否则 footballAI/features/ 会遮蔽 v4.0/features/
 
 import numpy as np
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
@@ -53,7 +51,7 @@ from predictors.unified_predictor import UnifiedPredictor
 
 print("=" * 70)
 print("  P0 落地验证: UnifiedPredictor 生产配置 (use_threshold=True)")
-print(f"  时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"  时间: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}")
 print("=" * 70)
 
 # 生产配置: use_threshold=True (使用阈值判型)
@@ -138,10 +136,10 @@ for name, ok in checks:
 # 保存
 out_dir = ARCH_ROOT / "reports"
 out_dir.mkdir(exist_ok=True)
-out_file = out_dir / f"p0_production_verify_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+out_file = out_dir / f"p0_production_verify_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
 with open(out_file, 'w', encoding='utf-8') as f:
     json.dump({
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': datetime.now(timezone.utc).isoformat(),
         'config': 'production (use_threshold=True, draw_threshold=0.32)',
         'accuracy': acc,
         'f1_macro': f1_macro,

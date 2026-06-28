@@ -37,8 +37,6 @@ import os, sys
 # 当作为 __main__ 运行时确保项目根在 path
 if __name__ == '__main__':
     _proj_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    if _proj_root not in sys.path:
-        sys.path.insert(0, _proj_root)
 
 try:
     from .xg_generator import XGGenerator, LEAGUE_AVG_GOALS
@@ -47,14 +45,12 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-
 # ─── 泊松工具函数 ─────────────────────────────────
 def _poisson_pmf(k: int, lam: float) -> float:
     """Poisson PMF: P(X=k) = e^{-λ}·λ^k / k!"""
     if lam <= 0:
         return 1.0 if k == 0 else 0.0
     return math.exp(-lam) * (lam ** k) / math.factorial(k)
-
 
 def _compute_score_matrix(home_xg: float, away_xg: float,
                            max_goals: int = 6) -> np.ndarray:
@@ -72,7 +68,6 @@ def _compute_score_matrix(home_xg: float, away_xg: float,
 
     return matrix
 
-
 def _score_to_outcome_probs(score_matrix: np.ndarray) -> Tuple[float, float, float]:
     """比分矩阵 → 胜平负概率"""
     n = score_matrix.shape[0]
@@ -80,7 +75,6 @@ def _score_to_outcome_probs(score_matrix: np.ndarray) -> Tuple[float, float, flo
     p_draw = np.trace(score_matrix)              # h == a
     p_away = np.triu(score_matrix, k=1).sum()    # h < a
     return float(p_home), float(p_draw), float(p_away)
-
 
 # ─── 比分引擎 ─────────────────────────────────
 class ScorePredictionEngine:
@@ -512,17 +506,14 @@ class ScorePredictionEngine:
 
         return base
 
-
 # ─── 便捷函数 ─────────────────────────────────
 _DEFAULT_ENGINE: Optional[ScorePredictionEngine] = None
-
 
 def get_score_engine(config: Dict = None) -> ScorePredictionEngine:
     global _DEFAULT_ENGINE
     if _DEFAULT_ENGINE is None:
         _DEFAULT_ENGINE = ScorePredictionEngine(config)
     return _DEFAULT_ENGINE
-
 
 def predict_scores(home_prob: float, draw_prob: float, away_prob: float,
                    odds: Dict = None, league_name: str = '',
@@ -534,7 +525,6 @@ def predict_scores(home_prob: float, draw_prob: float, away_prob: float,
                           odds=odds, league_name=league_name,
                           home_team=home_team, away_team=away_team,
                           upset_result=upset_result, **kwargs)
-
 
 # ════════════════════════════════════════════════════════
 # 测试

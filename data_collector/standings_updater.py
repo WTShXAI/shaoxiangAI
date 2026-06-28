@@ -20,7 +20,6 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import URLError
 
-
 CACHE_FILE = Path(__file__).parent.parent / 'data' / 'standings_live.json'
 CACHE_TTL = 3600  # 1 hour
 
@@ -51,7 +50,6 @@ MATCHDAY_MAP = {
     (6, 25): 3, (6, 26): 3, (6, 27): 3, (6, 28): 3,  # MD3
 }
 
-
 def _fetch_url(url, timeout=10):
     try:
         req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -59,7 +57,6 @@ def _fetch_url(url, timeout=10):
             return resp.read().decode('utf-8', errors='ignore')
     except Exception:
         return None
-
 
 def _try_fetch_espn():
     """从ESPN抓取积分榜"""
@@ -75,7 +72,6 @@ def _try_fetch_espn():
     # For now, return None and rely on KNOWN_STANDINGS
     return None
 
-
 def _load_from_cache():
     if CACHE_FILE.exists():
         age = time.time() - CACHE_FILE.stat().st_mtime
@@ -84,12 +80,10 @@ def _load_from_cache():
                 return json.load(f)
     return None
 
-
 def _save_to_cache(data):
     CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(CACHE_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-
 
 def update_standings():
     """
@@ -116,7 +110,6 @@ def update_standings():
     _save_to_cache(result)
     return result
 
-
 def get_current_matchday(date_str=None):
     """
     根据日期推断当前比赛轮次。
@@ -124,14 +117,13 @@ def get_current_matchday(date_str=None):
     """
     import datetime
     if date_str is None:
-        now = datetime.datetime.now()
+        now = datetime.datetime.now(timezone.utc)
         month, day = now.month, now.day
     else:
         parts = date_str.split('.')
         month, day = int(parts[0]), int(parts[1])
     
     return MATCHDAY_MAP.get((month, day), 3)
-
 
 def get_group_table(standings, home, away):
     """从积分表中提取两队所在小组的完整表"""
@@ -143,7 +135,6 @@ def get_group_table(standings, home, away):
         if info.get('group') in (h_grp, a_grp):
             result[team] = info
     return result
-
 
 if __name__ == '__main__':
     table = update_standings()

@@ -31,7 +31,6 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-
 # ═══════════════════════════════════════════════════════════════
 # 知识条目数据结构
 # ═══════════════════════════════════════════════════════════════
@@ -60,7 +59,6 @@ class KnowledgeEntry:
 
     def summary(self) -> str:
         return f"[{self.category}/{self.domain}] {self.title}: {self.content[:100]}..."
-
 
 # ═══════════════════════════════════════════════════════════════
 # 知识底座
@@ -425,13 +423,11 @@ class KnowledgeBase:
             self.entries[e.key] = e
         return len(entries)
 
-
 # ═══════════════════════════════════════════════════════════════
 # 全局单例
 # ═══════════════════════════════════════════════════════════════
 
 _kb_instance: Optional[KnowledgeBase] = None
-
 
 def get_knowledge_base(base_dir: str = None) -> KnowledgeBase:
     """获取知识底座单例"""
@@ -440,7 +436,6 @@ def get_knowledge_base(base_dir: str = None) -> KnowledgeBase:
         _kb_instance = KnowledgeBase(base_dir)
         _kb_instance.load()
     return _kb_instance
-
 
 def reset_knowledge_base():
     """重置单例(测试用)"""

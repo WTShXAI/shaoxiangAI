@@ -30,7 +30,6 @@ from utils.constants import DEFAULT_HOME_PROB, DEFAULT_DRAW_PROB, DEFAULT_AWAY_P
 
 logger = logging.getLogger(__name__)
 
-
 # ═══════════════════════════════════════════════════════════════
 # 1. 核心数据类型
 # ═══════════════════════════════════════════════════════════════
@@ -44,7 +43,6 @@ class MarketType(Enum):
     CORRECT_SCORE = "SCORE"     # 波胆比分
     BOTH_SCORE = "BTTS"         # 双方进球
 
-
 class ConfidenceLevel(Enum):
     """置信度等级"""
     VERY_HIGH = "very_high"     # >0.85
@@ -52,7 +50,6 @@ class ConfidenceLevel(Enum):
     MEDIUM = "medium"           # 0.50-0.70
     LOW = "low"                 # 0.30-0.50
     VERY_LOW = "very_low"       # <0.30
-
 
 @dataclass
 class ThreeWayProbability:
@@ -85,7 +82,6 @@ class ThreeWayProbability:
     def from_dict(cls, d: Dict) -> "ThreeWayProbability":
         return cls(home=float(d.get("home", DEFAULT_HOME_PROB)), draw=float(d.get("draw", DEFAULT_DRAW_PROB)), away=float(d.get("away", DEFAULT_AWAY_PROB)))
 
-
 @dataclass
 class DistributionExtension:
     """扩展概率分布 — 比分、进球等"""
@@ -106,7 +102,6 @@ class DistributionExtension:
             result["over_under"] = self.over_under_probs
         return result
 
-
 @dataclass
 class ReasoningChain:
     """推理链条 — 可解释性"""
@@ -122,7 +117,6 @@ class ReasoningChain:
             "contradictions": self.contradictions,
             "key_factors": self.key_factors,
         }
-
 
 @dataclass
 class ConfidenceAssessment:
@@ -142,7 +136,6 @@ class ConfidenceAssessment:
             "expert_agreement": round(self.expert_agreement, 4) if self.expert_agreement else None,
         }
 
-
 @dataclass
 class EvidencePackage:
     """证据支撑 — 数据来源与特征贡献"""
@@ -160,7 +153,6 @@ class EvidencePackage:
             "data_freshness": self.data_freshness,
             "degradation_indicators": self.degradation_indicators,
         }
-
 
 # ═══════════════════════════════════════════════════════════════
 # 2. 统一输出主体
@@ -238,7 +230,6 @@ class UnifiedPrediction:
             errors.append("Probability contains NaN")
         return len(errors) == 0, errors
 
-
 # ═══════════════════════════════════════════════════════════════
 # 3. 多专家融合输出
 # ═══════════════════════════════════════════════════════════════
@@ -255,7 +246,6 @@ class ExpertContribution:
     reasoning_summary: str
     execution_time_ms: float
     status: str                                 # success | fallback | error
-
 
 @dataclass
 class FusedPrediction(UnifiedPrediction):
@@ -291,7 +281,6 @@ class FusedPrediction(UnifiedPrediction):
             "arbitration": self.arbitration_result,
         }
         return base
-
 
 # ═══════════════════════════════════════════════════════════════
 # 4. Schema 校验器
@@ -356,7 +345,6 @@ class SchemaValidator:
         except (KeyError, TypeError):
             return False
 
-
 # ═══════════════════════════════════════════════════════════════
 # 5. 工厂方法与便捷构建器
 # ═══════════════════════════════════════════════════════════════
@@ -376,7 +364,6 @@ def create_simple_prediction(home: float, draw: float, away: float,
         expert_id=expert_id,
     )
 
-
 def create_fallback_prediction(reason: str = "降级兜底") -> UnifiedPrediction:
     """创建降级兜底预测 (均匀分布)"""
     return UnifiedPrediction(
@@ -385,7 +372,6 @@ def create_fallback_prediction(reason: str = "降级兜底") -> UnifiedPredictio
         reasoning=ReasoningChain(summary=f"降级预测: {reason}"),
         evidence=EvidencePackage(degradation_indicators=[reason]),
     )
-
 
 def create_from_v3_output(v3_output: Dict) -> UnifiedPrediction:
     """从 v3.2 输出格式转换"""
@@ -404,14 +390,12 @@ def create_from_v3_output(v3_output: Dict) -> UnifiedPrediction:
         evidence=EvidencePackage(model_version=v3_output.get("model_version", "")),
     )
 
-
 def _confidence_to_level(conf: float) -> str:
     if conf >= 0.85: return "very_high"
     if conf >= 0.70: return "high"
     if conf >= 0.50: return "medium"
     if conf >= 0.30: return "low"
     return "very_low"
-
 
 # ═══════════════════════════════════════════════════════════════
 # 6. 术语注入器 (TBD: 加载 terminology.yaml)
@@ -471,8 +455,8 @@ class TerminologyInjector:
                 cls.DOMAIN_TERMS.update(terms_loaded)
                 cls._yaml_loaded = True
                 return True
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("加载领域术语YAML失败: %s", e)
         return False
 
     @classmethod

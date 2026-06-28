@@ -7,7 +7,7 @@
 4. 全面评估指标 + 可视化报告
 """
 import sys, os, logging, yaml, json, time, warnings
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Tuple, Optional, Any
 import numpy as np
 import pandas as pd
@@ -16,7 +16,6 @@ warnings.filterwarnings('ignore')
 
 # ── 路径设置 ──
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
 
 # ── 依赖检查 ──
 from sklearn.model_selection import TimeSeriesSplit
@@ -51,7 +50,6 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S',
 )
 logger = logging.getLogger('WeightOptimizer')
-
 
 # ════════════════════════════════════════════════════════════
 class WeightOptimizer:
@@ -458,7 +456,7 @@ class WeightOptimizer:
         sampler = optuna.samplers.TPESampler(seed=42)
         study = optuna.create_study(
             direction='maximize', sampler=sampler,
-            study_name=f'weight_opt_{datetime.now().strftime("%m%d_%H%M")}',
+            study_name=f'weight_opt_{datetime.now(timezone.utc).strftime("%m%d_%H%M")}',
         )
         study.optimize(objective, n_trials=n_trials, show_progress_bar=False,
                        n_jobs=1)
@@ -602,7 +600,7 @@ class WeightOptimizer:
     def generate_report(self, optuna_result: Dict, grid_result: Dict,
                         default_weights: Dict, split_info: Dict) -> str:
         """生成 Markdown 权重优化报告"""
-        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        ts = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
         report_dir = os.path.join(self.root, self.config['paths']['report_dir'])
         report_path = os.path.join(report_dir, f'weight_optimization_{ts}.md')
 
@@ -618,7 +616,7 @@ class WeightOptimizer:
         lines = [
             f"# 集成权重优化报告",
             f"",
-            f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            f"**生成时间**: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}",
             f"**数据范围**: {split_info['train_date_range']} ~ {split_info['test_date_range']}",
             f"**样本量**: 训练 {split_info['train_size']} | 验证 {split_info['val_size']} | 测试 {split_info['test_size']}",
             f"",
@@ -841,7 +839,7 @@ class WeightOptimizer:
         weights_path = os.path.join(output_dir, 'optimal_weights.json')
         with open(weights_path, 'w', encoding='utf-8') as f:
             json.dump({
-                'generated_at': datetime.now().isoformat(),
+                'generated_at': datetime.now(timezone.utc).isoformat(),
                 'method': 'optuna_bayesian',
                 'n_trials': n_trials,
                 'weights': best_weights,
@@ -862,7 +860,6 @@ class WeightOptimizer:
             'grid_result': grid_result,
             'test_metrics': optuna_test,
         }
-
 
 # ════════════════════════════════════════════════════════════
 # CLI 入口

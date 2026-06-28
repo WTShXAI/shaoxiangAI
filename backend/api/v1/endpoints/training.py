@@ -14,13 +14,11 @@ from api.deps import get_admin_user
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-
 class TrainingRequest(BaseModel):
     data_source: str = Field("latest", description="latest/db/all")
     n_estimators: int = Field(1000, ge=100, le=5000)
     force_retrain: bool = False
     description: Optional[str] = None
-
 
 class TrainingStatus(BaseModel):
     task_id: Optional[str] = None
@@ -29,11 +27,9 @@ class TrainingStatus(BaseModel):
     message: Optional[str] = None
     metrics: Optional[Dict[str, Any]] = None
 
-
 # 全局状态 + 并发锁（防止竞态条件）
 _training_status = TrainingStatus(status="idle")
 _training_lock = asyncio.Lock()
-
 
 @router.post("/start")
 async def start_training(
@@ -51,14 +47,12 @@ async def start_training(
     background_tasks.add_task(_run_training, req)
     return {"status": "accepted", "message": "训练已启动"}
 
-
 @router.get("/status", response_model=TrainingStatus)
 async def get_training_status(
     user: dict = Depends(get_admin_user),
 ):
     """获取训练状态"""
     return _training_status
-
 
 @router.get("/history")
 async def get_training_history(
@@ -75,7 +69,6 @@ async def get_training_history(
     except (ValueError, KeyError, FileNotFoundError) as e:
         logger.error(f"获取训练历史失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @router.post("/celery")
 async def trigger_celery_training(
@@ -97,7 +90,6 @@ async def trigger_celery_training(
     except (ValueError, KeyError, FileNotFoundError) as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 async def _run_training(req: TrainingRequest):
     """后台训练执行器"""
     global _training_status
@@ -105,9 +97,6 @@ async def _run_training(req: TrainingRequest):
         _training_status = TrainingStatus(status="running", progress=0.1, message="加载数据...")
         import sys, os
         from core.config import settings
-
-        if settings.PROJECT_ROOT not in sys.path:
-            sys.path.insert(0, settings.PROJECT_ROOT)
 
         _training_status = TrainingStatus(status="running", progress=0.3, message="训练中...")
 

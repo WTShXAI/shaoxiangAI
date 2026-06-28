@@ -93,6 +93,9 @@ class Settings(BaseSettings):
     CV_GPU_WORKERS: int = 2
     CPU_N_JOBS: int = 0
 
+    # ── 时区 (默认 UTC) ──
+    TIMEZONE: str = "UTC"
+
     # ── 监控 ──
     PROMETHEUS_PORT: int = 9090
     LOG_LEVEL: str = "INFO"

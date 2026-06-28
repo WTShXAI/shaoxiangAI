@@ -10,7 +10,6 @@ from collections import Counter
 import numpy as np
 
 ROOT = str(Path(__file__).resolve().parent.parent)
-sys.path.insert(0, ROOT)
 
 import torch
 
@@ -63,7 +62,6 @@ assert len(STATIC_72_COLS) == 72, f"Expected 72, got {len(STATIC_72_COLS)}"
 # Column index map
 COL_IDX = {name: i for i, name in enumerate(STATIC_72_COLS)}
 
-
 def load_jepa_stats():
     """Load mean/std for each of 72 features from JEPA training data."""
     data = np.load(JEPA_TRAIN_NPZ, allow_pickle=True)
@@ -78,7 +76,6 @@ def load_jepa_stats():
     median = np.median(static, axis=0).astype(np.float32)
     
     return mean, std, median
-
 
 def build_full_features(ho: float, do: float, oa: float, 
                          train_mean: np.ndarray, train_std: np.ndarray,
@@ -197,7 +194,6 @@ def build_full_features(ho: float, do: float, oa: float,
     
     return vec_norm.astype(np.float32)
 
-
 def load_jepa_model():
     """Load JEPALite with trained weights."""
     from models.jepa import JEPALite
@@ -208,7 +204,6 @@ def load_jepa_model():
     model.eval()
     print(f"JEPALite loaded: epoch={ckpt['epoch']} acc={ckpt['acc']:.4f}")
     return model
-
 
 def predict(model, features: np.ndarray) -> dict:
     """Run JEPA prediction with 30-path MC rollout."""
@@ -223,7 +218,6 @@ def predict(model, features: np.ndarray) -> dict:
         "prediction": pred,
         "confidence": float(probs.max()),
     }
-
 
 def main():
     print("=" * 65)
@@ -391,7 +385,6 @@ def main():
             "results": results,
         }, f, ensure_ascii=False, indent=2)
     print(f"\n  Full results: {out}")
-
 
 if __name__ == "__main__":
     main()

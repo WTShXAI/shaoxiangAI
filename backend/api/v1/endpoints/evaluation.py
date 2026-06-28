@@ -27,10 +27,9 @@ def _db_path() -> str:
 
 def _get_eval_pipeline():
     """延迟导入 EvaluationPipeline，避免首次加载时 db_path 缺失"""
-    sys.path.insert(0, _PROJECT_ROOT)
+
     from agents.evaluator.evaluation_pipeline import EvaluationPipeline
     return EvaluationPipeline(db_path=_db_path())
-
 
 # ══════════════════════════════════════════════════════
 # GET /evaluation/latest
@@ -64,7 +63,6 @@ async def get_latest_evaluation():
 
     return d
 
-
 # ══════════════════════════════════════════════════════
 # GET /evaluation/history
 # ══════════════════════════════════════════════════════
@@ -82,7 +80,6 @@ async def get_evaluation_history(limit: int = Query(20, ge=1, le=100)):
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
-
 
 # ══════════════════════════════════════════════════════
 # POST /evaluation/run
@@ -105,7 +102,6 @@ async def run_evaluation(
         return result
     except (ValueError, KeyError, FileNotFoundError) as e:
         raise HTTPException(status_code=500, detail=f"评估执行失败: {e}")
-
 
 # ══════════════════════════════════════════════════════
 # GET /evaluation/status

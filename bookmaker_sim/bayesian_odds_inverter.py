@@ -114,7 +114,6 @@ class BayesianLambdaPosterior:
         # 典型范围: [0, 100+], 用 sigmoid 映射到 [0, 1]
         return float(1.0 / (1.0 + np.exp(-(total_precision - 20) / 10)))
 
-
 @dataclass
 class InversionResult:
     """完整的逆推结果"""
@@ -135,7 +134,6 @@ class InversionResult:
     league_prior: Optional[Dict] = None
     otsm_state: Optional[str] = None
     otsm_lock_confidence: float = 0.0
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 第1层: 赔率 → 去抽水 → 隐含概率
@@ -200,7 +198,6 @@ def odds_to_probs_vector(odds_h: float, odds_d: float, odds_a: float,
 
     else:
         return raw / raw.sum()
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 第2层: 概率 → λ 的逆问题 (well-posedness 分析)
@@ -423,7 +420,6 @@ class LambdaInverter:
             return 1.0 - rho
         else:
             return 1.0
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 第3层: 贝叶斯后验推断 (核心)
@@ -818,7 +814,6 @@ class BayesianOddsInverter:
 
         return hess
 
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # 第4层: OTSM 集成 — 赔率漂移作为贝叶斯似然修正信号
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -944,7 +939,6 @@ class OTSMDriftBayesianIntegrator:
                                else 0.0,
         }
 
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # 第5层: 特征生成 — 贝叶斯特征注入模型
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -972,7 +966,6 @@ BAYESIAN_DEFAULTS.update({
     "bayes_lambda_a_std": 0.5,
     "bayes_rho_std": 0.1,
 })
-
 
 def compute_bayesian_features(odds_h: float, odds_d: float, odds_a: float,
                                open_h: float = None, open_d: float = None, open_a: float = None,
@@ -1028,7 +1021,6 @@ def compute_bayesian_features(odds_h: float, odds_d: float, odds_a: float,
 
     return features
 
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # 便捷API
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1036,7 +1028,6 @@ def compute_bayesian_features(odds_h: float, odds_d: float, odds_a: float,
 def create_inverter(db_path: str = "data/football_data.db") -> BayesianOddsInverter:
     """创建贝叶斯逆推引擎"""
     return BayesianOddsInverter(db_path)
-
 
 def quick_bayesian_invert(odds_h: float, odds_d: float, odds_a: float) -> dict:
     """
@@ -1064,7 +1055,6 @@ def quick_bayesian_invert(odds_h: float, odds_d: float, odds_a: float) -> dict:
         ),
         'det_residual': round(result.det_residual, 6),
     }
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 测试

@@ -22,11 +22,10 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple, Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 logger = logging.getLogger(__name__)
-
 
 # ════════════════════════════════════════════════════════════
 # Degradation Level
@@ -39,7 +38,6 @@ class DegradationLevel(Enum):
     HISTORICAL = 2   # 历史先验（联赛级 D 率）
     UNPREDICTABLE = 3  # 不可预测
 
-
 # ════════════════════════════════════════════════════════════
 # Trace Entry
 # ════════════════════════════════════════════════════════════
@@ -49,7 +47,7 @@ class TraceEntry:
     """单次 Tool 执行的 Trace 记录"""
     tool_name: str
     phase: str                # 阶段名: "features", "model", "fusion", etc.
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     duration_ms: float = 0
     success: bool = True
     degradation: bool = False
@@ -71,7 +69,6 @@ class TraceEntry:
             'error': self.error,
             'meta': self.metadata,
         }
-
 
 # ════════════════════════════════════════════════════════════
 # Tracer
@@ -139,7 +136,6 @@ class Tracer:
             if e.error:
                 print(f"     └─ {e.error}")
         print(f"{'='*65}")
-
 
 # ════════════════════════════════════════════════════════════
 # PredictionContext
@@ -213,7 +209,6 @@ class PredictionContext:
                 f" | level={self.degradation_level.name}"
                 f" | mode={self.prediction_mode}")
 
-
 # ════════════════════════════════════════════════════════════
 # ToolResult
 # ════════════════════════════════════════════════════════════
@@ -228,7 +223,6 @@ class ToolResult:
     degraded: bool = False          # 是否触发降级
     degradation_reason: str = ""
     next_tools: Optional[List[str]] = None  # 建议的下一步 Tool（可选）
-
 
 # ════════════════════════════════════════════════════════════
 # Tool — 抽象基类
@@ -293,7 +287,6 @@ class Tool(ABC):
     def __repr__(self):
         return f"Tool({self.name} v{self.version})"
 
-
 # ════════════════════════════════════════════════════════════
 # 内置通用 Tool
 # ════════════════════════════════════════════════════════════
@@ -306,7 +299,6 @@ class NoOpTool(Tool):
 
     def execute(self, ctx: PredictionContext) -> ToolResult:
         return ToolResult(success=True, tool_name=self.name, data={'skipped': True})
-
 
 class FailSafeTool(Tool):
     """

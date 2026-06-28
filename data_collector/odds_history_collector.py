@@ -5,12 +5,11 @@
 """
 import time
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
 from database.db_manager import DatabaseManager
 
 logger = logging.getLogger(__name__)
-
 
 class OddsHistoryCollector:
     """赔率历史采集器 — 从现有 Football-Data.org 采集器拉取并追踪赔率变化"""
@@ -43,7 +42,7 @@ class OddsHistoryCollector:
                 'draw_odds': odds_data.get('draw') or odds_data.get('draw'),
                 'away_odds': odds_data.get('away_win') or odds_data.get('awayWin'),
                 'asian_handicap': None,
-                'odds_timestamp': datetime.now().isoformat(),
+                'odds_timestamp': datetime.now(timezone.utc).isoformat(),
                 'provider': 'football-data.org',
             }
 
@@ -70,7 +69,6 @@ class OddsHistoryCollector:
     def build_odds_series(self, match_id: int) -> List[float]:
         """获取赔率时间序列 (用于 calc_odd_volatility)"""
         return self.db.get_odds_series(match_id, 'home')
-
 
 def seed_odds_history_from_odds(db: DatabaseManager = None) -> int:
     """
@@ -100,13 +98,12 @@ def seed_odds_history_from_odds(db: DatabaseManager = None) -> int:
                 row['match_id'], row['provider'] or 'football-data.org',
                 row['home_odds'], row['draw_odds'], row['away_odds'],
                 row['asian_handicap'],
-                row['odds_timestamp'] or datetime.now().isoformat(),
+                row['odds_timestamp'] or datetime.now(timezone.utc).isoformat(),
             ))
             count += 1
 
     logger.info(f"赔率历史补偿完成: {count} 条 (从 odds 快照迁移)")
     return count
-
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)

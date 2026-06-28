@@ -19,11 +19,6 @@ warnings.filterwarnings('ignore')
 ARCH_ROOT = Path(r"D:/Architecture v4.0")
 FAI_ROOT = Path(r"D:/AI/footballAI")
 
-sys.path.insert(0, str(ARCH_ROOT))
-sys.path.insert(0, str(ARCH_ROOT / "predictors" / "components"))
-sys.path.insert(0, str(FAI_ROOT))
-
-# ═══════════════════════════════════════════════════════════
 # 2026世界杯全量数据 (70场, 6.13-6.28)
 # ═══════════════════════════════════════════════════════════
 # 格式: [主队, 客队, H赔, D赔, A赔, 让球, OU线, 实际赛果, 比分, 日期]

@@ -8,7 +8,7 @@ import sqlite3
 import os
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,6 @@ WEATHER_CODE_MAP = {
     80: '阵雨', 81: '中阵雨', 82: '大阵雨',
     95: '雷暴', 96: '雷暴+冰雹', 99: '强雷暴+冰雹',
 }
-
 
 class WeatherCollector:
     """Open-Meteo 天气数据采集器"""
@@ -74,7 +73,7 @@ class WeatherCollector:
 
         try:
             # 历史数据用 archive API，未来数据用 forecast API
-            now = datetime.now()
+            now = datetime.now(timezone.utc)
             url = self.BASE_URL if target_date < now else self.FORECAST_URL
             resp = self.session.get(url, params=params, timeout=15)
             resp.raise_for_status()
@@ -105,7 +104,7 @@ class WeatherCollector:
                 'is_cold': (daily.get('temperature_2m_mean', [15])[idx] or 15) < 8,
                 'is_hot': (daily.get('temperature_2m_max', [25])[idx] or 25) > 32,
                 'source': 'open-meteo',
-                'fetched_at': datetime.now().isoformat(),
+                'fetched_at': datetime.now(timezone.utc).isoformat(),
             }
         except requests.RequestException as e:
             logger.error(f"Open-Meteo 请求失败 ({lat},{lon},{date}): {e}")
@@ -204,7 +203,7 @@ class WeatherCollector:
                 int(weather.get('is_cold', False)),
                 int(weather.get('is_hot', False)),
                 weather.get('source', 'open-meteo'),
-                weather.get('fetched_at', datetime.now().isoformat()),
+                weather.get('fetched_at', datetime.now(timezone.utc).isoformat()),
             ))
             conn.commit()
             return True
@@ -213,7 +212,6 @@ class WeatherCollector:
             return False
         finally:
             conn.close()
-
 
 # ──────────── 模块级便捷函数 ────────────
 
@@ -225,7 +223,6 @@ def get_weather_for_match(match_id: int, lat: float, lon: float,
     if weather:
         collector.save_weather(match_id, weather)
     return weather
-
 
 def get_stadium_coords(db_path: str = None) -> Dict[int, Tuple[float, float]]:
     """从数据库读取球队→球场坐标映射"""
@@ -239,7 +236,6 @@ def get_stadium_coords(db_path: str = None) -> Dict[int, Tuple[float, float]]:
         return {}
     finally:
         conn.close()
-
 
 if __name__ == '__main__':
     # 测试: 伦敦 (温布利) 2024-05-15

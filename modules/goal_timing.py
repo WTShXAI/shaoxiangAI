@@ -6,7 +6,6 @@ import numpy as np
 from typing import Dict, List, Optional
 from collections import defaultdict
 
-
 class GoalTimingAnalyzer:
     """分析球队各时段进球概率"""
 
@@ -80,7 +79,6 @@ class GoalTimingAnalyzer:
             "away_peak": away_timing["peak_period"],
         }
 
-
 class CornerStats:
     """基于球队攻击力估算角球分析"""
 
@@ -137,7 +135,6 @@ class CornerStats:
             {"rank": i + 1, "team": name, "avg_corners": info["avg_corners"]}
             for i, (name, info) in enumerate(ranked)
         ]
-
 
 class KellyCalculator:
     """凯利公式 - 独立模块"""
@@ -205,7 +202,6 @@ class KellyCalculator:
             odd = odds.get(outcome, 0)
             results[outcome] = KellyCalculator.calculate(bankroll, p, odd)
         return results
-
 
 class HalfTimeAnalyzer:
     """半场/全场比分模式分析"""

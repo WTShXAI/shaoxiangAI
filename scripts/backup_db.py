@@ -16,12 +16,10 @@ import sys
 import shutil
 import argparse
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 # ── 确保项目根目录可导入 ──────────────────
 _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -45,12 +43,10 @@ except (ImportError, Exception) as e:
     DB_SOURCE = os.path.join(_project_root, "data", "football_data.db")
     DATABASE_URL = f"sqlite:///{DB_SOURCE.replace(os.sep, '/')}"
 
-
 def ensure_backup_dir():
     """确保备份目录存在"""
     os.makedirs(BACKUP_DIR, exist_ok=True)
     logger.info(f"备份目录: {BACKUP_DIR}")
-
 
 def do_backup() -> str | None:
     """执行备份, 返回备份文件路径"""
@@ -58,7 +54,7 @@ def do_backup() -> str | None:
         logger.error(f"数据库文件不存在: {DB_SOURCE}")
         return None
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     # 同时备份 WAL 和 SHM 文件（如果存在）
     db_name = os.path.basename(DB_SOURCE)
     backup_name = f"{os.path.splitext(db_name)[0]}_{timestamp}.db"
@@ -88,13 +84,12 @@ def do_backup() -> str | None:
         logger.error(f"备份失败: {e}")
         return None
 
-
 def prune_old_backups():
     """清理超过 RETENTION_DAYS 的旧备份"""
     if not os.path.exists(BACKUP_DIR):
         return
 
-    cutoff = datetime.now() - timedelta(days=RETENTION_DAYS)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=RETENTION_DAYS)
     removed = 0
     for fname in os.listdir(BACKUP_DIR):
         fpath = os.path.join(BACKUP_DIR, fname)
@@ -110,7 +105,6 @@ def prune_old_backups():
         logger.info(f"已清理 {removed} 个过期备份文件")
     else:
         logger.info("无过期备份需要清理")
-
 
 def main():
     parser = argparse.ArgumentParser(description="SQLite 数据库备份工具")
@@ -132,7 +126,6 @@ def main():
     else:
         logger.error("备份失败，退出码 1")
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

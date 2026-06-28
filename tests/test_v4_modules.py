@@ -22,14 +22,12 @@ if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8')
 
 import sys, os, json, math, time, threading
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# 直接导入避开 modules/__init__.py 的潜在问题
 import importlib.util, logging
 logging.basicConfig(level=logging.WARNING)  # 减少噪音
 
 # 确保 modules 包可被导入
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/..')
+
 try:
     import modules
 except ImportError:
@@ -43,7 +41,6 @@ passed = 0
 failed = 0
 errors = []
 
-
 def test(name, condition, detail=""):
     global passed, failed, errors
     if condition:
@@ -54,7 +51,6 @@ def test(name, condition, detail=""):
         msg = f"  ✗ {name}" + (f" — {detail}" if detail else "")
         errors.append(msg)
         print(msg)
-
 
 # ═══════════════════════════════════════════════════════════════
 # TEST 1: output_schema.py
@@ -313,7 +309,6 @@ print("\n  1.13 MarketType")
 test("1X2 value", os_mod.MarketType.MATCH_RESULT.value == "1X2")
 test("all markets", len(list(os_mod.MarketType)) == 6)
 
-
 # ═══════════════════════════════════════════════════════════════
 # TEST 2: intent_classifier_v2.py
 # ═══════════════════════════════════════════════════════════════
@@ -445,7 +440,6 @@ test("singleton same instance", c1 is c2)
 # --- 2.10 classify_intent convenience ---
 r = ic_mod.classify_intent("这场怎么看")
 test("classify_intent convenience", r.intent_category == "predict")
-
 
 # ═══════════════════════════════════════════════════════════════
 # TEST 3: expert_hub_v2.py
@@ -615,7 +609,6 @@ test("12 domains", len(list(eh_mod.ExpertDomain)) == 12)
 print("\n  3.15 CollaborationMode enum")
 test("4 modes", len(list(eh_mod.CollaborationMode)) == 4)
 
-
 # ═══════════════════════════════════════════════════════════════
 # TEST 4: Cross-module integration
 # ═══════════════════════════════════════════════════════════════
@@ -672,7 +665,6 @@ rc = os_mod.ReasoningChain(summary="赔率逆向分析")
 rc = os_mod.TerminologyInjector.inject(rc, "game_theory")
 test("terms injected", len(rc.key_factors) > 0)
 test("terms contain 凯利", any("凯利" in t for t in rc.key_factors))
-
 
 # ═══════════════════════════════════════════════════════════════
 # TEST 5: knowledge_base — 知识底座
@@ -882,7 +874,6 @@ for lesson in critical_lessons:
         # Non-terminology domains (e.g. "data") are fine
         test(f"lesson [{lesson.key}] domain not in glossary (OK)", True)
 
-
 # ═══════════════════════════════════════════════════════════════
 # TEST 6: prediction_orchestrator_v4.py — v4.0 预测编排器
 # ═══════════════════════════════════════════════════════════════
@@ -1028,7 +1019,6 @@ test("terminology enabled no crash", True)
 if result_t.prediction and result_t.prediction.reasoning.key_factors:
     test("terminology injected factors", len(result_t.prediction.reasoning.key_factors) > 0)
 
-
 # ═══════════════════════════════════════════════════════════════
 # TEST 7: Backend API v4 Endpoint — Pydantic Models + Logic
 # ═══════════════════════════════════════════════════════════════
@@ -1038,9 +1028,6 @@ print("=" * 60)
 
 # Backend 需要 backend/ 目录在 path 上
 backend_dir = os.path.join(os.path.dirname(__file__), '..', 'backend')
-if backend_dir not in sys.path:
-    sys.path.insert(0, backend_dir)
-    sys.path.insert(0, os.path.dirname(backend_dir))
 
 # Wrap TEST 7 in try/except for standalone mode
 try:
@@ -1173,7 +1160,6 @@ if _BACKEND_AVAILABLE:
         v3_compat={"prediction": {"home": 0.33, "draw": 0.34, "away": 0.33}, "confidence": 0.1},
     )
     test("bridge fallback no crash", bridge_fb.top_pick == "D")
-    
 
 # end if _BACKEND_AVAILABLE
 
@@ -1291,7 +1277,6 @@ report = analyzer.analyze('测试', '测试', {'home': 2.0})
 test("partial odds no crash", True)
 test("partial odds has home", 'home' in report.implied_probs.raw_implied)
 
-
 # ═══════════════════════════════════════════════════════════════
 # TEST 9: draw_upset_analyzer.py — 平局/冷门攻坚引擎
 # ═══════════════════════════════════════════════════════════════
@@ -1399,7 +1384,6 @@ test("margin 0.30→RELIABLE", DGateZone.from_margin(0.30) == DGateZone.RELIABLE
 test("margin 0.50→HIGH_CONF", DGateZone.from_margin(0.50) == DGateZone.HIGH_CONF)
 test("margin negative→GARBAGE", DGateZone.from_margin(-0.05) == DGateZone.GARBAGE)
 
-
 # ═══════════════════════════════════════════════════════════════
 # TEST 10: post_match_analyzer.py — 赛后复盘归因引擎
 # ═══════════════════════════════════════════════════════════════
@@ -1502,7 +1486,6 @@ test("pm analyzer singleton", p1 is p2)
 print("\n  10.10 Enums")
 test("5 deviation types", len(list(DeviationType)) == 5)
 test("7 root causes", len(list(RootCause)) == 7)
-
 
 # ═══════════════════════════════════════════════════════════════
 # TEST 11: auto_optimizer.py — 自主优化引擎
@@ -1683,7 +1666,6 @@ from modules.auto_optimizer import HealthStatus, DriftLevel
 test("4 health statuses", len(list(HealthStatus)) == 4)
 test("4 drift levels", len(list(DriftLevel)) == 4)
 
-
 # ═══════════════════════════════════════════════════════════════
 # TEST 12: p4_enhancement.py — P4智能增强引擎
 # ═══════════════════════════════════════════════════════════════
@@ -1820,7 +1802,6 @@ test("ingest no crash", True)
 ha, da, aa, w = orch.adapt_for_league(0.50, 0.25, 0.25, "英超")
 test("adapt returns probs", abs(ha + da + aa - 1.0) < 0.01)
 test("adapt returns weight", w >= 0 and w <= 1)
-
 
 # ═══════════════════════════════════════════════════════════════
 # FINAL REPORT

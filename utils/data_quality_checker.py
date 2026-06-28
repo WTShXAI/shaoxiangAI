@@ -21,7 +21,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
 import numpy as np
@@ -54,7 +54,6 @@ CRITICAL_TABLES = [
     "model_training",
     "standings",
 ]
-
 
 class DataQualityChecker:
     """数据质量综合检查器"""
@@ -265,7 +264,7 @@ class DataQualityChecker:
                                 last_dt = datetime.fromisoformat(last.replace("Z", "+00:00"))
                             else:
                                 last_dt = last
-                            hours_ago = (datetime.now() - last_dt.replace(tzinfo=None)).total_seconds() / 3600
+                            hours_ago = (datetime.now(timezone.utc) - last_dt.replace(tzinfo=None)).total_seconds() / 3600
                         except (ValueError, TypeError):
                             hours_ago = None
                     else:
@@ -309,7 +308,7 @@ class DataQualityChecker:
     def get_prediction_performance(self, window_hours: int = 168) -> dict[str, Any]:
         """获取预测性能统计"""
         try:
-            cutoff = (datetime.now() - timedelta(hours=window_hours)).isoformat()
+            cutoff = (datetime.now(timezone.utc) - timedelta(hours=window_hours)).isoformat()
 
             # 总体统计
             result = self.db.execute_sql(
@@ -415,7 +414,7 @@ class DataQualityChecker:
                 "by_league": by_league,
                 "by_decision": by_decision,
                 "by_confidence": conf_buckets,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
         except (Exception) as e:
@@ -429,7 +428,7 @@ class DataQualityChecker:
     def run_full_check(self) -> dict[str, Any]:
         """运行所有质量检查"""
         results = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "db_integrity": self.check_db_integrity(),
             "feature_distribution": self.check_feature_distribution(),
             "data_freshness": self.check_data_freshness(),

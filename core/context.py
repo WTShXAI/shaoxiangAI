@@ -23,7 +23,6 @@ import time
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 
-
 @dataclass
 class MatchContext:
     """
@@ -176,7 +175,6 @@ class MatchContext:
                 f"intent={self.intent_category} mode={self.collaboration_mode} "
                 f"P(H)={self.h_prob:.0%} P(D)={self.d_prob:.0%} P(A)={self.a_prob:.0%} "
                 f"degrad={self.degradation_level}")
-
 
 # ═══════════════════════════════════════════════════════════════
 # 辅助: 从现有 SixLayerResult 迁移到 MatchContext

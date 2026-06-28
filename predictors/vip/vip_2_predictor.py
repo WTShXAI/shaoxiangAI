@@ -43,16 +43,17 @@ VIP-2 v2 架构:
 import os
 import sys
 import math
+import logging
 import numpy as np
 
+logger = logging.getLogger(__name__)
+
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, PROJECT_ROOT)
 
 from lambda_fusion import fuse_lambda
 from trap_probability_bridge import apply_trap_correction
 from odds_inverse_calibrator import apply_goal_segment_correction
 from agents.model_bridge import ModelBridge
-
 
 class VIP2Predictor:
     """
@@ -310,7 +311,7 @@ class VIP2Predictor:
             return scores  # 无数据，跳过
         
         try:
-            from market_goal_predictor import MarketGoalPredictor
+            from predictors.market_goal_predictor import MarketGoalPredictor
             mgp = MarketGoalPredictor()
             h_g, a_g, _ = mgp.predict(
                 handicap_line=handicap or 0,
@@ -331,8 +332,8 @@ class VIP2Predictor:
                     s['prob'] *= 0.80   # 中度偏离
                 else:
                     s['prob'] *= 0.60   # 严重偏离
-        except Exception:
-            pass  # 静默降级
+        except Exception as e:
+            logger.warning("VIP比重偏离修正失败: %s", e)
         
         # 重新归一化
         total = sum(s['prob'] for s in scores)
@@ -384,7 +385,7 @@ class VIP2Predictor:
         
         if home_team and away_team and match.get('auto_context', True):
             try:
-                from team_data_collector import TeamDataCollector
+                from data_collector.team_data_collector import TeamDataCollector
                 collector = TeamDataCollector()
                 team_context = collector.get_match_context(home_team, away_team)
                 
@@ -654,7 +655,6 @@ class VIP2Predictor:
             'max_rp': round(max_rp, 2),
             'model_version': self.model_version,
         }
-
 
 # ════════════════════════════════════════════════════════════════
 # 验证: 葡萄牙 1-1 刚果 (12场批量回测验证赛例)

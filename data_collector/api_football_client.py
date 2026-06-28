@@ -18,7 +18,7 @@ import time
 import json
 import logging
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Tuple
 from collections import defaultdict
 
@@ -46,7 +46,6 @@ LEAGUE_ID_MAP = {
 
 # 联赛ID反向映射
 LEAGUE_NAME_TO_ID = {v: k for k, v in LEAGUE_ID_MAP.items()}
-
 
 class ApiFootballCollector:
     """API-Football (RapidAPI) 数据采集器"""
@@ -141,7 +140,7 @@ class ApiFootballCollector:
             [{player: {id, name, photo}, team: {...},
               type: "Injury"|"Suspension", reason, fixture: {...}}]
         """
-        season = season or datetime.now().year
+        season = season or datetime.now(timezone.utc).year
         params = {"team": team_id, "season": season}
         data = self._api_call("/players/sidelined", params)
         if not data:
@@ -170,7 +169,7 @@ class ApiFootballCollector:
         API: GET /players/sidelined?league={id}&season={year}
         """
         api_league = LEAGUE_ID_MAP.get(league_id, league_id)
-        season = season or datetime.now().year
+        season = season or datetime.now(timezone.utc).year
         params = {"league": api_league, "season": season}
         data = self._api_call("/players/sidelined", params)
         if not data:
@@ -222,7 +221,7 @@ class ApiFootballCollector:
              penalty: {scored, missed, total}}
         """
         api_league = LEAGUE_ID_MAP.get(league_id, league_id)
-        season = season or datetime.now().year
+        season = season or datetime.now(timezone.utc).year
         params = {"team": team_id, "league": api_league, "season": season}
         data = self._api_call("/teams/statistics", params)
         if not data or not data.get("response"):
@@ -311,7 +310,7 @@ class ApiFootballCollector:
 
         API: GET /players?team={id}&season={year}
         """
-        season = season or datetime.now().year
+        season = season or datetime.now(timezone.utc).year
         params = {"team": team_id, "season": season, "page": 1}
         all_players = []
 
@@ -438,7 +437,7 @@ class ApiFootballCollector:
         Returns:
             {team_name: {attack, defense, form, injuries, ...}}
         """
-        season = season or datetime.now().year
+        season = season or datetime.now(timezone.utc).year
         api_league = LEAGUE_ID_MAP.get(league_id, league_id)
 
         # 获取联赛所有球队
@@ -490,13 +489,11 @@ class ApiFootballCollector:
         logger.info(f"实力评分: league_id={league_id} → {len(ratings)} 支球队")
         return ratings
 
-
 # ─── 便捷函数 ───
 
 def get_api_football_collector() -> ApiFootballCollector:
     """获取 API-Football 采集器实例"""
     return ApiFootballCollector()
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')

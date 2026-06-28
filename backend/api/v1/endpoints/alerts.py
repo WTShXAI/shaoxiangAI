@@ -12,10 +12,8 @@ from services.alert_service import get_alert_service, AlertRule, AlertLevel
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-
 class CheckMetricsRequest(BaseModel):
     metrics: Dict[str, float]
-
 
 @router.get("/alerts")
 async def get_alerts(
@@ -38,7 +36,6 @@ async def get_alerts(
         logger.error(f"获取告警失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="获取告警失败")
 
-
 @router.get("/rules")
 async def get_rules():
     """获取告警规则"""
@@ -50,7 +47,6 @@ async def get_rules():
     except (ValueError, KeyError, FileNotFoundError) as e:
         logger.error(f"获取告警规则失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="获取规则失败")
-
 
 @router.post("/check")
 async def check_metrics(req: CheckMetricsRequest):
@@ -68,7 +64,6 @@ async def check_metrics(req: CheckMetricsRequest):
     except (ValueError, KeyError, FileNotFoundError) as e:
         logger.error(f"指标检查失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="指标检查失败")
-
 
 @router.post("/rules")
 async def add_rule(
@@ -112,7 +107,6 @@ async def add_rule(
     except (ValueError, KeyError, FileNotFoundError) as e:
         logger.error(f"添加告警规则失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="添加规则失败")
-
 
 @router.delete("/alerts")
 async def clear_alerts(_: None = Depends(require_admin)):

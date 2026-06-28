@@ -32,7 +32,7 @@ import math
 import numpy as np
 from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 import json
 
@@ -210,7 +210,7 @@ class DigitalHuman:
             delta_h=round(delta_h, 3),
             delta_a=round(delta_a, 3),
             reasoning=new_info.get('reason', ''),
-            timestamp=datetime.now().isoformat()[:19],
+            timestamp=datetime.now(timezone.utc).isoformat()[:19],
         )
 
         if prev_scores:

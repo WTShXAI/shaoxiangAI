@@ -61,7 +61,6 @@ BOOKMAKER_PRIORITY = [
 # 地区: uk=英国博彩公司, eu=欧洲, us=美国, au=澳大利亚
 REGIONS = "uk,eu"
 
-
 class TheOddsCollector:
     """The Odds API 赔率数据采集器"""
 
@@ -470,7 +469,6 @@ class TheOddsCollector:
                      f"跳过{stats['skipped']}, 共{self.request_count}次API调用")
         return all_odds, stats
 
-
 def similar_team_name(name1: str, name2: str) -> bool:
     """球队名模糊匹配（去掉 FC, AFC 等后缀后比较）"""
     def normalize(s: str) -> str:
@@ -484,13 +482,11 @@ def similar_team_name(name1: str, name2: str) -> bool:
     n2 = normalize(name2)
     return n1 in n2 or n2 in n1
 
-
 # ─── 便捷函数 ───
 
 def get_odds_collector() -> TheOddsCollector:
     """获取 The Odds API 采集器实例"""
     return TheOddsCollector()
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')

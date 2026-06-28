@@ -23,12 +23,12 @@ SKY_DIR = os.path.dirname(os.path.abspath(__file__))
 ARCH_ROOT = os.path.dirname(os.path.dirname(SKY_DIR))
 # 修复P0-13: 消除footballAI外部依赖, 项目内components自包含
 FOOTBALLAI_ROOT = os.path.join(ARCH_ROOT, 'predictors', 'components')
-sys.path.insert(0, FOOTBALLAI_ROOT)
 
 logger = logging.getLogger(__name__)
 
+from predictors.base import PredictorBase, MatchData, PredictionResult
 
-class SKYPredictor:
+class SKYPredictor(PredictorBase):
     """
     SKY v1.1 — v4.1 五层融合预测器
     """
@@ -74,7 +74,7 @@ class SKYPredictor:
 
         # 加载进球预测器
         try:
-            from market_goal_predictor import MarketGoalPredictor
+            from predictors.market_goal_predictor import MarketGoalPredictor
             self.market_goal = MarketGoalPredictor()
             logger.info("[SKY] MarketGoalPredictor v2.0 已加载")
         except Exception as e:
@@ -278,8 +278,8 @@ class SKYPredictor:
                 de = sub['draw_expert']
                 if de is not None and len(de) > 0:
                     return float(de[0])
-        except Exception:
-            pass
+        except (KeyError, TypeError, IndexError) as e:
+            logger.debug("获取DrawExpert输出失败: %s", e)
         return None
 
     def _apply_goal_correction(
@@ -299,7 +299,7 @@ class SKYPredictor:
             # 使用主队让球水作为 handicap_water（单值）
             hw = handicap_water.get('home', 0.90) if handicap_water else 0.90
 
-            from market_goal_predictor import predict_goals
+            from predictors.market_goal_predictor import predict_goals
             exp_home, exp_away = predict_goals(
                 handicap_line=handicap_line,
                 handicap_water=hw,
@@ -385,19 +385,62 @@ class SKYPredictor:
                 w_odds = 1.0 - w_model
 
                 return proba * w_model + odds_proba * w_odds
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("赔率融合修正失败: %s", e)
         return proba
 
     @staticmethod
     def _class_name(idx: int) -> str:
         return {0: 'H'}.get(idx, {1: 'D'}.get(idx, 'A'))
 
+    # ══════════════════════════════════════
+    # PredictorBase 统一接口 (2026-06-28)
+    # ══════════════════════════════════════
+
+    def predict_match(self, match: MatchData) -> PredictionResult:
+        """实现 PredictorBase.predict_match()"""
+        odds = match.odds_dict if match.odds_h > 0 else None
+        result_dict = self.predict(
+            home=match.home, away=match.away,
+            odds=odds,
+            league=match.league,
+            handicap_line=match.handicap,
+            ou_line=match.ou_line,
+            over_water=match.over_water,
+            under_water=match.under_water,
+            elo_home=match.elo_home,
+            elo_away=match.elo_away,
+        )
+        probs = result_dict.get('probabilities', result_dict.get('proba_final', {}))
+        pred_raw = result_dict.get('prediction', 'H')
+        if isinstance(pred_raw, str) and len(pred_raw) == 1:
+            pred_code = pred_raw
+        elif pred_raw in ('主胜', 'home', 'H'):
+            pred_code = 'H'
+        elif pred_raw in ('客胜', 'away', 'A'):
+            pred_code = 'A'
+        else:
+            pred_code = 'D'
+        return PredictionResult(
+            probabilities=probs if isinstance(probs, dict) else {'H': 0.0, 'D': 0.0, 'A': 0.0},
+            prediction=pred_code,
+            confidence=float(result_dict.get('confidence', 0.0)),
+            model_version=result_dict.get('model_version', f"SKY {self.__class__.__name__}"),
+            expected_goals=result_dict.get('expected_goals'),
+            extra={k: v for k, v in result_dict.items()
+                   if k not in ('probabilities', 'proba_final', 'proba_raw', 'prediction')},
+        )
+
+    @property
+    def model_version(self) -> str:
+        return f"SKYPredictor {self.__class__.__name__}"
+
+    def is_loaded(self) -> bool:
+        return self._loaded
 
 # ─── 便捷函数 ───
 
 _sky_instance: Optional[SKYPredictor] = None
-
 
 def get_sky_predictor() -> SKYPredictor:
     """获取 SKY Predictor 单例"""

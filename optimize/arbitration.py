@@ -29,14 +29,13 @@ from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
 
 from utils.constants import DEFAULT_HOME_PROB, DEFAULT_DRAW_PROB, DEFAULT_AWAY_PROB
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 from enum import Enum
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
-
 
 # ═══════════════════════════════════════════════════════════════
 #  T07-R1: 不一致场景分类
@@ -57,14 +56,12 @@ class ConflictType(Enum):
     # 无冲突
     NONE = "none"
 
-
 class ConflictSeverity(Enum):
     """冲突严重程度"""
     LOW = "low"          # 小分歧，可参考
     MODERATE = "moderate" # 中等分歧，谨慎处理
     HIGH = "high"        # 严重分歧，建议观望
     CRITICAL = "critical" # 极端分歧，必须人工复核
-
 
 @dataclass
 class ConflictAssessment:
@@ -78,7 +75,6 @@ class ConflictAssessment:
     arbitrable: bool = True                  # 是否可自动仲裁
     reason: str = ""                         # 冲突原因描述
 
-
 # ═══════════════════════════════════════════════════════════════
 #  T07-R2: 决策信标 (Decision Beacon)
 # ═══════════════════════════════════════════════════════════════
@@ -91,7 +87,6 @@ class DecisionPolicy(Enum):
     META_LEARNING = "meta_learning"         # 基于历史场景学习
     CONSERVATIVE_MIN = "conservative_min"   # 取保守值
     ODDS_BASELINE = "odds_baseline"         # 退回到赔率隐含概率
-
 
 @dataclass
 class DecisionBeacon:
@@ -113,8 +108,7 @@ class DecisionBeacon:
 
     # ── 元数据 ──
     execution_time_ms: float = 0.0
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
-
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 # ═══════════════════════════════════════════════════════════════
 #  T07-R1: 不一致规则引擎 (Inconsistency Rules)
@@ -294,7 +288,6 @@ class InconsistencyRules:
 
         return ConflictSeverity.LOW
 
-
 # ═══════════════════════════════════════════════════════════════
 #  T07-R2: 加权投票仲裁器 (Weighted Vote Arbiter)
 # ═══════════════════════════════════════════════════════════════
@@ -435,7 +428,6 @@ class WeightedVoteArbiter:
         }
 
         return aggregated, round(arbitrated_conf, 4), evidence
-
 
 # ═══════════════════════════════════════════════════════════════
 #  T07-R2: 元学习仲裁器 (Meta-Learning Arbiter)
@@ -702,7 +694,6 @@ class MetaLearningArbiter:
             f"total={stats['total']}, ens_acc={stats['ensemble_correct']/stats['total']:.2%}"
         )
 
-
 # ═══════════════════════════════════════════════════════════════
 #  T07: 仲裁引擎 (Arbitration Engine) - 主入口
 # ═══════════════════════════════════════════════════════════════
@@ -949,13 +940,11 @@ class ArbitrationEngine:
         else:
             return ('HOLD', 'WEAK')
 
-
 # ═══════════════════════════════════════════════════════════════
 #  API 便捷函数
 # ═══════════════════════════════════════════════════════════════
 
 _global_arbitration_engine: Optional[ArbitrationEngine] = None
-
 
 def get_arbitration_engine(db_path: str = 'data/football_data.db') -> ArbitrationEngine:
     """全局懒加载仲裁引擎"""
@@ -963,7 +952,6 @@ def get_arbitration_engine(db_path: str = 'data/football_data.db') -> Arbitratio
     if _global_arbitration_engine is None:
         _global_arbitration_engine = ArbitrationEngine(db_path=db_path)
     return _global_arbitration_engine
-
 
 def quick_arbitrate(
     ensemble_probs: Dict[str, float],

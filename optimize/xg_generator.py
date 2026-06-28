@@ -31,7 +31,6 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-
 # ─── 联赛场均进球基线 ─────────────────────────────────
 LEAGUE_AVG_GOALS: Dict[str, float] = {
     'premier league': 2.85,
@@ -58,12 +57,10 @@ LEAGUE_HOME_ADVANTAGE: Dict[str, float] = {
     'default': 1.08,
 }
 
-
 def _stable_hash(key: str) -> float:
     """确定性哈希 → 0.0~1.0 之间的小扰动种子"""
     h = hashlib.md5(key.encode()).hexdigest()
     return int(h[:8], 16) / 0xFFFFFFFF
-
 
 def _league_lookup(league_name: str, mapping: Dict[str, float],
                    default: float = None) -> float:
@@ -75,7 +72,6 @@ def _league_lookup(league_name: str, mapping: Dict[str, float],
         if k in name or name in k:
             return v
     return default or mapping.get('default', 2.72)
-
 
 class XGGenerator:
     """
@@ -367,13 +363,11 @@ class XGGenerator:
 
         return round(home_xg, 4), round(away_xg, 4)
 
-
 # ════════════════════════════════════════════════════════════
 # 便捷函数（向后兼容）
 # ════════════════════════════════════════════════════════════
 
 _DEFAULT_GENERATOR: Optional[XGGenerator] = None
-
 
 def get_xg_generator(config: Dict = None) -> XGGenerator:
     """获取全局 XGGenerator 单例"""
@@ -381,7 +375,6 @@ def get_xg_generator(config: Dict = None) -> XGGenerator:
     if _DEFAULT_GENERATOR is None:
         _DEFAULT_GENERATOR = XGGenerator(config)
     return _DEFAULT_GENERATOR
-
 
 def generate_xg(home_prob: float, draw_prob: float, away_prob: float,
                 odds: Dict = None, league_name: str = '',
@@ -392,7 +385,6 @@ def generate_xg(home_prob: float, draw_prob: float, away_prob: float,
     return gen.generate_xg(home_prob, draw_prob, away_prob,
                            odds=odds, league_name=league_name,
                            home_team=home_team, away_team=away_team, **kwargs)
-
 
 # ════════════════════════════════════════════════════════════
 # 测试

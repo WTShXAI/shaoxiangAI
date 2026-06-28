@@ -8,7 +8,7 @@ v5.2.14 状态: GBDT(LGBM/XGBoost)已被 JEPA v5.0 替代为主动擎。
 目标: Acc≥59%, Draw-F1≥0.52, Home召回≥60%
 """
 import os, sys, json, time, warnings, logging
-from datetime import datetime
+from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
@@ -33,7 +33,7 @@ _fai_candidates = [
     r'D:\AI\footballAI',   # 已知部署路径
 ]
 FOOTBALLAI_ROOT = next((p for p in _fai_candidates if p and os.path.isdir(p)), ARCH_ROOT)
-sys.path.insert(0, FOOTBALLAI_ROOT)
+
 os.environ.setdefault('PROJECT_ROOT', FOOTBALLAI_ROOT)
 
 from ensemble_trainer import EnsembleTrainer
@@ -109,7 +109,6 @@ def load_pipeline_and_data():
 
     return trainer, scaler, X_train_scaled, y_train_cls, X_oof_scaled, y_oof_cls, X_oof_raw, df, df_train, df_oof
 
-
 # ======================================================================
 # 阶段 1: 类别权重搜索
 # ======================================================================
@@ -184,7 +183,6 @@ def phase1_class_weight_search(X_train, y_train, X_val, y_val):
         2: balanced_cw[2],
     }, best
 
-
 # ======================================================================
 # 阶段 2: Meta 模型超参调优
 # ======================================================================
@@ -242,7 +240,6 @@ def phase2_hyperparameter_tuning(X_train, y_train, X_val, y_val, class_weights):
 
     return best_model, best_params, best_metrics
 
-
 # ======================================================================
 # 阶段 3: 预测阈值优化
 # ======================================================================
@@ -290,7 +287,6 @@ def phase3_threshold_optimization(probas, y_true, meta_model=None):
 
     return best_thresh, best_acc, best_f1_per
 
-
 def apply_threshold(probas, draw_thresh, home_away_gap):
     """应用优化后的阈值"""
     y_pred = np.zeros(len(probas), dtype=int)
@@ -303,7 +299,6 @@ def apply_threshold(probas, draw_thresh, home_away_gap):
         else:
             y_pred[i] = 2
     return y_pred
-
 
 # ======================================================================
 # 主流程
@@ -409,9 +404,9 @@ def main():
         logger.info("\n  ❌ 未达标, 需要进一步优化")
 
     # ── 保存结果 ──
-    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+    ts = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
     out_file = os.path.join(ARCH_ROOT, 'reports', f'train_optimize_v41_{ts}.json')
-    results_log['timestamp'] = datetime.now().isoformat()
+    results_log['timestamp'] = datetime.now(timezone.utc).isoformat()
     results_log['elapsed_seconds'] = round(time.time() - t_start, 1)
     results_log['n_train'] = int(len(X_train))
     results_log['n_val'] = int(len(y_val))
@@ -422,7 +417,6 @@ def main():
     logger.info(f"\n📄 优化结果: {out_file}")
     logger.info(f"⏱️ 总耗时: {results_log['elapsed_seconds']:.1f}s")
     return results_log
-
 
 if __name__ == '__main__':
     main()

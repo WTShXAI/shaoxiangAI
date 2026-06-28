@@ -30,7 +30,7 @@ import warnings
 from typing import Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass, field
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -50,7 +50,6 @@ try:
     _SCIPY_AVAILABLE = True
 except ImportError:
     _SCIPY_AVAILABLE = False
-
 
 # ════════════════════════════════════════════════════════════════
 # 校准评估指标
@@ -79,7 +78,6 @@ def compute_ece(probs: np.ndarray, labels: np.ndarray, n_bins: int = 10) -> floa
             ece += mask.sum() / n_samples * abs(acc - conf)
     return float(ece)
 
-
 def compute_mce(probs: np.ndarray, labels: np.ndarray, n_bins: int = 10) -> float:
     """Maximum Calibration Error (MCE)"""
     n_samples = len(labels)
@@ -99,7 +97,6 @@ def compute_mce(probs: np.ndarray, labels: np.ndarray, n_bins: int = 10) -> floa
             conf = confidences[mask].mean()
             mce = max(mce, abs(acc - conf))
     return float(mce)
-
 
 def compute_reliability(probs: np.ndarray, labels: np.ndarray,
                          n_bins: int = 10) -> List[Dict]:
@@ -128,7 +125,6 @@ def compute_reliability(probs: np.ndarray, labels: np.ndarray,
             })
     return reliability
 
-
 def multiclass_brier(probs: np.ndarray, labels: np.ndarray, n_classes: int = 3) -> float:
     """
     多分类 Brier Score
@@ -138,7 +134,6 @@ def multiclass_brier(probs: np.ndarray, labels: np.ndarray, n_classes: int = 3) 
     onehot = np.zeros((n, n_classes))
     onehot[np.arange(n), labels] = 1.0
     return float(np.mean(np.sum((probs - onehot) ** 2, axis=1)))
-
 
 # ════════════════════════════════════════════════════════════════
 # Platt Scaling 校准器
@@ -231,7 +226,6 @@ class PlattScaler:
         p = np.clip(probs, eps, 1.0 - eps)
         return np.log(p / (1.0 - p))
 
-
 # ════════════════════════════════════════════════════════════════
 # Temperature Scaling 校准器 (深度学习常用)
 # ════════════════════════════════════════════════════════════════
@@ -313,7 +307,6 @@ class TemperatureScaler:
         exp_s = np.exp(shifted)
         return exp_s / exp_s.sum(axis=1, keepdims=True)
 
-
 # ════════════════════════════════════════════════════════════════
 # Isotonic Regression 校准器
 # ════════════════════════════════════════════════════════════════
@@ -370,7 +363,6 @@ class IsotonicScaler:
                                 out=np.full_like(calibrated, 1.0 / self._n_classes),
                                 where=row_sums > 0)
         return calibrated
-
 
 # ════════════════════════════════════════════════════════════════
 # Beta Calibration 校准器
@@ -485,7 +477,6 @@ class BetaScaler:
             'c': float(np.exp(best_result.x[2])),
         }
 
-
 # ════════════════════════════════════════════════════════════════
 # 校准方法注册表
 # ════════════════════════════════════════════════════════════════
@@ -503,7 +494,6 @@ CALIBRATOR_DESCRIPTIONS = {
     'isotonic': 'Isotonic Regression — 非参数单调校准 (灵活, 需大数据)',
     'beta': 'Beta Calibration — 三参数 Beta 分布 (最灵活, 需中等数据)',
 }
-
 
 # ════════════════════════════════════════════════════════════════
 # 校准套件 — 多方法对比
@@ -536,7 +526,6 @@ class CalibrationReport:
     params: Dict = field(default_factory=dict)
     # 建议
     recommendation: str = ''
-
 
 class CalibratorSuite:
     """
@@ -856,7 +845,7 @@ class CalibratorSuite:
             'reports': {k: {'brier_delta': v.brier_delta, 'ece_delta': v.ece_delta,
                             'll_delta': v.ll_delta, 'recommendation': v.recommendation}
                        for k, v in self._reports.items()},
-            'saved_at': datetime.now().isoformat(),
+            'saved_at': datetime.now(timezone.utc).isoformat(),
             'version': '1.0',
         }
         joblib.dump(data, path, compress=3)
@@ -872,7 +861,6 @@ class CalibratorSuite:
         logger.info(f"校准器已加载: {path} (方法: {data['method']})")
         return suite
 
-
 # ════════════════════════════════════════════════════════════════
 # 便捷函数
 # ════════════════════════════════════════════════════════════════
@@ -884,13 +872,11 @@ def calibrate_predictions(y_true: np.ndarray, raw_probs: np.ndarray,
     suite.fit(y_true, raw_probs)
     return suite.predict(raw_probs, method=method)
 
-
 def compare_calibrators(y_true: np.ndarray, raw_probs: np.ndarray) -> pd.DataFrame:
     """快捷对比"""
     suite = CalibratorSuite()
     suite.fit(y_true, raw_probs)
     return suite.compare()
-
 
 # ════════════════════════════════════════════════════════════════
 # 与 ExpertCalibrator 的桥接
@@ -934,14 +920,12 @@ def upgrade_expert_calibrator(expert_name: str, db_path: str = None) -> Dict:
         'sparse_test': sparse_df.to_dict('records'),
     }
 
-
 def _get_db_path():
     import os
     return os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         'data', 'football_data.db'
     )
-
 
 # ════════════════════════════════════════════════════════════════
 # CLI

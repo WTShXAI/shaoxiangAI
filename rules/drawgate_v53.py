@@ -43,7 +43,7 @@ _DEFAULT_RULES = {
             "draw_threshold_drop": 0.10,   # 阈值从0.32→0.22
             "confidence_decay": 0.85,      # 强队置信度×0.85
             "draw_boost": 0.06,            # DrawExpert额外+6%
-            "od_max": 6.0,                 # 平赔上限 (异常信号)
+            "od_max": 8.5,                 # 平赔上限 (异常信号, v5.4: 6.0→8.5)
         },
         "mode_c_away": {
             "pa_min": 0.65,           # 客队隐含胜率 >65%
@@ -52,25 +52,39 @@ _DEFAULT_RULES = {
             "draw_boost": 0.04,
         },
         "mode_a": {
-            "imp_min": 0.48,
+            "imp_min": 0.40,
             "imp_max": 0.72,
             "spread_power": 0.30,
             "ou_boost": 1.05,
             "draw_threshold_drop": 0.05,
             "confidence_decay": 0.92,
-            "draw_boost": 0.05,
+            "draw_boost": 0.09,
             "s7s1_penalty": 0.70,
             "s7_threshold": 3.5,
             "s1_threshold": 1.30,
-            "threshold": 0.28,
+            "threshold": 0.24,
         },
         "mode_b": {
+            "_deprecated": "v5.4",
+            "enabled": False,
             "spread_max": 0.20,       # 杯赛保守用0.20
             "draw_threshold_drop": 0.04,
             "confidence_decay": 0.95,
             "draw_boost": 0.04,
             "threshold": 0.43,
             "boost": 1.20,
+        },
+        "away_skepticism": {
+            "imp_a_max": 0.55,
+            "hcp_max": 0.75,
+            "confidence_decay": 0.88,
+            "draw_boost": 0.04,
+        },
+        "group_stage_rotation": {
+            "enabled": False,   # v5.4: 默认关闭, 需matchday context
+            "min_matchday": 3,
+            "confidence_decay": 0.80,
+            "trigger_upset": True,
         },
     },
     "league": {
@@ -94,13 +108,15 @@ _DEFAULT_RULES = {
             "ou_boost": 1.03,
             "draw_threshold_drop": 0.05,
             "confidence_decay": 0.92,
-            "draw_boost": 0.04,
+            "draw_boost": 0.08,
             "s7s1_penalty": 0.65,
             "s7_threshold": 3.5,
             "s1_threshold": 1.25,
-            "threshold": 0.26,        # 联赛触发门槛更低
+            "threshold": 0.22,        # v5.4: 联赛门槛再降
         },
         "mode_b": {
+            "_deprecated": "v5.4",
+            "enabled": False,
             "spread_max": 0.22,       # 联赛放宽到0.22
             "draw_threshold_drop": 0.04,
             "confidence_decay": 0.95,
@@ -108,9 +124,20 @@ _DEFAULT_RULES = {
             "threshold": 0.40,        # 联赛门槛略降
             "boost": 1.15,
         },
+        "away_skepticism": {
+            "imp_a_max": 0.55,
+            "hcp_max": 0.75,
+            "confidence_decay": 0.88,
+            "draw_boost": 0.03,
+        },
+        "group_stage_rotation": {
+            "enabled": False,   # v5.4: 默认关闭, 需matchday context
+            "min_matchday": 3,
+            "confidence_decay": 0.80,
+            "trigger_upset": True,
+        },
     },
 }
-
 
 def _load_rules() -> Dict:
     """加载规则 (JSON > 默认硬编码)"""
@@ -122,7 +149,6 @@ def _load_rules() -> Dict:
     except Exception:
         logger.info("[DrawGate v5.3] 使用默认规则")
         return _DEFAULT_RULES
-
 
 # ═══════════════════════════════════════════════════════════
 # 赛事类型检测
@@ -139,7 +165,6 @@ _LEAGUE_KW = [
     "英冠", "championship", "荷甲", "eredivisie", "葡超",
 ]
 
-
 def detect_match_type(league_name: str = "") -> str:
     text = league_name.lower()
     for kw in _TOURNAMENT_KW:
@@ -149,7 +174,6 @@ def detect_match_type(league_name: str = "") -> str:
         if kw in text:
             return "league"
     return "tournament"  # 默认杯赛 (保守)
-
 
 # ═══════════════════════════════════════════════════════════
 # DrawGate v5.3 核心
@@ -228,7 +252,7 @@ def apply_drawgate(
         # 额外: 平赔 <6.0 = 庄家异常信号
         if od <= mcc.get("od_max", 6.0):
             result["risk_tag"] = "upset_warning"
-            result["draw_threshold_adj"] = max(0.18, 0.32 - mcc.get("draw_threshold_drop", 0.10))
+            result["draw_threshold_adj"] = max(0.27, 0.32 - mcc.get("draw_threshold_drop", 0.10))
             result["confidence_mult"] = mcc.get("confidence_decay", 0.85)
             result["draw_boost"] = mcc.get("draw_boost", 0.06)
             result["dgate_mode"] = "C"
@@ -242,7 +266,7 @@ def apply_drawgate(
     # ═══════════════════════════════════════
     if not triggered and mca and imp_a >= mca.get("pa_min", 0.65) and max_imp < mcc.get("imp_min", 0.72):
         result["risk_tag"] = "upset_warning"
-        result["draw_threshold_adj"] = max(0.20, 0.32 - mca.get("draw_threshold_drop", 0.08))
+        result["draw_threshold_adj"] = max(0.27, 0.32 - mca.get("draw_threshold_drop", 0.08))
         result["confidence_mult"] = mca.get("confidence_decay", 0.88)
         result["draw_boost"] = mca.get("draw_boost", 0.04)
         result["dgate_mode"] = "C-away"
@@ -262,8 +286,8 @@ def apply_drawgate(
         if ou <= 2.5:
             boost *= ma.get("ou_boost", 1.03)
 
-        # S7+S1 屠杀预警
-        if s7_ou_hcp_ratio >= ma.get("s7_threshold", 3.5) and s1_draw_cheapness < ma.get("s1_threshold", 1.25):
+        # S7+S1 屠杀预警 (v5.4: 仅当让球≥0.5球时适用, 避免浅盘误触发)
+        if abs(hcp) >= 0.5 and s7_ou_hcp_ratio >= ma.get("s7_threshold", 3.5) and s1_draw_cheapness < ma.get("s1_threshold", 1.25):
             boost *= ma.get("s7s1_penalty", 0.65)
 
         # v5.3: DrawExpert 信号增强
@@ -286,28 +310,38 @@ def apply_drawgate(
             mode = "A"
 
     # ═══════════════════════════════════════
-    # Layer 3: Mode B — 均衡赛
-    # v5.3: spread阈值分杯赛/联赛
+    # Layer 3: Mode B — DEPRECATED (v5.4)
+    # 标准回测准确率0%, Live预测0次触发 → 废弃
     # ═══════════════════════════════════════
-    if not triggered and spread < mb.get("spread_max", 0.22):
-        boost = float(imp_d) * 1.08 * mb.get("boost", 1.15)
+    # Mode B 已在 v5.4 废弃, 不再触发
 
-        # v5.3: DrawExpert 信号增强
-        if draw_expert_signal is not None and draw_expert_signal > 0.28:
-            boost *= min(1.25, 1.0 + draw_expert_signal * 0.4)
+    # ═══ v5.4: 客场浅让抑制 (away_skepticism) ═══
+    # 问题: 模型在June 26预测13场客胜, 但实际仅7场 → 过度信任客队
+    # 条件: imp_a < 0.55 AND hcp浅(≤0.75) → 对客胜施加confidence_decay
+    # 注: 此规则在所有模式之上叠加 (不受 triggered 限制)
+    ask = cfg.get("away_skepticism", {})
+    if ask and imp_a >= 0.40 and imp_a <= ask.get("imp_a_max", 0.55) \
+            and abs(hcp) <= ask.get("hcp_max", 0.75):
+        result["confidence_mult"] = min(result["confidence_mult"], ask.get("confidence_decay", 0.88))
+        result["draw_boost"] += ask.get("draw_boost", 0.04)
+        result["triggered_signals"].append(
+            f"away_skepticism(imp_a={imp_a:.0%}, hcp={hcp:+.2f})")
+        logger.debug(f"[DrawGate v5.4] away_skepticism: imp_a={imp_a:.0%} hcp={hcp:+.2f}")
 
-        threshold = mb.get("threshold", 0.40)
-        if boost > threshold:
-            result["risk_tag"] = "draw_alert"
-            result["draw_threshold_adj"] = max(0.24, 0.32 - mb.get("draw_threshold_drop", 0.04))
-            result["confidence_mult"] = mb.get("confidence_decay", 0.95)
-            result["draw_boost"] = mb.get("draw_boost", 0.03) + (draw_expert_signal or 0) * 0.10
-            result["dgate_mode"] = "B"
-            result["triggered_signals"].append(f"mode_b(spread={spread:.3f})")
-            triggered = True
-            mode = "B"
+    # ═══ v5.4: 小组赛末轮轮换检测 ═══
+    # 问题: 厄瓜多尔/土耳其爆冷 → 客队已出线轮换导致冷门
+    # 注: 默认关闭 (enabled=false), 需要传入matchday ≥3时才启用
+    gsr = cfg.get("group_stage_rotation", {})
+    if gsr and gsr.get("enabled", False):
+        result["confidence_mult"] = min(result["confidence_mult"], gsr.get("confidence_decay", 0.80))
+        result["draw_boost"] += 0.03
+        if gsr.get("trigger_upset", True):
+            result["risk_tag"] = "upset_warning"
+        result["triggered_signals"].append("group_stage_rotation")
+        logger.debug(f"[DrawGate v5.4] group_stage_rotation: conf_decay={gsr.get('confidence_decay',0.80)}")
 
-    # ═══ v5.3+: 赔率斜率触发 (实时信号) ═══
+    # ── confidence_mult 安全底限 ──
+    result["confidence_mult"] = max(result["confidence_mult"], 0.65)
     if not triggered and odds_slope is not None and abs(odds_slope) > 0.08:
         result["risk_tag"] = "draw_alert"
         result["draw_threshold_adj"] = 0.26
@@ -318,7 +352,6 @@ def apply_drawgate(
 
     return result
 
-
 # ═══════════════════════════════════════════════════════════
 # 便捷函数: 从赔率直接计算全套
 # ═══════════════════════════════════════════════════════════
@@ -327,7 +360,6 @@ def imp_from_odds(oh: float, od: float, oa: float) -> Tuple[float, float, float]
     """赔率 → 隐含概率 (去抽水)"""
     s = 1.0/oh + 1.0/od + 1.0/oa
     return (1.0/oh)/s, (1.0/od)/s, (1.0/oa)/s
-
 
 def quick_scan(
     oh: float, od: float, oa: float,

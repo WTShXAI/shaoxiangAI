@@ -25,7 +25,6 @@ from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
-
 # ══════════════════════════════════════════════════
 # 模型懒加载器
 # ══════════════════════════════════════════════════
@@ -85,7 +84,6 @@ class ModelHandle:
             self._model = None
             import gc
             gc.collect()
-
 
 # ══════════════════════════════════════════════════
 # 批量预测引擎
@@ -360,13 +358,11 @@ class BatchPredictor:
             ),
         }
 
-
 # ══════════════════════════════════════════════════
 # 全局单例
 # ══════════════════════════════════════════════════
 
 _global_batch_predictor: Optional[BatchPredictor] = None
-
 
 def get_predictor(model_dir: str = None) -> BatchPredictor:
     """获取全局 BatchPredictor 单例"""

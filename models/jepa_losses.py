@@ -14,7 +14,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 class FootballVICRegLoss(nn.Module):
     """
     Football-adapted VICReg loss with 4 components.
@@ -80,7 +79,6 @@ class FootballVICRegLoss(nn.Module):
             'pred': pred_loss.item(),
             'total': total.item(),
         }
-
 
 class DrawPreservingVICReg(nn.Module):
     """
@@ -166,7 +164,6 @@ class DrawPreservingVICReg(nn.Module):
         components['total'] = total.item()
 
         return total, components
-
 
 class EmbeddingCollapseMonitor:
     """Monitor embedding collapse during training"""

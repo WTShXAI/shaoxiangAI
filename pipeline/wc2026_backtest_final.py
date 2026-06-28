@@ -14,8 +14,6 @@ warnings.filterwarnings('ignore')
 
 ARCH_ROOT = Path(r"D:/Architecture v4.0")
 FAI_ROOT = Path(r"D:/AI/footballAI")
-sys.path.insert(0, str(ARCH_ROOT))
-sys.path.insert(0, str(FAI_ROOT))
 
 import numpy as np
 
@@ -235,7 +233,7 @@ def build_html(details, m_argmax, m_imp, by_date, upsets, wrong_dg):
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>世界杯2026 34场全量回测 — v4.1 + D-Gate v4.9</title>
 <style>
-:root{{--bg:#0d1117;--surface:#161b22;--border:#21262d;--text:#c9d1d9;--text2:#8b949e;
+:root{{--bg:#0d1117;--surface:#161b22;--border:#21262d;--text:#c9d1d9;--text2:#8b949e
   --accent:#58a6ff;--accent2:#3fb950;--danger:#f85149;--warn:#d29922;--purple:#bc8cff}}
 *{{margin:0;padding:0;box-sizing:border-box}}
 body{{background:var(--bg);color:var(--text);font:14px/1.5 system-ui,sans-serif;max-width:1400px;margin:0 auto;padding:20px}}

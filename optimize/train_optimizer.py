@@ -17,14 +17,12 @@
     python optimize/train_optimizer.py --no-optuna  # 回退到默认参数训练
 """
 import sys, os, logging, json, time, warnings, argparse
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Tuple, Optional, Any
 import numpy as np
 import pandas as pd
 
 warnings.filterwarnings('ignore')
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from ensemble_trainer import EnsembleTrainer
 from sklearn.model_selection import TimeSeriesSplit
@@ -52,14 +50,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger('TrainOptimizer')
 
-
 def _recall_single(y_true, y_pred, target_class):
     """单类召回率"""
     mask = (y_true == target_class)
     if mask.sum() == 0:
         return 0.0
     return float(np.mean(y_pred[mask] == target_class))
-
 
 class OptunaOptimizer:
     """Optuna 驱动的超参数优化器"""
@@ -290,7 +286,7 @@ class OptunaOptimizer:
         )
         study = optuna.create_study(
             direction='maximize', sampler=sampler, pruner=pruner,
-            study_name=f'football_opt_{datetime.now().strftime("%Y%m%d_%H%M")}',
+            study_name=f'football_opt_{datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")}',
         )
 
         self.X = X_arr
@@ -460,7 +456,7 @@ class OptunaOptimizer:
         import joblib, yaml
         model_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'saved_models')
         os.makedirs(model_dir, exist_ok=True)
-        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        ts = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
         model_path = os.path.join(model_dir, f'football_ensemble_optuna_{ts}.joblib')
 
         with open(self.config_path, 'r', encoding='utf-8') as f:
@@ -474,7 +470,7 @@ class OptunaOptimizer:
                 'brier': round(brier, 4), 'log_loss': round(ll, 4), 'mcc': round(mcc, 4),
                 'test_samples': len(y_test),
             },
-            'train_timestamp': datetime.now().isoformat(),
+            'train_timestamp': datetime.now(timezone.utc).isoformat(),
             'version': '4.0-optuna',
             'optuna_params': params,
             'optuna_score': self.best_score,
@@ -541,7 +537,6 @@ class OptunaOptimizer:
             logger.info(f"移除: {set(feature_names) - set(selected)}")
         return selected
 
-
 # ══════════════════════════════════════════════════
 # 便捷函数
 # ══════════════════════════════════════════════════
@@ -559,7 +554,6 @@ def optimize_model(
         result['selected_features'] = selected_features
         result['removed_features'] = list(set(optimizer.feature_names) - set(selected_features))
     return result
-
 
 # ══════════════════════════════════════════════════
 # CLI
@@ -585,7 +579,7 @@ def main():
 
     report_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'reports')
     os.makedirs(report_dir, exist_ok=True)
-    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+    ts = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
     report_path = os.path.join(report_dir, f'optuna_optimization_{ts}.json')
 
     with open(report_path, 'w', encoding='utf-8') as f:
@@ -593,7 +587,6 @@ def main():
 
     logger.info(f"\n优化报告已保存: {report_path}")
     return result
-
 
 if __name__ == '__main__':
     main()

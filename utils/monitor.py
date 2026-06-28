@@ -19,12 +19,11 @@ import json
 import threading
 import logging
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from collections import defaultdict, deque
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
-
 
 # ══════════════════════════════════════════════════
 # 指标收集器
@@ -96,7 +95,6 @@ class MetricsCollector:
     @property
     def gauges(self) -> Dict[str, float]:
         return dict(self._gauges)
-
 
 # ══════════════════════════════════════════════════
 # 四维监控器
@@ -329,11 +327,11 @@ class Monitor:
             try:
                 last_dt = datetime.fromisoformat(last_update)
             except ValueError:
-                last_dt = datetime.now()
+                last_dt = datetime.now(timezone.utc)
         else:
             last_dt = last_update
 
-        hours_ago = (datetime.now() - last_dt).total_seconds() / 3600
+        hours_ago = (datetime.now(timezone.utc) - last_dt).total_seconds() / 3600
 
         self.data_quality.set_gauge(f"freshness_{data_type}_hours", hours_ago)
         self.data_quality.push({
@@ -455,7 +453,7 @@ class Monitor:
     def get_report(self) -> Dict:
         """生成完整四维监控报告"""
         return {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "business": self.get_accuracy_trend(),
             "system": self.get_system_health(),
             "data_quality": self.get_data_quality_report(),
@@ -477,7 +475,7 @@ class Monitor:
 
         try:
             report = self.get_report()
-            date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+            date_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             path = os.path.join(self.metrics_dir, f"monitor_{date_str}.json")
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(report, f, ensure_ascii=False, indent=2)
@@ -509,13 +507,11 @@ class Monitor:
             self._resource_thread.join(timeout=2)
         self.save_report()
 
-
 # ══════════════════════════════════════════════════
 # Python 装饰器：自动记录性能/错误
 # ══════════════════════════════════════════════════
 
 _monitor_instance: Optional[Monitor] = None
-
 
 def get_monitor(db_path: str = None) -> Monitor:
     """获取全局 Monitor 单例"""
@@ -523,7 +519,6 @@ def get_monitor(db_path: str = None) -> Monitor:
     if _monitor_instance is None:
         _monitor_instance = Monitor(db_path=db_path)
     return _monitor_instance
-
 
 def track_performance(api_name: str = None):
     """装饰器：自动记录函数执行时间和错误"""

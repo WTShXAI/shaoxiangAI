@@ -25,13 +25,11 @@ StandingsProvider — 可插拔赛事数据源
 import json, os
 from pathlib import Path
 
-
 # ═══════════════════════════════════════
 # 数据结构
 # ═══════════════════════════════════════
 
 GroupTable = dict  # {team_name: {pts, mp, gf, ga, group}}
-
 
 # ═══════════════════════════════════════
 # Level 3: 手动配置 (任何赛事的兜底)
@@ -63,7 +61,6 @@ def load_manual_config(path=None):
             }
 
     return table, matchday
-
 
 # ═══════════════════════════════════════
 # Level 2: 本地缓存 (WC2026 预装数据)
@@ -126,7 +123,6 @@ def load_cache():
 
     return table, matchday
 
-
 # ═══════════════════════════════════════
 # Level 1: API (football-data.org) — 未来扩展
 # ═══════════════════════════════════════
@@ -138,7 +134,6 @@ def load_api():
         return None, None
     # TODO: 实现 API 调用
     return None, None
-
 
 # ═══════════════════════════════════════
 # 名称标准化
@@ -152,13 +147,11 @@ _NAME_MAP = {
     'South Korea': '韩国',
 }
 
-
 def _normalize_name(name):
     """统一中文名。"""
     if not name:
         return ''
     return _NAME_MAP.get(name, name)
-
 
 # ═══════════════════════════════════════
 # 主入口
@@ -261,20 +254,17 @@ class StandingsProvider:
                 for t, p in sorted(teams, key=lambda x: -x[1]):
                     print(f'    {t}: {p}pts')
 
-
 # ═══════════════════════════════════════
 # 全局单例
 # ═══════════════════════════════════════
 
 _provider = None
 
-
 def get_provider():
     global _provider
     if _provider is None:
         _provider = StandingsProvider()
     return _provider
-
 
 # ═══════════════════════════════════════
 # 快速测试

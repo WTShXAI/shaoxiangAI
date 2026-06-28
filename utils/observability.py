@@ -35,7 +35,6 @@ _agent_call_count: Dict[str, int] = {}
 _agent_call_duration: Dict[str, float] = {}
 _agent_error_count: Dict[str, int] = {}
 
-
 def setup_observability(
     service_name: str = "footballai",
     endpoint: Optional[str] = None,
@@ -90,16 +89,13 @@ def setup_observability(
         _tracer = None
         _meter = None
 
-
 def get_tracer():
     """获取 tracer (可能为 None)"""
     return _tracer
 
-
 def get_meter():
     """获取 meter (可能为 None)"""
     return _meter
-
 
 # ============================================================
 # Agent 追踪装饰器
@@ -153,7 +149,6 @@ def trace_agent(agent_name: str, version: str = "1.0"):
         return wrapper
     return decorator
 
-
 # ============================================================
 # 上下文管理器
 # ============================================================
@@ -176,7 +171,6 @@ def trace_operation(operation_name: str, **attributes):
     elapsed = time.perf_counter() - start
     _agent_call_duration[operation_name] = _agent_call_duration.get(operation_name, 0) + elapsed
 
-
 # ============================================================
 # 指标查询
 # ============================================================
@@ -198,13 +192,11 @@ def get_agent_metrics() -> Dict[str, Any]:
         }
     return result
 
-
 def reset_metrics():
     """重置所有指标"""
     _agent_call_count.clear()
     _agent_call_duration.clear()
     _agent_error_count.clear()
-
 
 # ============================================================
 # Flask 集成

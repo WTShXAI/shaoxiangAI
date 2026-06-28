@@ -14,12 +14,11 @@
 import os
 import re
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Tuple, Set
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
-
 
 # ══════════════════════════════════════════════════
 # 密钥定义
@@ -41,7 +40,6 @@ class KeyDefinition:
     @property
     def value(self) -> Optional[str]:
         return os.getenv(self.env_var, "").strip() or None
-
 
 # ══════════════════════════════════════════════════
 # 安全配置管理器
@@ -106,7 +104,7 @@ class SecureConfig:
         ]
 
         # 加载时间
-        self._loaded_at = datetime.now()
+        self._loaded_at = datetime.now(timezone.utc)
 
     def _load_env_file(self):
         """手动加载 .env 到 os.environ（兼容 python-dotenv 缺失）"""
@@ -217,7 +215,7 @@ class SecureConfig:
                 }
             else:
                 # 简化估算：如果密钥已配置超过 rotation_days，建议轮换
-                days_since_load = (datetime.now() - self._loaded_at).days
+                days_since_load = (datetime.now(timezone.utc) - self._loaded_at).days
                 # 实际上我们无法知道密钥何时创建，这里用加载时间近似
                 status[kd.env_var] = {
                     "configured": True,
@@ -304,7 +302,7 @@ class SecureConfig:
         valid, issues = self.validate_all()
 
         return {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "env_file": self.env_file,
             "key_validation": {
                 "all_valid": valid,

@@ -36,7 +36,6 @@ TOTALS_LINES = [0.5, 1.0, 1.5, 2.0, 2.25, 2.5, 2.75, 3.0, 3.5, 4.0, 4.5, 5.0, 5.
 # 常见比分 (用于 correct score 市场)
 COMMON_SCORES = [(1,0),(2,0),(2,1),(3,0),(3,1),(3,2),(0,0),(1,1),(2,2),(0,1),(0,2),(1,2),(0,3),(1,3)]
 
-
 @dataclass
 class MarketOdds:
     """单个玩法的完整赔率数据"""
@@ -46,7 +45,6 @@ class MarketOdds:
     outcomes_with_margin: Dict[str, float] = field(default_factory=dict)
     overround: float = 0.0
     implied_probs: Dict[str, float] = field(default_factory=dict)  # 去抽水后隐含概率
-
 
 class MarketDerivationEngine:
     """
@@ -338,7 +336,6 @@ class MarketDerivationEngine:
             # 赔率 × (1 + strength*0.3): 微调, 最多抬升30%
             adjusted = original * (1 + strength * 0.3)
             market.outcomes_with_margin[outcome] = round(adjusted, 2)
-
 
 if __name__ == "__main__":
     from .score_distribution import ScoreDistSimulator

@@ -11,11 +11,10 @@
 
 import numpy as np
 from typing import Dict, List, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 logger = logging.getLogger(__name__)
-
 
 class TrendAnalyzer:
     """趋势与表单分析器"""
@@ -155,7 +154,7 @@ class TrendAnalyzer:
             return 0.0
 
         # 时间衰减权重
-        today = datetime.now()
+        today = datetime.now(timezone.utc)
         total_weight = 0.0
         dominance = 0.0
 

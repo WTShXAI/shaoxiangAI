@@ -24,20 +24,16 @@ from collections import defaultdict
 
 # Ensure project root in path
 PROJECT_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 
-# ═══════════════════════════════════════
 # 插件注册表
 # ═══════════════════════════════════════
 
 PLUGINS = []
 
-
 def register_plugin(name, fn, priority=50):
     """注册一个预测插件。priority越小越先执行。"""
     PLUGINS.append({'name': name, 'fn': fn, 'priority': priority})
     PLUGINS.sort(key=lambda x: x['priority'])
-
 
 # ═══════════════════════════════════════
 # 核心插件
@@ -58,7 +54,6 @@ def plugin_load_standings(matches, standings, matchday):
     
     return matches, standings, matchday
 
-
 def plugin_fetch_odds(matches, standings, matchday):
     """P2: 获取赔率"""
     from data_collector.odds_fetcher import get_all_odds
@@ -73,7 +68,6 @@ def plugin_fetch_odds(matches, standings, matchday):
         result.append((dt, h, a, oh, od, oa, hcp, ou))
     
     return result, standings, matchday
-
 
 def plugin_predict(matches_with_odds, standings, matchday):
     """P3: 运行预测"""
@@ -120,7 +114,6 @@ def plugin_predict(matches_with_odds, standings, matchday):
     
     return results, standings, matchday
 
-
 def plugin_risk_assess(results, standings, matchday):
     """P4: 风险评估"""
     for r in results:
@@ -154,7 +147,6 @@ def plugin_risk_assess(results, standings, matchday):
     
     return results, standings, matchday
 
-
 # ═══════════════════════════════════════
 # 插件注册
 # ═══════════════════════════════════════
@@ -163,7 +155,6 @@ register_plugin('load_standings', plugin_load_standings, 10)
 register_plugin('fetch_odds', plugin_fetch_odds, 20)
 register_plugin('predict', plugin_predict, 30)
 register_plugin('risk_assess', plugin_risk_assess, 40)
-
 
 # ═══════════════════════════════════════
 # 主入口
@@ -205,7 +196,6 @@ def get_schedule(start_date, end_date=None):
     
     return result or _get_fallback_schedule(start_date, end_date)
 
-
 def _get_fallback_schedule(start_date, end_date=None):
     """Fallback schedule (when DB not available)"""
     # Complete schedule for 6.25-6.28
@@ -239,11 +229,9 @@ def _get_fallback_schedule(start_date, end_date=None):
                 result.append((date, h, a))
     return result
 
-
 def predict_date(date_str):
     """一键预测某一天的比赛"""
     return predict_range(date_str, date_str)
-
 
 def predict_range(start_str, end_str=None):
     """一键预测日期范围内的所有比赛"""
@@ -272,7 +260,6 @@ def predict_range(start_str, end_str=None):
             print(f"  [{plugin['name']}] 失败: {e}")
     
     return results
-
 
 def format_report(results):
     """格式化输出预测报告"""
@@ -320,7 +307,6 @@ def format_report(results):
     
     return '\n'.join(lines)
 
-
 # ═══════════════════════════════════════
 # CLI
 # ═══════════════════════════════════════
@@ -335,7 +321,7 @@ if __name__ == '__main__':
     
     if date_str == 'today':
         import datetime
-        now = datetime.datetime.now()
+        now = datetime.datetime.now(timezone.utc)
         date_str = f'{now.month}.{now.day}'
     
     if '-' in date_str:

@@ -27,10 +27,9 @@ from typing import Dict, List, Optional, Any, Tuple, Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
-
 
 # ═══════════════════════════════════════════════════════════════
 # 1. 核心数据结构
@@ -42,13 +41,11 @@ class HealthStatus(Enum):
     DEGRADING = "degrading"    # 正在退化
     CRITICAL = "critical"      # 严重退化, 需立即处理
 
-
 class DriftLevel(Enum):
     NONE = "none"
     MILD = "mild"              # PSI 0.1-0.25
     SIGNIFICANT = "significant"  # PSI 0.25-0.5
     SEVERE = "severe"          # PSI > 0.5
-
 
 @dataclass
 class MetricSnapshot:
@@ -74,7 +71,6 @@ class MetricSnapshot:
             "n": self.sample_count,
         }
 
-
 @dataclass
 class DriftReport:
     """漂移检测报告"""
@@ -94,7 +90,6 @@ class DriftReport:
             "triggered_retrain": self.triggered_retrain,
             "summary": self.summary,
         }
-
 
 @dataclass
 class ABResult:
@@ -122,7 +117,6 @@ class ABResult:
             "recommendation": self.recommendation,
         }
 
-
 @dataclass
 class DiagnoseReport:
     """自我诊断报告"""
@@ -146,7 +140,6 @@ class DiagnoseReport:
             },
             "generated_at": self.generated_at,
         }
-
 
 # ═══════════════════════════════════════════════════════════════
 # 2. 性能追踪器
@@ -195,7 +188,7 @@ class PerformanceTracker:
         n = len(recent)
         if n == 0:
             snapshot = MetricSnapshot(
-                timestamp=datetime.now().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
                 accuracy=0, macro_f1=0, h_f1=0, d_f1=0, a_f1=0,
                 sample_count=0,
             )
@@ -230,7 +223,7 @@ class PerformanceTracker:
             macro = (h_f1 + d_f1 + a_f1) / 3
 
             snapshot = MetricSnapshot(
-                timestamp=datetime.now().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
                 accuracy=acc, macro_f1=macro,
                 h_f1=h_f1, d_f1=d_f1, a_f1=a_f1,
                 sample_count=n,
@@ -286,7 +279,6 @@ class PerformanceTracker:
                 return True, f"Draw-F1连续下降: {d_f1s[0]:.3f}→{d_f1s[-1]:.3f}"
 
         return False, ""
-
 
 # ═══════════════════════════════════════════════════════════════
 # 3. 漂移检测器
@@ -387,14 +379,13 @@ class DriftDetector:
         if trigger_retrain:
             summary += ", ⚠️ 建议触发重训"
 
-        self._last_check = datetime.now()
+        self._last_check = datetime.now(timezone.utc)
 
         return DriftReport(
             psi_score=psi, drift_level=level,
             drifted_features=drifted, importance_drift=imp_drift,
             triggered_retrain=trigger_retrain, summary=summary,
         )
-
 
 # ═══════════════════════════════════════════════════════════════
 # 4. A/B 实验框架
@@ -448,7 +439,6 @@ class ABExperiment:
             significant=significant, winner=winner,
             sample_count=n, recommendation=rec,
         )
-
 
 # ═══════════════════════════════════════════════════════════════
 # 5. 自我诊断器
@@ -549,9 +539,8 @@ class SelfDiagnoser:
             drift_summary=drift_summary,
             retrain_recommended=retrain_recommended,
             retrain_urgency=retrain_urgency,
-            generated_at=datetime.now().isoformat(),
+            generated_at=datetime.now(timezone.utc).isoformat(),
         )
-
 
 # ═══════════════════════════════════════════════════════════════
 # 6. 自主优化引擎 (整合)
@@ -652,20 +641,17 @@ class AutoOptimizer:
         else:
             return "✅ 系统健康。保持当前监控频率"
 
-
 # ═══════════════════════════════════════════════════════════════
 # 7. 全局单例
 # ═══════════════════════════════════════════════════════════════
 
 _optimizer: Optional[AutoOptimizer] = None
 
-
 def get_optimizer() -> AutoOptimizer:
     global _optimizer
     if _optimizer is None:
         _optimizer = AutoOptimizer()
     return _optimizer
-
 
 def reset_optimizer():
     global _optimizer

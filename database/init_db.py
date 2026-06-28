@@ -5,17 +5,15 @@
 """
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database.db_manager import get_db
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 import logging
 
 logger = logging.getLogger(__name__)
 
 # 目标联赛（全部14个联赛）
 ACTIVE_LEAGUES = ["PL", "BL1", "PD", "SA", "FL1", "CL", "WC", "EC", "BSA", "DED", "PPL", "ELC", "MLS", "CSL"]
-
 
 def _fetch_real_data(api_key: str = None) -> int:
     """
@@ -36,7 +34,7 @@ def _fetch_real_data(api_key: str = None) -> int:
 
     db = get_db()
     collector = FDC(api_key=key)
-    today = datetime.now()
+    today = datetime.now(timezone.utc)
     date_from = (today - timedelta(days=3)).strftime('%Y-%m-%d')
     date_to = (today + timedelta(days=14)).strftime('%Y-%m-%d')
 
@@ -84,7 +82,6 @@ def _fetch_real_data(api_key: str = None) -> int:
 
     return total_fetched
 
-
 def init_sample_data(use_real: bool = True):
     """
     初始化数据库（真实数据优先）
@@ -120,7 +117,6 @@ def init_sample_data(use_real: bool = True):
     if stats.get('total_matches', 0) == 0:
         logger.warning("  ⚠️ 数据库暂无比赛数据！请运行数据采集脚本或配置API Key")
     logger.info(f"{'='*50}\n")
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO,

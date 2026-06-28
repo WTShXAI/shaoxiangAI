@@ -25,7 +25,7 @@ import time
 import hashlib
 import logging
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -34,8 +34,6 @@ import numpy as np
 
 # 将项目根加入路径
 _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
 
 from ensemble_trainer import EnsembleTrainer
 from optimize.model_registry import ModelRegistry, get_registry
@@ -46,7 +44,6 @@ logging.basicConfig(
     format='%(asctime)s [%(levelname)s] [Pipeline] %(message)s'
 )
 logger = logging.getLogger('TrainingPipeline')
-
 
 class TrainingPipeline:
     """自动化训练流水线 — 集成版本管理"""
@@ -255,7 +252,7 @@ class TrainingPipeline:
         semver = self._suggest_semver(self.registry)
         saved_models_dir = os.path.join(_project_root, 'saved_models')
         os.makedirs(saved_models_dir, exist_ok=True)
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
         model_filename = f"football_ensemble_{timestamp}.joblib"
         model_path = os.path.join(saved_models_dir, model_filename)
 
@@ -318,7 +315,7 @@ class TrainingPipeline:
             'train_seconds': round(train_seconds, 1),
             'total_seconds': round(elapsed, 1),
             'comparison': comparison,
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
         }
 
         logger.info(f"流水线完成 ({elapsed:.0f}s)")
@@ -370,13 +367,12 @@ class TrainingPipeline:
                 data_hash = self._compute_data_hash(df_train)
                 if self._last_data_hash != data_hash:
                     self.run(df_train, df_test, n_estimators=n_estimators,
-                             description=f"守护模式自动训练 {datetime.now().strftime('%Y-%m-%d')}")
+                             description=f"守护模式自动训练 {datetime.now(timezone.utc).strftime('%Y-%m-%d')}")
 
             except (Exception, KeyError, IndexError) as e:
                 logger.error(f"守护模式异常: {e}", exc_info=True)
 
             time.sleep(interval_seconds)
-
 
 # ══════════════════════════════════════════════════
 # CLI

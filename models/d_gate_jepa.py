@@ -21,7 +21,7 @@ JEPA重定义:
 为什么JEPA D-Gate更好:
   1. 不再依赖单一概率维度 (P(D))，而是利用嵌入空间的全部16维信息
   2. 嵌入距离天然考虑了赔率结构的所有方面 (实力差、不确定性、资金流)
-  3. 传统margin=0.02 → GARBAGE zone 是离散边界; 
+  3. 传统margin=0.02 → GARBAGE zone 是离散边界
      JEPA连续距离能区分 margin=0.01 vs margin=0.019 的不同可信度
   4. 防坍塌: VICReg保证嵌入空间有足够的区分度
 
@@ -35,7 +35,6 @@ from dataclasses import dataclass, field
 import logging
 
 logger = logging.getLogger(__name__)
-
 
 # ═══════════════════════════════════════════════════════════════
 # 赛果原型嵌入
@@ -105,7 +104,6 @@ OUTCOME_PROTOTYPES = {
     ]),
 }
 
-
 # ═══════════════════════════════════════════════════════════════
 # JEPA D-Gate 数据类
 # ═══════════════════════════════════════════════════════════════
@@ -161,7 +159,6 @@ class JEPADGateResult:
             'downgrade_reason': self.downgrade_reason,
             'interpretation': self.interpretation,
         }
-
 
 # ═══════════════════════════════════════════════════════════════
 # JEPA D-Gate 分析器
@@ -401,20 +398,17 @@ class JEPADGate:
             'disagreement_analysis': disagreement,
         }
 
-
 # ═══════════════════════════════════════════════════════════════
 # 嵌入空间D-Gate快速入口
 # ═══════════════════════════════════════════════════════════════
 
 _d_gate_instance: Optional[JEPADGate] = None
 
-
 def get_jepa_d_gate() -> JEPADGate:
     global _d_gate_instance
     if _d_gate_instance is None:
         _d_gate_instance = JEPADGate()
     return _d_gate_instance
-
 
 def quick_d_gate(odds_h: float, odds_d: float, odds_a: float,
                  h_prob: float = None, d_prob: float = None, a_prob: float = None,

@@ -20,7 +20,7 @@ v3.2 指标: Acc=59.20%, Draw-F1=0.504, AUC=0.814 (vs v3.1: 53.48%/0.323/0.704)
 - 阈值优化 (per-class)
 """
 import sys, os, logging, yaml, joblib, time, warnings, json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Tuple, Optional, Any
 import numpy as np
 import pandas as pd
@@ -63,10 +63,8 @@ try:
 except ImportError as e:
     raise ImportError(f"scikit-learn 依赖缺失: {e}")
 
-
 # ── 全局开关: 一键控制 v6 高阶模块 ──
 ENABLE_ADVANCED_OPTIMIZATION = True  # False 时完全还原 v3.2 原生逻辑
-
 
 def get_active_version() -> str:
     """从 model_registry.json 读取当前活跃版本号 (单一版本来源)"""
@@ -83,7 +81,6 @@ def get_active_version() -> str:
     except Exception:
         pass
     return '3.2'
-
 
 class EnsembleTrainer:
     """
@@ -1744,7 +1741,7 @@ class EnsembleTrainer:
         """
         self.logger.info("=" * 70)
         self.logger.info("  哨响AI 集成模型训练 v2.5 (312K+Stacking+ValueBet+LeagueAware)")
-        self.logger.info(f"  开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        self.logger.info(f"  开始时间: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}")
         self.logger.info("=" * 70)
 
         # 1. 数据准备
@@ -2091,7 +2088,7 @@ class EnsembleTrainer:
             filepath = save_path
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
         else:
-            timestamp = datetime.now().strftime(self.config['output']['timestamp_format'])
+            timestamp = datetime.now(timezone.utc).strftime(self.config['output']['timestamp_format'])
             prefix = self.config['output']['model_prefix']
             filename = f"{prefix}_{timestamp}.joblib"
             filepath = os.path.join(self._model_dir, filename)
@@ -2121,7 +2118,7 @@ class EnsembleTrainer:
             'meta_learner': self.meta_learner,  # v2.5
             'league_d_rates': self.league_d_rates,  # v2.5
             'global_d_rate': getattr(self, 'global_d_rate', 0.257),  # v2.5
-            'train_timestamp': datetime.now().isoformat(),
+            'train_timestamp': datetime.now(timezone.utc).isoformat(),
             'version': self.model_version if hasattr(self, 'model_version') else '3.2',
             'xgb_info': xgb_info or {},
             'lgb_info': lgb_info or {},
@@ -2174,7 +2171,7 @@ class EnsembleTrainer:
 
             entry = {
                 'version': getattr(self, 'model_version', '3.2'),
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'accuracy': _safe_float(eval_metrics.get('accuracy')),
                 'auc': _safe_float(eval_metrics.get('auc_macro')),
                 'mcc': _safe_float(eval_metrics.get('mcc')),
@@ -2490,7 +2487,6 @@ class EnsembleTrainer:
                 X_odds = self.odds_scaler.transform(X_odds)
             return X_odds
         return None
-
 
 # ══════════════════════════════════════════════════
 # 便捷函数

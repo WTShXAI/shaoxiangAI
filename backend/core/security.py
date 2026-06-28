@@ -24,7 +24,6 @@ oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_PREFIX}/auth/login", auto_error=False
 )
 
-
 # ── 角色定义 ──────────────────────────────
 class Role:
     ADMIN = "admin"
@@ -37,18 +36,15 @@ class Role:
     def can(cls, user_role: str, required: str) -> bool:
         return cls.HIERARCHY.get(user_role, 0) >= cls.HIERARCHY.get(required, 0)
 
-
 # ── Pydantic 模型 ─────────────────────────
 class TokenData(BaseModel):
     username: str
     role: str
 
-
 class UserOut(BaseModel):
     username: str
     role: str
     email: Optional[str] = None
-
 
 # ── 数据库初始化 ──────────────────────────
 def _init_default_user():
@@ -58,7 +54,6 @@ def _init_default_user():
     """
     logger.info("认证已禁用，跳过默认管理员用户初始化。")
     return
-
 
 # ── JWT 创建/验证 ─────────────────────────
 def create_access_token(data: dict) -> str:
@@ -70,7 +65,6 @@ def create_access_token(data: dict) -> str:
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
-
 def verify_password(plain: str, hashed: str) -> bool:
     """验证密码，仅使用 bcrypt，不降级到弱哈希。"""
     try:
@@ -78,7 +72,6 @@ def verify_password(plain: str, hashed: str) -> bool:
     except (ValueError, TypeError) as e:
         logger.debug(f"密码验证失败: {e}")
         return False
-
 
 def authenticate_user(username: str, password: str, db: Session) -> Optional[Dict]:
     """从数据库验证用户"""
@@ -96,7 +89,6 @@ def authenticate_user(username: str, password: str, db: Session) -> Optional[Dic
         "email": user.email,
     }
 
-
 # ── FastAPI 依赖 ──────────────────────────
 async def get_current_user(token: Optional[str] = None) -> UserOut:
     """获取当前登录用户。
@@ -106,7 +98,6 @@ async def get_current_user(token: Optional[str] = None) -> UserOut:
     """
     return UserOut(username="admin", role=Role.ADMIN, email="admin@localhost")
 
-
 def require_role(required_role: str):
     """角色依赖工厂 — 认证已禁用，所有角色检查放行。"""
 
@@ -115,7 +106,6 @@ def require_role(required_role: str):
         return user
 
     return role_checker
-
 
 require_admin = require_role(Role.ADMIN)
 require_operator = require_role(Role.OPERATOR)

@@ -31,8 +31,7 @@ _fai_candidates = [
     r'D:\AI\footballAI',
 ]
 FOOTBALLAI_ROOT = next((p for p in _fai_candidates if p and os.path.isdir(p)), ARCH_ROOT)
-sys.path.insert(0, FOOTBALLAI_ROOT)
-sys.path.insert(0, ARCH_ROOT)  # 确保可以导入 utils.constants
+
 os.environ.setdefault('PROJECT_ROOT', FOOTBALLAI_ROOT)
 
 from ensemble_trainer import EnsembleTrainer
@@ -98,7 +97,6 @@ def load_and_prepare():
 
     logger.info(f"准备耗时: {time.time()-t0:.1f}s")
     return trainer, X_all, y_cls, df, draw_expert, de_scaler
-
 
 def generate_oof_metafeatures(trainer, X_all, y_cls, df, draw_expert, de_scaler):
     """生成 honest OOF meta-features"""
@@ -213,7 +211,6 @@ def generate_oof_metafeatures(trainer, X_all, y_cls, df, draw_expert, de_scaler)
 
     return meta, y_oof, scaler, de_pdraw
 
-
 def search_optimal_config(meta_base, y_oof, de_pdraw):
     """
     搜索最优配置:
@@ -327,7 +324,6 @@ def search_optimal_config(meta_base, y_oof, de_pdraw):
 
     return best, results
 
-
 def final_evaluation(meta_base, y_oof, de_pdraw, best_config):
     """最终评估 + 对比"""
     logger.info("\n" + "=" * 60)
@@ -405,7 +401,6 @@ def final_evaluation(meta_base, y_oof, de_pdraw, best_config):
 
     return acc, v41_f1, mcc, auc_val
 
-
 def main():
     t_start = time.time()
 
@@ -425,7 +420,7 @@ def main():
     # 保存
     report = {
         'version': '4.1',
-        'timestamp': __import__('datetime').datetime.now().isoformat(),
+        'timestamp': __import__('datetime').datetime.now(timezone.utc).isoformat(),
         'n_oof': int(len(y_oof)),
         'best_config': best_config,
         'results_top10': all_results[:10],
@@ -445,7 +440,6 @@ def main():
 
     logger.info(f"\n📄 报告: {RESULTS_FILE}")
     logger.info(f"⏱️ 总耗时: {report['elapsed_seconds']:.1f}s")
-
 
 if __name__ == '__main__':
     main()

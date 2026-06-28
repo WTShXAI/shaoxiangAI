@@ -29,7 +29,6 @@ from enum import Enum
 
 logger = logging.getLogger('RiskBarrier')
 
-
 # ═══════════════════════════════════════════════════════════════
 # 1. 数据结构
 # ═══════════════════════════════════════════════════════════════
@@ -41,7 +40,6 @@ class BarrierType(Enum):
     R_WATER = 3       # 水位: 凯利/返奖率
     R_CROSS = 4       # 跨市场: 盘口不一致
 
-
 class BookmakerIntent(Enum):
     """庄家意图推断"""
     NEUTRAL = "neutral"            # 无明显意图
@@ -50,7 +48,6 @@ class BookmakerIntent(Enum):
     ATTRACT_AWAY = "attract_away"  # 诱客
     SUPPRESS_FAVORITE = "suppress_favorite"  # 压热门
     HARVESTING = "harvesting"      # 收割模式
-
 
 @dataclass
 class BarrierSignal:
@@ -63,7 +60,6 @@ class BarrierSignal:
     evidence: str                  # 证据
     impact: str = ""               # 对预测的影响
     odds_value: float = 0.0        # 相关赔率数值
-
 
 @dataclass
 class RiskBarrierReport:
@@ -95,7 +91,6 @@ class RiskBarrierReport:
     harvesting_risk: bool = False
     trap_active: bool = False
     summary: str = ""
-
 
 # ═══════════════════════════════════════════════════════════════
 # 2. 核心引擎
@@ -492,7 +487,6 @@ class RiskBarrierEngine:
             lines.append(f"        P(D) {'+' if report.d_prob_adjust>0 else ''}{report.d_prob_adjust:.0%}")
 
         return "\n".join(lines)
-
 
 # ═══════════════════════════════════════════════════════════════
 # 3. 单例

@@ -34,7 +34,6 @@ from enum import Enum
 
 logger = logging.getLogger(__name__)
 
-
 # ═══════════════════════════════════════════════════════════════
 # 1. 分析结果数据结构
 # ═══════════════════════════════════════════════════════════════
@@ -46,14 +45,12 @@ class TrapRiskLevel(Enum):
     DANGER = "danger"          # 危险
     HARVESTING = "harvesting"  # 收割区
 
-
 class BookmakerConfidence(Enum):
     """庄家自信度"""
     HIGH = "high"              # 高自信 (抽水低+赔率稳定)
     NORMAL = "normal"          # 正常
     UNSURE = "unsure"          # 不确定
     HEDGING = "hedging"        # 对冲中 (抽水高+赔率波动)
-
 
 @dataclass
 class MarginDecomposition:
@@ -73,7 +70,6 @@ class MarginDecomposition:
             "interpretation": self.interpretation,
         }
 
-
 @dataclass
 class ImpliedProbabilityBreakdown:
     """隐含概率分解"""
@@ -89,7 +85,6 @@ class ImpliedProbabilityBreakdown:
             "fair_odds": {k: round(v, 4) for k, v in self.fair_odds.items()},
             "correction_magnitude": round(self.correction_magnitude, 4),
         }
-
 
 @dataclass
 class TrapDetectionResult:
@@ -108,7 +103,6 @@ class TrapDetectionResult:
             "recommendation": self.recommendation,
             "details": self.details,
         }
-
 
 @dataclass
 class OddsDeepReport:
@@ -170,7 +164,6 @@ class OddsDeepReport:
             },
             "meta": {"analysis_time_ms": round(self.analysis_time_ms, 2)},
         }
-
 
 # ═══════════════════════════════════════════════════════════════
 # 2. 赔率深度分析引擎
@@ -551,13 +544,11 @@ class OddsDeepAnalyzer:
         else:
             return "normal", "✅ 赔率结构正常, 无异常信号"
 
-
 # ═══════════════════════════════════════════════════════════════
 # 3. 全局单例
 # ═══════════════════════════════════════════════════════════════
 
 _analyzer_instance: Optional[OddsDeepAnalyzer] = None
-
 
 def get_odds_analyzer() -> OddsDeepAnalyzer:
     """获取赔率分析器单例"""
@@ -565,7 +556,6 @@ def get_odds_analyzer() -> OddsDeepAnalyzer:
     if _analyzer_instance is None:
         _analyzer_instance = OddsDeepAnalyzer()
     return _analyzer_instance
-
 
 def reset_odds_analyzer():
     """重置单例 (测试用)"""

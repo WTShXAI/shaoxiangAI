@@ -37,7 +37,6 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-
 # ═══════════════════════════════════════════════════════════════
 # 1. 数据结构
 # ═══════════════════════════════════════════════════════════════
@@ -71,7 +70,6 @@ class MatchResult:
         else:
             return 0
 
-
 @dataclass
 class CommonOpponentCompare:
     """共同对手对比"""
@@ -85,7 +83,6 @@ class CommonOpponentCompare:
     advantage: str                # "A"/"B"/"相当"
     key_diff: str                 # 关键差异描述
     significance: float = 1.0     # 显著性 [0,1]
-
 
 @dataclass
 class CrossCompareResult:
@@ -102,7 +99,6 @@ class CrossCompareResult:
     upset_alert: bool = False             # 冷门预警
     upset_reason: str = ""                # 预警原因
     p_draw_boost: float = 0.0             # P(D) 提升量
-
 
 # ═══════════════════════════════════════════════════════════════
 # 2. 核心引擎
@@ -328,11 +324,9 @@ class CrossOpponentAnalyzer:
 
         return alt_scores[:4]
 
-
 def away_result_str(mr: MatchResult) -> str:
     """客队赛果描述"""
     return f"{mr.goals_for}-{mr.goals_against}({mr.home_away})"
-
 
 # ═══════════════════════════════════════════════════════════════
 # 3. 世界杯2026已知共同对手数据 (从原路线移植)
@@ -355,7 +349,6 @@ KNOWN_COMMON_OPPONENTS: Dict[str, Tuple[List[MatchResult], List[MatchResult]]] =
         [MatchResult("巴西", "away", 0, 2, "official")],
     ),
 }
-
 
 def get_known_common_opponents(home: str, away: str) -> Tuple[List[MatchResult], List[MatchResult]]:
     """获取已知的共同对手数据 (精确匹配 + 模糊匹配)"""

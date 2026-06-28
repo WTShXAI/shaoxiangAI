@@ -61,7 +61,6 @@ COMPETITIONS = {
     "EC": "欧洲杯",
 }
 
-
 class CORSProxyHandler(http.server.BaseHTTPRequestHandler):
     """CORS 代理处理器"""
 
@@ -456,61 +455,59 @@ class CORSProxyHandler(http.server.BaseHTTPRequestHandler):
 </div>
 
 <script>
-const BASE = `http://localhost:{PORT}`;
-
+const BASE = `http://localhost:{PORT}`
 async function fetchMultiDay() {{
-    const comps = document.getElementById('compInput').value;
-    const days = document.getElementById('daysInput').value;
-    const el = document.getElementById('multiDayResult');
-    el.textContent = '加载中...';
+    const comps = document.getElementById('compInput').value
+    const days = document.getElementById('daysInput').value
+    const el = document.getElementById('multiDayResult')
+    el.textContent = '加载中...'
     try {{
-        const resp = await fetch(`${{BASE}}/matches/multi-day?competition_ids=${{encodeURIComponent(comps)}}&days=${{days}}`);
-        const data = await resp.json();
-        el.textContent = JSON.stringify(data, null, 2);
+        const resp = await fetch(`${{BASE}}/matches/multi-day?competition_ids=${{encodeURIComponent(comps)}}&days=${{days}}`)
+        const data = await resp.json()
+        el.textContent = JSON.stringify(data, null, 2)
     }} catch(e) {{
-        el.textContent = '❌ 请求失败: ' + e.message;
+        el.textContent = '❌ 请求失败: ' + e.message
     }}
 }}
 
 async function fetchAllLeagues() {{
-    const el = document.getElementById('multiDayResult');
-    el.textContent = '加载中...（14个联赛，可能需要几秒）';
+    const el = document.getElementById('multiDayResult')
+    el.textContent = '加载中...（14个联赛，可能需要几秒）'
     try {{
-        const resp = await fetch(`${{BASE}}/matches/multi-day?days=9`);
-        const data = await resp.json();
-        el.textContent = `✅ 共 ${{data.total_matches}} 场比赛\\n` + JSON.stringify(data, null, 2);
+        const resp = await fetch(`${{BASE}}/matches/multi-day?days=9`)
+        const data = await resp.json()
+        el.textContent = `✅ 共 ${{data.total_matches}} 场比赛\\n` + JSON.stringify(data, null, 2)
     }} catch(e) {{
-        el.textContent = '❌ 请求失败: ' + e.message;
+        el.textContent = '❌ 请求失败: ' + e.message
     }}
 }}
 
 async function fetchTodayAll() {{
-    const el = document.getElementById('multiDayResult');
-    el.textContent = '加载中...';
+    const el = document.getElementById('multiDayResult')
+    el.textContent = '加载中...'
     try {{
-        const resp = await fetch(`${{BASE}}/matches/today-all`);
-        const data = await resp.json();
-        el.textContent = `✅ 今日共 ${{data.total_matches}} 场比赛\\n` + JSON.stringify(data, null, 2);
+        const resp = await fetch(`${{BASE}}/matches/today-all`)
+        const data = await resp.json()
+        el.textContent = `✅ 今日共 ${{data.total_matches}} 场比赛\\n` + JSON.stringify(data, null, 2)
     }} catch(e) {{
-        el.textContent = '❌ 请求失败: ' + e.message;
+        el.textContent = '❌ 请求失败: ' + e.message
     }}
 }}
 
 async function fetchLeague(cid) {{
-    const el = document.getElementById('multiDayResult');
-    el.textContent = `加载 ${{cid}} 数据中...`;
+    const el = document.getElementById('multiDayResult')
+    el.textContent = `加载 ${{cid}} 数据中...`
     try {{
-        const resp = await fetch(`${{BASE}}/proxy/competitions/${{cid}}/matches`);
-        const data = await resp.json();
-        el.textContent = JSON.stringify(data, null, 2);
+        const resp = await fetch(`${{BASE}}/proxy/competitions/${{cid}}/matches`)
+        const data = await resp.json()
+        el.textContent = JSON.stringify(data, null, 2)
     }} catch(e) {{
-        el.textContent = '❌ 请求失败: ' + e.message;
+        el.textContent = '❌ 请求失败: ' + e.message
     }}
 }}
 </script>
 </body>
 </html>"""
-
 
 PORT = int(os.getenv("PROXY_PORT", "5001"))
 

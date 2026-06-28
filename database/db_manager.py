@@ -6,7 +6,7 @@ import sqlite3
 import os
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Tuple, Any
 from contextlib import contextmanager
 from typing import Optional, Dict
@@ -14,7 +14,6 @@ from typing import Optional, Dict
 logger = logging.getLogger(__name__)
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'football_data.db')
-
 
 class DatabaseManager:
     """SQLite数据库管理器"""
@@ -673,7 +672,7 @@ class DatabaseManager:
             odds_data.get('asian_handicap'), odds_data.get('over_under'),
             odds_data.get('over_odds'), odds_data.get('under_odds'),
             odds_data.get('return_rate', 0.95),
-            odds_data.get('odds_timestamp', datetime.now().isoformat())
+            odds_data.get('odds_timestamp', datetime.now(timezone.utc).isoformat())
         ))
         return cursor.lastrowid
 
@@ -721,7 +720,7 @@ class DatabaseManager:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             pred_data.get('match_id'), pred_data.get('model_version', 'linear_regression_v1'),
-            pred_data.get('prediction_time', datetime.now().isoformat()),
+            pred_data.get('prediction_time', datetime.now(timezone.utc).isoformat()),
             pred_data.get('home_prob'), pred_data.get('draw_prob'), pred_data.get('away_prob'),
             pred_data.get('value_gap', 0.0), pred_data.get('kelly_percentage', 0.0),
             pred_data.get('expected_value', 0.0), pred_data.get('decision', 'PASS'),
@@ -846,7 +845,7 @@ class DatabaseManager:
         if status in ('finished', 'live', 'expired'):
             return False, f'比赛状态为 {status}，无法预测', match
         # 检查日期
-        if match_date and match_date < datetime.now().strftime('%Y-%m-%d'):
+        if match_date and match_date < datetime.now(timezone.utc).strftime('%Y-%m-%d'):
             # 自动归档
             self.archive_expired_matches()
             return False, f'比赛日期 {match_date} 已过期，已自动归档', match
@@ -1005,7 +1004,7 @@ class DatabaseManager:
                 odds_data.get('asian_handicap'), odds_data.get('over_under'),
                 odds_data.get('over_odds'), odds_data.get('under_odds'),
                 odds_data.get('return_rate', 0.95),
-                odds_data.get('odds_timestamp', datetime.now().isoformat())
+                odds_data.get('odds_timestamp', datetime.now(timezone.utc).isoformat())
             ))
             return cursor.lastrowid
 
@@ -1078,7 +1077,7 @@ class DatabaseManager:
                     odds.get('provider', 'football-data.org'),
                     odds.get('home_odds'), odds.get('draw_odds'), odds.get('away_odds'),
                     odds.get('asian_handicap'),
-                    odds.get('odds_timestamp', datetime.now().isoformat()),
+                    odds.get('odds_timestamp', datetime.now(timezone.utc).isoformat()),
                 ))
                 count += 1
         return count
@@ -1182,7 +1181,7 @@ class DatabaseManager:
                 int(weather.get('is_cold', False)),
                 int(weather.get('is_hot', False)),
                 weather.get('source', 'open-meteo'),
-                weather.get('fetched_at', datetime.now().isoformat()),
+                weather.get('fetched_at', datetime.now(timezone.utc).isoformat()),
             ))
         return True
 
@@ -1239,7 +1238,7 @@ class DatabaseManager:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 pred_data.get('match_id'), pred_data.get('model_version', 'linear_regression_v1'),
-                pred_data.get('prediction_time', datetime.now().isoformat()),
+                pred_data.get('prediction_time', datetime.now(timezone.utc).isoformat()),
                 pred_data.get('home_prob'), pred_data.get('draw_prob'), pred_data.get('away_prob'),
                 pred_data.get('value_gap', 0.0), pred_data.get('kelly_percentage', 0.0),
                 pred_data.get('expected_value', 0.0), pred_data.get('decision', 'PASS'),
@@ -1326,7 +1325,7 @@ class DatabaseManager:
                     train_cutoff_date, test_cutoff_date)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
-                record_data.get('training_date', datetime.now().strftime('%Y-%m-%d')),
+                record_data.get('training_date', datetime.now(timezone.utc).strftime('%Y-%m-%d')),
                 record_data.get('model_name'), record_data.get('algorithm'),
                 record_data.get('training_samples', 0), record_data.get('test_samples', 0),
                 record_data.get('feature_count', 0), record_data.get('training_score', 0.0),
@@ -1357,7 +1356,7 @@ class DatabaseManager:
             cursor.execute('''
                 INSERT INTO task_logs (task_name, task_type, start_time, status)
                 VALUES (?, ?, ?, 'RUNNING')
-            ''', (task_name, task_type, datetime.now().isoformat()))
+            ''', (task_name, task_type, datetime.now(timezone.utc).isoformat()))
             return cursor.lastrowid
 
     def log_task_end(self, log_id: int, status: str, records: int = 0, error: str = None) -> None:
@@ -1366,7 +1365,7 @@ class DatabaseManager:
             conn.execute('''
                 UPDATE task_logs SET end_time=?, status=?, records_processed=?, error_message=?
                 WHERE log_id=?
-            ''', (datetime.now().isoformat(), status, records, error, log_id))
+            ''', (datetime.now(timezone.utc).isoformat(), status, records, error, log_id))
 
     def get_recent_task_logs(self, limit: int = 20) -> List[Dict]:
         """获取最近的任务日志"""
@@ -1917,7 +1916,7 @@ class DatabaseManager:
         复盘统计：多维度分析投注准确率、ROI、联赛分布等
         """
         import math
-        since = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+        since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime('%Y-%m-%d')
         with self.get_connection() as conn:
             # 基础统计
             total = conn.execute(
@@ -2084,7 +2083,6 @@ class DatabaseManager:
                 'latest_sync': dict(latest_sync) if latest_sync else None,
                 'has_historical_data': completed_seasons > 0,
             }
-
 
     # ===================== 预测服务专用查询 =====================
 
@@ -2325,7 +2323,6 @@ class DatabaseManager:
 
 # 全局数据库实例
 _db_instance = None
-
 
 def get_db() -> DatabaseManager:
     """获取数据库单例"""

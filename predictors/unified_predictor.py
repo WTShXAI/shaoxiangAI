@@ -36,8 +36,10 @@ v4.1 增强:
 """
 import os, sys, math, logging, warnings
 from typing import Dict, Optional, Tuple, Any
-from datetime import datetime
+from datetime import datetime, timezone
 import numpy as np
+
+from predictors.base import PredictorBase, MatchData, PredictionResult
 
 warnings.filterwarnings('ignore')
 logging.basicConfig(level=logging.WARNING)
@@ -46,7 +48,6 @@ logger = logging.getLogger(__name__)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # 修复P0-13: 消除footballAI外部依赖, 项目内components自包含
 FOOTBALLAI_ROOT = os.path.join(ROOT, 'predictors', 'components')  # 内部化
-sys.path.insert(0, FOOTBALLAI_ROOT)
 
 # ── 加载依赖 (带fallback) ──
 _DEPS = {}
@@ -64,8 +65,7 @@ def _lazy_import(name, module_path, class_name=None):
         _DEPS[name] = None
         return None
 
-
-class UnifiedPredictor:
+class UnifiedPredictor(PredictorBase):
     """
     FootballAI v4.0 统一预测器
     
@@ -288,7 +288,7 @@ class UnifiedPredictor:
             over_water/under_water: 大小球水位
             open_h/d/a: 欧赔开盘价 (0=未知, 使用收盘价)
         """
-        t0 = datetime.now()
+        t0 = datetime.now(timezone.utc)
 
         if not self._ready:
             return self._fallback(odds_h, odds_d, odds_a)
@@ -297,7 +297,7 @@ class UnifiedPredictor:
             'home': home,
             'away': away,
             'odds': {'H': odds_h, 'D': odds_d, 'A': odds_a},
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'warnings': [],
         }
 
@@ -488,7 +488,7 @@ class UnifiedPredictor:
         goal_pred = self._predict_goals(final_probs, odds_h, odds_d, odds_a,
                                         over_water, under_water, ou_line)
 
-        elapsed = (datetime.now() - t0).total_seconds() * 1000
+        elapsed = (datetime.now(timezone.utc) - t0).total_seconds() * 1000
 
         result.update({
             'probabilities': {
@@ -584,12 +584,13 @@ class UnifiedPredictor:
                 proba = proba / proba.sum()
                 logger.info(f"[SKY冷启动] cov={coverage:.0%} XGB={proba_xgb_raw[0]:.2f}/{proba_xgb_raw[1]:.2f} LGB={proba_lgb_raw[0]:.2f}/{proba_lgb_raw[1]:.2f} DE={de_signal[1]:.2f} → final={proba[0]:.3f}/{proba[1]:.3f}/{proba[2]:.3f}")
                 return proba
-            except Exception:
-                pass  # 降级到标准路径
+            except Exception as e:
+                logger.debug("SKY冷启动失败, 降级到标准路径: %s", e)
 
         try:
             proba = self.trainer.ensemble_predict_proba(X)
-        except Exception:
+        except Exception as e:
+            logger.error("模型预测异常, 返回均匀概率: %s", e)
             return np.array([0.40, 0.28, 0.32])
 
         proba = proba[0] / proba[0].sum()
@@ -730,6 +731,49 @@ class UnifiedPredictor:
             'elapsed_ms': 0,
         }
 
+    # ══════════════════════════════════════
+    # PredictorBase 统一接口 (2026-06-28)
+    # ══════════════════════════════════════
+
+    def predict_match(self, match: MatchData) -> PredictionResult:
+        """实现 PredictorBase.predict_match()"""
+        result_dict = self.predict(
+            home=match.home, away=match.away,
+            odds_h=match.odds_h, odds_d=match.odds_d, odds_a=match.odds_a,
+            asian_handicap=match.handicap, ou_line=match.ou_line,
+            over_water=match.over_water, under_water=match.under_water,
+            open_h=match.open_h, open_d=match.open_d, open_a=match.open_a,
+            match_type=match.match_type,
+        )
+        probs = result_dict.get('probabilities', {})
+        pred_raw = result_dict.get('prediction', 'H')
+        if isinstance(pred_raw, str) and len(pred_raw) == 1:
+            pred_code = pred_raw
+        elif pred_raw in ('主胜', 'home', 'H'):
+            pred_code = 'H'
+        elif pred_raw in ('客胜', 'away', 'A'):
+            pred_code = 'A'
+        else:
+            pred_code = 'D'
+        return PredictionResult(
+            probabilities=probs if isinstance(probs, dict) else {'H': 0.0, 'D': 0.0, 'A': 0.0},
+            prediction=pred_code,
+            confidence=float(result_dict.get('confidence', 0.0)),
+            model_version=f"Unified {self.__class__.__name__}",
+            scores=result_dict.get('top_scores'),
+            trap_score=float(result_dict.get('trap_level', 'none') != 'none'),
+            draw_signal=float(result_dict.get('draw_signal', 0.0)),
+            risk_tag=result_dict.get('risk_tag', 'neutral'),
+            dgate_mode=result_dict.get('dgate_mode', 'none'),
+            extra={'method': result_dict.get('method', '')},
+        )
+
+    @property
+    def model_version(self) -> str:
+        return f"UnifiedPredictor {self.__class__.__name__}"
+
+    def is_loaded(self) -> bool:
+        return self._ready
 
 # ── 便捷工厂 ──
 _unified_instance = None
@@ -740,7 +784,6 @@ def get_unified_predictor() -> UnifiedPredictor:
     if _unified_instance is None:
         _unified_instance = UnifiedPredictor()
     return _unified_instance
-
 
 # ── CLI 测试 ──
 if __name__ == '__main__':

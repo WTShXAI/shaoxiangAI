@@ -19,7 +19,6 @@ from collections import defaultdict
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 
 DB_PATH = PROJECT_ROOT / "data" / "football_data.db"
 REPORT_DIR = PROJECT_ROOT / "pipeline" / "reports"
@@ -35,7 +34,6 @@ def load_all_data():
     db.close()
     return rows
 
-
 # ═══════════════════════════════════════════════════════════
 # 指标计算
 # ═══════════════════════════════════════════════════════════
@@ -50,7 +48,6 @@ def f1_per_class(preds, labels, target):
     prec = tp / (tp + fp) if (tp + fp) > 0 else 0
     rec = tp / (tp + fn) if (tp + fn) > 0 else 0
     return 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0, prec, rec
-
 
 # ═══════════════════════════════════════════════════════════
 # 回测核心
@@ -279,7 +276,6 @@ def run_backtest():
     print(f"   发现 {len(report['findings'])} 个关键问题")
 
     return report
-
 
 if __name__ == "__main__":
     report = run_backtest()

@@ -4,7 +4,7 @@ Post-training temperature calibration for JEPALite (epoch 12, plain VICReg)
 LeCun EBM principle: calibrate the energy landscape with temperature, don't modify training loss.
 """
 import sys, os, json, math
-sys.path.insert(0, 'D:/Architecture v4.0')
+
 import numpy as np, torch
 from collections import Counter
 

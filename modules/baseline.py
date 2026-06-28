@@ -19,7 +19,7 @@
 import sqlite3
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Tuple, Optional, Any
 
 import numpy as np
@@ -33,7 +33,6 @@ from sklearn.metrics import (
 )
 
 logger = logging.getLogger(__name__)
-
 
 # ============================================================
 # 基准模型 1: 恒定主胜
@@ -58,7 +57,6 @@ class AlwaysHomeBaseline:
 
     def predict_batch(self, feature_list: List) -> List[Dict]:
         return [self.predict() for _ in feature_list]
-
 
 # ============================================================
 # 基准模型 2: 逻辑回归
@@ -104,7 +102,6 @@ class LogisticBaseline:
             return np.tile([1.0, 0.0, 0.0], (n, 1))
         return self.model.predict_proba(self.scaler.transform(X))
 
-
 # ============================================================
 # 基准模型 3: 仅排名差逻辑回归
 # ============================================================
@@ -137,7 +134,6 @@ class RankOnlyBaseline:
             n = len(rank_diffs)
             return np.tile([1.0, 0.0, 0.0], (n, 1))
         return self.model.predict_proba(rank_diffs.reshape(-1, 1))
-
 
 # ============================================================
 # 基准对比评估器
@@ -249,7 +245,7 @@ class BaselineComparator:
             'std_accuracy': float(np.std(fold_results)),
             'per_class': report,
             'confusion_matrix': confusion_matrix(all_y_true, all_y_pred).tolist(),
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
 
     def evaluate_all_baselines(self) -> Dict:
@@ -321,7 +317,7 @@ class BaselineComparator:
         summary_lines.append("=" * 60)
         summary_lines.append("  哨响AI 基准模型评估报告")
         summary_lines.append("=" * 60)
-        summary_lines.append(f"  评估时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        summary_lines.append(f"  评估时间: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}")
         summary_lines.append(f"  数据样本: {len(self.results.get('always_home', {}).get('fold_accuracies', [0])) * 5 if self.results else 'N/A'}")
 
         summary_lines.append("")
@@ -356,7 +352,7 @@ class BaselineComparator:
             'summary': '\n'.join(summary_lines),
             'details': self.results,
             'comparison': comparison,
-            'generated_at': datetime.now().isoformat()
+            'generated_at': datetime.now(timezone.utc).isoformat()
         }
 
         return report
@@ -364,7 +360,7 @@ class BaselineComparator:
     def save_report(self, filepath: str = None):
         """保存报告到文件"""
         if filepath is None:
-            filepath = f"reports/baseline_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            filepath = f"reports/baseline_report_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
 
         if not self.results:
             self.evaluate_all_baselines()
@@ -379,7 +375,6 @@ class BaselineComparator:
         logger.info(f"报告已保存: {filepath}")
         return filepath
 
-
 # ============================================================
 # 便捷函数
 # ============================================================
@@ -391,12 +386,10 @@ def create_baselines() -> Dict[str, Any]:
         'rank_only': RankOnlyBaseline(),
     }
 
-
 def quick_benchmark(db_path: str = None) -> Dict:
     """快速基准测试"""
     comparator = BaselineComparator(db_path or 'data/football_data.db')
     return comparator.generate_report()
-
 
 # ============================================================
 # CLI

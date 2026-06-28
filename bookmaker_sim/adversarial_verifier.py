@@ -25,14 +25,13 @@ import sqlite3
 import json
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 from .score_distribution import ScoreDistSimulator, ScoreDistribution
 from .market_derivation import MarketDerivationEngine, MarketOdds
 
 logger = logging.getLogger(__name__)
-
 
 @dataclass
 class AdversarialResult:
@@ -68,7 +67,6 @@ class AdversarialResult:
     timestamp: str = ""
     markets_used: List[str] = field(default_factory=list)
     error: str = ""
-
 
 class AdversarialOddsVerifier:
     """
@@ -108,7 +106,7 @@ class AdversarialOddsVerifier:
         """
         result = AdversarialResult(
             match_id=match_id,
-            timestamp=datetime.now().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
         
         try:
@@ -426,12 +424,10 @@ class AdversarialOddsVerifier:
             hist[key] = hist.get(key, 0) + 1
         return dict(sorted(hist.items(), key=lambda x: -x[1])[:10])
 
-
 # ──────────── 便捷函数 ────────────
 
 def create_verifier(db_path: str = None) -> AdversarialOddsVerifier:
     return AdversarialOddsVerifier(db_path)
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

@@ -41,7 +41,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
 # ═══════════════════════════════════════════════════════════════
 # 漂移模式枚举
 # ═══════════════════════════════════════════════════════════════
@@ -54,7 +53,6 @@ class DriftPattern(Enum):
     TRAP_INDUCEMENT = "trap_inducement"         # 诱盘型: 逆信息方向 → Δz vs Δẑ矛盾
     STABILITY = "stability"                     # 稳定型: Δz ≈ 0
     REVERSAL = "reversal"                       # 反转型: a符号翻转 → 庄家改变判断
-
 
 # ═══════════════════════════════════════════════════════════════
 # 漂移分析结果
@@ -100,7 +98,6 @@ class DriftAnalysis:
             "information_strength": round(self.information_strength, 4),
             "interpretation": self.interpretation,
         }
-
 
 # ═══════════════════════════════════════════════════════════════
 # 市场状态预测器
@@ -248,7 +245,6 @@ class MarketStatePredictor:
             z = z_new
             trajectory.append(z.copy())
         return z
-
 
 # ═══════════════════════════════════════════════════════════════
 # 赔率漂移动力学分析器
@@ -451,7 +447,6 @@ class DriftDynamicsAnalyzer:
         return (DriftPattern.STABILITY.value, 0.5,
                 "漂移模式不明确, 视为稳定/噪声")
 
-
 # ═══════════════════════════════════════════════════════════════
 # 庄家调盘意图解码器
 # ═══════════════════════════════════════════════════════════════
@@ -524,7 +519,6 @@ class BookmakerAdjustmentDecoder:
             'bookmaker_stance': 'resistant' if alignment < -0.3 else 
                               ('aligned' if alignment > 0.3 else 'neutral'),
         }
-
 
 # ═══════════════════════════════════════════════════════════════
 # 信号等级映射

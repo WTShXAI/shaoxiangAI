@@ -18,12 +18,10 @@ from core.database import get_db
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
-
 
 @router.post("/login", response_model=LoginResponse)
 async def login(
@@ -46,12 +44,10 @@ async def login(
         ),
     )
 
-
 @router.get("/me", response_model=UserOut)
 async def get_me(user: UserOut = Depends(get_current_user)):
     """获取当前用户信息 — 认证已禁用，始终返回 admin。"""
     return user
-
 
 @router.get("/users")
 async def list_users(

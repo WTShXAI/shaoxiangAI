@@ -31,7 +31,7 @@ import logging
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 
 import numpy as np
 
@@ -44,7 +44,6 @@ except ImportError:
 warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class UpsetSignal:
     """冷门信号"""
@@ -54,7 +53,6 @@ class UpsetSignal:
     edge: float            # 偏差百分比
     level: str             # 🔥强冷门 / ⚡中等冷门 / 💡轻微偏差
     description: str
-
 
 @dataclass
 class UpsetAnalysis:
@@ -66,7 +64,6 @@ class UpsetAnalysis:
     signals: List[UpsetSignal]
     overall_score: float
     recommendation: str
-
 
 class EnhancedUpsetDetector:
     """
@@ -329,7 +326,7 @@ class EnhancedUpsetDetector:
         return {
             'match_id': match_data.get('match_id'),
             'match_name': match_name,
-            'analyzed_at': datetime.now().isoformat(),
+            'analyzed_at': datetime.now(timezone.utc).isoformat(),
             'poisson_prediction': score_dist,
             'odds_divergence': odds_div,
             'form_divergence': form_div,
@@ -1733,7 +1730,6 @@ class EnhancedUpsetDetector:
         odd_map = {"home_win": "home", "draw": "draw", "away_win": "away"}
         return odds.get(odd_map.get(signal.direction, "home"), 0)
 
-
 # ══════════════════════════════════════════════════════════════
 #  兼容接口
 # ══════════════════════════════════════════════════════════════
@@ -1752,7 +1748,6 @@ def detect_upset_enhanced(match_info: Dict, fused_probs: Dict[str, float],
         league=league, confidence_level=confidence_level,
         models_agree=models_agree,
     )
-
 
 # ══════════════════════════════════════════════════════════════
 #  测试

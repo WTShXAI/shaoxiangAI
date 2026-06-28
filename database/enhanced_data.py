@@ -3,7 +3,7 @@
 从回收站抢救恢复: D:\.Trash-1000\files\database\enhanced_data.py
 包含 160+ 球队评分、14 联赛配置、14 联赛场均进球数据
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 import random
 import math
 
@@ -145,11 +145,9 @@ LEAGUE_AVG_GOALS = {
     "CSL": {"home": 1.40, "away": 1.02},
 }
 
-
 def get_team_rating(team_name: str, default: int = 70) -> int:
     """获取球队评分"""
     return TEAM_RATINGS.get(team_name, default)
-
 
 def estimate_odds(home_rating: int, away_rating: int, league_code: str = "PL") -> dict:
     """基于球队实力差估算赔率"""
@@ -170,22 +168,19 @@ def estimate_odds(home_rating: int, away_rating: int, league_code: str = "PL") -
         "away_odds": max(1.05, round(margin / away_win_prob, 2)),
     }
 
-
 def get_league_avg_goals(league_code: str) -> dict:
     """获取联赛场均进球数据"""
     return LEAGUE_AVG_GOALS.get(league_code, {"home": 1.40, "away": 1.05})
-
 
 def get_league_team_list(league_code: str) -> list:
     """获取联赛球队列表"""
     return LEAGUE_TEAMS.get(league_code, [])
 
-
 def generate_historical_matches(num_matches: int = 30) -> list:
     """生成历史已完成比赛（用于模型训练）"""
     random.seed(123)
     matches = []
-    today = datetime.now().date()
+    today = datetime.now(timezone.utc).date()
     all_teams = []
 
     for lg_code in LEAGUE_TEAMS:

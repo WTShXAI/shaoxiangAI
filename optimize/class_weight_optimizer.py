@@ -44,7 +44,6 @@ try:
 except ImportError:
     XGB_AVAILABLE = False
 
-
 # ════════════════════════════════════════════════════════════════
 # 数据结构
 # ════════════════════════════════════════════════════════════════
@@ -70,7 +69,6 @@ class WeightSearchResult:
     composite_score: float
     fold_scores: List[float] = field(default_factory=list)
     fold_details: List[Dict] = field(default_factory=list)
-
 
 @dataclass
 class OptimizationResult:
@@ -124,7 +122,6 @@ class OptimizationResult:
             )
         lines.append("=" * 60)
         return "\n".join(lines)
-
 
 # ════════════════════════════════════════════════════════════════
 # 核心优化器
@@ -489,7 +486,6 @@ class ClassWeightOptimizer:
 
         return result
 
-
 # ════════════════════════════════════════════════════════════════
 # 便捷函数
 # ════════════════════════════════════════════════════════════════
@@ -536,7 +532,6 @@ def optimize_class_weights(
         home_mults=home_mults, draw_mults=draw_mults, away_mults=away_mults,
     )
 
-
 def get_optimal_sample_weights(
     y: np.ndarray,
     home_mult: float = 1.0,
@@ -568,7 +563,6 @@ def get_optimal_sample_weights(
     base_weights[2] *= away_mult
     normalized = base_weights / base_weights.mean()
     return np.array([normalized[int(c)] for c in y])
-
 
 # ════════════════════════════════════════════════════════════════
 # 模拟数据测试 (独立运行用)
@@ -627,7 +621,6 @@ def _run_synthetic_test():
     print()
     print(result.summary())
 
-
 # ════════════════════════════════════════════════════════════════
 # __main__ 独立运行
 # ════════════════════════════════════════════════════════════════
@@ -635,7 +628,6 @@ def _run_synthetic_test():
 if __name__ == '__main__':
     import sys
     import os
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
     logging.basicConfig(
         level=logging.INFO,

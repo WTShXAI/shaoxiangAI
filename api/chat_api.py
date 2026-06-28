@@ -5,7 +5,6 @@ import json, time, asyncio, os, sys, io, logging
 
 # 确保项目根在路径中
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _PROJECT_ROOT not in sys.path:
 
 from fastapi import APIRouter, Request, UploadFile, File
 from fastapi.responses import StreamingResponse

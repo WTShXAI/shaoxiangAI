@@ -20,7 +20,6 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-
 # ═══════════════════════════════════════════════════════════════
 # 2026世界杯射手数据 (as of June 16, Sporting News)
 # 格式: {国家队: [(球员, 进球数, 助攻数), ...]}
@@ -90,7 +89,6 @@ TEAM_ALIASES = {
     "库拉索": "库拉索", "库拉索岛": "库拉索", "Curacao": "库拉索",
     "沙特阿拉伯": "沙特阿拉伯", "沙特": "沙特阿拉伯", "Saudi Arabia": "沙特阿拉伯",
 }
-
 
 class ScorerTracker:
     """
@@ -207,10 +205,8 @@ class ScorerTracker:
             "away_summary": self.get_attack_summary(away),
         }
 
-
 # 单例
 _scorer_tracker: Optional[ScorerTracker] = None
-
 
 def get_scorer_tracker() -> ScorerTracker:
     global _scorer_tracker

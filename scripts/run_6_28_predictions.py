@@ -7,7 +7,6 @@ import math
 from pathlib import Path
 
 # 添加项目根目录
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from pipeline.full_linkage_predictor import (
     MatchInput, FullLinkagePipeline, OULinkageEngine
@@ -26,9 +25,16 @@ MATCHES_6_28 = [
     MatchInput('约旦', '阿根廷',       2.58, 3.90, 2.06, +2.0, 3.0,  r3_rotation=True,  sporttery_hcp=+2.0),
 ]
 
-
 def _ou_label(ou_line, match=None):
     """根据OU诚信度生成正确的标签"""
+    # 名字溢价陷阱 (R3 + 强队已出线 + OU=2.75)
+    # ⚠️ OU≥3.0是诚实整数线不触发 (如阿根廷屠杀OU=3.0正当)
+    if match and match.r3_rotation and 2.75 <= ou_line < 3.0:
+        nears = {'瑞士', '瑞典', '英格兰', '法国', '阿根廷', '日本', '伊朗'}
+        massacres = {'巴西', '德国', '荷兰', '美国', '加拿大'}
+        if match.home in nears or match.away in nears or match.home in massacres or match.away in massacres:
+            return f'外围OU {ou_line} (🟠名气陷阱→小球)', 'down', f'OU={ou_line}→R3轮换名气溢价,实际≤2球'
+    
     honesty = OULinkageEngine.get_ou_honesty(ou_line)
     grade = honesty['grade']
     note = honesty['note']
@@ -47,7 +53,6 @@ def _ou_label(ou_line, match=None):
     else:
         return f'外围OU {ou_line}', '', f'OU={ou_line}'
 
-
 def _context_tags(m: MatchInput):
     """生成情境标签"""
     tags = []
@@ -65,7 +70,6 @@ def _context_tags(m: MatchInput):
         tags.append(('context', '🇦🇷 6分头名→轮换 | 约旦0分淘汰'))
     return tags
 
-
 def _verdict_class(primary):
     if '胜' in primary or '让胜' in primary:
         return 'win'
@@ -73,7 +77,6 @@ def _verdict_class(primary):
         return 'draw'
     else:
         return 'lose'
-
 
 def _clean_label(primary, secondary, hcp):
     """统一标签: 增强版 — 增加让球方向说明
@@ -103,7 +106,6 @@ def _clean_label(primary, secondary, hcp):
         enhanced_secondary = secondary + direction
     
     return enhanced_primary, enhanced_secondary
-
 
 def generate_html(results):
     """生成修正版HTML报告"""
@@ -311,7 +313,6 @@ def generate_html(results):
 '''
     return html
 
-
 def main():
     print("=" * 60)
     print("FootballAI v5.7 · 6/28 全链路预测 (OU方向性修正)")
@@ -373,17 +374,30 @@ def main():
 
     # 保存JSON结果
     json_file = output_dir / 'r3-0628-results.json'
-    # 去除非序列化字段
-    clean_results = []
-    for r in results:
-        cr = {k: v for k, v in r.items() if k != 'match_obj'}
-        clean_results.append(cr)
+    
+    def clean_for_json(obj, depth=0):
+        """递归清理非JSON序列化对象"""
+        if depth > 10:  # 防止无限递归
+            return str(obj)
+        if obj is None or isinstance(obj, (str, int, float, bool)):
+            return obj
+        elif isinstance(obj, dict):
+            return {k: clean_for_json(v, depth+1) for k, v in obj.items() 
+                    if not callable(v) and k != 'match_obj'}
+        elif isinstance(obj, (list, tuple)):
+            return [clean_for_json(x, depth+1) for x in obj 
+                    if not callable(x)]
+        elif callable(obj):
+            return str(obj)
+        else:
+            return str(obj)
+    
+    clean_results = [clean_for_json(r) for r in results]
     with open(json_file, 'w', encoding='utf-8') as f:
         json.dump(clean_results, f, ensure_ascii=False, indent=2)
     print(f"✅ JSON已保存: {json_file}")
 
     return results
-
 
 if __name__ == '__main__':
     main()

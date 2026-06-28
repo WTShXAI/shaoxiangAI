@@ -39,7 +39,7 @@ import json
 import logging
 import sqlite3
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, Tuple, Callable
 from dataclasses import dataclass, field
 from enum import Enum
@@ -50,7 +50,6 @@ from sklearn.metrics import accuracy_score, classification_report
 
 logger = logging.getLogger(__name__)
 
-
 # ============================================================
 # 数据类
 # ============================================================
@@ -60,7 +59,6 @@ class ExpertStatus(Enum):
     ACTIVE = "active"          # 已启用
     INACTIVE = "inactive"      # 暂时停用
     DEPRECATED = "deprecated"  # 已淘汰
-
 
 @dataclass
 class ExpertRecord:
@@ -75,7 +73,6 @@ class ExpertRecord:
     perf_history: List[float] = field(default_factory=list)
     metadata: Dict = field(default_factory=dict)
 
-
 @dataclass
 class PhaseConfig:
     """阶段配置"""
@@ -85,7 +82,6 @@ class PhaseConfig:
     target_accuracy: float         # 目标准确率
     experts: List[str]             # 该阶段专家列表
     description: str = ""
-
 
 # ============================================================
 # 专家管理器
@@ -285,7 +281,7 @@ class ExpertManager:
         # 更新记录
         expert.accuracy = float(overall_acc)
         expert.n_evaluations += 1
-        expert.last_evaluated = datetime.now().isoformat()
+        expert.last_evaluated = datetime.now(timezone.utc).isoformat()
         expert.perf_history.append(float(overall_acc))
 
         report = classification_report(
@@ -332,7 +328,7 @@ class ExpertManager:
         if expert:
             expert.accuracy = acc
             expert.n_evaluations += 1
-            expert.last_evaluated = datetime.now().isoformat()
+            expert.last_evaluated = datetime.now(timezone.utc).isoformat()
             expert.perf_history.append(acc)
 
         return {
@@ -405,7 +401,7 @@ class ExpertManager:
             'passed': phase_acc > config.min_accuracy,
             'active_experts': self.get_active_experts(phase),
             'expert_results': results,
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
         }
         self.phase_history.append(phase_result)
 
@@ -663,7 +659,7 @@ class ExpertManager:
             },
             'phase_history': self.phase_history,
             'baseline_results': self.baseline_results,
-            'saved_at': datetime.now().isoformat(),
+            'saved_at': datetime.now(timezone.utc).isoformat(),
         }
 
         import os
@@ -705,7 +701,6 @@ class ExpertManager:
             logger.warning(f"加载状态失败: {e}")
             return False
 
-
 # ============================================================
 # 辅助: 专家注册工厂
 # ============================================================
@@ -738,7 +733,6 @@ def create_expert_registry(db_path: str = None) -> ExpertManager:
     mgr.register('media_intelligence', phase=4, status=ExpertStatus.PENDING)
 
     return mgr
-
 
 # ============================================================
 # CLI

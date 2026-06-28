@@ -23,7 +23,6 @@ from sklearn.model_selection import train_test_split
 
 logger = logging.getLogger(__name__)
 
-
 # ─── 特征配置（从 config.yaml 统一加载） ────────────────────
 def _load_feature_config():
     """从 config.yaml 读取 feature_columns 和 default_values"""
@@ -62,7 +61,6 @@ def _build_interactions(X: pd.DataFrame) -> pd.DataFrame:
         )
     return out
 
-
 @dataclass
 class TrainingBundle:
     """统一训练数据包：三个模型共享相同的 split + scaler"""
@@ -83,7 +81,6 @@ class TrainingBundle:
     # 元数据（时间、联赛等）
     train_dates: Optional[pd.Series] = None
     test_dates: Optional[pd.Series] = None
-
 
 class GBDTDataAdapter:
     """
@@ -289,7 +286,6 @@ class GBDTDataAdapter:
     @property
     def feature_count(self) -> int:
         return len(getattr(self, '_feature_cols_actual', self.feature_cols))
-
 
 # ─── 便捷工厂函数 ───────────────────────────────────────────
 

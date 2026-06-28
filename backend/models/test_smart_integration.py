@@ -20,10 +20,8 @@ from sklearn.preprocessing import LabelEncoder
 import warnings
 warnings.filterwarnings('ignore')
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from backend.models.smart_integration import SmartIntegration
 logger = logging.getLogger(__name__)
-
 
 def load_data(csv_path: str):
     """加载测试数据"""
@@ -52,7 +50,6 @@ def load_data(csv_path: str):
     class_names = ['H (主胜)', 'D (平局)', 'A (客胜)']
 
     return X, y, class_names, df
-
 
 def evaluate_model(model, X: np.ndarray, y: np.ndarray, name: str,
                    class_names: list) -> Dict:
@@ -115,7 +112,6 @@ def evaluate_model(model, X: np.ndarray, y: np.ndarray, name: str,
             results[f'f1_class_{i}'] = f1_per_class[i]
 
     return results
-
 
 def main():
     parser = argparse.ArgumentParser(description='测试智能集成模型')
@@ -192,7 +188,6 @@ def main():
             logger.info(f"\n⚠️ 集成模型低于基线: {acc_improve*100:.2f}%")
 
     return 0
-
 
 if __name__ == '__main__':
     sys.exit(main())

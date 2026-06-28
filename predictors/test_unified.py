@@ -4,11 +4,9 @@ UnifiedPredictor v4.1 回测验证 (World Cup 6.14-6.18 历史数据)
 20场已完成比赛 → v4.1 阈值预测 vs 实际结果对比
 """
 import os, sys, json, time
-from datetime import datetime
+from datetime import datetime, timezone
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
-sys.path.insert(0, os.path.join(ROOT, 'predictors'))
 
 from unified_predictor import UnifiedPredictor
 
@@ -38,7 +36,7 @@ MATCHES = [
 
 print("=" * 80)
 print("  UnifiedPredictor v4.1 • World Cup 回测 (6.14-6.18)")
-print(f"  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"  {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}")
 print("=" * 80)
 
 up = UnifiedPredictor(enable_trap=False, enable_dh=False, use_threshold=True)

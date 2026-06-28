@@ -26,9 +26,6 @@ COMPONENTS = os.path.join(ARCH_ROOT, 'predictors', 'components')
 # 修复P0-13: 消除footballAI外部依赖, 项目内自包含
 FOOTBALLAI_ROOT = COMPONENTS  # 内部化
 
-sys.path.insert(0, COMPONENTS)
-sys.path.insert(1, os.path.join(ARCH_ROOT, 'agents'))
-
 from lambda_fusion import fuse_lambda
 from agents.model_bridge import ModelBridge
 # 修复P0-13: 补全缺失依赖, 从项目内components加载
@@ -47,8 +44,9 @@ except ImportError:
         def apply_goal_segment_correction(prob, goals):
             return prob
 
+from predictors.base import PredictorBase, MatchData, PredictionResult
 
-class VIPFinalPredictor:
+class VIPFinalPredictor(PredictorBase):
     """
     VIP Final: 数字人 + 数学融合 统一预测器
 
@@ -856,6 +854,46 @@ class VIPFinalPredictor:
         current_file = os.path.join(PROJECT_ROOT, 'vip_final.py')
         shutil.copy(current_file, old_vip_path)
 
+    # ══════════════════════════════════════
+    # PredictorBase 统一接口 (2026-06-28)
+    # ══════════════════════════════════════
+
+    def predict_match(self, match: MatchData) -> PredictionResult:
+        """实现 PredictorBase.predict_match()"""
+        match_dict = {
+            'home': match.home, 'away': match.away,
+            'odds_h': match.odds_h, 'odds_d': match.odds_d, 'odds_a': match.odds_a,
+            'handicap': match.handicap, 'ou_line': match.ou_line,
+            'over_water': match.over_water, 'under_water': match.under_water,
+        }
+        result_dict = self.predict(match_dict)
+        probs = result_dict.get('probabilities', result_dict.get('probs', {}))
+        pred_raw = result_dict.get('prediction', 'H')
+        if isinstance(pred_raw, str) and len(pred_raw) == 1:
+            pred_code = pred_raw
+        elif pred_raw in ('主胜', 'home', 'H'):
+            pred_code = 'H'
+        elif pred_raw in ('客胜', 'away', 'A'):
+            pred_code = 'A'
+        else:
+            pred_code = 'D'
+        return PredictionResult(
+            probabilities=probs if isinstance(probs, dict) else {'H':0.0,'D':0.0,'A':0.0},
+            prediction=pred_code,
+            confidence=float(result_dict.get('confidence', 0.0)),
+            model_version=f"VIP {self.__class__.__name__}",
+            scores=result_dict.get('scores'),
+            trap_score=float(result_dict.get('trap', {}).get('score', 0.0)),
+            draw_signal=float(result_dict.get('draw_signal', 0.0)),
+            extra={'dh_probs': result_dict.get('dh_probs'), 'math_probs': result_dict.get('math_probs')},
+        )
+
+    @property
+    def model_version(self) -> str:
+        return f"VIPFinalPredictor {self.__class__.__name__}"
+
+    def is_loaded(self) -> bool:
+        return True
 
 # ════════════════════════════════════════════════════════════════
 # 验证用例

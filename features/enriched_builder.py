@@ -190,11 +190,10 @@ def build_enriched_features(
     vec = np.clip(vec, -5.0, 5.0)
     return vec.astype(np.float32)
 
-
 def run_validation():
     """Run WC validation with enriched features vs baseline."""
     import torch, json, sys
-    sys.path.insert(0, str(ROOT))
+
     from models.jepa import JEPALite
     from predictors.jepa_inference import predict as old_predict
     
@@ -301,7 +300,6 @@ def run_validation():
             print(f"  {ook}→{nok} {h} vs {a} {rank_info}: {op}→{np} act={act} ({score})")
     
     return new_acc, new_df1
-
 
 if __name__ == '__main__':
     run_validation()

@@ -29,7 +29,6 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-
 # ═══════════════════════════════════════════════════════════════════
 #  配置
 # ═══════════════════════════════════════════════════════════════════
@@ -77,7 +76,6 @@ class RollingWindowConfig:
     max_goals_norm: float = 3.0         # 进球归一化分母
     max_pts_norm: float = 3.0           # 得分归一化分母
     max_streak_norm: float = 5.0        # 连胜归一化分母
-
 
 # ═══════════════════════════════════════════════════════════════════
 #  特征名称注册表
@@ -131,7 +129,6 @@ def get_rolling_feature_names(config: Optional[RollingWindowConfig] = None) -> L
         ])
 
     return names
-
 
 # ═══════════════════════════════════════════════════════════════════
 #  滚动窗口特征生成器
@@ -676,7 +673,6 @@ class RollingWindowFeatureGenerator:
         )
         return bundle
 
-
 # ═══════════════════════════════════════════════════════════════════
 #  特征重要性分析器
 # ═══════════════════════════════════════════════════════════════════
@@ -1077,7 +1073,6 @@ class FeatureImportanceAnalyzer:
 
         return report
 
-
 # ═══════════════════════════════════════════════════════════════════
 #  PyTorch 模型包装器 (用于排列重要性)
 # ═══════════════════════════════════════════════════════════════════
@@ -1105,7 +1100,6 @@ class _SklearnModelWrapper:
         probs = self.predict_proba(X)
         return probs.argmax(axis=1)
 
-
 # ═══════════════════════════════════════════════════════════════════
 #  便捷函数
 # ═══════════════════════════════════════════════════════════════════
@@ -1117,7 +1111,6 @@ def generate_rolling_features(
     """一键生成滚动窗口特征"""
     gen = RollingWindowFeatureGenerator(db_path=db_path, config=config)
     return gen.generate()
-
 
 def analyze_feature_importance(
     X: np.ndarray,

@@ -34,7 +34,6 @@ logger = logging.getLogger(__name__)
 MAX_GOALS = 8
 SCORE_SPACE = [(i, j) for i in range(MAX_GOALS + 1) for j in range(MAX_GOALS + 1)]
 
-
 @dataclass
 class ScoreDistribution:
     """比分概率分布"""
@@ -87,7 +86,6 @@ class ScoreDistribution:
     
     def expected_total_goals(self) -> float:
         return sum((i + j) * self.matrix[i, j] for i, j in SCORE_SPACE)
-
 
 class ScoreDistSimulator:
     """
@@ -423,12 +421,10 @@ class ScoreDistSimulator:
         logger.info(f"Calibrated: avg_goals={avg_goals:.2f}, rho={rho_est:.4f}, n={n}")
         return result
 
-
 # ──────────── 便捷函数 ────────────
 
 def create_simulator(db_path: str = None) -> ScoreDistSimulator:
     return ScoreDistSimulator(db_path)
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

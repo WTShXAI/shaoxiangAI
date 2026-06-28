@@ -10,7 +10,7 @@ API: https://v1.football.sportsapipro.com/api/v1/world-cup/*
 """
 
 import os, sys, json, time, argparse
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
@@ -22,7 +22,6 @@ KEY = "f1351a28-318e-451c-9b88-602f9eb9b600"
 
 HEADERS = {"x-api-key": KEY, "Accept": "application/json"}
 
-
 def _fetch(endpoint: str) -> dict:
     url = f"{BASE}/{endpoint.lstrip('/')}"
     with httpx.Client(timeout=15.0) as client:
@@ -30,40 +29,33 @@ def _fetch(endpoint: str) -> dict:
         resp.raise_for_status()
         return resp.json()
 
-
 def fetch_results() -> list:
     """获取所有已完成比赛"""
     data = _fetch("results")
     return data.get("data", {}).get("games", [])
-
 
 def fetch_matches() -> list:
     """获取全部比赛 (含未开始)"""
     data = _fetch("matches")
     return data.get("data", {}).get("games", [])
 
-
 def fetch_standings() -> list:
     """获取小组积分榜"""
     data = _fetch("standings")
     return data.get("data", {}).get("standings", [])
-
 
 def fetch_odds() -> list:
     """获取粉丝预测投票"""
     data = _fetch("odds")
     return data.get("data", {}).get("games", [])
 
-
 def fetch_stats() -> dict:
     """获取射手榜/助攻榜"""
     return _fetch("stats").get("data", {})
 
-
 def fetch_game_detail(game_id: int) -> dict:
     """获取单场比赛详情 (场馆/阵容/事件)"""
     return _fetch(f"game/{game_id}").get("data", {})
-
 
 def save_json(data, filename: str):
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -73,12 +65,11 @@ def save_json(data, filename: str):
     print(f"  💾 {filename} ({len(json.dumps(data)):,} bytes)")
     return path
 
-
 def run_full():
     """全量采集"""
     t0 = time.time()
     print(f"🌍 SportsAPI WC2026 全量采集")
-    print(f"  时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    print(f"  时间: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')}")
 
     results = fetch_results()
     print(f"  ✅ 结果: {len(results)} 场已完成")
@@ -109,11 +100,10 @@ def run_full():
     elapsed = time.time() - t0
     print(f"\n  完成 | {elapsed:.1f}s | 数据: {DATA_DIR}")
 
-
 def run_today():
     """今日赛程 + 预测"""
     matches = fetch_matches()
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     print(f"📅 今日赛程 ({today})")
     upcoming = [m for m in matches if m.get("startTime", "").startswith(today)]
@@ -137,9 +127,8 @@ def run_today():
                         if "Who Will Win" in p.get("title", ""):
                             opts = {x["name"]: x["vote"]["percentage"] for x in p["options"]}
                             print(f"    🗳️ {opts}")
-    except Exception:
-        pass
-
+    except Exception as e:
+        print(f"[WARN] 获取赔率预测失败: {e}")
 
 def run_results():
     """仅获取赛果 + 打印"""
@@ -151,7 +140,6 @@ def run_results():
         t = g["startTime"][:10]
         print(f"  {t} {h.get('name','?'):>20s} {h.get('score','?')}-{a.get('score','?')} {a.get('name','?')}")
     save_json(results, "results.json")
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SportsAPI WC2026 采集器")

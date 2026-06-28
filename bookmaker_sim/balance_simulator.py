@@ -24,7 +24,6 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class OddsState:
     """单步赔率快照"""
@@ -46,7 +45,6 @@ class OddsState:
     expected_profit: float
     overround: float
 
-
 @dataclass
 class BalanceReport:
     """完整平衡报告"""
@@ -56,7 +54,6 @@ class BalanceReport:
     target_margin: float = 0.08
     steps: List[OddsState] = field(default_factory=list)
     summary: str = ""
-
 
 class BookmakerBalanceSimulator:
     """
@@ -338,7 +335,6 @@ class BookmakerBalanceSimulator:
 """
         return analysis
 
-
 # ═══════════════════════════════════════════════════════════════
 # 便捷入口
 # ═══════════════════════════════════════════════════════════════
@@ -358,7 +354,6 @@ def run_demo(match: str = "巴西 vs 阿根廷 (世界杯)",
     table = sim.format_table(report)
     analysis = sim.format_analysis(report)
     return table + analysis
-
 
 if __name__ == "__main__":
     print(run_demo())

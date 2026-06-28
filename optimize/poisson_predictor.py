@@ -29,7 +29,6 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-
 # ═══════════════════════════════════════════════════════════
 # 联赛场均进球基线 (五大联赛 + 欧洲赛事)
 # ═══════════════════════════════════════════════════════════
@@ -50,7 +49,6 @@ LEAGUE_AVG_GOALS: Dict[str, float] = {
     "Serie A Brazil":   2.32,   # 巴甲
 }
 
-
 def _poisson_pmf(k: int, lam: float) -> float:
     """泊松概率质量函数: P(X=k) = e^(-λ) * λ^k / k!"""
     if lam <= 0:
@@ -58,7 +56,6 @@ def _poisson_pmf(k: int, lam: float) -> float:
     # 用 log 避免溢出
     log_p = -lam + k * math.log(lam) - _log_factorial(k)
     return math.exp(log_p)
-
 
 def _log_factorial(n: int) -> float:
     """log(n!) 精确计算 (0≤n≤20 直接累加，更大用 Stirling)"""
@@ -68,7 +65,6 @@ def _log_factorial(n: int) -> float:
         return sum(math.log(i) for i in range(2, n + 1))
     # Stirling 近似: log(n!) ≈ n*log(n) - n + 0.5*log(2πn)
     return n * math.log(n) - n + 0.5 * math.log(2 * math.pi * n)
-
 
 # ═══════════════════════════════════════════════════════════
 # 核心函数
@@ -120,7 +116,6 @@ def expected_goals_from_probs(
 
     return lambda_h, lambda_a
 
-
 def score_matrix(
     lambda_h: float,
     lambda_a: float,
@@ -159,7 +154,6 @@ def score_matrix(
 
     return proba
 
-
 def score_to_outcome_probs(
     score_proba: np.ndarray,
 ) -> Tuple[float, float, float]:
@@ -189,7 +183,6 @@ def score_to_outcome_probs(
         p_away /= total
 
     return p_home, p_draw, p_away
-
 
 def top_score_predictions(
     lambda_h: float,
@@ -252,7 +245,6 @@ def top_score_predictions(
             used_scores.add(s["score"])
 
     return result
-
 
 # ═══════════════════════════════════════════════════════════
 # PoissonPredictor 类
@@ -438,7 +430,6 @@ class PoissonPredictor:
         pp._league_lambdas = d.get("league_lambdas", dict(LEAGUE_AVG_GOALS))
         pp.config = {}
         return pp
-
 
 # ═══════════════════════════════════════════════════════════
 # 自验证测试

@@ -24,12 +24,11 @@ import json
 import time
 import threading
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Callable
 from collections import deque
 
 logger = logging.getLogger(__name__)
-
 
 # ══════════════════════════════════════════════════
 # 告警规则定义
@@ -94,7 +93,6 @@ ALERT_RULES = {
     },
 }
 
-
 # ══════════════════════════════════════════════════
 # 告警事件
 # ══════════════════════════════════════════════════
@@ -117,7 +115,7 @@ class AlertEvent:
         self.message = message
         self.value = value
         self.threshold = threshold
-        self.timestamp = datetime.now()
+        self.timestamp = datetime.now(timezone.utc)
         self.acknowledged = False
 
     def to_dict(self) -> dict[str, Any]:
@@ -131,7 +129,6 @@ class AlertEvent:
             "timestamp": self.timestamp.isoformat(),
             "acknowledged": self.acknowledged,
         }
-
 
 # ══════════════════════════════════════════════════
 # 告警引擎
@@ -507,7 +504,7 @@ class AlertEngine:
         self, hours: int = 24, level: str | None = None
     ) -> list[dict[str, Any]]:
         """获取近期告警"""
-        cutoff = datetime.now() - timedelta(hours=hours)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
         with self._lock:
             alerts = [
                 a.to_dict()
@@ -597,13 +594,11 @@ class AlertEngine:
         self._persist()
         logger.info("[AlertEngine] 已关闭")
 
-
 # ══════════════════════════════════════════════════
 # 全局单例
 # ══════════════════════════════════════════════════
 
 _alert_engine: AlertEngine | None = None
-
 
 def get_alert_engine(notifier: Callable[..., bool] | None = None) -> AlertEngine:
     """获取全局告警引擎单例"""
@@ -611,7 +606,6 @@ def get_alert_engine(notifier: Callable[..., bool] | None = None) -> AlertEngine
     if _alert_engine is None:
         _alert_engine = AlertEngine(notifier_callback=notifier or _default_notifier)
     return _alert_engine
-
 
 def _default_notifier(title: str, body: str, level: str) -> bool:
     """默认通知器（仅日志）"""

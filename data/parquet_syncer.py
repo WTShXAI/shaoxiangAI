@@ -25,7 +25,7 @@ import sqlite3
 import time
 import logging
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -66,7 +66,6 @@ SYNC_TABLES = [
 
 logger = logging.getLogger("ParquetSync")
 
-
 def setup_logging():
     logging.basicConfig(
         level=logging.INFO,
@@ -74,12 +73,10 @@ def setup_logging():
         datefmt="%H:%M:%S",
     )
 
-
 def get_table_rowcount(db_path: str, table: str) -> int:
     """快速获取表行数 (避免全表扫描)"""
     with sqlite3.connect(db_path) as conn:
         return conn.execute(f"SELECT COUNT(*) FROM [{table}]").fetchone()[0]
-
 
 def sqlite_to_parquet(
     db_path: str,
@@ -159,7 +156,6 @@ def sqlite_to_parquet(
         "elapsed_s": elapsed, "size_mb": size_mb,
     }
 
-
 def run_sync(
     db_path: str = None,
     output_dir: str = None,
@@ -218,14 +214,13 @@ def run_sync(
 
     return {
         "status": status,
-        "sync_time": datetime.now().isoformat(),
+        "sync_time": datetime.now(timezone.utc).isoformat(),
         "mode": "eco" if eco_mode else "standard",
         "tables": results,
         "total_rows": total_rows,
         "total_size_mb": round(total_mb, 1),
         "errors": [e["table"] for e in errors],
     }
-
 
 def verify_parquet(output_dir: str = None) -> dict:
     """验证已同步的 Parquet 文件完整性"""
@@ -245,7 +240,6 @@ def verify_parquet(output_dir: str = None) -> dict:
             "size_mb": round(os.path.getsize(path) / (1024 * 1024), 1),
         }
     return report
-
 
 # ═══ CLI ═══
 if __name__ == "__main__":

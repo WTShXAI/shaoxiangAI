@@ -39,7 +39,7 @@ import sqlite3
 import time
 import os
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Any, Tuple
 
 import numpy as np
@@ -53,7 +53,6 @@ from .expert_protocol import (
 )
 
 logger = logging.getLogger(__name__)
-
 
 class ProgressiveOptimizer:
     """
@@ -194,7 +193,7 @@ class ProgressiveOptimizer:
             'steps': steps,
             'success': expert.meta.state == ExpertState.ACTIVE,
             'iterations': len(steps),
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
         }
 
         self._training_log.append(result)
@@ -317,14 +316,14 @@ class ProgressiveOptimizer:
             pass
 
         # 更新元数据
-        expert.meta.last_trained_at = datetime.now().isoformat()
+        expert.meta.last_trained_at = datetime.now(timezone.utc).isoformat()
         expert.meta.n_training_samples = len(X)
         expert.meta.n_validation_samples = len(y)
 
         # 设置下次重训时间
         retrain_days = expert.meta.training_config.retrain_frequency_days
         expert.meta.next_retrain_at = (
-            datetime.now() + timedelta(days=retrain_days)
+            datetime.now(timezone.utc) + timedelta(days=retrain_days)
         ).isoformat()
 
         # 状态转换: TRAINING → OPTIMIZED
@@ -618,7 +617,7 @@ class ProgressiveOptimizer:
             # 条件1: 时间
             if expert.meta.last_trained_at:
                 last_train = datetime.fromisoformat(expert.meta.last_trained_at)
-                days_since = (datetime.now() - last_train).days
+                days_since = (datetime.now(timezone.utc) - last_train).days
                 if days_since > expert.meta.training_config.retrain_frequency_days:
                     needs_retrain = True
                     reason.append(f'超时: {days_since}d > {expert.meta.training_config.retrain_frequency_days}d')

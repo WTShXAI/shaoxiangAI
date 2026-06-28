@@ -48,7 +48,6 @@ LEAGUE_ORDER = [
 
 SEASONS = [str(y) for y in range(2015, 2026)]  # 2015-2025
 
-
 @router.get("/leagues")
 async def list_leagues():
     """返回所有可用联赛及其数据摘要"""
@@ -76,7 +75,6 @@ async def list_leagues():
     # 按指定顺序排序：杯赛 → 五大联赛 → 其他联赛
     result.sort(key=lambda l: LEAGUE_ORDER.index(l["code"]) if l["code"] in LEAGUE_ORDER else 99)
     return {"leagues": result, "total_seasons_available": sum(l["season_count"] for l in result)}
-
 
 @router.get("/{league_code}/matches")
 async def get_matches(
@@ -138,7 +136,6 @@ async def get_matches(
         "page_size": page_size,
     }
 
-
 @router.get("/{league_code}/standings")
 async def get_standings(
     league_code: str,
@@ -183,7 +180,6 @@ async def get_standings(
         "standings": all_standings,
     }
 
-
 @router.get("/{league_code}/teams")
 async def get_teams(league_code: str):
     """获取联赛球队信息"""
@@ -203,7 +199,6 @@ async def get_teams(league_code: str):
         "total": len(data.get("teams", data) if isinstance(data, dict) else data),
         "teams": data,
     }
-
 
 @router.get("/summary")
 async def get_summary():

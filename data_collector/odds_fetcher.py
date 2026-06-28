@@ -22,14 +22,11 @@ from urllib.request import Request, urlopen
 from urllib.error import URLError
 import re
 
-
 CACHE_DIR = Path(__file__).parent.parent / 'data' / 'odds_cache'
 CACHE_TTL = 3600  # 1 hour
 
-
 def _ensure_cache_dir():
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
-
 
 def _fetch_url(url, timeout=10):
     """安全HTTP GET"""
@@ -39,7 +36,6 @@ def _fetch_url(url, timeout=10):
             return resp.read().decode('utf-8', errors='ignore')
     except Exception:
         return None
-
 
 # ═══════════════════════════════════════
 # 已确认的实时赔率 (6.25-6.28)
@@ -76,7 +72,6 @@ KNOWN_ODDS = {
     ('约旦','阿根廷'): (7.00, 4.50, 1.40, 1.0, 2.75),
     ('阿尔及利亚','奥地利'): (2.50, 3.20, 2.80, 0.0, 2.5),
 }
-
 
 def _try_fetch_oddslot(home, away):
     """尝试从 oddslot.com 抓取赔率"""
@@ -130,7 +125,6 @@ def _try_fetch_oddslot(home, away):
         ah = float(ah_match[0]) if ah_match else 0.0
         return (oh, od, oa, ah, 2.5)
     return None
-
 
 def get_odds(home, away, date=None):
     """
@@ -186,7 +180,6 @@ def get_odds(home, away, date=None):
     
     return (oh, od, oa, round(hcp, 2), ou)
 
-
 def get_all_odds(matches):
     """
     批量获取赔率。
@@ -198,7 +191,6 @@ def get_all_odds(matches):
         oh, od, oa, hcp, ou = get_odds(home, away, date)
         results.append((home, away, oh, od, oa, hcp, ou))
     return results
-
 
 if __name__ == '__main__':
     # Quick test

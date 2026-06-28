@@ -24,7 +24,6 @@ import numpy as np
 
 logger = logging.getLogger("elo_ratings")
 
-
 # ═══════════════════════════════════════════════
 # 联赛特征 profile — 用于 K 因子 & 主场优势调整
 # ═══════════════════════════════════════════════
@@ -139,16 +138,13 @@ _DEFAULT_PROFILE = {
     "avg_goals": 2.55,
 }
 
-
 def _get_profile(league_name: str) -> Dict[str, float]:
     """获取联赛 profile，未知联赛返回默认值"""
     return LEAGUE_PROFILES.get(league_name, _DEFAULT_PROFILE)
 
-
 # ═══════════════════════════════════════════════
 # 核心类
 # ═══════════════════════════════════════════════
-
 
 class EloRatingSystem:
     """
@@ -641,13 +637,11 @@ class EloRatingSystem:
         logger.info(f"ELO 评分已加载: {filepath} ({len(instance.ratings)} 队)")
         return instance
 
-
 # ═══════════════════════════════════════════════
 # 便捷工厂
 # ═══════════════════════════════════════════════
 
 _global_elo: Optional[EloRatingSystem] = None
-
 
 def get_elo_system(config: Optional[Dict[str, Any]] = None) -> EloRatingSystem:
     """获取全局 ELO 实例 (懒加载单例)"""
@@ -656,12 +650,10 @@ def get_elo_system(config: Optional[Dict[str, Any]] = None) -> EloRatingSystem:
         _global_elo = EloRatingSystem(config=config)
     return _global_elo
 
-
 def reset_global_elo():
     """重置全局 ELO 实例"""
     global _global_elo
     _global_elo = None
-
 
 # ═══════════════════════════════════════════════
 # 自测

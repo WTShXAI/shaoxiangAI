@@ -22,7 +22,6 @@ class DegradationLevel(Enum):
     NO_DRIFT = "no_drift"       # Without odds drift (seq encoder only)
     STATIC_ONLY = "static_only" # MLP fallback (same as old NN)
 
-
 # --- Data structures ---
 @dataclass
 class AdapterStats:
@@ -31,7 +30,6 @@ class AdapterStats:
     degradation_fallbacks: int = 0
     avg_latency_ms: float = 0.0
     last_collapse_check: str = "not_run"
-
 
 class SequenceCache:
     """Cache match sequences by match ID to avoid redundant computation"""
@@ -51,7 +49,6 @@ class SequenceCache:
                 del self.cache[k]
         self.cache[match_id] = (sequence, drift)
 
-
 class TemporalSafetyGuard:
     """Prevent temporal data leakage in stacking integration"""
 
@@ -66,7 +63,6 @@ class TemporalSafetyGuard:
                 f"training cutoff {self.train_cutoff}. This would leak future info."
             )
         return True
-
 
 # --- Core Adapter ---
 
@@ -298,7 +294,6 @@ class JEPAAdapter:
             'p99_ms': float(np.percentile(times, 99)),
         }
 
-
 # --- Meta Feature Provider ---
 
 class JEPAMetaFeatureProvider:
@@ -320,7 +315,6 @@ class JEPAMetaFeatureProvider:
         """
         jepa_features = self.adapter.get_meta_features(static_features, match_sequences, odds_drift)
         return np.concatenate([base_probas_15dim, jepa_features], axis=1)
-
 
 # ======================================================================
 # Smoke test
@@ -387,7 +381,6 @@ def integration_smoke_test():
     print("=" * 60)
 
     return adapter
-
 
 if __name__ == '__main__':
     integration_smoke_test()

@@ -1,7 +1,7 @@
 """哨响AI v5.0 JEPA KNN-Hybrid Server — Acc=52.4% DrawF1=0.43"""
 import sys, os, logging
 ROOT = os.path.dirname(os.path.abspath(__file__))
-if ROOT not in sys.path: sys.path.insert(0, ROOT)
+
 logging.basicConfig(level=logging.WARNING)
 
 from fastapi import FastAPI, Request

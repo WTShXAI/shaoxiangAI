@@ -13,7 +13,7 @@ v5.2.14 状态: GBDT(LGBM/XGBoost)已被 JEPA v5.0 替代为主动擎。
 """
 import sys, os, logging, time, json
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timezone
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 from lightgbm import LGBMClassifier  # LEGACY
@@ -33,7 +33,7 @@ _fai_candidates = [
     r'D:\AI\footballAI',
 ]
 ROOT = next((p for p in _fai_candidates if p and os.path.isdir(p)), _arch_root)
-sys.path.insert(0, ROOT)
+
 os.environ.setdefault('PROJECT_ROOT', ROOT)
 
 from ensemble_trainer import EnsembleTrainer
@@ -51,7 +51,6 @@ V41_CONFIG = {
     'draw_threshold': 0.46,        # 分类阈值
     'ha_gap': 0.0,                 # Home-Away 最小差距
 }
-
 
 def main():
     t_start = time.time()
@@ -457,7 +456,7 @@ def main():
     registry = json.load(open(registry_path)) if os.path.exists(registry_path) else {}
     registry['current'] = {
         'version': MODEL_VERSION,
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': datetime.now(timezone.utc).isoformat(),
         'accuracy': round(float(v41_test_acc), 4),
         'auc': round(float(v41_test_auc), 4),
         'mcc': 0,
@@ -480,7 +479,6 @@ def main():
     logger.info(f"  模型: {save_path_fai}")
 
     return save_path_fai
-
 
 if __name__ == '__main__':
     main()

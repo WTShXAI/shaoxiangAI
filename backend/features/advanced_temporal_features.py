@@ -19,7 +19,6 @@ import warnings
 logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore')
 
-
 class SafeTemporalFeatureEngineer:
     """时序安全特征工程 — 所有窗口特征均只用历史数据（shift(1) before rolling）
 

@@ -21,15 +21,13 @@ import sys
 import os
 import time
 import warnings
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Tuple, Optional
 
 import pandas as pd
 import numpy as np
 
 warnings.filterwarnings('ignore')
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from backend.models.footballai_enhanced import FootballAIEnhanced
 from sklearn.model_selection import TimeSeriesSplit
@@ -42,7 +40,6 @@ import xgboost as xgb
 from sklearn.linear_model import RidgeClassifier
 from sklearn.calibration import CalibratedClassifierCV
 logger = logging.getLogger(__name__)
-
 
 # ══════════════════════════════════════════════════════════════════
 # train_with_30000_matches — 全特征工程 + 严格时序训练
@@ -107,7 +104,6 @@ LEAKY_FEATURE_PATTERNS = [
     "strength_product", "poisson_goal_diff",
 ]
 
-
 def _derive_result_label(df: pd.DataFrame) -> np.ndarray:
     """从 home_score / away_score 推导 0=H 1=D 2=A 标签。"""
     hs = df["home_score"].values
@@ -116,7 +112,6 @@ def _derive_result_label(df: pd.DataFrame) -> np.ndarray:
     y[hs > aws] = 0
     y[hs < aws] = 2
     return y
-
 
 def _build_interaction_features(df: pd.DataFrame) -> pd.DataFrame:
     """构建交互特征和派生特征（不修改原 df）。"""
@@ -145,7 +140,6 @@ def _build_interaction_features(df: pd.DataFrame) -> pd.DataFrame:
     #   (依赖泄漏特征: *_win_prob, *_strength, poisson_*_goals)
 
     return out
-
 
 def _prepare_full_features(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, List[str]]:
     """完整特征工程管道 (3万场增强数据)。
@@ -216,7 +210,6 @@ def _prepare_full_features(df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, Li
     logger.info(f"     → {len(available)} 个特征, 缺失率 {100 * X_raw.isna().sum().sum() / (X_raw.shape[0] * X_raw.shape[1]):.2f}%")
 
     return X_raw.values.astype(np.float32), y, available
-
 
 # ── 时序交叉验证 ──
 
@@ -310,7 +303,6 @@ def _temporal_cv_evaluate(
         "all_y_pred": all_y_pred,
         "all_y_proba": all_y_proba,
     }
-
 
 # ── 多维评估 ──
 
@@ -417,7 +409,6 @@ def _multidimensional_evaluation(
 
     return results
 
-
 # ── 全量重训练 ──
 
 def _full_retrain(
@@ -476,7 +467,6 @@ def _full_retrain(
     file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
     return model, file_size_mb
 
-
 # ══════════════════════════════════════════════════════════════════
 # 对外入口: train_with_30000_matches
 # ══════════════════════════════════════════════════════════════════
@@ -517,7 +507,7 @@ def train_with_30000_matches(
     logger.info(f"  数据:      {data_path}")
     logger.info(f"  输出:      {output_path}")
     logger.info(f"  CV折数:    {cv_splits}")
-    logger.info(f"  开始时间:  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"  开始时间:  {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info(f"{'=' * 65}")
 
     # ═══ 1. 加载增强数据 ═══
@@ -630,7 +620,7 @@ def train_with_30000_matches(
     # ── 汇总返回 ──
     summary = {
         "version": version,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "data": {
             "rows": n_samples,
             "features": n_features,
@@ -659,7 +649,6 @@ def train_with_30000_matches(
         logger.info(f"  📄 报告已导出: {report_path}")
 
     return summary
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -804,7 +793,6 @@ def main():
     logger.info(f"\n{'=' * 60}")
     logger.info(f"  ✅ 训练完成")
     logger.info(f"{'=' * 60}\n")
-
 
 if __name__ == '__main__':
     main()

@@ -29,7 +29,6 @@ from enum import Enum
 
 logger = logging.getLogger('DegradationGuard')
 
-
 # ═══════════════════════════════════════════════════════════════
 # 1. 数据结构
 # ═══════════════════════════════════════════════════════════════
@@ -40,7 +39,6 @@ class DegradationLevel(Enum):
     L2 = 2   # v3.2 基线模型
     L3 = 3   # 赔率反推 (无模型)
     L4 = 4   # 均匀兜底 (0.33/0.33/0.33)
-
 
 class RiskTag(Enum):
     """风险标签"""
@@ -53,7 +51,6 @@ class RiskTag(Enum):
     FALLBACK_BASELINE = "fallback_baseline"
     UNIFORM_FALLBACK = "uniform_fallback"
     BARRIER_TRIGGERED = "barrier_triggered"
-
 
 @dataclass
 class ModuleHealth:
@@ -76,7 +73,6 @@ class ModuleHealth:
         self.recovery_count += 1
         self.last_check_time = time.strftime('%H:%M:%S')
 
-
 @dataclass
 class DegradationTrace:
     """降级追踪记录"""
@@ -85,7 +81,6 @@ class DegradationTrace:
     timestamp: str
     component: str = ""
     recovery_possible: bool = True
-
 
 @dataclass
 class GuardedResult:
@@ -124,7 +119,6 @@ class GuardedResult:
         if self.has_tag(RiskTag.LOW_CONFIDENCE) or self.has_tag(RiskTag.DEGRADED):
             return "🟡 注意"
         return "🟢 正常"
-
 
 # ═══════════════════════════════════════════════════════════════
 # 2. 容错降级守护引擎
@@ -274,8 +268,8 @@ class DegradationGuard:
             if fallback_fn:
                 try:
                     return False, fallback_fn(), warnings
-                except:
-                    pass
+                except Exception as e:
+                    warnings.append(f"降级函数执行失败: {e}")
             return False, None, warnings
 
         return True, None, warnings  # caller fills result
@@ -434,7 +428,6 @@ class DegradationGuard:
                 lines.append(f"    {t.timestamp} {t.level.name}: {t.reason[:70]}")
 
         return "\n".join(lines)
-
 
 # ═══════════════════════════════════════════════════════════════
 # 3. 单例

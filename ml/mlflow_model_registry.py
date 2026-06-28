@@ -7,7 +7,6 @@ from mlflow_tracker import MLflowTracker
 
 logger = logging.getLogger(__name__)
 
-
 class MLflowModelRegistry:
     """同步 MLflow Registry 与本地 ModelRegistry"""
 

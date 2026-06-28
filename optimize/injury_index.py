@@ -43,7 +43,6 @@ logger = logging.getLogger(__name__)
 # 数据库路径
 DB_PATH = None  # 延迟初始化
 
-
 def _get_db_path():
     global DB_PATH
     if DB_PATH is None:
@@ -53,7 +52,6 @@ def _get_db_path():
             'data', 'football_data.db'
         )
     return DB_PATH
-
 
 # ════════════════════════════════════════════════════════════════
 # 位置定义与权重
@@ -69,7 +67,6 @@ class PositionProfile:
     # 缺阵对攻防的影响 (0-1)
     attack_impact: float   # 对进攻的影响权重
     defense_impact: float  # 对防守的影响权重
-
 
 # 标准阵型位置 (4-3-3)
 POSITION_PROFILES = {
@@ -93,7 +90,6 @@ INJURY_SEVERITY = {
     'long_term': 1.0,   # 长期伤缺
     'returning': 0.4,   # 刚复出(状态折扣)
 }
-
 
 # ════════════════════════════════════════════════════════════════
 # 球员与阵容数据结构
@@ -124,7 +120,6 @@ class PlayerInjuryInfo:
             return self.quality_rating * 0.2  # 替补约为主力的 80%
         return 0.0
 
-
 @dataclass
 class TeamInjuryReport:
     """球队伤病报告 — 某场比赛前某队的伤病情况"""
@@ -153,7 +148,6 @@ class TeamInjuryReport:
     def n_doubtful(self) -> int:
         """出场成疑数"""
         return sum(1 for p in self.players if p.injury_status == 'doubtful')
-
 
 # ════════════════════════════════════════════════════════════════
 # 全队伤病评估模型
@@ -833,7 +827,6 @@ class TeamInjuryModel:
 
         return result
 
-
 # ════════════════════════════════════════════════════════════════
 # 便捷函数
 # ════════════════════════════════════════════════════════════════
@@ -861,12 +854,10 @@ def compute_injury_features(home_report: TeamInjuryReport = None,
 
     return model.compute_match_features(home_report, away_report)
 
-
 def generate_injury_features(db_path: str = None) -> pd.DataFrame:
     """便捷函数: 为所有比赛生成伤病特征"""
     model = TeamInjuryModel(db_path=db_path)
     return model.generate_features_df()
-
 
 # ════════════════════════════════════════════════════════════════
 # CLI

@@ -29,7 +29,7 @@ from __future__ import annotations
 import threading
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,6 @@ try:
 except ImportError:
     PROMETHEUS_AVAILABLE = False
     logger.info("prometheus_client 未安装，使用内置 SimpleMetrics")
-
 
 class SimpleGauge:
     """简易指标实现 (prometheus_client 不可用时的降级方案)"""
@@ -73,16 +72,13 @@ class SimpleGauge:
     def observe(self, value):
         self._value = value
 
-
 class SimpleCounter(SimpleGauge):
     """简易计数器"""
     pass
 
-
 class SimpleHistogram(SimpleGauge):
     """简易直方图"""
     pass
-
 
 class MetricsExporter:
     """模型和数据监控指标导出器 (Prometheus + 内置降级)"""
@@ -266,11 +262,10 @@ class MetricsExporter:
     def get_all_values(self) -> dict[str, Any]:
         """获取所有指标的快照 (非 Prometheus 格式)"""
         return {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "data_quality_score": self.data_quality_score._value if not PROMETHEUS_AVAILABLE else None,
             "drift_detected": bool(self.drift_detected._value) if not PROMETHEUS_AVAILABLE else None,
         }
-
 
 # ══════════════════════════════════════════════════
 # 全局单例
@@ -278,14 +273,12 @@ class MetricsExporter:
 
 _exporter: MetricsExporter | None = None
 
-
 def get_metrics_exporter() -> MetricsExporter:
     """获取全局 MetricsExporter 单例"""
     global _exporter
     if _exporter is None:
         _exporter = MetricsExporter()
     return _exporter
-
 
 # ══════════════════════════════════════════════════
 # CLI

@@ -19,7 +19,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 # ---------------------------------------------------------------------------
 # Encoders
 # ---------------------------------------------------------------------------
@@ -43,7 +42,6 @@ class StaticEncoder(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x: (B, 72) → (B, 64)
         return self.net(x)
-
 
 class MatchSeqEncoder(nn.Module):
     """Transformer encoder for match-history sequences (last N=10 matches)."""
@@ -73,7 +71,6 @@ class MatchSeqEncoder(nn.Module):
         x = self.transformer(x)
         return self.out_proj(x[:, 0, :])               # CLS token → (B, 64)
 
-
 class OddsDriftEncoder(nn.Module):
     """Lightweight Transformer for 8-step odds-drift sequence."""
 
@@ -97,7 +94,6 @@ class OddsDriftEncoder(nn.Module):
         x = x + self.pos_embed
         x = self.transformer(x)
         return self.out_proj(x.mean(dim=1))            # mean pool → (B, 64)
-
 
 # ---------------------------------------------------------------------------
 # Fusion & Prediction
@@ -124,7 +120,6 @@ class GatedFusion(nn.Module):
                  + gates[:, 2:3] * z_drift)                      # (B, 64)
         return self.out_proj(fused)                              # (B, 128)
 
-
 class StepPredictor(nn.Module):
     """Shared-weight step predictor: s_t → s_{t+1}."""
 
@@ -144,7 +139,6 @@ class StepPredictor(nn.Module):
     def forward(self, s: torch.Tensor) -> torch.Tensor:
         # s: (B, 128) → (B, 128)  — residual connection applied externally
         return self.net(s)
-
 
 class OutputHead(nn.Module):
     """Decode terminal state delta to 1X2 logits."""
@@ -166,7 +160,6 @@ class OutputHead(nn.Module):
         diff = s_T - s_0
         concat = torch.cat([s_0, s_T, diff], dim=-1)  # (B, 384)
         return self.net(concat)                        # (B, 3) logits
-
 
 # ---------------------------------------------------------------------------
 # Main JEPA Model
@@ -260,7 +253,6 @@ class FootballJEPA(nn.Module):
 
         return mean_probs
 
-
 # ---------------------------------------------------------------------------
 # Dual Encoder (BYOL-style anti-collapse)
 # ---------------------------------------------------------------------------
@@ -302,7 +294,6 @@ class DualEncoder(nn.Module):
         with torch.no_grad():
             s_0_tgt = self.target_encoder.encode(static, seq, drift)
         return s_0_ctx, s_0_tgt
-
 
 # ---------------------------------------------------------------------------
 # Smoke test
@@ -360,7 +351,6 @@ if __name__ == '__main__':
     print("=" * 60)
     print("Smoke test passed")
     print("=" * 60)
-
 
 # ── JEPA Lite: static-only variant for fast-mode training ──
 class JEPALite(nn.Module):

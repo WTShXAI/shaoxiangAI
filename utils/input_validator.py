@@ -18,7 +18,6 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-
 # ══════════════════════════════════════════════════
 # 基础工具
 # ══════════════════════════════════════════════════
@@ -42,7 +41,6 @@ _XSS_TAGS = re.compile(r'<\s*(script|iframe|object|embed|style|link|img)', re.IG
 # 路径遍历
 _PATH_TRAVERSAL = re.compile(r'\.\.\/|\.\.\\')
 
-
 def sanitize_string(value: str, max_length: int = 200,
                     allow_html: bool = False) -> str:
     """安全清洗字符串：去首尾空格、防XSS、防SQL注入、限长"""
@@ -55,7 +53,6 @@ def sanitize_string(value: str, max_length: int = 200,
         value = _XSS_TAGS.sub('[blocked]', value)
     return value
 
-
 def validate_team_name(name: str) -> Tuple[bool, str]:
     """验证球队名称"""
     if not name or len(name.strip()) < 2:
@@ -67,7 +64,6 @@ def validate_team_name(name: str) -> Tuple[bool, str]:
     if _SQL_KEYWORDS.search(name):
         return False, "球队名含非法关键字"
     return True, ""
-
 
 def validate_date_str(date_str: str) -> Tuple[bool, str, Optional[str]]:
     """验证日期字符串 YYYY-MM-DD，返回 (valid, error, normalized)"""
@@ -82,7 +78,6 @@ def validate_date_str(date_str: str) -> Tuple[bool, str, Optional[str]]:
     except ValueError:
         return False, f"无效日期: {date_str}", None
     return True, "", date_str
-
 
 def validate_int(value: Any, min_val: int = 0, max_val: int = 2**31 - 1,
                  default: int = None) -> Tuple[bool, str, Optional[int]]:
@@ -99,7 +94,6 @@ def validate_int(value: Any, min_val: int = 0, max_val: int = 2**31 - 1,
     except (ValueError, TypeError):
         return False, f"无效整数: {value}", None
 
-
 def validate_float(value: Any, min_val: float = 0.0, max_val: float = 1.0,
                    default: float = None) -> Tuple[bool, str, Optional[float]]:
     """验证浮点数参数"""
@@ -115,7 +109,6 @@ def validate_float(value: Any, min_val: float = 0.0, max_val: float = 1.0,
     except (ValueError, TypeError):
         return False, f"无效浮点数: {value}", None
 
-
 def validate_league_code(code: str) -> Tuple[bool, str, Optional[str]]:
     """验证联赛代码，防注入"""
     if not code:
@@ -127,7 +120,6 @@ def validate_league_code(code: str) -> Tuple[bool, str, Optional[str]]:
         return False, "联赛代码过长", None
     return True, "", code.strip().upper()
 
-
 # ══════════════════════════════════════════════════
 # API 参数验证
 # ══════════════════════════════════════════════════
@@ -138,7 +130,6 @@ class ValidationResult:
     valid: bool
     errors: List[str] = field(default_factory=list)
     cleaned: Dict[str, Any] = field(default_factory=dict)
-
 
 def validate_predict_params(data: Dict) -> ValidationResult:
     """
@@ -211,7 +202,6 @@ def validate_predict_params(data: Dict) -> ValidationResult:
     result.valid = len(result.errors) == 0
     return result
 
-
 def validate_train_params(data: Dict) -> ValidationResult:
     """验证 /api/train 请求参数"""
     result = ValidationResult(valid=True)
@@ -230,7 +220,6 @@ def validate_train_params(data: Dict) -> ValidationResult:
 
     result.valid = len(result.errors) == 0
     return result
-
 
 def validate_match_input(data: Dict) -> ValidationResult:
     """验证 /api/matches POST 的比赛录入数据"""
@@ -262,7 +251,6 @@ def validate_match_input(data: Dict) -> ValidationResult:
     result.valid = len(result.errors) == 0
     return result
 
-
 def validate_batch_predict_input(data: Dict) -> ValidationResult:
     """验证批量预测输入"""
     result = ValidationResult(valid=True)
@@ -288,7 +276,6 @@ def validate_batch_predict_input(data: Dict) -> ValidationResult:
     result.valid = len(result.errors) == 0
     return result
 
-
 # ══════════════════════════════════════════════════
 # 安全检查
 # ══════════════════════════════════════════════════
@@ -299,20 +286,17 @@ def check_sql_injection(value: str) -> bool:
         return False
     return bool(_SQL_KEYWORDS.search(value))
 
-
 def check_path_traversal(path: str) -> bool:
     """检测路径遍历攻击"""
     if not isinstance(path, str):
         return False
     return bool(_PATH_TRAVERSAL.search(path))
 
-
 def check_xss(value: str) -> bool:
     """检测 XSS 攻击"""
     if not isinstance(value, str):
         return False
     return bool(_XSS_TAGS.search(value))
-
 
 def security_scan(data: Dict) -> List[str]:
     """
@@ -338,7 +322,6 @@ def security_scan(data: Dict) -> List[str]:
 
     _scan(data)
     return violations
-
 
 # ══════════════════════════════════════════════════
 # Flask 请求验证装饰器

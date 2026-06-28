@@ -41,7 +41,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
 # ═══════════════════════════════════════════════════════════════
 # JEPA陷阱检测数据结构
 # ═══════════════════════════════════════════════════════════════
@@ -54,7 +53,6 @@ class JEPATrapType(Enum):
     DIVERGENCE_ANOMALY = "divergence_anomaly"          # 分歧异常 (单机构反常)
     TRAJECTORY_INCONSISTENCY = "trajectory_inconsistency"  # 轨迹不一致
 
-
 @dataclass
 class JEPATrapSignal:
     """JEPA范式陷阱信号"""
@@ -64,7 +62,6 @@ class JEPATrapSignal:
     affected_dimensions: List[int]       # 受影响的嵌入维度
     interpretation: str
     signal_grade: str = "C"             # S/A/B/C/F
-
 
 @dataclass
 class JEPATrapReport:
@@ -110,7 +107,6 @@ class JEPATrapReport:
                 k: round(v, 3) for k, v in self.traditional_mapping.items()
             },
         }
-
 
 # ═══════════════════════════════════════════════════════════════
 # JEPA陷阱检测器
@@ -506,7 +502,6 @@ class JEPATrapDetector:
         else:
             return (f"🟢 安全(trap={report.trap_score:.2f}) — "
                     f"嵌入空间无明显异常")
-
 
 # ═══════════════════════════════════════════════════════════════
 # 兼容层: 将JEPA TrapDetector包装为BookmakerTrapDetector接口

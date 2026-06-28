@@ -38,7 +38,6 @@ from typing import Dict, List, Optional, Any, Tuple
 
 logger = logging.getLogger(__name__)
 
-
 # ═══════════════════════════════════════════════════════════════
 # 1. 意图定义体系
 # ═══════════════════════════════════════════════════════════════
@@ -50,7 +49,6 @@ class IntentCategory(Enum):
     BACKTEST = "backtest"
     OPTIMIZE = "optimize"
     EXPLAIN = "explain"
-
 
 class IntentSubType(Enum):
     """意图子类"""
@@ -82,7 +80,6 @@ class IntentSubType(Enum):
     FEATURE_EXPLAIN = "feature_explain"         # 特征重要性
     ERROR_EXPLAIN = "error_explain"             # 错误归因
 
-
 @dataclass
 class IntentDef:
     """意图定义"""
@@ -97,7 +94,6 @@ class IntentDef:
     support_experts: List[str] = field(default_factory=list)  # 辅助专家
     # 评分参数
     priority_bias: float = 0.0       # 优先级偏移 (解决关键词平局, 专项意图应高于通用意图)
-
 
 # ═══════════════════════════════════════════════════════════════
 # 2. 意图注册表 (15子类)
@@ -249,7 +245,6 @@ INTENT_V2_REGISTRY: List[IntentDef] = [
     ),
 ]
 
-
 # ═══════════════════════════════════════════════════════════════
 # 3. 路由结果
 # ═══════════════════════════════════════════════════════════════
@@ -258,7 +253,6 @@ class RouteAction(Enum):
     EXECUTE = "execute"           # 直接执行
     CLARIFY = "clarify"           # 需要澄清
     REJECT = "reject"             # 拒绝(不在能力范围)
-
 
 @dataclass
 class RouteResult:
@@ -293,7 +287,6 @@ class RouteResult:
                 "reject_reason": self.reject_reason,
             }
         }
-
 
 # ═══════════════════════════════════════════════════════════════
 # 4. 混合意图分类器 (贝叶斯 + 规则)
@@ -453,14 +446,12 @@ class IntentClassifierV2:
         """构建反问澄清语句"""
         return f"您是想了解{'/'.join(intent.keywords[:3])}方面的信息吗？请再具体描述一下。"
 
-
 # ═══════════════════════════════════════════════════════════════
 # 5. 便捷函数
 # ═══════════════════════════════════════════════════════════════
 
 # 全局单例
 _classifier_instance: Optional[IntentClassifierV2] = None
-
 
 def get_classifier(threshold: float = 0.70) -> IntentClassifierV2:
     """获取意图分类器单例"""
@@ -469,11 +460,9 @@ def get_classifier(threshold: float = 0.70) -> IntentClassifierV2:
         _classifier_instance = IntentClassifierV2(confidence_threshold=threshold)
     return _classifier_instance
 
-
 def classify_intent(user_input: str) -> RouteResult:
     """快速分类"""
     return get_classifier().classify(user_input)
-
 
 def reset_classifier():
     """重置单例(测试用)"""

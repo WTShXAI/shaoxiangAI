@@ -25,7 +25,6 @@ import lightgbm as lgb
 
 logger = logging.getLogger(__name__)
 
-
 class DrawExpert:
     """
     平局专精二分类器
@@ -243,7 +242,6 @@ class DrawExpert:
         de.eval_metrics_ = state.get('eval_metrics', {})
         logger.info(f"DrawExpert 已加载: {path} (Draw-F1={de.eval_metrics_.get('f1', 'N/A')})")
         return de
-
 
 # ─── 便捷函数 ───
 

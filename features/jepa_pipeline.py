@@ -20,7 +20,6 @@ import warnings
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-
 # ─── Static 72 feature list (order matters for reproducibility) ───────────────
 # These 72 features are selected from the 132 numeric columns in v6 data.
 # Grouped logically: Core Odds → Odds Derived → Draw Signals → Team Form →
@@ -72,7 +71,6 @@ STATIC_72_COLS = [
 ]
 
 assert len(STATIC_72_COLS) == 72, f"Expected 72 features, got {len(STATIC_72_COLS)}"
-
 
 class JEPADataPipeline:
     """
@@ -540,7 +538,6 @@ class JEPADataPipeline:
         else:
             return 2
 
-
 # ─── CLI Entry Point ─────────────────────────────────────────────────────────
 
 def build_all_splits(output_dir="D:/Architecture v4.0/data",
@@ -580,7 +577,6 @@ def build_all_splits(output_dir="D:/Architecture v4.0/data",
         print(f"  Label distribution: H={h_count:,} ({h_count/n*100:.1f}%), "
               f"D={d_count:,} ({d_count/n*100:.1f}%), "
               f"A={a_count:,} ({a_count/n*100:.1f}%)")
-
 
 if __name__ == "__main__":
     build_all_splits()

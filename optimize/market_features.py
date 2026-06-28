@@ -49,7 +49,6 @@ logger = logging.getLogger(__name__)
 # 数据库路径
 DB_PATH = None  # 延迟初始化
 
-
 def _get_db_path():
     global DB_PATH
     if DB_PATH is None:
@@ -59,7 +58,6 @@ def _get_db_path():
             'data', 'football_data.db'
         )
     return DB_PATH
-
 
 # ════════════════════════════════════════════════════════════════
 # 赔率 API 抽象接口
@@ -78,7 +76,6 @@ class OddsSnapshot:
     under_odds: Optional[float] = None
     provider: str = ''
     timestamp: Optional[str] = None
-
 
 @dataclass
 class MultiBookmakerOdds:
@@ -149,7 +146,6 @@ class MultiBookmakerOdds:
         self._aggregated = result
         return result
 
-
 @dataclass
 class OddsMovement:
     """赔率变动特征"""
@@ -175,7 +171,6 @@ class OddsMovement:
     max_jump_home: float = 0.0
     max_jump_draw: float = 0.0
     max_jump_away: float = 0.0
-
 
 # ════════════════════════════════════════════════════════════════
 # 赔率 API 接口 (为 The Odds API 预留)
@@ -309,7 +304,6 @@ class OddsAPIInterface:
 
         return multi
 
-
 # ════════════════════════════════════════════════════════════════
 # 核心计算函数
 # ════════════════════════════════════════════════════════════════
@@ -323,7 +317,6 @@ def implied_prob(odds: float, return_rate: float = 0.95) -> float:
         return 0.0
     return float((1.0 / odds) * return_rate)
 
-
 def fair_prob(home_odds: float, draw_odds: float, away_odds: float) -> Tuple[float, float, float]:
     """
     去抽水公平概率 — 将3个隐含概率归一化
@@ -336,7 +329,6 @@ def fair_prob(home_odds: float, draw_odds: float, away_odds: float) -> Tuple[flo
     if total <= 0:
         return (0.0, 0.0, 0.0)
     return (raw_h / total, raw_d / total, raw_a / total)
-
 
 def overround(home_odds: float, draw_odds: float, away_odds: float) -> float:
     """
@@ -352,7 +344,6 @@ def overround(home_odds: float, draw_odds: float, away_odds: float) -> float:
         total += 1.0 / away_odds
     return total - 1.0
 
-
 def kelly_value(model_prob: float, odds: float, return_rate: float = 0.95) -> float:
     """
     凯利价值: f* = (bp - q) / b
@@ -366,7 +357,6 @@ def kelly_value(model_prob: float, odds: float, return_rate: float = 0.95) -> fl
     q = 1.0 - p
     return float((b * p - q) / b)
 
-
 def expected_value(model_prob: float, odds: float) -> float:
     """
     期望值: EV = p * (odds - 1) - (1 - p)
@@ -374,7 +364,6 @@ def expected_value(model_prob: float, odds: float) -> float:
     if odds <= 1.0:
         return 0.0
     return float(model_prob * (odds - 1.0) - (1.0 - model_prob))
-
 
 def compute_odds_movement(history: List[OddsSnapshot]) -> OddsMovement:
     """
@@ -436,7 +425,6 @@ def compute_odds_movement(history: List[OddsSnapshot]) -> OddsMovement:
             mov.max_jump_away = float(max(abs(r) for r in log_ret))
 
     return mov
-
 
 # ════════════════════════════════════════════════════════════════
 # 市场特征提取器
@@ -952,7 +940,6 @@ class MarketFeatureExtractor:
 
         return importance
 
-
 # ════════════════════════════════════════════════════════════════
 # 便捷函数
 # ════════════════════════════════════════════════════════════════
@@ -963,13 +950,11 @@ def compute_market_features(match_id: int,
     mfx = MarketFeatureExtractor()
     return mfx.compute_match_features(match_id, model_probs)
 
-
 def generate_market_features(match_ids: Optional[List[int]] = None,
                                model_probs_df: Optional[pd.DataFrame] = None) -> pd.DataFrame:
     """批量生成"""
     mfx = MarketFeatureExtractor()
     return mfx.generate_features_df(match_ids, model_probs_df)
-
 
 # ════════════════════════════════════════════════════════════════
 # CLI

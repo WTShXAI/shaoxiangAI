@@ -5,19 +5,17 @@
 import json
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from enum import Enum
 
 logger = logging.getLogger(__name__)
-
 
 class AlertLevel(Enum):
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
     CRITICAL = "critical"
-
 
 class AlertRule:
     """告警规则"""
@@ -56,7 +54,6 @@ class AlertRule:
             self._last_triggered = time.time()
             return True
         return False
-
 
 class AlertService:
     """告警服务"""
@@ -104,7 +101,7 @@ class AlertService:
                         "condition": rule.condition,
                         "level": rule.level.value,
                         "description": rule.description,
-                        "timestamp": datetime.now().isoformat(),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                     }
                     self.alerts.append(alert)
                     triggered.append(alert)
@@ -159,10 +156,8 @@ class AlertService:
     def clear_alerts(self):
         self.alerts = []
 
-
 # 全局单例
 _alert_service: Optional[AlertService] = None
-
 
 def get_alert_service() -> AlertService:
     global _alert_service

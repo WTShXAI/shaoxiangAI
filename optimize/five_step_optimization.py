@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 import joblib
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Any
 from sklearn.metrics import accuracy_score, f1_score
@@ -28,12 +28,11 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # 添加项目根路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.models.footballai_enhanced import FootballAIEnhanced
 from backend.models.advanced_ensemble import DrawOptimizedEnsemble
 from backend.training.adaptive_training import AdaptiveTrainingStrategy
-from backend.features.advanced_temporal_features import SafeTemporalFeatureEngineer
+from features.advanced_temporal_features import SafeTemporalFeatureEngineer
 from optimize.weight_optimizer import WeightOptimizer
 
 logger = logging.getLogger(__name__)
@@ -42,7 +41,6 @@ logging.basicConfig(
     format='%(asctime)s [%(levelname)s] %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
-
 
 class FiveStepOptimizer:
     """5步优化管道"""
@@ -626,7 +624,7 @@ class FiveStepOptimizer:
         logger.info("开始执行5步优化计划")
         logger.info("=" * 80)
         
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
         
         try:
             # 步骤0: 加载数据
@@ -654,10 +652,10 @@ class FiveStepOptimizer:
             step5_result = self.step5_dynamic_weight_calculator()
             
             # 汇总结果
-            total_time = (datetime.now() - start_time).total_seconds()
+            total_time = (datetime.now(timezone.utc) - start_time).total_seconds()
             
             summary = {
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'total_time_seconds': total_time,
                 'data_info': {
                     'rows': len(self.data),
@@ -713,7 +711,6 @@ class FiveStepOptimizer:
             import traceback
             traceback.print_exc()
             return {'error': str(e), 'success': False}
-
 
 def main():
     """主函数"""
@@ -776,7 +773,7 @@ def main():
     
     # 生成报告
     summary = {
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': datetime.now(timezone.utc).isoformat(),
         'data_file': args.data,
         'steps_executed': steps_to_run,
         'results': results
@@ -788,7 +785,6 @@ def main():
     
     logger.info(f"优化报告已保存: {summary_path}")
     logger.info("完成!")
-
 
 if __name__ == '__main__':
     main()

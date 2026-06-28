@@ -11,12 +11,11 @@
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Set, Tuple
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
-
 
 class IncrementalUpdater:
     """
@@ -98,7 +97,7 @@ class IncrementalUpdater:
                            error_msg: str = None):
         """更新同步状态"""
         self._ensure_sync_tracking_table()
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         with self.db.get_connection() as conn:
             conn.execute("""
                 INSERT INTO sync_tracker (data_type, league_name, season,
@@ -137,9 +136,9 @@ class IncrementalUpdater:
         if latest:
             date_from = latest
         else:
-            date_from = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
+            date_from = (datetime.now(timezone.utc) - timedelta(days=365)).strftime("%Y-%m-%d")
 
-        date_to = datetime.now().strftime("%Y-%m-%d")
+        date_to = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
         days = (datetime.strptime(date_to, "%Y-%m-%d") -
                 datetime.strptime(date_from, "%Y-%m-%d")).days
@@ -216,7 +215,7 @@ class IncrementalUpdater:
 
         interval = self.RECOMMENDED_INTERVALS.get(data_type, 3600)
         last_time = datetime.fromisoformat(last["last_synced_at"])
-        elapsed = (datetime.now() - last_time).total_seconds()
+        elapsed = (datetime.now(timezone.utc) - last_time).total_seconds()
 
         if elapsed < interval:
             remaining = interval - elapsed
@@ -323,7 +322,7 @@ class IncrementalUpdater:
         for league, dtype, synced_at, count, status in rows:
             hours_ago = None
             if synced_at:
-                elapsed = (datetime.now() - datetime.fromisoformat(synced_at))
+                elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(synced_at))
                 hours_ago = round(elapsed.total_seconds() / 3600, 1)
             summary[league][dtype] = {
                 "last_synced": synced_at,

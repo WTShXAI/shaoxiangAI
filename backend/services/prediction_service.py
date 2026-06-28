@@ -94,7 +94,6 @@ except Exception as _ve:
     _vip_predictor = None
     _vip_available = False
 
-
 class PredictionService:
     """预测服务（桥接 ModelBridge + 泊松比分 + 大小球 + 融合方案）"""
 
@@ -415,7 +414,6 @@ class PredictionService:
             pipeline.print_trace()
         else:
             logger.warning("无 Trace 数据")
-
 
     def predict_single(
         self, home_team: str, away_team: str, league: Optional[str] = None,

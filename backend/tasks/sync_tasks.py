@@ -8,13 +8,12 @@ import logging
 import requests
 import sqlite3
 import sqlalchemy
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from celery.schedules import crontab
 
 from tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
-
 
 @celery_app.task(bind=True, name="sync_matches_task")
 def sync_matches_task(self):
@@ -46,7 +45,7 @@ def sync_matches_task(self):
             'mls', 'csl', 'world_cup', 'european_championship',
         ]
         
-        today = datetime.now()
+        today = datetime.now(timezone.utc)
         date_from = (today - timedelta(days=3)).strftime('%Y-%m-%d')
         date_to = (today + timedelta(days=6)).strftime('%Y-%m-%d')
         
@@ -101,7 +100,7 @@ def sync_matches_task(self):
             "updated": updated_count,
             "resolved": resolved,
             "errors": errors,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         
     except (requests.exceptions.RequestException, ConnectionError, TimeoutError) as e:
@@ -116,7 +115,6 @@ def sync_matches_task(self):
     except (sqlite3.Error, sqlalchemy.exc.SQLAlchemyError) as e:
         logger.error(f"[后台同步] 任务执行失败: {e}", exc_info=True)
         self.retry(exc=e, countdown=60, max_retries=3)
-
 
 @celery_app.task(bind=True, name="fetch_initial_data_task")
 def fetch_initial_data_task(self, date_from=None, date_to=None):
@@ -141,7 +139,7 @@ def fetch_initial_data_task(self, date_from=None, date_to=None):
         collector = FDC(api_key)
         
         if not date_from:
-            today = datetime.now()
+            today = datetime.now(timezone.utc)
             date_from = today.strftime('%Y-%m-%d')
             date_to = (today + timedelta(days=7)).strftime('%Y-%m-%d')
         
@@ -190,7 +188,6 @@ def fetch_initial_data_task(self, date_from=None, date_to=None):
     except (sqlite3.Error, sqlalchemy.exc.SQLAlchemyError) as e:
         logger.error(f"[初始拉取] 失败: {e}", exc_info=True)
         return {"status": "error", "message": str(e)}
-
 
 # ── Celery Beat 定时任务配置 ──────────────────────────────
 celery_app.conf.beat_schedule = {

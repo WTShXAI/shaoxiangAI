@@ -9,13 +9,12 @@ import requests
 import logging
 import time as time_module
 from typing import Dict, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 # ⛔ 死命令 — 禁止模拟数据
-from data_integrity import block_mock_data, DataIntegrityError
+from database.data_integrity import block_mock_data, DataIntegrityError
 
 logger = logging.getLogger(__name__)
-
 
 class APICache:
     """简单的内存缓存，带TTL过期机制"""
@@ -48,7 +47,6 @@ class APICache:
         now = time_module.time()
         active = sum(1 for _, (_, exp) in self._cache.items() if exp > now)
         return {"total_entries": len(self._cache), "active_entries": active}
-
 
 class FootballDataCollector:
     """Football-Data.org 数据采集器 v2.0"""
@@ -102,7 +100,7 @@ class FootballDataCollector:
         """记录一次API请求"""
         self._minute_request_times.append(time_module.time())
         self.request_count += 1
-        self.last_request_time = datetime.now()
+        self.last_request_time = datetime.now(timezone.utc)
 
     def _api_call(self, endpoint: str, params: dict = None, use_cache: bool = False,
                   cache_ttl: int = None, max_retries: int = 3) -> Optional[dict]:
@@ -465,7 +463,7 @@ class FootballDataCollector:
         Returns:
             比赛列表，包含 finished 和 scheduled 状态的比赛
         """
-        today = datetime.now().strftime('%Y-%m-%d')
+        today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
         since_dt = datetime.strptime(since_date, '%Y-%m-%d')
         today_dt = datetime.strptime(today, '%Y-%m-%d')
 
@@ -548,7 +546,7 @@ class FootballDataCollector:
             比赛列表
         """
         if season is None:
-            season = datetime.now().year
+            season = datetime.now(timezone.utc).year
 
         endpoint = f"/competitions/{league_code}/matches"
         params = {"season": season}

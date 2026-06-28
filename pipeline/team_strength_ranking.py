@@ -10,7 +10,6 @@ import sys, math
 from collections import defaultdict
 
 ARCH_ROOT = r"D:\Architecture v4.0"
-sys.path.insert(0, ARCH_ROOT)
 
 # ═══════════════════════════════
 # 34场已完赛赛果

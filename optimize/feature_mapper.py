@@ -43,7 +43,6 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-
 # ═══════════════════════════════════════════════════════════════════
 #  特征版本定义
 # ═══════════════════════════════════════════════════════════════════
@@ -55,7 +54,6 @@ class FeatureVersion(Enum):
     V3_INJURY = 'v3'           # V2 + 7 伤病特征
     V4_ROLLING = 'v4'          # V3 + ~50 滚动特征
     V1_EXTENDED = 'v1_ext'     # V1 + 6 交互项 (GBDT 标配)
-
 
 # ═══════════════════════════════════════════════════════════════════
 #  V1 基础特征 (19 个) — 与 config.yaml / gbdt_adapter 完全一致
@@ -105,7 +103,6 @@ SYMMETRIC_FEATURES: Set[str] = {
     'rank_diff_factor', 'form_momentum', 'h2h_factor', 'beta_dev',
 }
 
-
 # ═══════════════════════════════════════════════════════════════════
 #  V2 市场特征 (29 个) — market_features.py
 # ═══════════════════════════════════════════════════════════════════
@@ -140,7 +137,6 @@ V2_MARKET_DEFAULTS: Dict[str, float] = {
     'mkt_kelly_home': 0.0, 'mkt_kelly_away': 0.0, 'mkt_ev_home': 0.0,
 }
 
-
 # ═══════════════════════════════════════════════════════════════════
 #  V3 伤病特征 (7 个) — injury_index.py
 # ═══════════════════════════════════════════════════════════════════
@@ -156,7 +152,6 @@ V3_INJURY_DEFAULTS: Dict[str, float] = {
     'attack_impact_diff': 0.0, 'defense_impact_diff': 0.0,
     'squad_depth_diff': 0.0, 'total_injury_asymmetry': 0.0,
 }
-
 
 # ═══════════════════════════════════════════════════════════════════
 #  V4 滚动特征 (~50 个) — rolling_features.py (rw_ 前缀)
@@ -217,9 +212,7 @@ def _build_v4_rolling_features() -> Tuple[List[str], Dict[str, float]]:
 
     return features, defaults
 
-
 V4_ROLLING_FEATURES, V4_ROLLING_DEFAULTS = _build_v4_rolling_features()
-
 
 # ═══════════════════════════════════════════════════════════════════
 #  旧→新特征名映射表 (历史重命名)
@@ -255,7 +248,6 @@ LEGACY_NAME_MAP: Dict[str, str] = {
 # 反向映射: 新→旧 (用于向旧模型输出)
 REVERSE_NAME_MAP: Dict[str, str] = {v: k for k, v in LEGACY_NAME_MAP.items()}
 
-
 # ═══════════════════════════════════════════════════════════════════
 #  全量特征注册表
 # ═══════════════════════════════════════════════════════════════════
@@ -278,7 +270,6 @@ ALL_FEATURES: List[str] = []
 for feats, _ in _ALL_FEATURE_DEFS:
     ALL_FEATURES.extend(feats)
 
-
 # ═══════════════════════════════════════════════════════════════════
 #  特征集定义
 # ═══════════════════════════════════════════════════════════════════
@@ -292,7 +283,6 @@ FEATURE_SETS: Dict[str, List[str]] = {
            + V3_INJURY_FEATURES + V4_ROLLING_FEATURES),
 }
 
-
 # ═══════════════════════════════════════════════════════════════════
 #  默认值策略
 # ═══════════════════════════════════════════════════════════════════
@@ -304,7 +294,6 @@ class DefaultStrategy(Enum):
     STATISTICAL = 'statistical' # 统计量插补 (中位数)
     SMART = 'smart'             # 智能策略: 精确>统计>零
 
-
 @dataclass
 class MappingResult:
     """映射结果"""
@@ -312,7 +301,6 @@ class MappingResult:
     unmapped: List[str]                 # 无法映射的列名
     extra_columns: List[str]            # 源中多余的列 (非特征)
     coverage: float                     # 映射覆盖率
-
 
 @dataclass
 class ValidationResult:
@@ -326,7 +314,6 @@ class ValidationResult:
     warnings: List[str]
     quality_score: float                # 0~1
 
-
 @dataclass
 class AlignmentReport:
     """对齐报告"""
@@ -338,7 +325,6 @@ class AlignmentReport:
     dropped: List[str]                  # 丢弃的列
     added: List[str]                    # 新增的列 (默认值)
     strategy: DefaultStrategy
-
 
 # ═══════════════════════════════════════════════════════════════════
 #  主类: FeatureMapper
@@ -896,7 +882,6 @@ class FeatureMapper:
             'compatibility_score': round(len(in_db) / len(all_expected), 3) if all_expected else 0.0,
         }
 
-
 # ═══════════════════════════════════════════════════════════════════
 #  便捷函数
 # ═══════════════════════════════════════════════════════════════════
@@ -921,7 +906,6 @@ def align_for_model(
     strat = DefaultStrategy(strategy)
     return mapper.make_compatible(df, model_feature_names, strat)
 
-
 def check_feature_alignment(
     df: pd.DataFrame,
     reference: Optional[pd.DataFrame] = None,
@@ -931,7 +915,6 @@ def check_feature_alignment(
     mapper = FeatureMapper()
     expected = FEATURE_SETS.get(target, FEATURE_SETS['v1_ext'])
     return mapper.validate(df, reference, expected)
-
 
 # ═══════════════════════════════════════════════════════════════════
 #  自测

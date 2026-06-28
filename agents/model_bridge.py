@@ -19,7 +19,6 @@ _PROJECT_ROOT = os.environ.get(
     'PROJECT_ROOT',
     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 )
-sys.path.insert(0, _PROJECT_ROOT)
 
 # 从 config.yaml 读取模型路径（修复NEW-4: 路径指向config/config.yaml）
 def _load_config():
@@ -32,8 +31,8 @@ def _load_config():
         try:
             with open(cfg_path, 'r', encoding='utf-8') as f:
                 return yaml.safe_load(f)
-        except Exception:
-            pass
+        except (yaml.YAMLError, IOError, OSError) as e:
+            logger.warning("加载配置文件失败: %s", e)
     return {}
 
 def _resolve_model_path():
@@ -66,7 +65,6 @@ def _resolve_model_path():
 _MODEL_DIR = os.path.join(_PROJECT_ROOT, 'saved_models')
 _SEARCH_ORDER = _resolve_model_path()
 
-
 def _find_best_model() -> str:
     """按优先级查找可用模型"""
     for candidate in _SEARCH_ORDER:
@@ -78,7 +76,6 @@ def _find_best_model() -> str:
             if f.endswith('.joblib') and 'ensemble' in f.lower():
                 return os.path.join(_MODEL_DIR, f)
     raise FileNotFoundError(f"找不到可用模型在 {_MODEL_DIR}")
-
 
 class ModelBridge:
     """模型桥接 — 委托 EnsembleTrainer，支持 NN 子模型
@@ -108,8 +105,11 @@ class ModelBridge:
         if self._loaded:
             return
         logger.info(f"加载模型: {self.model_name}")
+        # 确保 draw_expert 等旧模块可从顶层导入 (pickle反序列化需要)
+        _components_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'predictors', 'components')
+
         try:
-            from ensemble_trainer import EnsembleTrainer
+            from predictors.components.ensemble_trainer import EnsembleTrainer
             self._trainer = EnsembleTrainer.load_pipeline(self.model_path)
             self._loaded = True
             logger.info(f"模型就绪: {self.model_name} | {len(self._trainer.feature_names)}特征 "
@@ -243,8 +243,8 @@ class ModelBridge:
             try:
                 oe_vec = np.array([float(odds_data.get(k, 0)) for k in self._odds_feature_names]).reshape(1, -1)
                 oe_p = self._oe.predict_proba(oe_vec)[0]
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("OE模型预测失败: %s", e)
 
         # P0: 缓存OE输出(供D-gate融合读取)
         self._last_oe_proba = {"home": float(oe_p[0]), "draw": float(oe_p[1]), "away": float(oe_p[2])}
@@ -328,9 +328,7 @@ class ModelBridge:
     def _config(self, v):
         self.__config = v
 
-
 _bridge_instance: ModelBridge = None
-
 
 def get_model_bridge() -> ModelBridge:
     """获取全局 ModelBridge 单例"""
@@ -339,7 +337,6 @@ def get_model_bridge() -> ModelBridge:
         _bridge_instance = ModelBridge()
     _bridge_instance._ensure_loaded()
     return _bridge_instance
-
 
 def reload_model() -> ModelBridge:
     """强制重新加载模型"""

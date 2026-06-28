@@ -42,11 +42,10 @@ _PROJECT_ROOT = os.environ.get(
     'PROJECT_ROOT',
     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 )
-sys.path.insert(0, _PROJECT_ROOT)
+
 from agents.heuristic_predictor import HeuristicPredictor
 
 logger = logging.getLogger(__name__)
-
 
 # ════════════════════════════════════════════════════════════
 # 内联 Tool 定义 (从 prediction_service.py 提取核心逻辑)
@@ -97,7 +96,6 @@ class FeatureBuilderTool(Tool):
             return ToolResult(success=False, tool_name=self.name,
                               error=str(e), degraded=True)
 
-
 class OddsAnalyzerTool(Tool):
     """赔率分析：隐含概率 + 多维度赔率查询"""
     name = "odds_analyzer"
@@ -138,7 +136,6 @@ class OddsAnalyzerTool(Tool):
         except (Exception) as e:
             logger.error(f"[{self.name}] 失败: {e}")
             return ToolResult(success=False, tool_name=self.name, error=str(e))
-
 
 class ModelPredictorTool(Tool):
     """ML 模型预测（ModelBridge）+ Heuristic 子模型"""
@@ -231,7 +228,6 @@ class ModelPredictorTool(Tool):
             return ToolResult(success=False, tool_name=self.name,
                               error=str(e), degraded=True)
 
-
 class FusionEngineTool(Tool):
     """概率融合：模型 + 赔率 → 最终预测"""
     name = "fusion_engine"
@@ -321,7 +317,6 @@ class FusionEngineTool(Tool):
             logger.error(f"[{self.name}] 失败: {e}")
             return ToolResult(success=False, tool_name=self.name, error=str(e))
 
-
 class OddsOnlyFusionTool(Tool):
     """
     纯赔率融合 — Level 1 降级时使用
@@ -354,7 +349,6 @@ class OddsOnlyFusionTool(Tool):
             success=True, tool_name=self.name,
             data={'prediction': ctx.prediction, 'confidence': ctx.confidence}
         )
-
 
 class InvestGateTool(Tool):
     """
@@ -391,7 +385,6 @@ class InvestGateTool(Tool):
         except (Exception, KeyError, IndexError, requests.exceptions.RequestException) as e:
             return ToolResult(success=True, tool_name=self.name,
                               data={'decision': 'PASS', 'error': str(e)})
-
 
 class HarvestingGuardTool(Tool):
     """收割防护扫描（封装现有 HarvestingGuard）"""
@@ -447,7 +440,6 @@ class HarvestingGuardTool(Tool):
             return ToolResult(success=True, tool_name=self.name,
                               data={'skipped': 'error', 'error': str(e)})
 
-
 class ScorePredictorTool(Tool):
     """泊松比分预测 + 大小球分析"""
     name = "score_predictor"
@@ -482,7 +474,6 @@ class ScorePredictorTool(Tool):
             logger.warning(f"[{self.name}] 失败: {e}")
             return ToolResult(success=True, tool_name=self.name,
                               data={'skipped': 'error'})
-
 
 # ════════════════════════════════════════════════════════════
 # ToolPipeline — 主编排器

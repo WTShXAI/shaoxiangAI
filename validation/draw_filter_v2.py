@@ -1,6 +1,6 @@
 """Draw quality filter grid search - direct module (no API)"""
 import sys, os, json, math, numpy as np
-sys.path.insert(0, 'D:/Architecture v4.0')
+
 import torch, pandas as pd
 from models.jepa import JEPALite
 

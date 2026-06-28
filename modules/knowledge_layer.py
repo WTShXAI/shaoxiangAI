@@ -30,12 +30,11 @@ from __future__ import annotations
 import os, sys, logging, math, json
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) if '__file__' in dir() else os.getcwd()
 
 logger = logging.getLogger('KnowledgeLayer')
-
 
 # ═══════════════════════════════════════════════════════════════
 # 1. 数据结构
@@ -102,7 +101,6 @@ class Layer0Context:
     # 简易摘要
     summary: str = ""
     loaded: bool = False
-
 
 # ═══════════════════════════════════════════════════════════════
 # 2. 核心引擎
@@ -268,7 +266,7 @@ class KnowledgeLayer:
                 f"{home}vs{away} 错题",
                 f"预测{predicted} 实际{actual} | {context_hint}",
                 "warning",
-                f"L6自动沉淀/{datetime.now().strftime('%m-%d')}")
+                f"L6自动沉淀/{datetime.now(timezone.utc).strftime('%m-%d')}")
             # 追加到内置教训 (最多保留20条)
             self.BUILTIN_LESSONS.append(new_lesson)
             if len(self.BUILTIN_LESSONS) > 25:
@@ -327,13 +325,11 @@ class KnowledgeLayer:
 
         return "\n".join(lines)
 
-
 # ═══════════════════════════════════════════════════════════════
 # 3. 单例
 # ═══════════════════════════════════════════════════════════════
 
 _layer_instance: Optional[KnowledgeLayer] = None
-
 
 def get_knowledge_layer() -> KnowledgeLayer:
     global _layer_instance

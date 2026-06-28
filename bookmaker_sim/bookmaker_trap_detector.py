@@ -21,7 +21,6 @@ from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
 
-
 # ════════════════════════════════════════════════════════════════
 # 枚举与数据类
 # ════════════════════════════════════════════════════════════════
@@ -43,7 +42,6 @@ class TrapType(Enum):
     HISTORICAL_BIAS = "历史参照偏差"
     COUNTER_THREAT_LOW = "反击威胁低"
 
-
 @dataclass
 class TrapSignal:
     trap_type: TrapType
@@ -51,7 +49,6 @@ class TrapSignal:
     direction: str
     description: str
     weight_adjustment: Dict[str, float] = field(default_factory=dict)
-
 
 @dataclass
 class TrapReport:
@@ -67,7 +64,6 @@ class TrapReport:
     trap_features: Dict[str, float] = field(default_factory=dict)
     weights: Dict[str, float] = field(default_factory=dict)  # v3.0: W分解
 
-
 @dataclass
 class TacticalContext:
     """v3.0: 战术上下文"""
@@ -79,7 +75,6 @@ class TacticalContext:
     years_since_last_h2h: float = 0.0  # 距离上次交手年数
     match_type: str = "league"         # league/cup/final
     strength_gap: str = "normal"       # normal/large/very_large
-
 
 # ════════════════════════════════════════════════════════════════
 # 动态阈值
@@ -110,7 +105,6 @@ LEAGUE_TRAITS = {
     "其他": {"overround_base": 0.065},
 }
 
-
 # ════════════════════════════════════════════════════════════════
 # v3.0: 复合加权函数
 # ════════════════════════════════════════════════════════════════
@@ -132,7 +126,6 @@ def compute_w_hist(squad_change_ratio: float, years_since_h2h: float = 0) -> flo
         w *= 0.70
     return w
 
-
 def compute_w_tactic(coach_changed: bool, core_player_lost: bool,
                       temporary_rotation: bool = False) -> float:
     """
@@ -147,7 +140,6 @@ def compute_w_tactic(coach_changed: bool, core_player_lost: bool,
     if temporary_rotation:
         w *= 0.85       # 短期轮换
     return w
-
 
 def compute_w_market(rp_level: float, is_final: bool = False) -> float:
     """
@@ -174,7 +166,6 @@ OPPOSING_ENGINE_PAIRS = [
     (TrapType.FUND_IMBALANCE, TrapType.OVERROUND_ANOMALY), # E11↔E7: 资金过热 vs 抽水异常(低抽水)
     (TrapType.COUNTER_THREAT_LOW, TrapType.SCORE_ODDS_BARRIER), # E14↔E8: 反击威胁低 vs 波胆防线
 ]
-
 
 def compute_w_ambiguity(signals: List[TrapSignal]) -> float:
     """
@@ -206,7 +197,6 @@ def compute_w_ambiguity(signals: List[TrapSignal]) -> float:
     alpha = 0.5  # 衰减系数
     w = 1.0 - alpha * (opposing_count / len(signals))
     return max(0.5, min(1.0, w))
-
 
 # ════════════════════════════════════════════════════════════════
 # v3.1: 大小球 vs 波胆背离检测
@@ -288,7 +278,6 @@ def detect_ou_cs_divergence(
         ),
     }
 
-
 # ════════════════════════════════════════════════════════════════
 # v3.1: 反波胆特征工程
 # ════════════════════════════════════════════════════════════════
@@ -367,7 +356,6 @@ def compute_anti_cs_features(
                 pass
 
     return result
-
 
 # ════════════════════════════════════════════════════════════════
 # v3.1: 对手隐藏实力检测
@@ -452,10 +440,8 @@ def check_hidden_strength(
 
     return result
 
-
 def _poisson(k, lam):
     return max(np.exp(-lam) * lam**k / math.factorial(k), 1e-30)
-
 
 def _solve_lambda(odds_h: float, odds_d: float, odds_a: float) -> Tuple[float, float, float, np.ndarray]:
     """从1X2赔率用2D网格搜索最优 (λ_H, λ_A, ρ)
@@ -497,7 +483,6 @@ def _solve_lambda(odds_h: float, odds_d: float, odds_a: float) -> Tuple[float, f
         return best_la, best_lh, best_rho, p_target  # 换回：求解时H/A互换了
     return best_lh, best_la, best_rho, p_target
 
-
 def _lambda_to_fair_handicap(lam_h: float, lam_a: float) -> float:
     """从 λ 推导理论让球盘口（绝对值，不区分方向）"""
     goal_diff = abs(lam_h - lam_a)
@@ -512,7 +497,6 @@ def _lambda_to_fair_handicap(lam_h: float, lam_a: float) -> float:
     if goal_diff > 0.35: return 0.5
     if goal_diff > 0.18: return 0.25
     return 0.0
-
 
 def _estimate_fair_handicap(lam_h: float, lam_a: float, odds_h: float, odds_a: float) -> float:
     """
@@ -540,7 +524,6 @@ def _estimate_fair_handicap(lam_h: float, lam_a: float, odds_h: float, odds_a: f
     else: hc_from_odds = 0.0
 
     return max(hc_from_lambda, hc_from_odds)  # 保守估算
-
 
 def _estimate_volume_ratio(odds_h: float, odds_d: float, odds_a: float,
                             asian_handicap: float, fair_handicap: float) -> Dict[str, float]:
@@ -571,7 +554,6 @@ def _estimate_volume_ratio(odds_h: float, odds_d: float, odds_a: float,
     # 归一化
     vol /= vol.sum()
     return {"H": float(vol[0]), "D": float(vol[1]), "A": float(vol[2])}
-
 
 # ════════════════════════════════════════════════════════════════
 # 主检测器
@@ -1085,7 +1067,6 @@ class BookmakerTrapDetector:
         if traits.get("deep_easy"): adj["H_cover"] += 0.03
         if traits.get("underdog_strong"): adj["A_cover"] += 0.03
         return adj
-
 
 # ════════════════════════════════════════════════════════════════
 # 快速入口

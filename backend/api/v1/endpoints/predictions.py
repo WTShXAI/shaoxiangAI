@@ -4,7 +4,7 @@
 import logging
 import requests
 from typing import List, Optional, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Query, Depends, Response
 from pydantic import BaseModel, Field, field_validator
 
@@ -24,7 +24,6 @@ def _get_report_tools():
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
 
 # ── 响应模型 ─────────────────────────────
 
@@ -49,7 +48,6 @@ class BatchPredictionResponse(BaseModel):
     total: int
     model_version: str
 
-
 class PredictionRequest(BaseModel):
     home_team: str = Field(..., min_length=1, max_length=100)
     away_team: str = Field(..., min_length=1, max_length=100)
@@ -62,10 +60,8 @@ class PredictionRequest(BaseModel):
             raise ValueError('球队名不能为空')
         return v.strip()
 
-
 class BatchPredictionRequest(BaseModel):
     matches: List[PredictionRequest] = Field(..., min_length=1, max_length=100)
-
 
 # ── 新增：报告请求模型 ─────────────────────────────
 
@@ -81,7 +77,6 @@ class ReportRequest(BaseModel):
     odds_draw: Optional[float] = None
     odds_away: Optional[float] = None
     ou_line: Optional[float] = None
-
 
 # ── 端点 ──────────────────────────────────
 
@@ -109,7 +104,6 @@ async def predict_next_match(
         logger.error(f"预测下一场比赛失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="预测服务内部错误")
 
-
 @router.post("/single", response_model=MatchPrediction)
 async def predict_single_match(
     req: PredictionRequest,
@@ -134,7 +128,6 @@ async def predict_single_match(
         logger.error(f"单场预测失败 {req.home_team} vs {req.away_team}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="预测服务内部错误")
 
-
 @router.post("/batch", response_model=BatchPredictionResponse)
 async def predict_batch(
     req: BatchPredictionRequest,
@@ -153,7 +146,6 @@ async def predict_batch(
         logger.error(f"批量预测失败 ({len(req.matches)} 场): {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="批量预测服务内部错误")
 
-
 @router.get("/history")
 async def get_prediction_history(
     limit: int = Query(50, ge=1, le=500),
@@ -168,7 +160,6 @@ async def get_prediction_history(
     except (ValueError, KeyError, FileNotFoundError) as e:
         logger.error(f"获取预测历史失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="获取历史记录失败")
-
 
 @router.get("/stats")
 async def get_prediction_stats(
@@ -187,7 +178,6 @@ async def get_prediction_stats(
     except (ValueError, KeyError, FileNotFoundError) as e:
         logger.error(f"获取预测统计失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="获取统计信息失败")
-
 
 # ── 新增：HTML报告端点 ─────────────────────────────
 
@@ -219,7 +209,6 @@ def _make_intent_signals(odds: dict, pred_result: dict) -> list:
 
     return signals
 
-
 @router.post("/report", response_class=Response)
 async def generate_prediction_report(req: ReportRequest):
     """
@@ -229,7 +218,7 @@ async def generate_prediction_report(req: ReportRequest):
     """
     import traceback, datetime, os
     _backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    err_log = os.path.join(_backend_dir, f"report_error_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+    err_log = os.path.join(_backend_dir, f"report_error_{datetime.datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.log")
     try:
         # 1. 赔率数据
         odds = {
@@ -339,7 +328,6 @@ async def generate_prediction_report(req: ReportRequest):
 </body></html>"""
         return Response(content=err_html, media_type="text/html", status_code=500)
 
-
 # ── 多市场预测端点 ─────────────────────────────
 
 class MultiMarketResponse(BaseModel):
@@ -353,7 +341,6 @@ class MultiMarketResponse(BaseModel):
     goals: Optional[dict] = Field(None, description="进球数预测")
     score_prediction: Optional[dict] = Field(None, description="泊松比分预测")
     model_version: str = "v1.0"
-
 
 @router.post("/multi", response_model=MultiMarketResponse)
 async def predict_multi_market(req: PredictionRequest):
@@ -421,7 +408,6 @@ async def predict_multi_market(req: PredictionRequest):
         logger.error(f"多市场预测失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"预测失败: {str(e)}")
 
-
 # ═══════════════════════════════════════════════════════════════
 # v4.0 多专家协同预测端点 (P1-2)
 # ═══════════════════════════════════════════════════════════════
@@ -444,7 +430,6 @@ class V4PredictRequest(BaseModel):
             raise ValueError(f"expert_mode must be A/B/C/D, got {v}")
         return v
 
-
 class V4PredictResponse(BaseModel):
     """v4.0 预测响应"""
     home_team: str
@@ -466,7 +451,6 @@ class V4PredictResponse(BaseModel):
     pipeline_version: str = "v4.0-p1"
     execution_time_ms: float = 0.0
     fallback_triggered: bool = False
-
 
 @router.post("/v4", response_model=V4PredictResponse)
 async def predict_v4(request: V4PredictRequest):
@@ -555,7 +539,6 @@ async def predict_v4(request: V4PredictRequest):
         logger.error(f"[V4] 预测失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"v4.0 预测失败: {str(e)}")
 
-
 # ═══════════════════════════════════════════════════════════════
 # v4.0 系统健康端点 (P4)
 # ═══════════════════════════════════════════════════════════════
@@ -595,7 +578,7 @@ async def v4_health():
             },
             "modules_tested": 460,
             "modules_loaded": 12,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     except Exception as e:
         # 离线模式: 返回静态信息
@@ -611,9 +594,8 @@ async def v4_health():
             "modules_tested": 460,
             "modules_loaded": 12,
             "offline": True,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
-
 
 # ═══════════════════════════════════════════════════════════════
 # v4.0 赛后复盘/回测端点 (P4+)
@@ -629,7 +611,6 @@ class BacktestResponse(BaseModel):
     correct: int
     accuracy: float
     details: List[dict]
-
 
 @router.post("/v4/backtest", response_model=BacktestResponse)
 async def v4_backtest(request: BacktestRequest):

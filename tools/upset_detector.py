@@ -22,11 +22,9 @@ import json
 import math
 import logging
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Tuple, Optional, Any
 from collections import defaultdict
-
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import numpy as np
 from scipy import stats, optimize
@@ -40,7 +38,6 @@ logging.basicConfig(
     format='%(asctime)s [%(levelname)s] %(message)s'
 )
 logger = logging.getLogger(__name__)
-
 
 # ==================== 冷门信号因子定义 ====================
 
@@ -1130,7 +1127,7 @@ class UpsetDetector:
         return {
             'match_id': match_data.get('match_id'),
             'match_name': match_name,
-            'analyzed_at': datetime.now().isoformat(),
+            'analyzed_at': datetime.now(timezone.utc).isoformat(),
             'poisson_prediction': score_dist,
             'odds_divergence': odds_div,
             'form_divergence': form_div,
@@ -1353,7 +1350,6 @@ class UpsetDetector:
             'ruin_risk_10_streak': f'{ruin_risk*100:.2f}%',
         }
 
-
 # ==================== CLI ====================
 
 def main():
@@ -1441,7 +1437,7 @@ def main():
         
         # 保存完整报告
         report = {
-            'generated_at': datetime.now().isoformat(),
+            'generated_at': datetime.now(timezone.utc).isoformat(),
             'total_analyzed': len(results),
             'top_upsets': [
                 {
@@ -1469,7 +1465,6 @@ def main():
         result = report
     
     return result
-
 
 if __name__ == '__main__':
     main()

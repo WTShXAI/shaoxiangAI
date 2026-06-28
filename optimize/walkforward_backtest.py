@@ -46,7 +46,7 @@ import warnings
 from typing import Dict, List, Optional, Tuple, Union, Callable
 from dataclasses import dataclass, field
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -76,7 +76,6 @@ logger = logging.getLogger(__name__)
 CLASS_LABELS = ['Home', 'Draw', 'Away']
 DEFAULT_OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'evaluation_results')
 
-
 # ════════════════════════════════════════════════════════════════
 # 1. TimeSplitter — 时间分割策略
 # ════════════════════════════════════════════════════════════════
@@ -98,7 +97,6 @@ class TimeFold:
     def __repr__(self):
         return (f"Fold({self.fold_id}): train[{self.train_start}~{self.train_end}] "
                 f"({self.n_train}) → test[{self.test_start}~{self.test_end}] ({self.n_test})")
-
 
 class TimeSplitter:
     """
@@ -270,7 +268,6 @@ class TimeSplitter:
         mapping = {'month': 'M', 'quarter': 'Q', 'season': 'Q', 'year': 'Y'}
         return mapping.get(self.freq, 'Q')
 
-
 # ════════════════════════════════════════════════════════════════
 # 2. FoldMetrics — 单折指标
 # ════════════════════════════════════════════════════════════════
@@ -299,7 +296,6 @@ class FoldMetrics:
     # 元数据
     train_size: int = 0
     test_period: str = ''
-
 
 # ════════════════════════════════════════════════════════════════
 # 3. WalkForwardEngine — 回测引擎
@@ -503,7 +499,6 @@ class WalkForwardEngine:
             test_period=f"{fold.test_start}~{fold.test_end}",
         )
 
-
 # ════════════════════════════════════════════════════════════════
 # 4. BacktestResult — 回测结果容器
 # ════════════════════════════════════════════════════════════════
@@ -644,7 +639,6 @@ class BacktestResult:
         mean = float(np.mean(vals))
 
         return mean, lower, upper
-
 
 # ════════════════════════════════════════════════════════════════
 # 5. BacktestVisualizer — 回测可视化
@@ -1013,7 +1007,6 @@ class BacktestVisualizer:
 
         return paths
 
-
 # ════════════════════════════════════════════════════════════════
 # 6. BacktestReportBuilder — HTML 报告生成
 # ════════════════════════════════════════════════════════════════
@@ -1106,7 +1099,7 @@ class BacktestReportBuilder:
             ci_rows += (f'<tr><td>{metric.upper()}</td><td>{mean:.4f}</td>'
                         f'<td>[{lower:.4f}, {upper:.4f}]</td></tr>\n')
 
-        gen_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        gen_time = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
         html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -1171,7 +1164,6 @@ class BacktestReportBuilder:
 
         logger.info(f"Saved backtest HTML report: {path}")
         return path
-
 
 # ════════════════════════════════════════════════════════════════
 # 7. 便捷函数
@@ -1250,7 +1242,6 @@ def run_walkforward_backtest(
 
     return result, report_path
 
-
 def run_multi_strategy_comparison(
     df: pd.DataFrame,
     strategies: Dict[str, Optional[List[str]]],
@@ -1291,7 +1282,6 @@ def run_multi_strategy_comparison(
         viz.strategy_comparison(results)
 
     return results, None
-
 
 # ════════════════════════════════════════════════════════════════
 # 8. __main__ 测试

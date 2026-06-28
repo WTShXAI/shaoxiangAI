@@ -43,7 +43,6 @@ try:
 except ImportError:
     pass
 
-
 # ─── 默认超参数 ─────────────────────────────────────────────
 
 DEFAULT_LGB_PARAMS: Dict = {
@@ -72,7 +71,6 @@ DEFAULT_LGB_PARAMS: Dict = {
     'early_stopping_rounds': 50,
     'is_unbalance': False,
 }
-
 
 class LightGBMTrainer:
     """

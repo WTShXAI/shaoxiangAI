@@ -30,7 +30,6 @@ try:
 except ImportError:
     _PSUTIL_AVAILABLE = False
 
-
 @dataclass
 class HardwareConfig:
     """硬件配置信息"""
@@ -120,7 +119,6 @@ class HardwareConfig:
         """是否可以真正使用GPU（PyTorch 或 XGBoost 任一可用即可）"""
         return (self.gpu_available and self.pytorch_available) or self.xgboost_gpu_available
 
-
 def _detect_gpu_pytorch() -> Dict:
     """通过 PyTorch 检测 GPU"""
     result = {
@@ -183,7 +181,6 @@ def _detect_gpu_pytorch() -> Dict:
 
     return result
 
-
 def _detect_gpu_xgboost() -> bool:
     """通过 XGBoost 检测 GPU（XGBoost 自带 CUDA 支持，不依赖 PyTorch）。
     适用于 PyTorch 不支持的新架构 GPU（如 RTX 5070 Ti sm_120）。
@@ -204,7 +201,6 @@ def _detect_gpu_xgboost() -> bool:
         logger.info(f"XGBoost GPU 不可用: {e}")
     return False
 
-
 def _detect_gpu_cupy() -> bool:
     """检测 CuPy GPU 加速是否可用"""
     try:
@@ -217,7 +213,6 @@ def _detect_gpu_cupy() -> bool:
     except (Exception):
         pass
     return False
-
 
 def _detect_cpu() -> Dict:
     """检测 CPU 信息"""
@@ -236,7 +231,6 @@ def _detect_cpu() -> Dict:
         "cpu_count": cpu_count,
         "cpu_physical": max(1, cpu_physical),
     }
-
 
 def _detect_ram() -> Dict:
     """检测内存信息"""
@@ -284,7 +278,6 @@ def _detect_ram() -> Dict:
 
     return result
 
-
 def _compute_optimal_params(hw: HardwareConfig) -> None:
     """
     根据检测到的硬件计算最优参数。
@@ -321,14 +314,12 @@ def _compute_optimal_params(hw: HardwareConfig) -> None:
         hw.n_jobs = 1
         logger.info("CPU 单核模式")
 
-
 # ═══════════════════════════════════════════════════════════════════
 #  公开接口
 # ═══════════════════════════════════════════════════════════════════
 
 # 模块级缓存：只检测一次
 _cached_config: Optional[HardwareConfig] = None
-
 
 def get_hardware_config(force_refresh: bool = False) -> HardwareConfig:
     """
@@ -406,12 +397,10 @@ def get_hardware_config(force_refresh: bool = False) -> HardwareConfig:
     _cached_config = config
     return config
 
-
 def reset_hardware_config():
     """重置缓存，下次调用 re-detect"""
     global _cached_config
     _cached_config = None
-
 
 # ═══════════════════════════════════════════════════════════════════
 #  GPU 内存管理工具
@@ -469,7 +458,6 @@ class GPUMemoryMonitor:
                 f"(峰值: {usage['peak_mb']:.0f}MB)"
             )
 
-
 def estimate_batch_size(hw: HardwareConfig, feature_count: int,
                          bytes_per_element: int = 4) -> int:
     """
@@ -495,7 +483,6 @@ def estimate_batch_size(hw: HardwareConfig, feature_count: int,
     batch = int((work_memory_mb * 1024 * 1024) / sample_bytes)
 
     return max(256, min(batch, 65536))
-
 
 # ═══════════════════════════════════════════════════════════════════
 #  内存优化数据加载器

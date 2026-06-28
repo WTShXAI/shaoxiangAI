@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent.parent
 
-
 def run_command(cmd: str, description: str, timeout: int = 600):
     """运行命令并打印输出"""
     logger.info(f"\n{'='*60}")
@@ -55,7 +54,6 @@ def run_command(cmd: str, description: str, timeout: int = 600):
         logger.info(f"💥 异常: {e}")
         return 1
 
-
 def check_prerequisites():
     """检查前置条件"""
     logger.info("🔍 检查前置条件...")
@@ -76,7 +74,6 @@ def check_prerequisites():
             all_ok = False
 
     return all_ok
-
 
 def main():
     """主函数"""
@@ -194,7 +191,6 @@ def main():
         logger.info("  📁 output/benchmark_report.json")
 
     return 0 if not failed_steps else 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

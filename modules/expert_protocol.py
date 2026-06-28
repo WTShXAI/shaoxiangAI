@@ -18,7 +18,7 @@ from __future__ import annotations
 import abc
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum, auto
 from typing import Dict, List, Optional, Any, Set, Callable, Tuple
 from dataclasses import dataclass, field
@@ -26,7 +26,6 @@ from dataclasses import dataclass, field
 from utils.constants import DEFAULT_HOME_PROB, DEFAULT_DRAW_PROB, DEFAULT_AWAY_PROB
 
 logger = logging.getLogger(__name__)
-
 
 # ================================================================
 # 专家生命周期状态机
@@ -68,7 +67,6 @@ class ExpertState(Enum):
         """可参与预测的状态"""
         return {cls.ACTIVE, cls.OPTIMIZED}
 
-
 class StateTransition(Enum):
     """允许的状态转换"""
     REGISTER = auto()          # UNREGISTERED → COLD_START
@@ -81,7 +79,6 @@ class StateTransition(Enum):
     ARCHIVE = auto()           # ANY → ARCHIVED
     RESET = auto()             # ANY → COLD_START
     ERROR = auto()             # ANY → ERROR
-
 
 # 合法状态转换表
 VALID_TRANSITIONS: Dict[ExpertState, Dict[StateTransition, ExpertState]] = {
@@ -120,7 +117,6 @@ VALID_TRANSITIONS: Dict[ExpertState, Dict[StateTransition, ExpertState]] = {
     ExpertState.ARCHIVED:         {},  # 终态
 }
 
-
 # ================================================================
 # 数据类
 # ================================================================
@@ -157,7 +153,6 @@ class InputSchema:
                 return None
         return current
 
-
 @dataclass
 class OutputSchema:
     """专家输出模式声明"""
@@ -165,7 +160,6 @@ class OutputSchema:
     required_keys: List[str] = field(default_factory=lambda: ["home", "draw", "away"])
     confidence_range: Tuple[float, float] = (0.0, 1.0)
     supports_proba: bool = False           # 是否支持 predict_proba
-
 
 @dataclass
 class TrainingConfig:
@@ -179,7 +173,6 @@ class TrainingConfig:
     validation_split: float = 0.2
     cv_folds: int = 5
     retrain_frequency_days: int = 30       # 多久重新训练一次
-
 
 @dataclass
 class ExpertPerformance:
@@ -195,7 +188,6 @@ class ExpertPerformance:
     last_n_accuracy: List[float] = field(default_factory=list)  # 最近N次滑动窗口
     degradation_triggered: bool = False
 
-
 @dataclass
 class ExpertMeta:
     """专家元数据"""
@@ -208,8 +200,8 @@ class ExpertMeta:
     tags: List[str] = field(default_factory=list)
     priority: int = 0                                   # 调度优先级(越大越优先)
     phase: int = 0                                      # 分阶段归属
-    created_at: str = field(default_factory=lambda: datetime.now().isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     # 渐进式优化状态
     state: ExpertState = ExpertState.UNREGISTERED
@@ -231,7 +223,6 @@ class ExpertMeta:
 
     # 可扩展元数据
     extra: Dict = field(default_factory=dict)
-
 
 # ================================================================
 # 抽象专家协议 (ABC)
@@ -372,7 +363,7 @@ class ExpertProtocol(abc.ABC):
         self.meta.state_history.append({
             'from': from_state.value,
             'to': to_state.value,
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
         })
         logger.info(f"[{self.meta.expert_id}] {from_state.value} → {to_state.value}")
 
@@ -464,7 +455,6 @@ class ExpertProtocol(abc.ABC):
             'status': 'fallback',
         }
 
-
 # ================================================================
 # 规则型专家基类 (无需训练即可激活)
 # ================================================================
@@ -481,7 +471,6 @@ class RuleBasedExpert(ExpertProtocol):
 
     def is_trainable(self) -> bool:
         return False
-
 
 # ================================================================
 # 学习型专家基类 (需要训练)
@@ -521,7 +510,6 @@ class LearnableExpert(ExpertProtocol):
 
     def get_model_weights(self) -> Dict:
         return self._model_weights
-
 
 # ================================================================
 # 旧版 ExpertAgent 适配器 (向后兼容)
@@ -583,7 +571,6 @@ class ExpertAdapter(ExpertProtocol):
 
     def get_output_schema(self) -> OutputSchema:
         return OutputSchema()
-
 
 # ================================================================
 # 专家工厂: 从配置创建专家实例

@@ -32,13 +32,10 @@ logger = logging.getLogger(__name__)
 
 # 确保项目根目录在 sys.path 中
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
-
 
 def cmd_pipeline(args: argparse.Namespace) -> None:
     """运行自动预测+回测管道"""
-    from auto_pipeline import AutoPipeline
+    from pipeline.auto_pipeline import AutoPipeline
 
     pipeline = AutoPipeline()
 
@@ -54,7 +51,6 @@ def cmd_pipeline(args: argparse.Namespace) -> None:
         result = pipeline.run_full_pipeline()
         _print_json(result)
 
-
 def cmd_backend(args: argparse.Namespace) -> None:
     """启动 FastAPI 后端服务"""
     import uvicorn
@@ -66,12 +62,6 @@ def cmd_backend(args: argparse.Namespace) -> None:
     # 命令行覆盖端口
     if args.port:
         port = args.port
-
-    # 设置 backend 目录为工作目录（插入到 PROJECT_ROOT 之后，避免 backend/features/ 遮蔽根 features/）
-    backend_dir = os.path.join(PROJECT_ROOT, "backend")
-    if backend_dir not in sys.path:
-        root_idx = sys.path.index(PROJECT_ROOT)
-        sys.path.insert(root_idx + 1, backend_dir)
 
     print(f"""
     ╔══════════════════════════════════════════╗
@@ -91,19 +81,17 @@ def cmd_backend(args: argparse.Namespace) -> None:
         log_level="debug" if debug else "info",
     )
 
-
 def cmd_predict(args: argparse.Namespace) -> None:
     """运行预测引擎"""
-    from prediction_engine import PredictionEngine
+    from predictors.prediction_engine import PredictionEngine
 
     model_path = args.model if args.model else None
     engine = PredictionEngine(model_path=model_path)
     engine.run()
 
-
 def cmd_agent(args: argparse.Namespace) -> None:
     """运行6层AI智能体对话 (v4.0 Six-Layer Engine)"""
-    from six_layer_conversation import SixLayerConversationEngine
+    from modules.six_layer_conversation import SixLayerConversationEngine
 
     engine = SixLayerConversationEngine()
 
@@ -134,16 +122,15 @@ def cmd_agent(args: argparse.Namespace) -> None:
             result = engine.process_single(user_input)
             print(f"\n{result}")
 
-
 def cmd_conversation(args: argparse.Namespace) -> None:
     """启动6层AI对话引擎 (交互模式)"""
-    from six_layer_conversation import SixLayerConversationEngine
+    from modules.six_layer_conversation import SixLayerConversationEngine
 
     engine = SixLayerConversationEngine(enable_l6=not args.no_l6)
 
     if args.demo:
         # 演示模式
-        from six_layer_conversation import _run_demo
+        from modules.six_layer_conversation import _run_demo
         _run_demo(engine)
     elif args.query:
         # 单次查询
@@ -157,7 +144,6 @@ def cmd_conversation(args: argparse.Namespace) -> None:
     else:
         # 交互模式
         engine.run_conversation()
-
 
 def cmd_eval(args: argparse.Namespace) -> None:
     """运行模型上线评估流水线"""
@@ -208,7 +194,6 @@ def cmd_eval(args: argparse.Namespace) -> None:
     elif decision == "ERROR":
         sys.exit(2)
 
-
 def _print_json(data: object) -> None:
     """安全打印 JSON，处理编码问题"""
     import json
@@ -218,7 +203,6 @@ def _print_json(data: object) -> None:
     except UnicodeEncodeError:
         print(text.encode(sys.stdout.encoding or "utf-8", errors="replace").decode(
             sys.stdout.encoding or "utf-8", errors="replace"))
-
 
 def build_parser() -> argparse.ArgumentParser:
     """构建命令行解析器"""
@@ -275,7 +259,6 @@ def build_parser() -> argparse.ArgumentParser:
 
     return parser
 
-
 def main() -> None:
     """主入口"""
     parser = build_parser()
@@ -293,7 +276,6 @@ def main() -> None:
 
     # 执行子命令
     args.func(args)
-
 
 if __name__ == "__main__":
     main()

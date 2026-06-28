@@ -21,15 +21,12 @@ import sqlite3
 from typing import Dict, List
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/..')
-
 from rules.prediction_rules import (
     DEFAULT_RULE_PARAMS,
     optimize_rule_params,
     save_rule_params,
     load_rule_params,
 )
-
 
 def load_historical_data(db_path: str, min_date: str = '2020-01-01', 
                           max_date: str = '2024-12-31', 
@@ -93,7 +90,6 @@ def load_historical_data(db_path: str, min_date: str = '2020-01-01',
     print(f'✅ 加载历史数据: {len(data)} 场比赛')
     return data
 
-
 def bayesian_optimize(historical_data: List[Dict], n_calls: int = 200) -> Dict:
     """
     贝叶斯优化（需要 scikit-optimize）
@@ -147,7 +143,6 @@ def bayesian_optimize(historical_data: List[Dict], n_calls: int = 200) -> Dict:
         print('⚠️ scikit-optimize 不可用, 回退到随机搜索')
         return random_search(historical_data, n_trials=500)
 
-
 def random_search(historical_data: List[Dict], n_trials: int = 500) -> Dict:
     """随机搜索参数空间"""
     import itertools
@@ -191,7 +186,6 @@ def random_search(historical_data: List[Dict], n_trials: int = 500) -> Dict:
     
     print(f'✅ 随机搜索完成, 最优分数: {best_score:.4f}')
     return best_params
-
 
 def _evaluate_params(params: Dict, historical_data: List[Dict]) -> float:
     """评估一组参数的效果（加权准确率）"""
@@ -257,7 +251,6 @@ def _evaluate_params(params: Dict, historical_data: List[Dict]) -> float:
     
     # 返回加权准确率
     return weighted_correct / total if total > 0 else 0.0
-
 
 def main():
     parser = argparse.ArgumentParser(description='规则参数优化器')
@@ -326,7 +319,6 @@ def main():
     print(f'  原始参数分数: {original_score:.4f}')
     print(f'  优化参数分数: {optimized_score:.4f}')
     print(f'  提升: {optimized_score - original_score:+.4f}')
-
 
 if __name__ == '__main__':
     main()

@@ -13,7 +13,6 @@ from services.model_service import ModelService
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-
 # ── 响应模型 ──────────────────────────────
 
 class ModelInfo(BaseModel):
@@ -27,7 +26,6 @@ class ModelInfo(BaseModel):
     is_production: bool = False
     description: Optional[str] = None
 
-
 class VersionComparison(BaseModel):
     model_a: str
     model_b: str
@@ -38,17 +36,14 @@ class VersionComparison(BaseModel):
     hash_changed: bool
     training_data_changed: Optional[bool]
 
-
 class ModelListResponse(BaseModel):
     models: List[ModelInfo]
     total: int
     current_production: Optional[str]
 
-
 class DeploymentRequest(BaseModel):
     model_id: str
     reason: Optional[str] = None
-
 
 class RegistrationRequest(BaseModel):
     model_path: str
@@ -56,7 +51,6 @@ class RegistrationRequest(BaseModel):
     model_type: str = "ensemble"
     description: Optional[str] = None
     tags: Optional[List[str]] = None
-
 
 # ── 端点 ──────────────────────────────────
 
@@ -84,7 +78,6 @@ async def list_models(
         logger.error(f"列出模型失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="获取模型列表失败")
 
-
 @router.get("/versions/{model_id}", response_model=ModelInfo)
 async def get_model(model_id: str):
     """获取模型详情"""
@@ -106,7 +99,6 @@ async def get_model(model_id: str):
     except (requests.exceptions.RequestException, ConnectionError, TimeoutError) as e:
         logger.error(f"获取模型详情失败 {model_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="获取模型详情失败")
-
 
 @router.post("/deploy")
 async def deploy_model(
@@ -133,7 +125,6 @@ async def deploy_model(
         logger.error(f"部署模型失败 {req.model_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="部署模型失败")
 
-
 @router.post("/rollback")
 async def rollback_model(
     target_version: Optional[str] = Query(None),
@@ -158,7 +149,6 @@ async def rollback_model(
     except (requests.exceptions.RequestException, ConnectionError, TimeoutError) as e:
         logger.error(f"回滚失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="回滚失败")
-
 
 @router.get("/compare", response_model=VersionComparison)
 async def compare_models(
@@ -186,7 +176,6 @@ async def compare_models(
     except (requests.exceptions.RequestException, ConnectionError, TimeoutError) as e:
         logger.error(f"模型对比失败 {model_id_a} vs {model_id_b}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="模型对比失败")
-
 
 @router.post("/register")
 async def register_model(
@@ -217,7 +206,6 @@ async def register_model(
         logger.error(f"注册模型失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="注册模型失败")
 
-
 @router.get("/best")
 async def get_best_model(
     metric: str = Query("accuracy", description="accuracy/draw_f1/brier/mcc"),
@@ -239,7 +227,6 @@ async def get_best_model(
         logger.error(f"获取最优模型失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="获取最优模型失败")
 
-
 @router.get("/info")
 async def get_current_model_info():
     """获取当前生产模型信息"""
@@ -258,7 +245,6 @@ async def get_current_model_info():
     except (ValueError, KeyError, FileNotFoundError) as e:
         logger.error(f"获取当前模型信息失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="获取模型信息失败")
-
 
 @router.post("/auto-promote")
 async def auto_promote(

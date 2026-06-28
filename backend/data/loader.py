@@ -24,7 +24,6 @@ _DB_PATH = os.path.join(
     'data', 'football_data.db'
 )
 
-
 def load_matches_from_db(
     db_path: str = None,
     league_codes: Optional[List[str]] = None,
@@ -121,7 +120,6 @@ def load_matches_from_db(
     finally:
         conn.close()
 
-
 def load_matches_from_csv(csv_path: str) -> pd.DataFrame:
     """从 CSV 文件加载比赛数据 (备选方案)
 
@@ -152,7 +150,6 @@ def load_matches_from_csv(csv_path: str) -> pd.DataFrame:
 
     logger.info(f"从 CSV 加载 {len(df):,} 场比赛: {csv_path}")
     return df
-
 
 if __name__ == "__main__":
     # 快速测试

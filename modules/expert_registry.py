@@ -16,7 +16,7 @@
 import logging
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, Iterator, Callable
 from collections import defaultdict
 
@@ -27,7 +27,6 @@ from .expert_protocol import (
 )
 
 logger = logging.getLogger(__name__)
-
 
 class ExpertRegistry:
     """
@@ -279,7 +278,7 @@ class ExpertRegistry:
         """执行状态转换(内部方法)"""
         old_state = expert.meta.state
         expert.meta.state = target
-        expert.meta.updated_at = datetime.now().isoformat()
+        expert.meta.updated_at = datetime.now(timezone.utc).isoformat()
 
         # 更新索引
         self._state_index[old_state].remove(expert.meta.expert_id)

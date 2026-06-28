@@ -29,8 +29,6 @@ _PROJECT_ROOT = os.environ.get(
     'PROJECT_ROOT',
     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 )
-sys.path.insert(0, _PROJECT_ROOT)
-
 
 class HeuristicPredictor:
     """增强版 Heuristic — 冷启动救星"""
@@ -202,7 +200,6 @@ class HeuristicPredictor:
             return h > 1.01 and d > 1.01 and a > 1.01
         except Exception:
             return False
-
 
 # ── 自检 ──
 if __name__ == '__main__':

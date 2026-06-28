@@ -12,7 +12,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 class FootballNN(nn.Module):
     """
     三分类足球预测神经网络
@@ -92,7 +91,6 @@ class FootballNN(nn.Module):
         probs = self.predict_proba(x)
         return probs.argmax(dim=-1)
 
-
 # ═══════════════════════════════════════
 # 训练函数 (供 standalone 训练使用)
 # ═══════════════════════════════════════
@@ -144,7 +142,6 @@ class FootballNNTrainer:
                 correct += (preds == y_batch).sum().item()
                 total += X_batch.size(0)
         return total_loss / total, correct / total
-
 
 if __name__ == '__main__':
     # Quick test

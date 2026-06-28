@@ -8,10 +8,8 @@ import os
 import shutil
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 logger = logging.getLogger(__name__)
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 PRODUCTION_DIR = 'saved_models/production'
 REQUIRED_FILES = [
@@ -19,7 +17,6 @@ REQUIRED_FILES = [
     'smart_integrated.joblib',
     'footballai_compressed_features.json',
 ]
-
 
 def deploy_model(model_path: str, prod_dir: str, label: str = None):
     """部署单个模型到生产目录"""
@@ -32,7 +29,6 @@ def deploy_model(model_path: str, prod_dir: str, label: str = None):
     logger.info(f"  ✓ {os.path.basename(model_path)} → {label or dest}")
     return True
 
-
 def deploy_feature_list(feature_json: str, prod_dir: str):
     """部署特征列表"""
     if not os.path.exists(feature_json):
@@ -44,11 +40,10 @@ def deploy_feature_list(feature_json: str, prod_dir: str):
     logger.info(f"  ✓ {os.path.basename(feature_json)} → {dest}")
     return True
 
-
 def create_deploy_manifest(prod_dir: str, deployed_files: list):
     """创建部署清单"""
     manifest = {
-        'deploy_time': datetime.now().isoformat(),
+        'deploy_time': datetime.now(timezone.utc).isoformat(),
         'production_dir': prod_dir,
         'files': deployed_files,
         'file_sizes': {},
@@ -66,16 +61,14 @@ def create_deploy_manifest(prod_dir: str, deployed_files: list):
 
     return manifest
 
-
 def backup_existing(prod_dir: str):
     """备份现有生产目录"""
     if os.path.exists(prod_dir) and os.listdir(prod_dir):
-        backup_dir = f"{prod_dir}_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        backup_dir = f"{prod_dir}_backup_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
         shutil.copytree(prod_dir, backup_dir)
         logger.info(f"  📦 备份 → {backup_dir}")
         return backup_dir
     return None
-
 
 def main():
     parser = argparse.ArgumentParser(description='部署优化系统')
@@ -139,7 +132,6 @@ def main():
     logger.info(f"{'='*60}")
 
     return 0
-
 
 if __name__ == '__main__':
     sys.exit(main())

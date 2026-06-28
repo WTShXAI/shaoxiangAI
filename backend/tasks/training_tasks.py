@@ -4,11 +4,10 @@
 import sys
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
-
 
 @celery_app.task(bind=True, name="train_model_task")
 def train_model_task(
@@ -33,7 +32,7 @@ def train_model_task(
             mlflow.set_tracking_uri(settings.MLFLOW_TRACKING_URI)
             mlflow.set_experiment(settings.MLFLOW_EXPERIMENT_NAME)
 
-            with mlflow.start_run(run_name=f"train_{datetime.now().strftime('%Y%m%d_%H%M')}"):
+            with mlflow.start_run(run_name=f"train_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}"):
                 mlflow.log_param("data_source", data_source)
                 mlflow.log_param("n_estimators", n_estimators)
         except ImportError as e:
@@ -45,8 +44,6 @@ def train_model_task(
 
         # ── 执行训练 ───────────────────────────
         from core.config import settings as s
-        if s.PROJECT_ROOT not in sys.path:
-            sys.path.insert(0, s.PROJECT_ROOT)
 
         self.update_state(state="RUNNING", meta={"progress": 0.3, "message": "训练中..."})
 
@@ -58,7 +55,7 @@ def train_model_task(
         result = pipeline.run_training_pipeline(
             data_source=data_source,
             n_estimators=n_estimators,
-            description=description or f"Celery auto-train {datetime.now():%Y-%m-%d %H:%M}",
+            description=description or f"Celery auto-train {datetime.now(timezone.utc):%Y-%m-%d %H:%M}",
         )
 
         # ── 记录 MLflow 指标 ──────────────────

@@ -35,7 +35,6 @@ except ImportError:
     BETFAIR_LOGIN_URL = os.getenv("BETFAIR_LOGIN_URL", "https://identitysso.betfair.com/api/login")
     BETFAIR_KEEPALIVE_URL = os.getenv("BETFAIR_KEEPALIVE_URL", "https://identitysso.betfair.com/api/keepAlive")
 
-
 class BetfairClient:
     """必发交易所数据采集客户端
 
@@ -90,7 +89,7 @@ class BetfairClient:
     def _upsert_market(self, data: Dict[str, Any]) -> int:
         """插入或更新 betfair_market 记录"""
         cur = self._conn.cursor()
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
         # 检查是否已有该比赛的记录
         cur.execute(
@@ -457,7 +456,7 @@ class BetfairClient:
                 if ts:
                     try:
                         updated = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
-                        age = (datetime.now() - updated).total_seconds()
+                        age = (datetime.now(timezone.utc) - updated).total_seconds()
                         if age < 1800:  # 30分钟
                             logger.debug(f"match_id={match_id} 使用缓存数据 (age={age:.0f}s)")
                             return cached_dict
@@ -539,7 +538,6 @@ class BetfairClient:
         finally:
             self._close()
 
-
 # ══════════════════════════════════════════════════
 # 便捷函数
 # ══════════════════════════════════════════════════
@@ -548,7 +546,6 @@ def get_betfair_client(db_path: str = "data/football_data.db",
                        mode: str = "hybrid") -> BetfairClient:
     """获取必发客户端实例"""
     return BetfairClient(db_path=db_path, mode=mode)
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')

@@ -19,7 +19,6 @@ import yaml
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _CONFIG_PATH = os.path.join(_PROJECT_ROOT, 'config.yaml')
 
-
 def _load_config():
     if os.path.exists(_CONFIG_PATH):
         with open(_CONFIG_PATH, 'r', encoding='utf-8') as f:
@@ -40,7 +39,6 @@ def _load_config():
     return {'data': {'feature_columns': [], 'default_values': {}},
             'database': {'path': 'data/football_data.db'},
             'paths': {}, 'models': {}, 'label': {}}
-
 
 config = _load_config()
 

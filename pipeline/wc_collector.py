@@ -40,8 +40,7 @@ def init_database():
             actual_result TEXT,
             actual_score TEXT,
             created_at TEXT DEFAULT (datetime('now'))
-        );
-        
+        )
         CREATE TABLE IF NOT EXISTS wc2026_odds_snapshots (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             match_id INTEGER NOT NULL REFERENCES wc2026_matches(id),
@@ -67,8 +66,7 @@ def init_database():
             source TEXT DEFAULT 'ocr',
             raw_json TEXT,
             created_at TEXT DEFAULT (datetime('now'))
-        );
-        
+        )
         CREATE TABLE IF NOT EXISTS wc2026_derived_signals (
             match_id INTEGER NOT NULL REFERENCES wc2026_matches(id),
             -- 时间序列衍生
@@ -84,10 +82,9 @@ def init_database():
             ht_ft_draw_ratio REAL, -- HT平赔/FT平赔
             created_at TEXT DEFAULT (datetime('now')),
             PRIMARY KEY (match_id)
-        );
-        
+        )
         -- 索引
-        CREATE INDEX IF NOT EXISTS idx_snapshots_match ON wc2026_odds_snapshots(match_id, snapshot_label);
+        CREATE INDEX IF NOT EXISTS idx_snapshots_match ON wc2026_odds_snapshots(match_id, snapshot_label)
     """)
     
     conn.commit()

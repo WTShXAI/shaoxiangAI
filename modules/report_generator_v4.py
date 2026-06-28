@@ -25,7 +25,7 @@ import os
 import json
 import sqlite3
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional, List
 from pathlib import Path
 
@@ -106,7 +106,7 @@ def generate_report(
         imp2 = {}
         has_t2 = False
 
-    now = datetime.now().strftime('%Y-%m-%d %H:%M')
+    now = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')
 
     # ── 构建报告 ──
     lines = []
@@ -403,7 +403,7 @@ def generate_report(
 def save_report(report_text: str, filename: str = None) -> str:
     """保存报告到output目录"""
     if not filename:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         filename = f"report_{timestamp}.md"
 
     filepath = OUTPUT_DIR / filename

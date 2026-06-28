@@ -29,7 +29,6 @@ from typing import Dict, List, Callable, Optional
 
 logger = logging.getLogger(__name__)
 
-
 class ModuleRouter:
     """
     动态模块路由器
@@ -245,7 +244,6 @@ class ModuleRouter:
         """获取所有已注册评分器的专家ID"""
         return list(self._scorers.keys())
 
-
 # ================================================================
 # 内置通用评分器工厂
 # ================================================================
@@ -276,7 +274,6 @@ def create_default_scorer_from_meta(meta) -> Callable:
         return available / len(required_fields)
 
     return default_scorer
-
 
 # ================================================================
 # 预设评分器(兼容旧版 MatchAnalyzerAgent)

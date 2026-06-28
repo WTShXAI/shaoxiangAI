@@ -21,8 +21,6 @@ import argparse
 
 # 确保项目根在路径中
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, PROJECT_ROOT)
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -65,14 +63,14 @@ def main():
 
     # ── CLI 模式 ──
     if args.cli:
-        from six_layer_conversation import SixLayerConversationEngine
+        from modules.six_layer_conversation import SixLayerConversationEngine
         engine = SixLayerConversationEngine()
         engine.run_conversation()
         return
 
     # ── 演示模式 ──
     if args.demo:
-        from six_layer_conversation import SixLayerConversationEngine, _run_demo
+        from modules.six_layer_conversation import SixLayerConversationEngine, _run_demo
         engine = SixLayerConversationEngine()
         _run_demo(engine)
         return
@@ -87,9 +85,8 @@ def main():
 ╚══════════════════════════════════════════════╝
 """)
     import uvicorn
-    from main import app  # noqa: F811
+    from backend.main import app
     uvicorn.run(app, host=host, port=port, reload=False)
-
 
 if __name__ == "__main__":
     main()

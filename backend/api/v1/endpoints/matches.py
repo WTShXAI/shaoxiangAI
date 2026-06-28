@@ -45,7 +45,6 @@ STATUS_MAP = {
     "SUSPENDED": "postponed",
 }
 
-
 def fetch_live_from_api() -> list:
     """从 Football-Data.org API 获取进行中 + 今日的比赛"""
     if not FD_API_KEY:
@@ -84,7 +83,6 @@ def fetch_live_from_api() -> list:
     except (ConnectionError, TimeoutError, sqlite3.Error, sqlalchemy.exc.SQLAlchemyError) as e:
         logger.error(f"获取实时比赛时发生未知错误: {e}")
         return []
-
 
 # 英→中队名映射（用于 API 数据翻译 + 去重匹配）
 EN_ZH_TEAM = {
@@ -233,7 +231,6 @@ EN_ZH_TEAM = {
     '奥地利': 'Austria', '挪威': 'Norway', '希腊': 'Greece',
 }
 
-
 def normalize_api_match(m: dict) -> dict:
     """将 Football-Data.org API 返回的比赛格式转为系统格式"""
     home_team = m.get("homeTeam", {})
@@ -285,7 +282,6 @@ def normalize_api_match(m: dict) -> dict:
         "prediction": None,
         "tier": None,
     }
-
 
 @router.get("/list")
 async def get_matches(
@@ -384,7 +380,6 @@ async def get_matches(
     except (sqlite3.Error, sqlalchemy.exc.SQLAlchemyError) as e:
         logger.error(f"获取比赛列表失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="获取比赛列表失败")
-
 
 @router.get("/scores")
 async def get_live_scores():

@@ -17,16 +17,13 @@ import logging
 import argparse
 import sys
 import os
-from datetime import datetime
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from datetime import datetime, timezone
 
 import pandas as pd
 import numpy as np
 
 from backend.data.enhancement import DataEnhancer
 logger = logging.getLogger(__name__)
-
 
 def split_temporal(df: pd.DataFrame, test_ratio: float = 0.15) -> tuple:
     """按时间切分训练/测试集（保留最近 N% 作为测试集）。
@@ -47,7 +44,6 @@ def split_temporal(df: pd.DataFrame, test_ratio: float = 0.15) -> tuple:
     test_df = df_sorted.iloc[split_idx:].copy()
 
     return train_df, test_df
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -129,7 +125,7 @@ def main():
     # ── 增强管道 ──
     enhancer = DataEnhancer(df)
     windows = [int(w.strip()) for w in args.window_size.split(',')]
-    t0 = datetime.now()
+    t0 = datetime.now(timezone.utc)
 
     # 1. 滚动特征
     col_before = len(enhancer.df.columns)
@@ -156,7 +152,7 @@ def main():
     else:
         logger.info(f"\n⏭️  步骤 3/3: 跳过泊松特征")
 
-    elapsed = (datetime.now() - t0).total_seconds()
+    elapsed = (datetime.now(timezone.utc) - t0).total_seconds()
     enhanced_df = enhancer.df
 
     # ── 训练/测试集切分 ──
@@ -188,7 +184,6 @@ def main():
     logger.info(f"  耗时:   {elapsed:.1f}s")
     logger.info(f"  输出路径: {output_path}")
     logger.info(f"{'=' * 60}\n")
-
 
 if __name__ == '__main__':
     main()

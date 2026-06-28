@@ -26,7 +26,6 @@
 import numpy as np
 from typing import Dict, Tuple, Optional
 
-
 class SignalQualityEvaluator:
     """
     赔率信号质量评估器
@@ -274,7 +273,6 @@ class SignalQualityEvaluator:
         """从列表中筛选可投注场次"""
         return [r for r in rows if self.is_bettable(r)]
 
-
 # ═══════════════════════════════════════════════════════════════
 # 便捷函数（无需实例化）
 # ═══════════════════════════════════════════════════════════════
@@ -292,7 +290,6 @@ def compute_composite_score(row: Dict) -> float:
 def is_bettable(row: Dict) -> bool:
     """便捷函数：是否可投注"""
     return _evaluator.is_bettable(row)
-
 
 # ═══════════════════════════════════════════════════════════════
 # SQL 片段（供 pipeline 使用）
@@ -323,7 +320,6 @@ BETTABLE_SQL = """
         AND otsm_lock_confidence <= 0.5
     )
 """
-
 
 if __name__ == "__main__":
     # 简单测试

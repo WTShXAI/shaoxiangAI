@@ -10,11 +10,10 @@ import time
 import hashlib
 import logging
 from typing import Optional, Dict, List, Any, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
-
 
 class ABTestConfig:
     """A/B测试配置"""
@@ -35,9 +34,8 @@ class ABTestConfig:
         self.min_sample_size = min_sample_size
         self.confidence_level = confidence_level
         self.duration_hours = duration_hours
-        self.created_at = datetime.now().isoformat()
+        self.created_at = datetime.now(timezone.utc).isoformat()
         self.status = "active"
-
 
 class ABTestService:
     """A/B测试服务"""
@@ -152,7 +150,7 @@ class ABTestService:
         self._results[test_name][variant].append({
             "is_correct": is_correct,
             "confidence": confidence,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         })
         # 每100条保存一次
         total = sum(len(v) for v in self._results[test_name].values())
@@ -234,10 +232,8 @@ class ABTestService:
             for t in self._active_tests.values()
         ]
 
-
 # 全局单例
 _ab_test_service: Optional[ABTestService] = None
-
 
 def get_ab_test_service() -> ABTestService:
     global _ab_test_service

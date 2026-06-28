@@ -15,25 +15,20 @@ from api.deps import get_current_user
 # features.py → endpoints/ → v1/ → api/ → backend/ → footballAI/
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-if _PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, _PROJECT_ROOT)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
 
 class TeamFeaturesResponse(BaseModel):
     team_name: str
     match_count: int
     features: dict = Field(description="聚合特征 (avg_* + 排名/形态)")
 
-
 class MatchFeaturesResponse(BaseModel):
     home_team: str
     away_team: str
     computed_features: dict = Field(description="模型就绪的特征向量")
     data_quality: dict = Field(description="特征来源覆盖信息")
-
 
 @router.get("/teams/{team_name}", response_model=TeamFeaturesResponse)
 async def get_team_features(
@@ -55,11 +50,9 @@ async def get_team_features(
         logger.error(f"获取球队特征失败 ({team_name}): {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"特征查询失败: {e}")
 
-
 class ComputeFeaturesRequest(BaseModel):
     home_team: str = Field(..., min_length=1, max_length=100)
     away_team: str = Field(..., min_length=1, max_length=100)
-
 
 @router.get("/compute")
 async def compute_match_features(

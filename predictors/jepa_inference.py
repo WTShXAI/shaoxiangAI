@@ -54,7 +54,6 @@ COL_IDX = {n: i for i, n in enumerate(STATIC_72_COLS)}
 _training_stats = None
 _jepa_model = None
 
-
 def _load_training_stats():
     """加载训练数据统计量 (均值/标准差)"""
     global _training_stats
@@ -73,7 +72,6 @@ def _load_training_stats():
     _training_stats = (mean, std)
     logger.info(f"Training stats loaded: {data['static'].shape[0]} samples")
     return _training_stats
-
 
 def _load_model():
     """加载 JEPALite 模型 (epoch 12, plain VICReg)"""
@@ -96,7 +94,6 @@ def _load_model():
     _jepa_model = model
     logger.info(f"JEPALite loaded: epoch={ckpt['epoch']} train_acc={ckpt['acc']:.4f}")
     return model
-
 
 def build_features(home_odds: float, draw_odds: float, away_odds: float,
                    asian_handicap: float = 0.0, ou_line: float = 2.5) -> np.ndarray:
@@ -164,7 +161,6 @@ def build_features(home_odds: float, draw_odds: float, away_odds: float,
     vec = np.clip(vec, -5.0, 5.0)
     return vec.astype(np.float32)
 
-
 # ── KNN lookup (lazy-loaded global) ──
 _knn_data = None
 
@@ -181,7 +177,6 @@ def _load_knn():
     tAo = static[:, 2] * 20
     _knn_data = (tHo, tDo, tAo, labels)
     return _knn_data
-
 
 def knn_probs(home_odds: float, draw_odds: float, away_odds: float, k: int = None) -> np.ndarray:
     """KNN: 在272K训练数据中找最相似的k场比赛, 返回历史H/D/A频率."""
@@ -205,7 +200,6 @@ def knn_probs(home_odds: float, draw_odds: float, away_odds: float, k: int = Non
     top_labels = labels[top]
     
     return np.array([(top_labels == 0).mean(), (top_labels == 1).mean(), (top_labels == 2).mean()])
-
 
 def predict_hybrid(home_odds: float, draw_odds: float, away_odds: float,
                    home_team: str = '', away_team: str = '', league: str = '',
@@ -247,7 +241,6 @@ def predict_hybrid(home_odds: float, draw_odds: float, away_odds: float,
         'jepa_draw_prob': float(jd_raw),
     }
 
-
 def predict_raw(home_odds: float, draw_odds: float, away_odds: float,
                 n_paths: int = None) -> Dict:
     """JEPA raw prediction (without KNN hybrid). Returns MC rollout probabilities."""
@@ -272,14 +265,12 @@ def predict_raw(home_odds: float, draw_odds: float, away_odds: float,
         'raw_probabilities': {'H': float(raw_probs[0]), 'D': float(raw_probs[1]), 'A': float(raw_probs[2])},
     }
 
-
 def predict(home_odds: float, draw_odds: float, away_odds: float,
             home_team: str = '', away_team: str = '', league: str = '',
             tau: float = None, draw_threshold: float = None,
             n_paths: int = None) -> Dict:
     """生产推理接口 (已升级为KNN-Hybrid)."""
     return predict_hybrid(home_odds, draw_odds, away_odds, home_team, away_team, league)
-
 
 def benchmark():
     """Quick benchmark against known World Cup results."""
@@ -306,7 +297,6 @@ def benchmark():
     
     print(f"\n{correct}/{len(results)} correct")
     return correct
-
 
 if __name__ == '__main__':
     benchmark()

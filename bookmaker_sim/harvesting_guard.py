@@ -120,7 +120,6 @@ LEAGUE_BASELINES = {
 # 极端比分阈值
 EXTREME_SCORE_THRESHOLD = 4  # 总进球 >= 4 视为极端
 
-
 class HarvestingGuard:
     """
     庄家收割防护墙
@@ -1074,14 +1073,12 @@ class HarvestingGuard:
         
         return None
 
-
 # ══════════════════════════════════════════════════
 # 便捷函数
 # ══════════════════════════════════════════════════
 
 def create_guard(db_path: str = None) -> HarvestingGuard:
     return HarvestingGuard(db_path)
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

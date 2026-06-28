@@ -13,7 +13,6 @@ import numpy as np
 from typing import Dict, List
 from dataclasses import dataclass
 
-
 @dataclass
 class ArbitrageOpportunity:
     """套利机会"""
@@ -24,7 +23,6 @@ class ArbitrageOpportunity:
     profit_margin: float   # 利润率(%)
     risk_level: str        # low / medium / high
     confidence: float      # 0~1
-
 
 class CrossMarketArbitrage:
     """

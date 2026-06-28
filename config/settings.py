@@ -1,92 +1,104 @@
 """
-哨响AI v4.0 — 配置加载器
-=========================
-从 config/settings.yaml 读取全局配置, 提供便捷访问接口。
-
-单人维护版: 只用 PyYAML + 简单 dict 访问, 不引入复杂配置框架。
+哨响AI v4.0 — 配置加载器 (Pydantic 代理层)
+=============================================
+2026-06-28: 统一配置 → 后端配置由 backend/core/config.py (Pydantic) 管理.
+本文件保留作为向后兼容层, 顶层模块的 `from config.settings import get_setting` 仍然可用.
 
 用法:
-    from config.settings import load_config, get_setting
-    cfg = load_config()
-    threshold = get_setting('prediction.draw_threshold')
+    from config.settings import get_setting, load_config, settings
+    threshold = get_setting('prediction.draw_threshold')   # 点号路径兼容
+    threshold = settings.DRAW_THRESHOLD                     # Pydantic 直接访问
+
+迁移指南:
+    新代码请直接 `from backend.core.config import settings`
 """
-import os
-import yaml
-import logging
-from typing import Any, Dict, Optional
-from functools import lru_cache
+import warnings
+from backend.core.config import settings as _pydantic_settings
 
-logger = logging.getLogger('Config')
+warnings.warn(
+    "config.settings 已迁移至 backend.core.config (Pydantic). "
+    "请更新 import: from backend.core.config import settings",
+    DeprecationWarning, stacklevel=2,
+)
 
-CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config', 'settings.yaml')
+def load_config():
+    """向后兼容: 返回 pydantic settings 对象 (原返回 dict)"""
+    return _pydantic_settings
 
-
-@lru_cache(maxsize=1)
-def load_config() -> Dict[str, Any]:
-    """加载全局配置 (缓存, 只读一次)"""
-    try:
-        with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
-            cfg = yaml.safe_load(f)
-        logger.info(f"配置加载成功: {len(cfg)} 个顶级域")
-        return cfg
-    except FileNotFoundError:
-        logger.warning("settings.yaml 不存在, 使用默认配置")
-        return _default_config()
-    except Exception as e:
-        logger.error(f"配置加载失败: {e}")
-        return _default_config()
-
-
-def get_setting(path: str, default: Any = None) -> Any:
+def get_setting(path: str, default=None):
     """
-    点号路径获取配置值
+    向后兼容: 点号路径获取配置值.
+    优先匹配 Pydantic 大写字段, 再走 fallback.
 
-    Example:
+    示例:
         get_setting('prediction.draw_threshold')  → 0.32
-        get_setting('scenarios.cup_group.draw_target_rate')  → 0.375
+        get_setting('global_switches.pure_v32_mode') → False
     """
-    cfg = load_config()
-    keys = path.split('.')
-    value = cfg
-    for key in keys:
-        if isinstance(value, dict) and key in value:
-            value = value[key]
-        else:
-            return default
-    return value
+    # 尝试 Pydantic 直接字段名映射
+    field_map = {
+        'prediction.draw_threshold': _pydantic_settings.DRAW_THRESHOLD,
+        'prediction.ha_gap': _pydantic_settings.HA_GAP,
+        'prediction.d_gate.junk_threshold': _pydantic_settings.DGATE_JUNK_THRESHOLD,
+        'prediction.d_gate.fuzzy_threshold': _pydantic_settings.DGATE_FUZZY_THRESHOLD,
+        'prediction.d_gate.usable_threshold': _pydantic_settings.DGATE_USABLE_THRESHOLD,
+        'prediction.v32_baseline.draw_threshold': _pydantic_settings.V32_DRAW_THRESHOLD,
+        'prediction.v32_baseline.ha_gap': _pydantic_settings.V32_HA_GAP,
+        'global_switches.pure_v32_mode': _pydantic_settings.PURE_V32_MODE,
+        'server.host': _pydantic_settings.HOST,
+        'server.port': _pydantic_settings.PORT,
+        'paths.project_root': _pydantic_settings.PROJECT_ROOT,
+        'paths.model_dir': _pydantic_settings.MODEL_DIR,
+        'paths.db_path': _pydantic_settings.DB_PATH,
+        'paths.v41_model': _pydantic_settings.V41_MODEL,
+        'paths.v32_model': _pydantic_settings.V32_MODEL,
+        'paths.draw_expert': _pydantic_settings.DRAW_EXPERT,
+        'paths.nn_model': _pydantic_settings.NN_MODEL,
+        'paths.sp_db_path': _pydantic_settings.SP_DB_PATH,
+        'paths.output_dir': _pydantic_settings.OUTPUT_DIR,
+        'paths.data_dir': _pydantic_settings.DATA_DIR,
+        'logging.level': _pydantic_settings.LOG_LEVEL,
+    }
+    if path in field_map:
+        return field_map[path]
 
+    # 功能开关映射
+    if path.startswith('global_switches.enable_'):
+        feature = path.replace('global_switches.enable_', '')
+        return _pydantic_settings.is_enabled(feature)
+
+    # 场景映射
+    if path.startswith('scenarios.'):
+        scenario_key = path[len('scenarios.'):]
+        dot_idx = scenario_key.find('.')
+        if dot_idx > 0:
+            scenario_name = scenario_key[:dot_idx]
+            field = scenario_key[dot_idx + 1:]
+            sc = _pydantic_settings.get_scenario(scenario_name)
+            return sc.get(field, default) if isinstance(sc, dict) else default
+
+    # 专家权重映射
+    if path.startswith('experts.'):
+        parts = path.split('.')
+        if len(parts) >= 3 and parts[2] == 'default_weight':
+            return _pydantic_settings.get_expert_weight(parts[1])
+
+    return default
 
 def is_pure_v32() -> bool:
-    """是否处于v3.2纯净模式"""
-    return get_setting('global_switches.pure_v32_mode', False)
-
+    return _pydantic_settings.PURE_V32_MODE
 
 def is_enabled(feature: str) -> bool:
-    """检查功能开关是否开启"""
-    return get_setting(f'global_switches.enable_{feature}', True)
+    return _pydantic_settings.is_enabled(feature)
 
-
-def get_scenario_config(scenario: str) -> Dict:
-    """获取场景配置"""
-    return get_setting(f'scenarios.{scenario}', {})
-
+def get_scenario_config(scenario: str) -> dict:
+    return _pydantic_settings.get_scenario(scenario)
 
 def get_expert_weight(expert: str) -> float:
-    """获取专家权重"""
-    return get_setting(f'experts.{expert}.default_weight', 1.0)
+    return _pydantic_settings.get_expert_weight(expert)
 
+def reload_config():
+    """向后兼容: 重新加载 (Pydantic 已单例, 此函数保留无实际效果)"""
+    warnings.warn("reload_config() 在 Pydantic 模式下无实际效果 (settings 是单例)", DeprecationWarning)
+    return _pydantic_settings
 
-def reload_config() -> Dict[str, Any]:
-    """强制重新加载配置"""
-    load_config.cache_clear()
-    return load_config()
-
-
-def _default_config() -> Dict[str, Any]:
-    """兜底默认配置 (保证配置加载失败时系统仍可运行)"""
-    return {
-        'global_switches': {'pure_v32_mode': False},
-        'prediction': {'draw_threshold': 0.32, 'ha_gap': 0.0},
-        'paths': {'project_root': '.', 'output_dir': 'output'},
-        'server': {'host': '0.0.0.0', 'port': 8000},
-    }
+settings = _pydantic_settings

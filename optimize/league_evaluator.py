@@ -36,7 +36,7 @@ import warnings
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -63,7 +63,6 @@ from optimize.walkforward_backtest import BacktestResult, FoldMetrics, CLASS_LAB
 logger = logging.getLogger(__name__)
 
 DEFAULT_OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'evaluation_results')
-
 
 # ════════════════════════════════════════════════════════════════
 # 1. LeagueMetrics — 单联赛评估指标
@@ -131,7 +130,6 @@ class LeagueMetrics:
             d['n_folds_covered'] = self.n_folds_covered
         return d
 
-
 # ════════════════════════════════════════════════════════════════
 # 2. WeakSpot — 薄弱环节
 # ════════════════════════════════════════════════════════════════
@@ -147,7 +145,6 @@ class WeakSpot:
     severity: str          # 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
     category: str          # 'overall' | 'class_recall' | 'class_ece' | 'calibration'
     suggestion: str = ''   # 改进建议
-
 
 # ════════════════════════════════════════════════════════════════
 # 3. LeagueEvaluator — 联赛差异化评估器
@@ -668,7 +665,6 @@ class LeagueEvaluator:
 
         return suggestions
 
-
 # ════════════════════════════════════════════════════════════════
 # 4. LeagueEvaluationResult — 评估结果容器
 # ════════════════════════════════════════════════════════════════
@@ -746,7 +742,6 @@ class LeagueEvaluationResult:
             if severity_order.get(ws.severity, 0) >= min_level:
                 leagues.add(ws.league)
         return sorted(leagues)
-
 
 # ════════════════════════════════════════════════════════════════
 # 5. LeagueVisualizer — 联赛级可视化
@@ -1163,7 +1158,6 @@ class LeagueVisualizer:
         paths.append(self.class_recall_comparison(result))
         return paths
 
-
 # ════════════════════════════════════════════════════════════════
 # 6. LeagueReportBuilder — HTML 报告生成
 # ════════════════════════════════════════════════════════════════
@@ -1267,7 +1261,7 @@ class LeagueReportBuilder:
                 <pre>{s['suggestion']}</pre>
             </div>\n'''
 
-        gen_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        gen_time = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
         html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -1343,7 +1337,6 @@ class LeagueReportBuilder:
         logger.info(f"Saved league evaluation HTML report: {path}")
         return path
 
-
 # ════════════════════════════════════════════════════════════════
 # 7. 便捷函数
 # ════════════════════════════════════════════════════════════════
@@ -1401,7 +1394,6 @@ def run_league_evaluation(
         report_path = builder.generate(league_result, chart_paths=chart_paths)
 
     return league_result, report_path
-
 
 # ════════════════════════════════════════════════════════════════
 # 8. __main__ 测试

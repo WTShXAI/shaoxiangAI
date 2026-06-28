@@ -23,7 +23,6 @@ from typing import Dict, List
 import sys
 
 # 添加项目根目录到路径
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
 from rules.prediction_rules import (
     DEFAULT_RULE_PARAMS,
@@ -31,7 +30,6 @@ from rules.prediction_rules import (
     save_rule_params,
     _evaluate_params,
 )
-
 
 def load_historical_data(
     db_path: str,
@@ -126,7 +124,6 @@ def load_historical_data(
     print(f'✅ 加载历史数据: {len(data)} 场比赛 (跳过 {skipped} 条无效数据)')
     return data
 
-
 def random_search(
     historical_data: List[Dict],
     n_trials: int = 500,
@@ -180,7 +177,6 @@ def random_search(
     
     print(f'\n✅ 随机搜索完成, 最优分数: {best_score:.4f}')
     return best_params
-
 
 def bayesian_optimize(
     historical_data: List[Dict],
@@ -239,7 +235,6 @@ def bayesian_optimize(
         print('⚠️ scikit-optimize 不可用, 回退到随机搜索')
         return random_search(historical_data, n_trials=500)
 
-
 def evaluate_current_params(historical_data: List[Dict]) -> Dict:
     """评估当前参数配置的效果"""
     current_params = load_rule_params()
@@ -252,7 +247,6 @@ def evaluate_current_params(historical_data: List[Dict]) -> Dict:
         print(f'    {k}: {v}')
     
     return {'score': score, 'params': current_params}
-
 
 def main():
     parser = argparse.ArgumentParser(description='footballAI 规则参数优化器')
@@ -339,7 +333,6 @@ def main():
     print(f'  提升 (vs 当前): {optimized_score - current_score:+.4f}')
     
     print(f'\n✅ 优化完成')
-
 
 if __name__ == '__main__':
     main()

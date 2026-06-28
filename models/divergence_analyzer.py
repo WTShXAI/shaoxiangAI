@@ -39,7 +39,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
 # ═══════════════════════════════════════════════════════════════
 # 分歧分析数据结构
 # ═══════════════════════════════════════════════════════════════
@@ -51,7 +50,6 @@ class DivergenceType(Enum):
     STRUCTURAL = "structural"          # 结构 (不同客户群/风控策略)
     CONVERGENCE = "convergence"        # 收敛 (市场达成共识)
 
-
 @dataclass
 class InstitutionEmbedding:
     """单一机构的嵌入 + 预测"""
@@ -61,7 +59,6 @@ class InstitutionEmbedding:
     z_predicted: Optional[np.ndarray]  # 预测嵌入 (如有Predictor)
     overround: float                   # 该机构的抽水率
     timestamp: float = 0.0             # 时间戳
-
 
 @dataclass
 class DivergenceReport:
@@ -113,7 +110,6 @@ class DivergenceReport:
             "signal_grade": self.signal_grade,
             "interpretation": self.interpretation,
         }
-
 
 # ═══════════════════════════════════════════════════════════════
 # 多机构分歧分析器
@@ -431,7 +427,6 @@ class MultiInstitutionDivergenceAnalyzer:
             interpretation = f"分歧不显著, 视为噪声 (IR={info_noise_ratio:.2f})"
         
         return div_type, signal_grade, interpretation
-
 
 # ═══════════════════════════════════════════════════════════════
 # 跨机构共识度评分

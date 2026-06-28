@@ -34,7 +34,7 @@ import logging
 import time
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, Callable
 
 from .expert_protocol import (
@@ -47,7 +47,6 @@ from .expert_registry import ExpertRegistry
 from .module_router import ModuleRouter, build_preset_scorers
 
 logger = logging.getLogger(__name__)
-
 
 class ExpertHub:
     """
@@ -86,7 +85,7 @@ class ExpertHub:
         self._call_count = 0
         self._total_predictions = 0
         self._last_full_result = None
-        self._started_at = datetime.now()
+        self._started_at = datetime.now(timezone.utc)
 
         # 注册统计
         self._expert_stats: Dict[str, Dict] = {}
@@ -281,7 +280,7 @@ class ExpertHub:
                 'total_experts': len(active_experts),
                 'selected_count': len(selected),
                 'execution_time_ms': round(elapsed_ms, 2),
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
             },
         }
         return self._last_full_result
@@ -323,13 +322,13 @@ class ExpertHub:
         if expert_id not in self._expert_stats:
             self._expert_stats[expert_id] = {
                 'calls': 0, 'errors': 0, 'fallbacks': 0,
-                'total_time_ms': 0, 'first_called': datetime.now().isoformat(),
+                'total_time_ms': 0, 'first_called': datetime.now(timezone.utc).isoformat(),
             }
 
         stats = self._expert_stats[expert_id]
         stats['calls'] += 1
         if stats['first_called'] is None:
-            stats['first_called'] = datetime.now().isoformat()
+            stats['first_called'] = datetime.now(timezone.utc).isoformat()
 
         start = time.perf_counter()
         try:
@@ -515,7 +514,7 @@ class ExpertHub:
             'predicted': pred_outcome,
             'actual': actual_result,
             'expert_feedbacks': feedbacks,
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
         }
 
     # ================================================================
@@ -536,7 +535,7 @@ class ExpertHub:
                 })
 
         return {
-            'uptime_seconds': (datetime.now() - self._started_at).total_seconds(),
+            'uptime_seconds': (datetime.now(timezone.utc) - self._started_at).total_seconds(),
             'total_predictions': self._total_predictions,
             'registry': registry_stats,
             'experts': expert_details,

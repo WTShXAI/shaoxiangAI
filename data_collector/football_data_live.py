@@ -110,7 +110,6 @@ _TEAM_NAME_ZH: Dict[str, str] = {
     "Argentina U20": "阿根廷U20", "Brazil U20": "巴西U20",
 }
 
-
 def _translate_team(name: str) -> str:
     """英→中球队名翻译, 未收录返回原名"""
     if not name:
@@ -123,7 +122,6 @@ def _translate_team(name: str) -> str:
     if stripped in _TEAM_NAME_ZH:
         return _TEAM_NAME_ZH[stripped]
     return name
-
 
 def _translate_match(match: Dict) -> Dict:
     """递归翻译比赛数据中的球队名: homeTeam/awayTeam/team/opponent/player.team"""
@@ -162,8 +160,6 @@ def _translate_match(match: Dict) -> Dict:
             _translate_match(standing)
 
     return match
-
-
 
 class FootballDataLive:
     """football-data.org 实时数据接入"""
@@ -291,16 +287,16 @@ class FootballDataLive:
             all_matches = self.get_team_matches(team_id, limit=limit, season=season)
         else:
             # 自动跨赛季: 当前赛季 → 上赛季 → 上上赛季
-            from datetime import datetime
-            current_year = datetime.now().year
+            from datetime import datetime, timezone
+            current_year = datetime.now(timezone.utc).year
             for s in [current_year, current_year - 1, current_year - 2]:
                 try:
                     m = self.get_team_matches(team_id, limit=limit, season=s)
                     all_matches.extend(m)
                     if len(all_matches) >= limit:
                         break
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("获取赛季 %s 球队数据失败: %s", s, e)
         
         matches = all_matches[:limit]
         finished = [m for m in matches if m.get('status') == 'FINISHED'
@@ -462,8 +458,8 @@ class FootballDataLive:
                         t = m.get(side, {})
                         if t.get('id'):
                             self._team_id_cache[t['name'].lower()] = t['id']
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("缓存球队ID失败: %s", e)
 
         return self._team_id_cache.get(team_name.lower())
 
@@ -729,7 +725,6 @@ class FootballDataLive:
         conn.close()
         logger.info(f"同步完成: {stats}")
         return stats
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

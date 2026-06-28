@@ -13,9 +13,6 @@ import os
 import pandas as pd
 logger = logging.getLogger(__name__)
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-
 def split_temporal(
     df: pd.DataFrame,
     test_size: float = 0.2,
@@ -45,7 +42,6 @@ def split_temporal(
     logger.info(f"   └─ 时间范围 (测试): {test_df[date_col].min()} ~ {test_df[date_col].max()}")
 
     return train_df, test_df
-
 
 def main():
     parser = argparse.ArgumentParser(description="时序分割增强数据")
@@ -111,7 +107,6 @@ def main():
     logger.info(f"\n{'=' * 60}")
     logger.info(f"  ✅ 时序分割完成")
     logger.info(f"{'=' * 60}\n")
-
 
 if __name__ == '__main__':
     main()

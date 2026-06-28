@@ -15,16 +15,13 @@ import logging
 import argparse
 import sys
 import os
-from datetime import datetime
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from datetime import datetime, timezone
 
 import pandas as pd
 import numpy as np
 
 from backend.data.enhancement import DataEnhancer
 logger = logging.getLogger(__name__)
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -99,7 +96,7 @@ def main():
     enhancer = DataEnhancer(df)
     windows = [int(w.strip()) for w in args.windows.split(',')]
 
-    t0 = datetime.now()
+    t0 = datetime.now(timezone.utc)
 
     # 1. 滚动特征
     logger.info(f"\n🔄 步骤 1/3: 滚动特征 (窗口: {windows})...")
@@ -126,7 +123,7 @@ def main():
     else:
         logger.info(f"\n⏭️  步骤 3/3: 跳过泊松特征")
 
-    elapsed = (datetime.now() - t0).total_seconds()
+    elapsed = (datetime.now(timezone.utc) - t0).total_seconds()
 
     # ── 保存 ──
     logger.info(f"\n💾 保存增强数据...")
@@ -142,7 +139,6 @@ def main():
     logger.info(f"  特征增长: +{len(enhancer.df.columns) - len(df.columns)} 列")
     logger.info(f"  输出路径: {output_path}")
     logger.info(f"{'=' * 60}\n")
-
 
 if __name__ == '__main__':
     main()

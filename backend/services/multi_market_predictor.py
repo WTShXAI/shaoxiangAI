@@ -18,7 +18,6 @@ import joblib
 warnings.filterwarnings('ignore')
 logger = logging.getLogger(__name__)
 
-
 class MultiMarketPredictor:
     """多市场预测器 (让球/大小球/进球数)"""
 
@@ -333,10 +332,8 @@ class MultiMarketPredictor:
             'goals': self.predict_goals(features),
         }
 
-
 # 全局单例
 _multi_predictor: Optional[MultiMarketPredictor] = None
-
 
 def get_multi_market_predictor() -> MultiMarketPredictor:
     """获取多市场预测器单例"""

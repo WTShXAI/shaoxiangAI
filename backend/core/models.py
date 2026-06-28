@@ -5,7 +5,6 @@ from sqlalchemy import Column, Integer, String, DateTime
 from datetime import datetime, timezone
 from core.database import Base
 
-
 class User(Base):
     __tablename__ = "users"
 

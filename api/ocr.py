@@ -24,7 +24,6 @@ REGION = "cn-north-1"
 SERVICE = "cv"
 API_VERSION = "2020-08-26"
 
-
 def _sign(method, body_str, ak, sk):
     """HMAC-SHA256 签名 (无需 VOLC_ 前缀)"""
     now = datetime.now(timezone.utc)
@@ -49,7 +48,6 @@ def _sign(method, body_str, ak, sk):
         "Authorization": f"HMAC-SHA256 Credential={ak}/{scope}, SignedHeaders={signed_headers}, Signature={signature}",
         "X-Date": ts,
     }
-
 
 @ocr_router.post("/api/v1/ocr/upload")
 async def ocr_proxy(file: UploadFile = File(...)):

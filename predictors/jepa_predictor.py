@@ -23,7 +23,6 @@ import logging
 
 logger = logging.getLogger("V5.Predictor")
 
-
 class V5Predictor:
     """
     v5.0 统一预测器 — JEPA World Model + v4.1 Stacking
@@ -70,7 +69,7 @@ class V5Predictor:
         # Try to load v4.1 predictor
         try:
             import sys
-            sys.path.insert(0, str(Path('D:/Architecture v4.0')))
+
             from predictors.unified_predictor import UnifiedPredictor
             self._v4_predictor = UnifiedPredictor()
             logger.info("v4.1 UnifiedPredictor loaded")
@@ -174,7 +173,6 @@ class V5Predictor:
             'draw_signal': draw_signal,
         }
 
-
 def quick_predict(home_team: str, away_team: str, league: str = '',
                   home_odds: float = 2.0, draw_odds: float = 3.5, away_odds: float = 3.0,
                   handicap: float = 0.0, ou_line: float = 2.5) -> Dict:
@@ -200,7 +198,6 @@ def quick_predict(home_team: str, away_team: str, league: str = '',
     
     predictor = V5Predictor()
     return predictor.predict(static, match_context=ctx, n_paths=30)
-
 
 if __name__ == '__main__':
     print("=" * 50)

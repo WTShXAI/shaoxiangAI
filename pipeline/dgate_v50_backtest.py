@@ -14,11 +14,6 @@ warnings.filterwarnings('ignore')
 
 ARCH_ROOT = Path(r"D:/Architecture v4.0")
 FAI_ROOT = Path(r"D:/AI/footballAI")
-sys.path.insert(0, str(ARCH_ROOT))
-sys.path.insert(0, str(ARCH_ROOT / "features"))
-sys.path.insert(0, str(ARCH_ROOT / "predictors"))
-sys.path.insert(0, str(ARCH_ROOT / "predictors" / "components"))
-sys.path.insert(0, str(FAI_ROOT))
 
 import numpy as np
 

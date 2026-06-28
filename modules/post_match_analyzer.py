@@ -29,7 +29,6 @@ from enum import Enum
 
 logger = logging.getLogger(__name__)
 
-
 # ═══════════════════════════════════════════════════════════════
 # 1. 数据结构
 # ═══════════════════════════════════════════════════════════════
@@ -42,7 +41,6 @@ class DeviationType(Enum):
     CONFIDENCE = "confidence"    # 置信度误判 (高置信预测错误)
     SYSTEMATIC = "systematic"    # 系统性偏差 (连续多场同方向错误)
 
-
 class RootCause(Enum):
     """根因分类"""
     D_GATE_FAILURE = "d_gate_failure"      # D-Gate误判 (应降级未降级 or 不应降级降级了)
@@ -52,7 +50,6 @@ class RootCause(Enum):
     COLD_START = "cold_start"               # 冷启动信息不足
     LEAGUE_ANOMALY = "league_anomaly"        # 联赛异常 (该联赛模式变化)
     UNKNOWN = "unknown"                     # 不明原因
-
 
 @dataclass
 class AttributionResult:
@@ -73,7 +70,6 @@ class AttributionResult:
             "suggestion": self.suggestion,
             "related_lessons": self.related_lessons,
         }
-
 
 @dataclass
 class PostMatchReport:
@@ -132,7 +128,6 @@ class PostMatchReport:
             "severity": self.severity,
             "meta": {"analysis_time_ms": round(self.analysis_time_ms, 2)},
         }
-
 
 # ═══════════════════════════════════════════════════════════════
 # 2. 赛后复盘引擎
@@ -329,20 +324,17 @@ class PostMatchAnalyzer:
             return "warning"
         return "info"
 
-
 # ═══════════════════════════════════════════════════════════════
 # 3. 全局单例
 # ═══════════════════════════════════════════════════════════════
 
 _pm_analyzer: Optional[PostMatchAnalyzer] = None
 
-
 def get_pm_analyzer() -> PostMatchAnalyzer:
     global _pm_analyzer
     if _pm_analyzer is None:
         _pm_analyzer = PostMatchAnalyzer()
     return _pm_analyzer
-
 
 def reset_pm_analyzer():
     global _pm_analyzer

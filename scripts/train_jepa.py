@@ -16,7 +16,6 @@ import json
 
 from models.jepa_losses import FootballVICRegLoss, DrawPreservingVICReg, EmbeddingCollapseMonitor
 
-
 class JEPATrainer:
     """Training pipeline for FootballJEPA"""
 
@@ -179,12 +178,10 @@ class JEPATrainer:
 
         return history
 
-
 def load_jepa_data(split='train', data_dir='D:/Architecture v4.0/data'):
     """Load pre-built JEPA dataset"""
     data = np.load(Path(data_dir) / f'jepa_{split}.npz')
     return data['static'], data['sequence'], data['drift'], data['labels']
-
 
 def create_dataloaders(batch_size=256, num_workers=0):
     """Create train/val dataloaders"""
@@ -198,7 +195,6 @@ def create_dataloaders(batch_size=256, num_workers=0):
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
     return train_loader, val_loader
-
 
 if __name__ == '__main__':
     # Quick test

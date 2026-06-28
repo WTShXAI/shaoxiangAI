@@ -40,7 +40,6 @@ from modules.output_schema import (
 
 logger = logging.getLogger(__name__)
 
-
 # ═══════════════════════════════════════════════════════════════
 # 1. WorkBuddy 专家声明式规范
 # ═══════════════════════════════════════════════════════════════
@@ -60,14 +59,12 @@ class ExpertDomain(Enum):
     PERFORMANCE = "performance"       # 性能工程 (孙加速)
     FRONTEND = "frontend"             # 前端工程 (杨界面)
 
-
 class CollaborationMode(Enum):
     """四类协同模式"""
     FULL_STACK = "A"      # 全栈预测: 6算法专家并行
     ODDS_DEEP = "B"        # 赔率深挖: 博弈主导 + 量化辅助
     DRAW_FOCUS = "C"       # 平局攻坚: 不平衡主导 + 量化辅助
     SYSTEM_ITERATE = "D"   # 系统迭代: 全团联动
-
 
 @dataclass
 class WorkBuddyExpertSpec:
@@ -92,7 +89,6 @@ class WorkBuddyExpertSpec:
     is_fallbackable: bool = True            # 故障时是否可降级
     # 协同模式归属 (可为空=所有模式可用)
     modes: List[CollaborationMode] = field(default_factory=list)
-
 
 # ═══════════════════════════════════════════════════════════════
 # 2. 11 + 1 位专家完整注册表
@@ -218,7 +214,6 @@ WORKBUDDY_EXPERTS: Dict[str, WorkBuddyExpertSpec] = {
     ),
 }
 
-
 # ═══════════════════════════════════════════════════════════════
 # 3. 领域域分组
 # ═══════════════════════════════════════════════════════════════
@@ -251,7 +246,6 @@ MODE_EXPERTS: Dict[CollaborationMode, List[str]] = {
     CollaborationMode.SYSTEM_ITERATE: ["郝优算", "季泊松", "杜博弈", "荣合众", "曾均衡", "施时序", "毕建模", "齐优化"],
 }
 
-
 # ═══════════════════════════════════════════════════════════════
 # 4. 协同调度器
 # ═══════════════════════════════════════════════════════════════
@@ -266,7 +260,6 @@ class CollaborationResult:
     fallback_reason: str = ""
     total_time_ms: float = 0.0
     errors: List[str] = field(default_factory=list)
-
 
 class CollaborationScheduler:
     """
@@ -402,7 +395,6 @@ class CollaborationScheduler:
                 logger.error(f"[{name}] 执行异常: {e}")
                 results[name] = {"status": "error", "error": str(e), "fallback": True}
         return results
-
 
 # ═══════════════════════════════════════════════════════════════
 # 5. v4.0 ExpertHub 扩展
@@ -550,13 +542,11 @@ class ExpertHubV2:
         }
         return descriptions.get(mode, "未知模式")
 
-
 # ═══════════════════════════════════════════════════════════════
 # 6. 便捷函数
 # ═══════════════════════════════════════════════════════════════
 
 _hub_instance: Optional[ExpertHubV2] = None
-
 
 def get_hub() -> ExpertHubV2:
     """获取 ExpertHubV2 单例"""
@@ -565,12 +555,10 @@ def get_hub() -> ExpertHubV2:
         _hub_instance = ExpertHubV2()
     return _hub_instance
 
-
 def reset_hub():
     """重置单例(测试用)"""
     global _hub_instance
     _hub_instance = None
-
 
 def describe_experts() -> str:
     """生成专家团描述"""

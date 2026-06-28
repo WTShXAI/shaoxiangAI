@@ -5,7 +5,6 @@ import sys, os, json
 from pathlib import Path
 
 ROOT = str(Path(__file__).resolve().parent.parent)
-sys.path.insert(0, ROOT)
 
 import torch, numpy as np
 from collections import Counter

@@ -24,7 +24,6 @@ import numpy as np
 import json
 import os
 
-
 # ====================================================================
 # 规则参数配置（可通过训练优化）
 # ====================================================================
@@ -87,7 +86,6 @@ DEFAULT_RULE_PARAMS = {
 # 参数配置路径
 RULE_PARAMS_PATH = os.path.join(os.path.dirname(__file__), 'rule_params.json')
 
-
 def load_rule_params() -> Dict:
     """加载规则参数（优先从文件，否则用默认）"""
     if os.path.exists(RULE_PARAMS_PATH):
@@ -95,13 +93,11 @@ def load_rule_params() -> Dict:
             return json.load(f)
     return DEFAULT_RULE_PARAMS.copy()
 
-
 def save_rule_params(params: Dict):
     """保存规则参数到文件"""
     os.makedirs(os.path.dirname(RULE_PARAMS_PATH), exist_ok=True)
     with open(RULE_PARAMS_PATH, 'w', encoding='utf-8') as f:
         json.dump(params, f, ensure_ascii=False, indent=2)
-
 
 # ====================================================================
 # LAYER 1: 比赛类型规则
@@ -156,7 +152,6 @@ MATCH_TYPE_RULES = {
         'key_driver': '积分需求',
     },
 }
-
 
 # ====================================================================
 # LAYER 2: 赔率反常规则（参数化版本）
@@ -214,7 +209,6 @@ def get_odds_anomaly_rules(params: Dict = None) -> List[Dict]:
             'verified': True,
         },
     ]
-
 
 # ====================================================================
 # LAYER 3: 赛中攻略规则（参数化版本，禁用亚洲盘口）
@@ -274,7 +268,6 @@ def get_inplay_rules(params: Dict = None) -> Dict:
         ],
     }
 
-
 # ====================================================================
 # 综合决策入口
 # ====================================================================
@@ -291,7 +284,6 @@ def classify_match(league: str) -> str:
         return 'friendly'
     else:
         return 'league'
-
 
 def get_betting_decision(match_data: Dict, live_data: Dict = None, params: Dict = None) -> Dict:
     """
@@ -355,7 +347,6 @@ def get_betting_decision(match_data: Dict, live_data: Dict = None, params: Dict 
     
     return verdict
 
-
 # ====================================================================
 # 规则参数优化器（训练接口）
 # ====================================================================
@@ -406,7 +397,6 @@ def optimize_rule_params(historical_data: List[Dict], param_ranges: Dict = None,
     print(f'\n✅ 最优参数分数: {best_score:.4f}')
     return best_params
 
-
 def _evaluate_params(params: Dict, historical_data: List[Dict]) -> float:
     """评估一组参数的效果（准确率）"""
     correct = 0
@@ -454,7 +444,6 @@ def _evaluate_params(params: Dict, historical_data: List[Dict]) -> float:
         total += 1
     
     return correct / total if total > 0 else 0.0
-
 
 # ====================================================================
 # 自检

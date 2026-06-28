@@ -7,7 +7,7 @@ import sys
 import os
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 
 import numpy as np
@@ -16,12 +16,10 @@ import joblib
 import warnings
 warnings.filterwarnings('ignore')
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from backend.models.footballai_enhanced import FootballAIEnhanced
 logger = logging.getLogger(__name__)
 
 META_COLS = ['date', 'home_team', 'away_team', 'home_score', 'away_score', 'league']
-
 
 def prepare_data(csv_path: str):
     """从压缩CSV加载并准备训练数据"""
@@ -44,7 +42,6 @@ def prepare_data(csv_path: str):
 
     return df, feature_cols, y_str
 
-
 def main():
     parser = argparse.ArgumentParser(description='用压缩特征重新训练模型')
     parser.add_argument('--features', required=True, help='压缩特征CSV路径')
@@ -56,7 +53,7 @@ def main():
     args = parser.parse_args()
 
     if args.output is None:
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
         args.output = f'saved_models/footballai_{args.version}.joblib'
 
     logger.info("=" * 60)
@@ -121,7 +118,7 @@ def main():
             'feature_names': feature_cols,
             'n_features': len(feature_cols),
             'version': args.version,
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
         }, f, indent=2, ensure_ascii=False)
     logger.info(f"[SAVE] 特征列表 → {feat_file}")
 
@@ -136,7 +133,6 @@ def main():
     logger.info(f"{'='*60}")
 
     return 0
-
 
 if __name__ == '__main__':
     sys.exit(main())

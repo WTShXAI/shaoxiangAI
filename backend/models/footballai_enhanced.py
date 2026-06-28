@@ -23,8 +23,6 @@ warnings.filterwarnings('ignore')
 
 # 确保项目根在 path 中，以便导入 backend.features
 _proj_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if _proj_root not in sys.path:
-    sys.path.insert(0, _proj_root)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
@@ -34,14 +32,12 @@ SafeTemporalFeatureEngineer = None
 DrawOptimizedEnsemble = None
 AdaptiveTrainingStrategy = None
 
-
 def _get_feature_engineer():
     global SafeTemporalFeatureEngineer
     if SafeTemporalFeatureEngineer is None:
-        from backend.features.advanced_temporal_features import SafeTemporalFeatureEngineer as STE
+        from features.advanced_temporal_features import SafeTemporalFeatureEngineer as STE
         SafeTemporalFeatureEngineer = STE
     return SafeTemporalFeatureEngineer
-
 
 def _get_draw_ensemble():
     global DrawOptimizedEnsemble
@@ -50,14 +46,12 @@ def _get_draw_ensemble():
         DrawOptimizedEnsemble = DOE
     return DrawOptimizedEnsemble
 
-
 def _get_adaptive_training():
     global AdaptiveTrainingStrategy
     if AdaptiveTrainingStrategy is None:
         from backend.training.adaptive_training import AdaptiveTrainingStrategy as ATS
         AdaptiveTrainingStrategy = ATS
     return AdaptiveTrainingStrategy
-
 
 class FootballAIEnhanced:
     """基于增强数据的 FootballAI 集成模型 (v4.0)"""

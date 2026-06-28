@@ -7,7 +7,6 @@ from abc import ABC, abstractmethod
 from typing import Optional, Dict, List
 from datetime import datetime
 
-
 class PredictionServiceInterface(ABC):
     """预测服务接口（抽象基类）"""
     
@@ -48,7 +47,6 @@ class PredictionServiceInterface(ABC):
             模型信息字典（版本、特征数等）
         """
         pass
-
 
 class DatabaseManagerInterface(ABC):
     """数据库管理器接口（抽象基类）"""

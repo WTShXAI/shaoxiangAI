@@ -12,13 +12,7 @@ warnings.filterwarnings('ignore')
 
 ARCH_ROOT = Path(r"D:/Architecture v4.0")
 FAI_ROOT = Path(r"D:/AI/footballAI")
-sys.path.insert(0, str(ARCH_ROOT))
-sys.path.insert(0, str(ARCH_ROOT / "features"))
-sys.path.insert(0, str(ARCH_ROOT / "predictors"))
-sys.path.insert(0, str(ARCH_ROOT / "rules"))
-sys.path.insert(0, str(FAI_ROOT))
 
-# ═══ 从DB加载cs_other ═══
 def load_cs_other():
     conn = sqlite3.connect(str(ARCH_ROOT / "data" / "wc2026_timeline.db"))
     rows = conn.execute("""

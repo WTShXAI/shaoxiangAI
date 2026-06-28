@@ -25,7 +25,6 @@ MatchDay 权重:
     # 自动从 StandingsProvider 获取积分数据
 """
 
-
 # ═══════════════════════════════════════
 # MatchDay 权重
 # ═══════════════════════════════════════
@@ -39,7 +38,6 @@ def _get_matchday_weights(matchday):
     else:
         return 0.60, 0.40
 
-
 # ═══════════════════════════════════════
 # 辅助判断函数
 # ═══════════════════════════════════════
@@ -52,7 +50,6 @@ def _is_qualified(pts, mp):
     if mp >= 2 and pts >= 6:
         return True
     return False
-
 
 def _is_eliminated(pts, mp, group_table, team):
     """判断球队是否已淘汰。
@@ -76,7 +73,6 @@ def _is_eliminated(pts, mp, group_table, team):
                 return True
     return False
 
-
 def _mutual_draw_qualifies(home, away, pts_h, pts_a, group_table):
     """判断两队打平是否都能确保小组前2出线。
 
@@ -98,7 +94,6 @@ def _mutual_draw_qualifies(home, away, pts_h, pts_a, group_table):
 
     return draw_pts_h > max_third_pts and draw_pts_a > max_third_pts
 
-
 def _team_needs_points(pts, mp, group_table, team):
     """判断球队是否必须抢分（不稳/濒临淘汰）。"""
     if mp < 1:
@@ -116,7 +111,6 @@ def _team_needs_points(pts, mp, group_table, team):
         return True
 
     return False
-
 
 # ═══════════════════════════════════════
 # 核心修正函数
@@ -223,7 +217,6 @@ def apply_tournament_override(ph, pd, pa, verdict, final_mode, signals,
 
     return ph, pd, pa, verdict
 
-
 # ═══════════════════════════════════════
 # 主入口: 一键预测 (自动获取积分)
 # ═══════════════════════════════════════
@@ -254,20 +247,26 @@ def predict(ph, pd, pa, oh, od, oa, hcp, ou,
     返回:
         (verdict, mode, d_boost, signals)
     """
-    # ── import D-Gate ──
+    # ── import D-Gate (v53 via d_gate_engine) ──
     try:
-        from rules.d_gate_v52 import dgate_v52
+        from rules.d_gate_engine import apply_dgate_v51
     except ImportError:
         import sys as _sys, os as _os
-        _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
-        from rules.d_gate_v52 import dgate_v52
 
-    # ── Step 1: D-Gate ──
+        from rules.d_gate_engine import apply_dgate_v51
+
+    # ── Step 1: D-Gate v53 ──
     tournament_flag = (matchday or 1) >= 1  # 任何赛事阶段都启用杯赛模式
-    verdict, final_mode, final_d, signals = dgate_v52(
-        ph, pd, pa, oh, od, oa, hcp, ou, home, away, cs_other,
-        tournament=tournament_flag
+    odds_dict = {'H': oh, 'D': od, 'A': oa}
+    dg_result = apply_dgate_v51(
+        ph, pd, pa, odds=odds_dict,
+        handicap=hcp, ou_line=ou, fifa_rank_diff=None,
+        match_type='tournament' if tournament_flag else 'league',
     )
+    verdict = dg_result.get('verdict', 'H' if ph > pa else 'A')
+    final_mode = dg_result.get('d_gate_mode', 'normal')
+    final_d = dg_result.get('d_boosted', 0.0)
+    signals = dg_result.get('signals', [])
 
     # ── Step 2: 获取赛事上下文 ──
     if group_table is None or matchday is None:
@@ -299,7 +298,6 @@ def predict(ph, pd, pa, oh, od, oa, hcp, ou,
             verdict = verdict_new
 
     return verdict, final_mode, final_d, signals
-
 
 # ═══════════════════════════════════════
 # 比分预测 (D-Gate判型联动 v5.2.14)
@@ -353,7 +351,6 @@ def predict_scores(ph, pd, pa, ou, hcp, verdict):
     scores.sort(key=lambda x: -x[2])
     return scores[:3], lh, la
 
-
 def predict_with_scores(ph, pd, pa, oh, od, oa, hcp, ou,
                          home='', away='', cs_other=None,
                          group_table=None, matchday=None,
@@ -393,7 +390,6 @@ def predict_with_scores(ph, pd, pa, oh, od, oa, hcp, ou,
         'lambda_a': round(la, 2),
     }
 
-
 # ═══════════════════════════════════════
 # 旧接口兼容
 # ═══════════════════════════════════════
@@ -413,14 +409,13 @@ def dgate_with_tournament(ph, pd, pa, oh, od, oa, hcp, ou,
                    group_table=_group_table if _group_table else None,
                    matchday=matchday)
 
-
 # ═══════════════════════════════════════
 # 快速测试
 # ═══════════════════════════════════════
 
 if __name__ == '__main__':
     import sys as _sys, os as _os
-    _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+
     from rules.standings_provider import StandingsProvider
 
     sp = StandingsProvider()

@@ -11,7 +11,7 @@ P2 验证: FeatureAligner 解耦效果
 """
 import sys, os, json, warnings
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 warnings.filterwarnings('ignore')
 
@@ -19,16 +19,11 @@ ARCH_ROOT = Path(r"D:/Architecture v4.0")
 FAI_ROOT = Path(r"D:/AI/footballAI")
 MODELS_DIR = FAI_ROOT / "saved_models"
 
-sys.path.insert(0, str(ARCH_ROOT))
-sys.path.insert(0, str(ARCH_ROOT / "features"))
-sys.path.insert(0, str(ARCH_ROOT / "predictors" / "components"))
-sys.path.insert(0, str(FAI_ROOT))
-
 import numpy as np
 
 print("=" * 70)
 print("  P2 验证: FeatureAligner 特征解耦效果")
-print(f"  时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"  时间: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}")
 print("=" * 70)
 
 # ════════════════════════════════════════════════
@@ -196,10 +191,10 @@ for name, ok in checks:
 # 保存
 out_dir = ARCH_ROOT / "reports"
 out_dir.mkdir(exist_ok=True)
-out_file = out_dir / f"p2_verify_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+out_file = out_dir / f"p2_verify_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
 with open(out_file, 'w', encoding='utf-8') as f:
     json.dump({
-        'timestamp': datetime.now().isoformat(),
+        'timestamp': datetime.now(timezone.utc).isoformat(),
         'feature_aligner': {
             'n_features': len(aligner.feature_names),
             'has_scaler': aligner.scaler is not None,

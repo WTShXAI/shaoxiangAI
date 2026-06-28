@@ -4,11 +4,13 @@
 结合 knowledge_base.db 增强预测
 """
 import json
+import logging
 import sqlite3
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional
 
+logger = logging.getLogger(__name__)
 
 def build_prediction_report(
     home: str, away: str, league: str,
@@ -43,7 +45,7 @@ def build_prediction_report(
     # ══════ 标题行 ══════
     league_tag = f" · {league}" if league else ""
     match_str = f"{home} vs {away}{league_tag}"
-    tm = datetime.now().strftime("%H:%M")
+    tm = datetime.now(timezone.utc).strftime("%H:%M")
     lines.append(f"⚽ {match_str}")
     
     # ══════ 1. 结论 ══════
@@ -142,15 +144,14 @@ def build_prediction_report(
         kb_ref = _query_knowledge_base(h_prob, d_prob, prediction, odds)
         if kb_ref:
             lines.append(f"\n📚 {kb_ref}")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("知识库查询失败: %s", e)
     
     # ══════ 7. 底部 ══════
     lines.append(f"\n{'─'*28}")
     lines.append(f"⚡ {elapsed_ms:.0f}ms · v4.1 · {match_type or '联赛'}")
     
     return "\n".join(lines)
-
 
 def _query_knowledge_base(h_prob: float, d_prob: float, prediction: str, odds: dict = None) -> Optional[str]:
     """查询knowledge_base.db获取参考信息"""
@@ -209,5 +210,6 @@ def _query_knowledge_base(h_prob: float, d_prob: float, prediction: str, odds: d
         
         return " | ".join(results) if results else None
         
-    except Exception:
+    except Exception as e:
+        logger.debug("知识库查询异常: %s", e)
         return None

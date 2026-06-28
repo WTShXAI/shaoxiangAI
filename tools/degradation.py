@@ -28,7 +28,6 @@ from .base import (
 
 logger = logging.getLogger(__name__)
 
-
 class DegradationChain:
     """
     降级链 — 按优先级尝试不同策略
@@ -156,7 +155,6 @@ class DegradationChain:
 
     def get_level_description(self, level: DegradationLevel) -> str:
         return self._level_names.get(level, f"Level {level.value}")
-
 
 # ════════════════════════════════════════════════════════════
 # 历史先验 Tool (Level 2 fallback)

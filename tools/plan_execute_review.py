@@ -29,7 +29,6 @@ from .base import PredictionContext, ToolResult, DegradationLevel
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class PERResult:
     """Plan-Execute-Review 最终结果"""
@@ -43,7 +42,6 @@ class PERResult:
     final_ctx: Optional[PredictionContext] = None
     error: Optional[str] = None
     trace: Optional[Dict] = None
-
 
 class PlanExecuteReview:
     """

@@ -15,7 +15,7 @@ import sys
 import os
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -26,9 +26,6 @@ from sklearn.preprocessing import StandardScaler
 import warnings
 logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore')
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 
 class SmartIntegration:
     """智能模型集成器"""
@@ -195,7 +192,7 @@ class SmartIntegration:
             'scaler': self.scaler,
             'feature_names_': self.feature_names_,
             '_fitted': self._fitted,
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
         }
 
         joblib.dump(save_data, output_path)
@@ -213,7 +210,6 @@ class SmartIntegration:
         obj.feature_names_ = data.get('feature_names_')
         obj._fitted = data['_fitted']
         return obj
-
 
 def load_test_data(csv_path: str):
     """加载测试数据用于元模型训练/验证"""
@@ -238,7 +234,6 @@ def load_test_data(csv_path: str):
 
     return X, y, feature_cols
 
-
 def main():
     parser = argparse.ArgumentParser(description='智能模型集成')
     parser.add_argument('--footballai', required=True, help='footballAI模型路径')
@@ -252,7 +247,7 @@ def main():
     args = parser.parse_args()
 
     if args.output is None:
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
         args.output = f'saved_models/smart_integrated_{timestamp}.joblib'
 
     logger.info("=" * 60)
@@ -314,7 +309,6 @@ def main():
     logger.info(f"{'='*60}")
 
     return 0
-
 
 if __name__ == '__main__':
     sys.exit(main())

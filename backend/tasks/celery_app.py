@@ -7,8 +7,6 @@ from celery import Celery
 from core.config import settings
 
 # 确保项目根目录可导入
-if settings.PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, settings.PROJECT_ROOT)
 
 celery_app = Celery(
     "footballAI",

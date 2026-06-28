@@ -8,7 +8,6 @@ from typing import Optional, List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
-
 class ModelService:
     """模型版本管理服务"""
 
@@ -20,8 +19,6 @@ class ModelService:
         """延迟加载 ModelRegistry"""
         if self._registry is None:
             from core.config import settings
-            if settings.PROJECT_ROOT not in sys.path:
-                sys.path.insert(0, settings.PROJECT_ROOT)
 
             from optimize.model_registry import ModelRegistry
             self._registry = ModelRegistry()

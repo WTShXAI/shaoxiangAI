@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
 import numpy as np
@@ -43,7 +43,6 @@ PSI_INTERPRETATION = {
     (0.25, float("inf")): "显著漂移 🔴",
 }
 
-
 class DataDriftDetector:
     """数据漂移检测器"""
 
@@ -63,7 +62,7 @@ class DataDriftDetector:
     def from_db(cls, db_manager, lookback_days: int = 90,
                 features: list[str] | None = None):
         """从数据库加载参考数据"""
-        cutoff = (datetime.now() - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=lookback_days)).strftime('%Y-%m-%d')
         df = db_manager.load_matches_with_features(cutoff_date=cutoff)
         return cls(df, features=features)
 
@@ -118,7 +117,7 @@ class DataDriftDetector:
             "features_checked": len(feature_results),
             "features_drifted": sum(1 for r in feature_results.values() if r["drift_detected"]),
             "feature_details": feature_results,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     # ══════════════════════════════════════════════════
@@ -187,7 +186,7 @@ class DataDriftDetector:
             "features_checked": len(feature_results),
             "features_drifted": sum(1 for r in feature_results.values() if r["drift_detected"]),
             "feature_details": feature_results,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     # ══════════════════════════════════════════════════
@@ -215,7 +214,7 @@ class DataDriftDetector:
                 drifted_features.append(col)
 
         report = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "window_days": window_days,
             "reference_samples": len(self.ref_df),
             "current_samples": len(current_data),
@@ -243,7 +242,7 @@ class DataDriftDetector:
         if self.ref_df.empty:
             return {"error": "参考数据集为空"}
 
-        cutoff = datetime.now() - timedelta(days=lookback_days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
         if "match_date" in self.ref_df.columns:
             cutoff_str = cutoff.strftime('%Y-%m-%d')
             recent = self.ref_df[self.ref_df["match_date"] >= cutoff_str].copy()

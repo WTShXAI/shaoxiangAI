@@ -39,7 +39,6 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-
 class FeatureBackfiller:
     """特征回填引擎 — 从现有数据推算5个高默认率特征的真实值"""
 
@@ -496,7 +495,6 @@ class FeatureBackfiller:
         conn.commit()
         return updated
 
-
 # ═══════════════════════════════════════════════════════════
 #  便捷函数
 # ═══════════════════════════════════════════════════════════
@@ -506,7 +504,6 @@ def backfill_features(db_path: str = 'data/football_data.db',
     """一键回填5个高默认率特征"""
     filler = FeatureBackfiller(db_path=db_path)
     return filler.backfill_all(force=force)
-
 
 # ═══════════════════════════════════════════════════════════
 #  自测

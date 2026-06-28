@@ -21,12 +21,10 @@ from api.deps import get_admin_user
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-
 class RestartResponse(BaseModel):
     status: str
     message: str
     action: str
-
 
 @router.post("/restart", response_model=RestartResponse, tags=["管理"])
 async def restart_server(user: dict = Depends(get_admin_user)):
@@ -91,7 +89,6 @@ async def restart_server(user: dict = Depends(get_admin_user)):
     except (sqlite3.Error, sqlalchemy.exc.SQLAlchemyError) as e:
         logger.error(f"[ADMIN] 重启失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"重启失败: {str(e)}")
-
 
 @router.post("/clear-cache", tags=["管理"])
 async def clear_cache(user: dict = Depends(get_admin_user)):

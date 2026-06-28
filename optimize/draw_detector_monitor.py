@@ -23,7 +23,7 @@ import os
 import sys
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Tuple, Optional
 from collections import defaultdict
 
@@ -36,8 +36,6 @@ from sklearn.metrics import (
 
 # 项目根路径
 PROJ_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJ_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJ_ROOT))
 
 DATA_PATH = PROJ_ROOT / 'data' / 'enhanced_features_v1.csv'
 
@@ -50,7 +48,6 @@ LEAGUE_CN_MAP = {
 }
 
 HIGH_DRAW_LEAGUES = {'Campeonato Brasileiro Série A', 'Serie A', 'Ligue 1', 'Primeira Liga'}
-
 
 class DrawDetectorMonitor:
     """平局检测器性能监控系统"""
@@ -428,12 +425,11 @@ class DrawDetectorMonitor:
 
         return items
 
-
 def run_monitor(data_path: str = None, model_path: str = None, output_dir: str = None):
     """运行完整监控流程"""
 
     t_total = time.time()
-    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+    ts = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
 
     print("=" * 64)
     print("[DRAW-MONITOR] 平局检测器性能监控系统 v1.0")
@@ -532,7 +528,6 @@ def run_monitor(data_path: str = None, model_path: str = None, output_dir: str =
     print(f"  Report: {report_path.name}")
     print(f"{'='*64}")
 
-
 def print_summary(monitor: DrawDetectorMonitor, report: Dict):
     """打印美观的监控摘要"""
     g = report['global_performance']
@@ -573,7 +568,6 @@ def print_summary(monitor: DrawDetectorMonitor, report: Dict):
             print(f"  • {r}")
 
     print(f"{'═'*70}")
-
 
 if __name__ == '__main__':
     import argparse

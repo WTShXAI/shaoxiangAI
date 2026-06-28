@@ -5,11 +5,10 @@
 """
 import numpy as np
 from typing import Dict, List, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 logger = logging.getLogger(__name__)
-
 
 class ValueGapAnalyzer:
     """价值缺口分析器 - 第二章"""
@@ -122,7 +121,6 @@ class ValueGapAnalyzer:
 
         return "\n".join(lines)
 
-
 class BayesianUpdater:
     """贝叶斯更新器 - 第四章"""
 
@@ -170,7 +168,7 @@ class BayesianUpdater:
 
             # 记录更新历史
             self.update_history.append({
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'evidence': ev_name,
                 'description': description,
                 'confidence': confidence,
@@ -237,7 +235,6 @@ class BayesianUpdater:
     def get_update_history(self) -> List[Dict]:
         """获取更新历史"""
         return self.update_history.copy()
-
 
 class AlphaDetectionGate:
     """Alpha检测门 - 第五章"""

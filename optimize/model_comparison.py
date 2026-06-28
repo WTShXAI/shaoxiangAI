@@ -14,7 +14,7 @@
 import os, time, json, logging
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -48,7 +48,6 @@ try:
 except ImportError:
     pass
 
-
 # ─── 数据结构 ─────────────────────────────────────────────
 
 @dataclass
@@ -74,7 +73,6 @@ class ModelEvalSummary:
     n_features: int
     error_msg: str = ""
 
-
 @dataclass
 class ComparisonReport:
     """完整对比报告"""
@@ -85,7 +83,6 @@ class ComparisonReport:
     consensus: Dict
     league_breakdown: Dict[str, Dict[str, ModelEvalSummary]]
     feature_importances: Dict[str, Dict[str, float]]
-
 
 class ModelComparison:
     """
@@ -173,7 +170,7 @@ class ModelComparison:
         consensus = self._calc_consensus(bundle)
 
         report = ComparisonReport(
-            timestamp=datetime.now().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             dataset_info={
                 'train_size': bundle.train_size,
                 'val_size': bundle.val_size,
@@ -579,7 +576,6 @@ class ModelComparison:
         with open(filepath, 'r', encoding='utf-8') as f:
             return json.load(f)
 
-
 # ─── 便捷入口 ─────────────────────────────────────────────
 
 def run_comparison(
@@ -592,7 +588,7 @@ def run_comparison(
     report = comparator.train_all(bundle)
 
     if save_path is None:
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
         save_path = os.path.join(
             os.path.dirname(__file__), '..',
             'data', f'gbdt_comparison_{timestamp}.json',

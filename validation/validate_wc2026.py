@@ -9,18 +9,15 @@ from collections import Counter
 import requests
 
 # Add project root
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 OCR_URL = "http://localhost:8000/api/v1/ocr/upload"
 PREDICT_URL = "http://localhost:8000/api/v1/v5/predict"
 RESULTS_JSON = Path(__file__).parent / "wc2026_results.json"
 TIMEOUT = 30
 
-
 def load_results() -> list:
     with open(RESULTS_JSON, "r", encoding="utf-8") as f:
         return json.load(f)["matches"]
-
 
 def ocr_screenshot(filepath: str) -> str:
     """Send screenshot to FootballAI OCR endpoint, return text"""
@@ -31,7 +28,6 @@ def ocr_screenshot(filepath: str) -> str:
     if not data.get("success"):
         raise RuntimeError(f"OCR failed: {data}")
     return data["text"]
-
 
 def parse_odds(text: str) -> dict:
     """Extract 1X2 odds from OCR text using multi-pattern matching"""
@@ -65,7 +61,6 @@ def parse_odds(text: str) -> dict:
 
     return None
 
-
 def predict_jepa(odds: dict) -> dict:
     """Call JEPA v5 API"""
     resp = requests.post(PREDICT_URL, json={
@@ -75,10 +70,8 @@ def predict_jepa(odds: dict) -> dict:
     }, timeout=TIMEOUT)
     return resp.json()
 
-
 def result_to_label(result: str) -> str:
     return {"H": "home", "D": "draw", "A": "away"}[result]
-
 
 def jepa_prediction(pred: dict) -> str:
     """Convert JEPA prediction to H/D/A label"""
@@ -89,7 +82,6 @@ def jepa_prediction(pred: dict) -> str:
     # Argmax
     max_label = max(probs, key=probs.get)
     return {"H": "H", "home": "H", "D": "D", "draw": "D", "A": "A", "away": "A"}.get(max_label, "?")
-
 
 def main():
     matches = load_results()
@@ -238,7 +230,6 @@ def main():
 
     print(f"\n  Full results saved to: {out_file}")
     print("=" * 70)
-
 
 if __name__ == "__main__":
     main()

@@ -21,7 +21,6 @@ from typing import Any, Callable, Optional, Dict, Tuple
 
 logger = logging.getLogger(__name__)
 
-
 # ══════════════════════════════════════════════════
 # L1: 进程内 LRU + TTL 缓存
 # ══════════════════════════════════════════════════
@@ -112,7 +111,6 @@ class MemoryCache:
                 "hit_rate": round(hit_rate, 4),
             }
 
-
 # ══════════════════════════════════════════════════
 # L2: Redis 缓存（可选）
 # ══════════════════════════════════════════════════
@@ -179,7 +177,6 @@ class RedisCache:
     @property
     def available(self) -> bool:
         return self._available
-
 
 # ══════════════════════════════════════════════════
 # 统一缓存管理器
@@ -259,7 +256,6 @@ class CacheManager:
             s["l2_available"] = self._l2.available
         return s
 
-
 # ══════════════════════════════════════════════════
 # 缓存装饰器
 # ══════════════════════════════════════════════════
@@ -304,13 +300,11 @@ def cached(namespace: str, ttl: int = None, key_func: Callable = None):
         return wrapper
     return decorator
 
-
 # ══════════════════════════════════════════════════
 # 全局单例
 # ══════════════════════════════════════════════════
 
 _global_cache: Optional[CacheManager] = None
-
 
 def get_cache(redis_url: str = None, memory_size: int = 500) -> CacheManager:
     """获取全局缓存管理器单例"""

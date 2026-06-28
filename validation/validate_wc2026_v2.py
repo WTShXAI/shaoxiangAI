@@ -12,7 +12,6 @@ import numpy as np
 
 # Add project root
 ROOT = str(Path(__file__).resolve().parent.parent)
-sys.path.insert(0, ROOT)
 
 # ── OCR config (from api/ocr.py) ──
 OCR_AK = "AKLTN2FkMmY5NmNlZDVkNDNjZTgwMTFiNjBkNWY2ZTk1MjA"
@@ -22,7 +21,6 @@ OCR_REGION = "cn-north-1"
 OCR_SERVICE = "cv"
 
 RESULTS_JSON = Path(__file__).parent / "wc2026_results.json"
-
 
 def ocr_sign(method, body_str):
     """HMAC-SHA256 signing"""
@@ -45,7 +43,6 @@ def ocr_sign(method, body_str):
         "Authorization": f"HMAC-SHA256 Credential={OCR_AK}/{scope}, SignedHeaders={signed_headers}, Signature={signature}",
         "X-Date": ts,
     }
-
 
 def ocr_screenshot(filepath: str) -> str:
     """Direct Volcengine OCR call"""
@@ -73,7 +70,6 @@ def ocr_screenshot(filepath: str) -> str:
         return "\n".join(texts)
     blocks = data.get("Result", {}).get("TextBlocks", [])
     return "\n".join(b.get("Text", "") for b in blocks) if blocks else ""
-
 
 def parse_odds(text: str) -> dict:
     """
@@ -108,7 +104,6 @@ def parse_odds(text: str) -> dict:
                 return {"home": h, "draw": d, "away": a}
     
     return None
-
 
 def predict_jepa(odds: dict) -> dict:
     """Local JEPA model prediction"""
@@ -163,10 +158,8 @@ def predict_jepa(odds: dict) -> dict:
         "confidence": float(probs.max()),
     }
 
-
 def result_to_label(result: str) -> str:
     return {"H": "home", "D": "draw", "A": "away"}[result]
-
 
 def main():
     with open(RESULTS_JSON, "r", encoding="utf-8") as f:
@@ -326,7 +319,6 @@ def main():
     
     print(f"\n  Full output: {out_file}")
     print("=" * 65)
-
 
 if __name__ == "__main__":
     main()

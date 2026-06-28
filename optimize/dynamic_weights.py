@@ -32,7 +32,6 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger("DynamicWeights")
 
-
 # ── 联赛特征统计 (用于联赛级权重微调) ──
 # 来源: 历史数据统计 + 经验
 LEAGUE_PROFILES: Dict[str, Dict[str, float]] = {
@@ -54,7 +53,6 @@ LEAGUE_PROFILES: Dict[str, Dict[str, float]] = {
     'default':               {'draw_rate': 0.261, 'home_adv': 0.43, 'avg_goals': 2.65, 'volatility': 0.63},
 }
 
-
 @dataclass
 class WeightAdjustment:
     """单次权重调整的完整记录"""
@@ -68,7 +66,6 @@ class WeightAdjustment:
     h2h_factor: float
     beta_dev: float
     a4: float
-
 
 class DynamicWeightCalculator:
     """
@@ -370,7 +367,7 @@ class DynamicWeightCalculator:
         逻辑:
           + rank_diff 贡献: 实力差距越明显，数据驱动的 XGBoost 越准确
           - sigma_trap 贡献: 赔率波动越大，基于市场特征的 XGBoost 越不可靠
-          + consensus 贡献: 当 A4≈0 (模型一致性好) 时强化 XGBoost;
+          + consensus 贡献: 当 A4≈0 (模型一致性好) 时强化 XGBoost
                             当 |A4| 大 (模型背离) 时略降
         """
         alpha = 0.0
@@ -432,7 +429,6 @@ class DynamicWeightCalculator:
         """通用钳位"""
         return max(lo, min(hi, value))
 
-
 def _alpha_effect(alpha: float) -> str:
     """α 系数 → 可读效果描述"""
     if alpha > 0.08:
@@ -446,13 +442,11 @@ def _alpha_effect(alpha: float) -> str:
     else:
         return "↓↓ 显著降低"
 
-
 # ══════════════════════════════════════════════════════
 # 便捷工厂函数 (供预测服务直接使用)
 # ══════════════════════════════════════════════════════
 
 _global_calculator: Optional[DynamicWeightCalculator] = None
-
 
 def get_calculator(config: Dict = None) -> DynamicWeightCalculator:
     """获取全局单例 DynamicWeightCalculator (延迟初始化)"""
@@ -463,12 +457,10 @@ def get_calculator(config: Dict = None) -> DynamicWeightCalculator:
         _global_calculator = DynamicWeightCalculator()
     return _global_calculator
 
-
 def reset_calculator():
     """重置全局单例 (用于测试)"""
     global _global_calculator
     _global_calculator = None
-
 
 # ══════════════════════════════════════════════════════
 # 自测

@@ -34,7 +34,6 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class GateResult:
     """门控结果"""
@@ -50,7 +49,6 @@ class GateResult:
     odds_direction: str    # 赔率暗示方向 H/D/A
     value_gap: float       # 模型概率 - 赔率概率 (最大方向)
     kelly: float           # 凯利比例
-
 
 class InvestGateV2:
     """INVEST 决策门控 v2.0 — 多信号独立门控"""

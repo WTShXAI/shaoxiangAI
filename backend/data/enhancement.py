@@ -20,7 +20,7 @@
 
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Tuple
 from collections import defaultdict
 import warnings
@@ -28,7 +28,6 @@ import logging
 
 warnings.filterwarnings('ignore')
 logger = logging.getLogger(__name__)
-
 
 class DataEnhancer:
     """基于3万场比赛的数据增强器
@@ -137,7 +136,7 @@ class DataEnhancer:
 
         # 日期一致性检查
         if 'date' in self.df.columns:
-            future_dates = self.df[self.df['date'] > datetime.now()]
+            future_dates = self.df[self.df['date'] > datetime.now(timezone.utc)]
             if len(future_dates) > 0:
                 analysis['anomalies'].append({
                     'type': 'future_dates',
@@ -552,7 +551,6 @@ class DataEnhancer:
         logger.info(f"[SAVE] 增强数据已保存: {full_path}")
         logger.info(f"   └─ {len(self.enhanced_df):,} 行 × {len(self.enhanced_df.columns)} 列")
         return full_path
-
 
 # ═══════════════════════════════════════════════════════════════
 #  CLI 接口

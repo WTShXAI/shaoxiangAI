@@ -24,7 +24,6 @@ from typing import Dict, Optional, List, Tuple, Any
 
 logger = logging.getLogger(__name__)
 
-
 class FeatureAligner:
     """统一特征构建器 — 训练和生产共用"""
 
@@ -32,6 +31,39 @@ class FeatureAligner:
         self.feature_names: List[str] = []
         self.defaults: Dict[str, float] = {}
         self.scaler = None
+        # P0-4: Chain -1 战绩数据缓存 (由 intake_team_form 注入)
+        self._form_cache: Dict[str, float] = {}
+
+    def intake_team_form(self, form_result: Any = None) -> None:
+        """P0-4: 注入 Chain -1 战绩特征，供 build() 自动混合
+
+        form_result: TeamFormResult 或 None (清空缓存)
+        注入 10 维特征: goal_diff_advantage, avg_gf_home, avg_ga_home,
+                       avg_gf_away, avg_ga_away, defensive_collapse,
+                       scorer_advantage, form_momentum_real, strength_gap_level,
+                       net_gd_diff
+        """
+        if form_result is None:
+            self._form_cache.clear()
+            return
+        try:
+            self._form_cache['goal_diff_advantage'] = float(getattr(form_result, 'goal_diff_advantage', 0))
+            self._form_cache['avg_gf_home'] = float(getattr(form_result.home, 'avg_gf', 0))
+            self._form_cache['avg_ga_home'] = float(getattr(form_result.home, 'avg_ga', 0))
+            self._form_cache['avg_gf_away'] = float(getattr(form_result.away, 'avg_gf', 0))
+            self._form_cache['avg_ga_away'] = float(getattr(form_result.away, 'avg_ga', 0))
+            self._form_cache['defensive_collapse'] = 1.0 if getattr(form_result.home, 'defensive_collapse', False) or getattr(form_result.away, 'defensive_collapse', False) else 0.0
+            # scorer_advantage: 基于净胜差推导 (正净胜差意味着对方防守差，强队攻击强)
+            abs_gap = abs(self._form_cache.get('goal_diff_advantage', 0))
+            self._form_cache['scorer_advantage'] = 1.0 if abs_gap >= 2.0 else (0.5 if abs_gap >= 1.0 else 0.0)
+            self._form_cache['form_momentum_real'] = float(max(getattr(form_result.home, 'momentum', 0.5), getattr(form_result.away, 'momentum', 0.5)))
+            gap_map = {'massacre': 1.0, 'dominate': 0.7, 'edge': 0.4, 'even': 0.0, 'upset_risk': -0.4}
+            self._form_cache['strength_gap_level'] = gap_map.get(getattr(form_result, 'strength_gap', 'even'), 0.0)
+            self._form_cache['net_gd_diff'] = float(getattr(form_result, 'goal_diff_advantage', 0))
+            logger.debug(f"FeatureAligner: 注入 10 维 Chain -1 战绩特征 (净胜差={self._form_cache['net_gd_diff']:+.2f})")
+        except Exception as e:
+            logger.warning(f"FeatureAligner.intake_team_form 异常: {e}")
+            self._form_cache.clear()
 
     @classmethod
     def from_trainer(cls, trainer) -> "FeatureAligner":
@@ -65,8 +97,11 @@ class FeatureAligner:
         open_h: float = 0,
         open_d: float = 0,
         open_a: float = 0,
+        form_result: Any = None,  # P0-4: Chain -1 战绩数据
     ) -> np.ndarray:
         """构建完整特征向量 — 与 _sky_predict 逻辑完全一致
+
+        P0-4: 传入 form_result 时自动注入 10 维战绩特征
 
         Returns:
             (n_features,) 标准化后的特征向量 (如果 scaler 存在)
@@ -90,11 +125,43 @@ class FeatureAligner:
                 idx = self.feature_names.index(name)
                 vec[idx] = float(val)
 
-        # 3. 标准化
+        # 3. P0-4: 注入 Chain -1 战绩特征 (覆盖赔率推导的 form_momentum 等)
+        if form_result is not None:
+            self._inject_form_features(vec, form_result)
+
+        # 4. 标准化
         if self.scaler is not None:
             vec = self.scaler.transform(vec.reshape(1, -1))[0]
 
         return vec
+
+    def _inject_form_features(self, vec: np.ndarray, form_result: Any) -> None:
+        """P0-4: 将 Chain -1 战绩数据注入特征向量"""
+        # 先从缓存提取
+        if not self._form_cache:
+            self.intake_team_form(form_result)
+        # 注入特征 (仅当特征名存在于 feature_names 中时)
+        _inject = lambda name, val: self._set_feat(vec, name, val)
+        if self._form_cache:
+            _inject('goal_diff_advantage', min(max(self._form_cache.get('goal_diff_advantage', 0) / 4.0, -1), 1))
+            _inject('net_gd_diff', min(max(self._form_cache.get('net_gd_diff', 0) / 4.0, -1), 1))
+            _inject('defensive_collapse', self._form_cache.get('defensive_collapse', 0))
+            _inject('scorer_advantage', self._form_cache.get('scorer_advantage', 0))
+            _inject('strength_gap_level', self._form_cache.get('strength_gap_level', 0))
+            # 覆盖赔率推导的 form_momentum (硬编码 0.5) → 真实值
+            _inject('form_momentum', self._form_cache.get('form_momentum_real', 0.5))
+            _inject('form_factor', self._form_cache.get('form_momentum_real', 0.5))
+            # 主客队场均进球/失球 (归一化到 [0,1])
+            _inject('avg_gf_home', min(self._form_cache.get('avg_gf_home', 0) / 5.0, 1.0))
+            _inject('avg_ga_home', min(self._form_cache.get('avg_ga_home', 0) / 5.0, 1.0))
+            _inject('avg_gf_away', min(self._form_cache.get('avg_gf_away', 0) / 5.0, 1.0))
+            _inject('avg_ga_away', min(self._form_cache.get('avg_ga_away', 0) / 5.0, 1.0))
+
+    def _set_feat(self, vec: np.ndarray, name: str, val: float) -> None:
+        """安全写入特征值"""
+        if name in self.feature_names:
+            idx = self.feature_names.index(name)
+            vec[idx] = float(val)
 
     def build_raw_dict(
         self,

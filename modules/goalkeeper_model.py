@@ -31,7 +31,6 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class KeeperProfile:
     """门将画像"""
@@ -51,7 +50,6 @@ class KeeperProfile:
     # 评估结果
     keeper_risk: float = 0.80          # 风险评分 (0-1, 越高越好)
     pressure_factor: float = 1.0       # 压力系数 (1.0=正常)
-
 
 class KeeperRiskModel:
     """
@@ -356,7 +354,6 @@ class KeeperRiskModel:
                 'away_factor': round(away_impact, 4),
             }
         }
-
 
 # ============================================================
 # CLI

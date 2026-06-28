@@ -34,7 +34,7 @@ from __future__ import annotations
 import os, sys, time, json, logging
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,6 @@ from modules.output_schema import (
 )
 from knowledge_base import KnowledgeBase, get_knowledge_base
 from utils.constants import DEFAULT_HOME_PROB, DEFAULT_DRAW_PROB, DEFAULT_AWAY_PROB, DEFAULT_CONFIDENCE
-
 
 # ═══════════════════════════════════════════════════════════════
 # 1. 编排结果
@@ -107,7 +106,7 @@ class OrchestrationResult:
             "total_time_ms": round(self.total_time_ms, 2),
             "fallback_triggered": self.fallback_triggered,
             "errors": self.errors,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         return result
 
@@ -116,7 +115,6 @@ class OrchestrationResult:
         if self.prediction:
             return self.prediction.to_v3_compat()
         return {"prediction": {"home": DEFAULT_HOME_PROB, "draw": DEFAULT_DRAW_PROB, "away": DEFAULT_AWAY_PROB}, "confidence": DEFAULT_CONFIDENCE}
-
 
 # ═══════════════════════════════════════════════════════════════
 # 2. v4.0 预测编排器
@@ -585,7 +583,7 @@ class PredictionOrchestratorV4:
                 home_team=home_team, away_team=away_team,
                 league=league or "未知", result=result,
                 spread=spread, odds=odds or {},
-                date=datetime.now().isoformat(),
+                date=datetime.now(timezone.utc).isoformat(),
             )
             knowledge = updater.ingest(record)
             changes = updater.compare_with_baseline()
@@ -651,13 +649,11 @@ class PredictionOrchestratorV4:
         """获取知识底座统计"""
         return self.knowledge_base.get_stats()
 
-
 # ═══════════════════════════════════════════════════════════════
 # 3. 全局单例
 # ═══════════════════════════════════════════════════════════════
 
 _orchestrator_instance: Optional[PredictionOrchestratorV4] = None
-
 
 def get_orchestrator(**kwargs) -> PredictionOrchestratorV4:
     """获取编排器单例"""
@@ -665,7 +661,6 @@ def get_orchestrator(**kwargs) -> PredictionOrchestratorV4:
     if _orchestrator_instance is None:
         _orchestrator_instance = PredictionOrchestratorV4(**kwargs)
     return _orchestrator_instance
-
 
 def reset_orchestrator():
     """重置单例 (测试用)"""

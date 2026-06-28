@@ -1,6 +1,6 @@
 """Quick World Cup eval of retrained JEPALite"""
 import sys, os, json, math
-sys.path.insert(0, 'D:/Architecture v4.0')
+
 import numpy as np, torch
 from collections import Counter
 

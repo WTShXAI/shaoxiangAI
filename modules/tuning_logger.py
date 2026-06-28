@@ -28,7 +28,7 @@
 """
 from __future__ import annotations
 import os, json, logging, time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field, asdict
 
@@ -36,7 +36,6 @@ logger = logging.getLogger('TuningLogger')
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOG_DIR = os.path.join(PROJECT_ROOT, 'logs', 'tuning')
-
 
 # ═══════════════════════════════════════════════════════════════
 # 1. 数据结构
@@ -91,7 +90,6 @@ class TuningRecord:
         status = '✅' if self.improved else '❌'
         return f"{status} " + ' | '.join(parts)
 
-
 # ═══════════════════════════════════════════════════════════════
 # 2. 调参日志器
 # ═══════════════════════════════════════════════════════════════
@@ -114,7 +112,7 @@ class TuningLogger:
         self._baseline_params = (params or {}).copy()
         baseline_path = os.path.join(LOG_DIR, 'baseline.json')
         with open(baseline_path, 'w', encoding='utf-8') as f:
-            json.dump({'metrics': metrics, 'params': params, 'timestamp': datetime.now().isoformat()},
+            json.dump({'metrics': metrics, 'params': params, 'timestamp': datetime.now(timezone.utc).isoformat()},
                       f, ensure_ascii=False, indent=2)
         logger.info(f"[Tuning] 基线已设置: Acc={metrics.get('accuracy',0):.2%} "
                    f"DrawF1={metrics.get('draw_f1',0):.3f} Brier={metrics.get('brier',0):.4f}")
@@ -139,8 +137,8 @@ class TuningLogger:
         full_params.update(params)
 
         record = TuningRecord(
-            id=datetime.now().strftime('%Y%m%d_%H%M%S'),
-            timestamp=datetime.now().isoformat(),
+            id=datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S'),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             experiment_name=name,
             params_changed=params,
             params_full=full_params,
@@ -197,15 +195,15 @@ class TuningLogger:
                     with open(os.path.join(LOG_DIR, fname), 'r', encoding='utf-8') as f:
                         data = json.load(f)
                     self._records.append(TuningRecord(**data))
-                except Exception:
-                    pass
+                except (json.JSONDecodeError, TypeError, KeyError) as e:
+                    logger.warning("解析调优日志 %s 失败: %s", fname, e)
 
     def _update_index(self):
         """更新汇总索引"""
         summary = {
             'total_experiments': len(self._records),
             'improved_count': len([r for r in self._records if r.improved]),
-            'last_updated': datetime.now().isoformat(),
+            'last_updated': datetime.now(timezone.utc).isoformat(),
             'best': {},
         }
         for m in ['accuracy', 'draw_f1', 'brier', 'composite']:
@@ -214,7 +212,6 @@ class TuningLogger:
                 summary['best'][m] = {'value': best.metrics.get(m), 'experiment': best.experiment_name}
         with open(os.path.join(LOG_DIR, 'summary.json'), 'w', encoding='utf-8') as f:
             json.dump(summary, f, ensure_ascii=False, indent=2)
-
 
 # ═══════════════════════════════════════════════════════════════
 # 3. 综合得分计算器 (统一调参目标)
@@ -251,7 +248,6 @@ class CompositeScorer:
             'composite': self.score(metrics) - self.score(baseline),
             **{k: metrics.get(k, 0) - baseline.get(k, 0) for k in metrics}
         }
-
 
 # ═══════════════════════════════════════════════════════════════
 # 4. 参数重要性追踪 (简易版 — 不依赖Optuna)

@@ -4,7 +4,7 @@
 import sys
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 from fastapi import APIRouter, Response
 
@@ -12,18 +12,16 @@ router = APIRouter()
 
 START_TIME = time.time()
 
-
 @router.get("/health")
 async def health_check():
     """基础健康检查"""
     uptime = time.time() - START_TIME
     return {
         "status": "ok",
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "uptime_seconds": round(uptime, 1),
         "version": "4.1.0",
     }
-
 
 @router.get("/health/ready")
 async def readiness_check():
@@ -56,12 +54,10 @@ async def readiness_check():
         media_type="application/json",
     )
 
-
 @router.get("/health/live")
 async def liveness_check():
     """存活检查（轻量级）"""
-    return {"status": "alive", "timestamp": datetime.now().isoformat()}
-
+    return {"status": "alive", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 @router.get("/model-health")
 async def model_health():
@@ -76,7 +72,6 @@ async def model_health():
         }
     except (ValueError, KeyError, FileNotFoundError) as e:
         return {"status": "error", "error": str(e)}
-
 
 @router.get("/system")
 async def system_info():
@@ -102,7 +97,6 @@ async def system_info():
         }
     except ImportError:
         return {"status": "psutil not installed"}
-
 
 @router.get("/metrics/summary")
 async def metrics_summary():

@@ -27,7 +27,6 @@ logger = logging.getLogger(__name__)
 
 SP_DB = 'D:/AI/SP/data/sp_data.db'
 
-
 # ═══════════════════════════════════════════════════════════════
 # 1. 数据结构
 # ═══════════════════════════════════════════════════════════════
@@ -74,7 +73,6 @@ class FullMatchReport:
     scorer_compare: Dict
     bookmaker_op: BookmakerOperation
     lineup_note: str = ""
-
 
 # ═══════════════════════════════════════════════════════════════
 # 2. 核心分析器
@@ -384,7 +382,6 @@ class MatchAnalyzer:
         lines.append(f"👥 首发阵容: {report.lineup_note}")
         
         return "\n".join(lines)
-
 
 # 单例
 _analyzer: Optional[MatchAnalyzer] = None

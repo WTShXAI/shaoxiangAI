@@ -33,7 +33,6 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger('ImageInput')
 
-
 # ═══════════════════════════════════════════════════════════════
 # 1. 数据结构
 # ═══════════════════════════════════════════════════════════════
@@ -75,7 +74,6 @@ class ExtractedMatch:
         return (self.home and self.away and 
                 self.odds_h > 1.0 and self.odds_d > 1.0 and self.odds_a > 1.0)
 
-
 @dataclass
 class ImageParseResult:
     """图片解析完整结果"""
@@ -88,7 +86,6 @@ class ImageParseResult:
     @property
     def valid_count(self) -> int:
         return sum(1 for m in self.matches if m.is_valid())
-
 
 # ═══════════════════════════════════════════════════════════════
 # 2. 文本解析引擎 (核心 — 不依赖OCR)
@@ -314,7 +311,6 @@ class BettingTextParser:
 
         return match
 
-
 # ═══════════════════════════════════════════════════════════════
 # 3. OCR图片识别 (可选 — 需要 pytesseract)
 # ═══════════════════════════════════════════════════════════════
@@ -363,7 +359,6 @@ class ImageOCR:
         except Exception as e:
             logger.error(f"[ImageInput] OCR失败: {e}")
             return f"[OCR错误] {e}"
-
 
 # ═══════════════════════════════════════════════════════════════
 # 4. 统一解析入口
@@ -472,7 +467,6 @@ class ImageInputParser:
             }
         }
 
-
 # ═══════════════════════════════════════════════════════════════
 # 5. CLI入口
 # ═══════════════════════════════════════════════════════════════
@@ -513,7 +507,6 @@ def main():
         if m.correct_scores:
             print(f"  波胆: {', '.join(f'{s}@{o:.1f}' for s,o in m.correct_scores)}")
         print(f"  置信度: {m.confidence:.0%}")
-
 
 if __name__ == "__main__":
     main()

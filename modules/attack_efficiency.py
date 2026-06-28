@@ -36,7 +36,6 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class TeamRatings:
     """球队评分"""
@@ -46,7 +45,6 @@ class TeamRatings:
     box_touches: float = 150.0      # 场均禁区触球
     shots_on_target: float = 5.0    # 场均射正
     xg_per_match: float = 1.5       # 场均预期进球
-
 
 # ============================================================
 # 子模块 1: 终结能力衰减计算
@@ -96,7 +94,6 @@ class FinishDecayCalculator:
                                   alpha_finish: float) -> float:
         """对预期净胜球应用衰减"""
         return round(expected_goals / max(0.5, alpha_finish), 4)
-
 
 # ============================================================
 # 子模块 2: 防守压力分析
@@ -150,7 +147,6 @@ class DefensePressureAnalyzer:
                 result['shot_weight_modifier'] = 0.75  # 普通铁桶
 
         return result
-
 
 # ============================================================
 # 子模块 3: 综合进攻效率模型
@@ -332,7 +328,6 @@ class AttackEfficiencyModel:
             home_keeper_save_rate=features.get('home_keeper_save_rate'),
             away_keeper_save_rate=features.get('away_keeper_save_rate'),
         )
-
 
 # ============================================================
 # CLI

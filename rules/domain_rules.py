@@ -30,7 +30,6 @@ logger = logging.getLogger(__name__)
 # ── 缓存 ──────────────────────────────────────────────
 _KB_CACHE: Optional[Dict[str, Any]] = None
 
-
 def _load_kb() -> Dict[str, Any]:
     """加载足球领域知识库（带缓存，幂等）"""
     global _KB_CACHE
@@ -56,7 +55,6 @@ def _load_kb() -> Dict[str, Any]:
 
     logger.info(f"[DomainKB] ✅ 知识库已加载: {kb_path}")
     return _KB_CACHE
-
 
 def apply_domain_knowledge(
     features: Dict[str, Any],

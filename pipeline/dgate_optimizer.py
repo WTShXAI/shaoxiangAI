@@ -29,10 +29,7 @@ from collections import defaultdict
 # 路径 (修复P0-13: 消除外部依赖)
 ROOT = Path(__file__).parent.parent
 FOOTBALL_AI = ROOT / 'predictors' / 'components'  # 内部化
-sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(FOOTBALL_AI))
 
-# ═══════════════════════════════════════════
 # 世界杯24场数据 (FIFA官网验证)
 # ═══════════════════════════════════════════
 MATCHES = [
@@ -306,7 +303,7 @@ def generate_html(best_config, baseline, results, opt_thr, matches):
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>哨响AI v4.4 · D-Gate 平局检测</title>
 <style>
-:root{--bg:#0d1117;--surface:#161b22;--border:#21262d;--text:#c9d1d9;--text2:#8b949e;
+:root{--bg:#0d1117;--surface:#161b22;--border:#21262d;--text:#c9d1d9;--text2:#8b949e
   --accent:#58a6ff;--accent2:#3fb950;--danger:#f85149;--warn:#d29922;--purple:#bc8cff}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font:14px/1.5 system-ui,sans-serif;max-width:1100px;margin:0 auto;padding:20px}
@@ -334,7 +331,7 @@ h1{font-size:22px;color:var(--accent);margin-bottom:4px}
 .signal-list{display:flex;gap:4px;flex-wrap:wrap;margin-top:12px}
 .sig-chip{font-size:10px;padding:3px 10px;border-radius:12px;border:1px solid var(--border);color:var(--text2)}
 .sig-chip.active{background:#3fb95018;border-color:#3fb95044;color:var(--accent2)}
-.config-block{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:'Cascadia Code',monospace;font-size:12px;
+.config-block{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:'Cascadia Code',monospace;font-size:12px
   white-space:pre;overflow-x:auto;color:var(--accent2)}
 @media(max-width:800px){.banner{grid-template-columns:1fr 1fr}}
 </style></head><body>

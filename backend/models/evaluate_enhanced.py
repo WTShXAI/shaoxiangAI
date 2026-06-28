@@ -18,11 +18,8 @@ import json
 import pandas as pd
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
 from backend.models.footballai_enhanced import FootballAIEnhanced
 logger = logging.getLogger(__name__)
-
 
 def evaluate_model(
     model: FootballAIEnhanced,
@@ -89,7 +86,6 @@ def evaluate_model(
 
     return results
 
-
 def print_report(results: dict):
     """打印格式化评估报告"""
     logger.info(f"\n{'=' * 60}")
@@ -148,7 +144,6 @@ def print_report(results: dict):
     else:
         logger.info(f"  ⚠️  模型评估: 部分指标未达标")
     logger.info(f"{'=' * 60}\n")
-
 
 def main():
     parser = argparse.ArgumentParser(description="评估 FootballAIEnhanced 模型")
@@ -237,7 +232,6 @@ def main():
                 f.write(f"\n混淆矩阵:\n{np.array(results['confusion_matrix'])}\n")
 
         logger.info(f"💾 报告已保存: {output_path}")
-
 
 if __name__ == '__main__':
     main()

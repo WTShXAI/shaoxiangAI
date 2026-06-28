@@ -7,7 +7,6 @@ import os
 
 _MODEL_REGISTRY_PATH = None
 
-
 def _get_registry_path() -> str:
     global _MODEL_REGISTRY_PATH
     if _MODEL_REGISTRY_PATH is None:
@@ -26,7 +25,6 @@ def _get_registry_path() -> str:
             _MODEL_REGISTRY_PATH = os.path.join("saved_models", "model_registry.json")
     return _MODEL_REGISTRY_PATH
 
-
 def get_active_version() -> str:
     """从 model_registry.json 读取当前活跃模型版本号"""
     try:
@@ -38,7 +36,6 @@ def get_active_version() -> str:
         import logging
         logging.getLogger(__name__).warning(f"读取 model_registry.json 失败: {e}")
         return "4.1"
-
 
 def get_active_model_version() -> str:
     """返回完整的 model_version 字符串（带 v 前缀），如 'v3.2'"""

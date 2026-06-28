@@ -38,7 +38,7 @@ import warnings
 from typing import Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass, field
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -67,7 +67,6 @@ logger = logging.getLogger(__name__)
 CLASS_LABELS = ['Home', 'Draw', 'Away']
 CLASS_COLORS = ['#2196F3', '#FF9800', '#4CAF50']  # 蓝/橙/绿
 CLASS_COLORS_CN = ['#1565C0', '#E65100', '#2E7D32']
-
 
 # ════════════════════════════════════════════════════════════════
 # 可靠性图 — 核心可视化
@@ -129,7 +128,7 @@ class CalibrationVisualizer:
             PNG 文件路径
         """
         if filename is None:
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             filename = f"reliability_{ts}.png"
 
         fig, axes = plt.subplots(1, 2 if probs_calibrated is not None else 1,
@@ -222,7 +221,7 @@ class CalibrationVisualizer:
             return ''
 
         if filename is None:
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             filename = f"before_after_{ts}.png"
 
         methods = list(suite._reports.keys())
@@ -292,7 +291,7 @@ class CalibrationVisualizer:
             return ''
 
         if filename is None:
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             filename = f"method_comparison_{ts}.png"
 
         methods = list(suite._reports.keys())
@@ -382,7 +381,7 @@ class CalibrationVisualizer:
             PNG 文件路径
         """
         if filename is None:
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             filename = f"confidence_hist_{ts}.png"
 
         fig, ax = plt.subplots(figsize=(10, 6))
@@ -449,7 +448,7 @@ class CalibrationVisualizer:
             PNG 文件路径
         """
         if filename is None:
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             filename = f"class_reliability_{ts}.png"
 
         n_classes = probs.shape[1]
@@ -520,7 +519,7 @@ class CalibrationVisualizer:
             return ''
 
         if filename is None:
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             filename = f"sparse_data_{ts}.png"
 
         fig, axes = plt.subplots(1, 2, figsize=(14, 6))
@@ -674,7 +673,6 @@ class CalibrationVisualizer:
                 ece += mask.sum() / n_samples * abs(acc - conf)
         return float(ece)
 
-
 # ════════════════════════════════════════════════════════════════
 # ECE 监控器 — 时间序列追踪
 # ════════════════════════════════════════════════════════════════
@@ -690,7 +688,6 @@ class ECETrackPoint:
     n_samples: int
     method: str = ''
     label: str = ''  # 可选标注 (如 "retrained", "data_update")
-
 
 class ECEMonitor:
     """
@@ -746,7 +743,7 @@ class ECEMonitor:
             ECETrackPoint
         """
         point = ECETrackPoint(
-            timestamp=datetime.now().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             ece=compute_ece(probs, y_true, n_bins),
             mce=compute_mce(probs, y_true, n_bins),
             brier=multiclass_brier(probs, y_true, probs.shape[1]),
@@ -766,7 +763,7 @@ class ECEMonitor:
     def track_from_report(self, report: CalibrationReport, method: str = '') -> ECETrackPoint:
         """从 CalibrationReport 记录"""
         point = ECETrackPoint(
-            timestamp=datetime.now().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             ece=report.ece_after,
             mce=report.mce_after,
             brier=report.brier_after,
@@ -793,7 +790,7 @@ class ECEMonitor:
             return ''
 
         if filename is None:
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             filename = f"ece_trend_{ts}.png"
 
         fig, ax = plt.subplots(figsize=(12, 6))
@@ -909,7 +906,6 @@ class ECEMonitor:
             self.history.append(ECETrackPoint(**d))
         logger.info(f"ECE 监控历史已加载: {len(self.history)} 个追踪点")
 
-
 # ════════════════════════════════════════════════════════════════
 # HTML 评估报告生成器
 # ════════════════════════════════════════════════════════════════
@@ -952,7 +948,7 @@ class CalibrationReportBuilder:
         Returns:
             HTML 文件路径
         """
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         html_filename = f"calibration_report_{ts}.html"
 
         # 生成图表
@@ -1041,7 +1037,7 @@ class CalibrationReportBuilder:
         val_brier = f'{best_report.brier_after:.4f}' if best_report else 'N/A'
         val_samples = str(best_report.n_samples) if best_report else 'N/A'
         val_methods = str(len(suite._reports))
-        gen_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        gen_time = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
         html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -1139,7 +1135,6 @@ class CalibrationReportBuilder:
 </html>"""
         return html
 
-
 # ════════════════════════════════════════════════════════════════
 # 与 ExpertCalibrator 的桥接
 # ════════════════════════════════════════════════════════════════
@@ -1194,7 +1189,6 @@ def visualize_expert_calibration(
     charts['html_report'] = html_path
 
     return charts
-
 
 # ════════════════════════════════════════════════════════════════
 # CLI

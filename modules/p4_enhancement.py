@@ -17,11 +17,10 @@ import json
 import os
 from typing import Dict, List, Optional, Any, Tuple, Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
-
 
 # ═══════════════════════════════════════════════════════════════
 # 1. 知识库自动更新器
@@ -47,7 +46,6 @@ class MatchRecord:
             "goals": f"{self.home_goals}-{self.away_goals}",
             "spread": self.spread, "date": self.date,
         }
-
 
 class KnowledgeAutoUpdater:
     """
@@ -141,7 +139,7 @@ class KnowledgeAutoUpdater:
             },
             "league_draw_rates": league_d_rates,
             "spread_rates": spread_rates,
-            "updated_at": datetime.now().isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
     def compare_with_baseline(self) -> Dict:
@@ -178,7 +176,6 @@ class KnowledgeAutoUpdater:
             "needs_update": len(changes) > 0,
         }
 
-
 # ═══════════════════════════════════════════════════════════════
 # 2. 跨联赛迁移学习适配器
 # ═══════════════════════════════════════════════════════════════
@@ -201,7 +198,6 @@ class LeagueProfile:
             "favorite_win_rate": self.favorite_win_rate,
             "style": self.style,
         }
-
 
 class LeagueTransferAdapter:
     """
@@ -295,7 +291,6 @@ class LeagueTransferAdapter:
             "profile": profile.to_dict() if profile else None,
         }
 
-
 # ═══════════════════════════════════════════════════════════════
 # 3. 多机构赔率采集器
 # ═══════════════════════════════════════════════════════════════
@@ -316,7 +311,6 @@ class BookmakerOdds:
             "home": self.home, "draw": self.draw, "away": self.away,
             "margin": round(1/self.home + 1/self.draw + 1/self.away - 1, 4),
         }
-
 
 @dataclass
 class MultiBookmakerReport:
@@ -339,7 +333,6 @@ class MultiBookmakerReport:
             "best_value": self.best_value,
             "all_odds": [o.to_dict() for o in self.odds],
         }
-
 
 class MultiBookmakerCollector:
     """
@@ -364,7 +357,7 @@ class MultiBookmakerCollector:
             bookmakers.append(BookmakerOdds(
                 bookmaker=odds.get("bookmaker", f"机构{i+1}"),
                 home=odds["home"], draw=odds["draw"], away=odds["away"],
-                timestamp=datetime.now().isoformat(),
+                timestamp=datetime.now(timezone.utc).isoformat(),
             ))
 
         return self._analyze(home_team, away_team, bookmakers)
@@ -442,7 +435,6 @@ class MultiBookmakerCollector:
         """检查 API 是否可用"""
         return bool(self.api_key)
 
-
 # ═══════════════════════════════════════════════════════════════
 # 4. 全局单例
 # ═══════════════════════════════════════════════════════════════
@@ -451,13 +443,11 @@ _updater: Optional[KnowledgeAutoUpdater] = None
 _transfer: Optional[LeagueTransferAdapter] = None
 _collector: Optional[MultiBookmakerCollector] = None
 
-
 def get_updater() -> KnowledgeAutoUpdater:
     global _updater
     if _updater is None:
         _updater = KnowledgeAutoUpdater()
     return _updater
-
 
 def get_transfer() -> LeagueTransferAdapter:
     global _transfer
@@ -465,13 +455,11 @@ def get_transfer() -> LeagueTransferAdapter:
         _transfer = LeagueTransferAdapter()
     return _transfer
 
-
 def get_collector() -> MultiBookmakerCollector:
     global _collector
     if _collector is None:
         _collector = MultiBookmakerCollector()
     return _collector
-
 
 def reset_all_p4():
     global _updater, _transfer, _collector

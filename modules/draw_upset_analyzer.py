@@ -31,7 +31,6 @@ from enum import Enum
 
 logger = logging.getLogger(__name__)
 
-
 # ═══════════════════════════════════════════════════════════════
 # 1. 分析结果数据结构
 # ═══════════════════════════════════════════════════════════════
@@ -87,7 +86,6 @@ class DGateZone(Enum):
             self.HIGH_CONF: "D信号很强, 高置信平局预测",
         }[self]
 
-
 @dataclass
 class DistributiveAnalysis:
     """Draw 概率分布分析"""
@@ -112,7 +110,6 @@ class DistributiveAnalysis:
             "league_d_prior": round(self.league_d_prior, 4) if self.league_d_prior else None,
         }
 
-
 @dataclass
 class UpsetAnalysis:
     """冷门分析"""
@@ -128,7 +125,6 @@ class UpsetAnalysis:
             "signals": self.signals,
             "recommendation": self.recommendation,
         }
-
 
 @dataclass
 class DrawUpsetReport:
@@ -175,7 +171,6 @@ class DrawUpsetReport:
             },
             "meta": {"analysis_time_ms": round(self.analysis_time_ms, 2)},
         }
-
 
 # ═══════════════════════════════════════════════════════════════
 # 2. 平局/冷门分析引擎
@@ -446,20 +441,17 @@ class DrawUpsetAnalyzer:
                 return rate
         return 0.12
 
-
 # ═══════════════════════════════════════════════════════════════
 # 3. 全局单例
 # ═══════════════════════════════════════════════════════════════
 
 _draw_analyzer: Optional[DrawUpsetAnalyzer] = None
 
-
 def get_draw_analyzer() -> DrawUpsetAnalyzer:
     global _draw_analyzer
     if _draw_analyzer is None:
         _draw_analyzer = DrawUpsetAnalyzer()
     return _draw_analyzer
-
 
 def reset_draw_analyzer():
     global _draw_analyzer

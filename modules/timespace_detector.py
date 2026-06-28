@@ -10,10 +10,9 @@
   3. 状态断层: 最近5场胜率较前5场下降30%+ → 状态滑坡信号
 """
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from dataclasses import dataclass
-
 
 @dataclass
 class TimeSpaceFault:
@@ -24,7 +23,6 @@ class TimeSpaceFault:
     affected_team: str    # 受影响球队
     impact_direction: str # positive / negative
     confidence: float     # 置信度
-
 
 class TimeSpaceFaultZoneDetector:
     """
@@ -77,7 +75,7 @@ class TimeSpaceFaultZoneDetector:
             team: 球队名称
             recent_matches: 近期比赛列表，每项含 'date' 字段
         """
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         recent_7 = [
             m for m in recent_matches
             if (now - self._parse_date(m.get("date", now.strftime("%Y-%m-%d")))).days <= 7
@@ -263,4 +261,4 @@ class TimeSpaceFaultZoneDetector:
                 return datetime.strptime(date_str, fmt)
             except ValueError:
                 continue
-        return datetime.now()
+        return datetime.now(timezone.utc)

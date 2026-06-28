@@ -21,12 +21,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 ROOT = str(Path(__file__).resolve().parent.parent)
-sys.path.insert(0, ROOT)
-sys.path.insert(0, os.path.join(ROOT, 'scripts'))
 
 from models.jepa import JEPALite, StaticEncoder, OutputHead
 from models.jepa_losses import FootballVICRegLoss, DrawPreservingVICReg, EmbeddingCollapseMonitor
-
 
 # ═══════════════════════════════════════════════════════════════
 # Improved Loss: LeCun Calibrated VICReg
@@ -121,7 +118,6 @@ class LeCunCalibratedLoss(nn.Module):
         
         return total, comps
 
-
 # ═══════════════════════════════════════════════════════════════
 # Training Pipeline
 # ═══════════════════════════════════════════════════════════════
@@ -138,7 +134,6 @@ def load_data():
         (val['static'], val['sequence'], val['drift'], val['labels']),
         (test['static'], test['sequence'], test['drift'], test['labels']),
     )
-
 
 def create_loaders(train_data, val_data, batch_size=512):
     """Create DataLoaders"""
@@ -158,7 +153,6 @@ def create_loaders(train_data, val_data, batch_size=512):
     val_loader = torch.utils.data.DataLoader(val_ds, batch_size=batch_size, shuffle=False)
     
     return train_loader, val_loader
-
 
 def train_epoch(model, loader, optimizer, scheduler, loss_fn, device, epoch):
     model.train()
@@ -193,7 +187,6 @@ def train_epoch(model, loader, optimizer, scheduler, loss_fn, device, epoch):
     avg_comps = {k: v / n_batches for k, v in comps_sum.items()}
     
     return avg_loss, avg_comps
-
 
 @torch.no_grad()
 def validate(model, loader, device, loss_fn=None):
@@ -252,7 +245,6 @@ def validate(model, loader, device, loss_fn=None):
         'actual_draw_rate': actual_draw_rate,
         'collapse': collapse,
     }
-
 
 def train_model(
     model, train_loader, val_loader, device, 
@@ -370,7 +362,6 @@ def train_model(
     
     return history
 
-
 # ═══════════════════════════════════════════════════════════════
 # World Cup Evaluation
 # ═══════════════════════════════════════════════════════════════
@@ -445,7 +436,6 @@ def evaluate_worldcup(model, device):
     
     return acc, draw_f1, results
 
-
 # ═══════════════════════════════════════════════════════════════
 # Main
 # ═══════════════════════════════════════════════════════════════
@@ -482,7 +472,6 @@ def main():
         probs = r['probs']
         print(f"  {mark} {r['match']:<35} pred={r['pred']} act={r['actual']} ({r['score']}) "
               f"H={probs[0]:.1%} D={probs[1]:.1%} A={probs[2]:.1%}")
-
 
 if __name__ == '__main__':
     main()

@@ -17,16 +17,13 @@ import math
 import numpy as np
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, PROJECT_ROOT)
 
 from agents.model_bridge import ModelBridge
 
 from lambda_fusion import fuse_lambda
 from trap_probability_bridge import apply_trap_correction
-from stacking_vector import build_stacking_vector
+from optimize.stacking_vector import build_stacking_vector
 from odds_inverse_calibrator import apply_goal_segment_correction
-from agents.model_bridge import ModelBridge
-
 
 class VIPPredictor:
     """
@@ -415,7 +412,6 @@ class VIPPredictor:
                 for s in trap_report.signals
             ] if trap_report.signals else [],
         }
-
 
 if __name__ == '__main__':
     # ── 验证1: 葡萄牙1-1刚果 真实数据 ──

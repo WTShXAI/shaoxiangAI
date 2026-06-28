@@ -12,7 +12,7 @@ import numpy as np
 from collections import Counter
 
 ROOT = str(Path(__file__).resolve().parent.parent)
-sys.path.insert(0, ROOT)
+
 import torch
 
 # ── Config ──
@@ -79,14 +79,12 @@ MANUAL_ODDS = {
     "Netherlands_Sweden": (1.63, 2.11, 4.70),
 }
 
-
 def load_stats():
     data = np.load(JEPA_TRAIN_NPZ, allow_pickle=True)
     mean = data["static"].mean(axis=0).astype(np.float32)
     std = data["static"].std(axis=0).astype(np.float32)
     std[std < 1e-8] = 1.0
     return mean, std
-
 
 def build_features(ho, do, oa, mean, std):
     """Build normalized 72-dim features (same as validate_full_features.py)"""
@@ -147,7 +145,6 @@ def build_features(ho, do, oa, mean, std):
     vec = np.clip(vec, -5.0, 5.0)
     return vec.astype(np.float32)
 
-
 def predict_with_temperature(model, features, temperature=1.0, n_paths=30, 
                               noise_std=0.04, return_raw=False):
     """
@@ -188,7 +185,6 @@ def predict_with_temperature(model, features, temperature=1.0, n_paths=30,
             return probs_mean, probs_var, energy, all_logits
         
         return probs_mean, probs_var, energy
-
 
 def grid_search(model, features_list, actuals, odds_list):
     """
@@ -292,7 +288,6 @@ def grid_search(model, features_list, actuals, odds_list):
             print(f"  Grid search: {count}/{total} ({100*count/total:.0f}%) ...", flush=True)
     
     return best, all_results
-
 
 def main():
     print("=" * 70)
@@ -416,7 +411,6 @@ def main():
         json.dump(out, f, indent=2, default=float)
     print(f"\n  Results saved to calibration_results.json")
     print("=" * 70)
-
 
 if __name__ == "__main__":
     main()

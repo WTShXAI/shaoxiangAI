@@ -23,18 +23,15 @@ import time
 import logging
 import sqlite3
 import sqlalchemy
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
 
 logger = logging.getLogger(__name__)
 
 # ── Flask app 引用（延迟加载，避免循环导入）──
 _flask_app = None
 _startup_done = False
-
 
 def get_flask_app():
     """
@@ -47,6 +44,9 @@ def get_flask_app():
         # 文件级导入，绕过包名冲突（原 api/prediction_service 已归档至 archive/）
         import importlib.util
         ps_path = os.path.join(PROJECT_ROOT, 'archive', 'prediction_service_flask_legacy.py')
+        if not os.path.exists(ps_path):
+            logger.warning(f"[跳过] 旧版 Flask 服务已归档移除: {ps_path}")
+            return None
         spec = importlib.util.spec_from_file_location(
             'prediction_service_legacy', ps_path
         )
@@ -57,7 +57,6 @@ def get_flask_app():
                         if r.rule.startswith('/api/'))
         logger.info(f"✅ Flask WSGI 已就绪（{api_count} API 路由）")
     return _flask_app
-
 
 def run_flask_startup():
     """
@@ -82,7 +81,7 @@ def run_flask_startup():
 
     # 数据纯净性检查
     try:
-        from data_integrity import startup_integrity_check
+        from database.data_integrity import startup_integrity_check
         startup_integrity_check()
     except (ValueError, KeyError, FileNotFoundError) as e:
         logger.warning(f"完整性检查跳过: {e}")
@@ -131,7 +130,6 @@ def run_flask_startup():
     logger.info("   启动Celery Worker: celery -A tasks.celery_app worker -l info")
     logger.info("   启动Celery Beat: celery -A tasks.celery_app beat -l info")
 
-
 def _sync_fetch_data(db, API_CONFIG):
     """同步拉取数据（Fallback方法，仅在Celery不可用时使用）"""
     try:
@@ -145,7 +143,7 @@ def _sync_fetch_data(db, API_CONFIG):
 
         logger.info(f"同步拉取数据（Fallback）...")
         collector = FDC(api_key=api_key)
-        today = datetime.now()
+        today = datetime.now(timezone.utc)
         date_from = today.strftime('%Y-%m-%d')
         date_to = (today + timedelta(days=7)).strftime('%Y-%m-%d')
         fetched = 0

@@ -103,7 +103,6 @@ class BayesInferResult:
             'bookmaker_consensus_weight': self.likelihood_consensus_weight,
         }
 
-
 @dataclass
 class LeagueMargins:
     """联赛级别的抽水结构参数 (从历史校准)"""
@@ -112,7 +111,6 @@ class LeagueMargins:
     favorite_margin_scale: float = 0.0  # 热门额外抽水 (通常≈0)
     longshot_margin_scale: float = 0.01 # 冷门额外抽水
     avg_total_goals: float = 2.75       # 联赛场均进球
-
 
 # ════════════════════════════════════════════════════════════════
 # 核心引擎
@@ -718,7 +716,6 @@ class BookmakerBayesInfer:
             'drift_factor': result.likelihood_drift_factor,
         }
 
-
 # ════════════════════════════════════════════════════════════════
 # 批量推断: 针对整个联赛或时间段
 # ════════════════════════════════════════════════════════════════
@@ -819,7 +816,6 @@ class LeagueCalibrator:
             'median_draw_bias': float(np.median(draw_biases)),
             'draw_bias_significant': bool(np.mean(draw_biases) > 0.005),
         }
-
 
 # ════════════════════════════════════════════════════════════════
 # CLI 演示

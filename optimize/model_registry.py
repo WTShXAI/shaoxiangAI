@@ -12,12 +12,11 @@
     registry.get_best_by_metric('accuracy')         # 获取最佳模型
 """
 import os, json, logging, shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 from collections import defaultdict
 
 logger = logging.getLogger('ModelRegistry')
-
 
 class ModelRegistry:
     """模型版本注册表 — 持久化为 JSON"""
@@ -50,8 +49,8 @@ class ModelRegistry:
     def _empty_registry(self) -> Dict:
         return {
             'version': '1.0',
-            'created_at': datetime.now().isoformat(),
-            'updated_at': datetime.now().isoformat(),
+            'created_at': datetime.now(timezone.utc).isoformat(),
+            'updated_at': datetime.now(timezone.utc).isoformat(),
             'models': {},
             'current_production': None,
             'next_id': 1,
@@ -95,13 +94,13 @@ class ModelRegistry:
                 seen_prod = True
 
         registry['next_id'] = len(raw.get('versions', [])) + 1
-        registry['updated_at'] = datetime.now().isoformat()
+        registry['updated_at'] = datetime.now(timezone.utc).isoformat()
         logger.info(f"注册表已适配: {len(registry['models'])} 个模型")
         return registry
 
     def _save(self):
         """持久化注册表 — 写入 ensemble_trainer 兼容格式"""
-        self._data['updated_at'] = datetime.now().isoformat()
+        self._data['updated_at'] = datetime.now(timezone.utc).isoformat()
         os.makedirs(os.path.dirname(self.registry_path), exist_ok=True)
 
         # 转换为 ensemble_trainer 兼容格式
@@ -167,7 +166,7 @@ class ModelRegistry:
             'model_type': model_type,
             'source': source,
             'tags': tags or [],
-            'registered_at': datetime.now().isoformat(),
+            'registered_at': datetime.now(timezone.utc).isoformat(),
             'file_exists': os.path.exists(model_path),
             'file_size_mb': round(os.path.getsize(model_path) / (1024*1024), 2) if os.path.exists(model_path) else 0,
             'status': 'active',  # active / deprecated / error
@@ -269,7 +268,7 @@ class ModelRegistry:
             self._data['models'][old_prod]['status'] = 'active'
 
         model['status'] = 'production'
-        model['deployed_at'] = datetime.now().isoformat()
+        model['deployed_at'] = datetime.now(timezone.utc).isoformat()
         self._data['current_production'] = model_id
 
         # 复制到生产路径
@@ -334,7 +333,7 @@ class ModelRegistry:
             return False
 
         model['status'] = 'deprecated'
-        model['deprecated_at'] = datetime.now().isoformat()
+        model['deprecated_at'] = datetime.now(timezone.utc).isoformat()
         self._save()
         logger.info(f"模型已废弃: {model_id}")
         return True
@@ -453,13 +452,11 @@ class ModelRegistry:
             'verdict': verdict,
         }
 
-
 # ══════════════════════════════════════════════════
 # 全局单例
 # ══════════════════════════════════════════════════
 
 _registry_instance = None
-
 
 def get_registry() -> ModelRegistry:
     """获取全局注册表单例"""
@@ -467,7 +464,6 @@ def get_registry() -> ModelRegistry:
     if _registry_instance is None:
         _registry_instance = ModelRegistry()
     return _registry_instance
-
 
 # ══════════════════════════════════════════════════
 # CLI

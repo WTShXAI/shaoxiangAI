@@ -17,9 +17,8 @@ _os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
 import sys
 import os
 import json as _json_module
-from datetime import datetime
+from datetime import datetime, timezone
 _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _project_root not in sys.path:
 
 import time
 import logging
@@ -35,19 +34,14 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, FileResponse
 from a2wsgi import WSGIMiddleware
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from core.config import settings
 from core.database import engine, Base
 
 # ── request_id 上下文 ─────────────────────
 _request_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="")
 
-
 def _get_request_id() -> str:
     return _request_id_ctx.get()
-
 
 class JsonFormatter(logging.Formatter):
     """JSON 结构化日志格式化器"""
@@ -63,13 +57,11 @@ class JsonFormatter(logging.Formatter):
             log_entry["exception"] = self.formatException(record.exc_info)
         return _json_module.dumps(log_entry, ensure_ascii=False)
 
-
 class RequestIdFilter(logging.Filter):
     """将 request_id 注入日志记录 (兼容非 JSON handler)"""
     def filter(self, record: logging.LogRecord) -> bool:
         record.request_id = _get_request_id() or "-"
         return True
-
 
 # ── 日志 ──────────────────────────────────
 _log_dir = os.path.join(_project_root, "logs")
@@ -270,7 +262,7 @@ async def websocket_health(websocket: WebSocket):
                 opt = get_optimizer()
                 status = opt.status_summary()
                 await websocket.send_text(_json.dumps({
-                    "type": "health_update", "timestamp": datetime.now().isoformat(),
+                    "type": "health_update", "timestamp": datetime.now(timezone.utc).isoformat(),
                     "health": status["health"], "performance": status["performance"]["current"],
                     "trend": status["performance"]["trend"]["direction"], "advice": status["health_advice"],
                 }))

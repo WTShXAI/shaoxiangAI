@@ -36,7 +36,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
 # ═══════════════════════════════════════════════════════════════
 # 嵌入空间维度定义
 # ═══════════════════════════════════════════════════════════════
@@ -73,7 +72,6 @@ class EmbeddingDimensions:
     fund_divergence: int = 15     # 多机构资金方向分歧
     
     DIM = 16
-
 
 # ═══════════════════════════════════════════════════════════════
 # VICReg 正则化损失
@@ -156,7 +154,6 @@ class VICRegLoss:
         cov = self.covariance_loss(z)
         total = self.lambda_var * var + self.lambda_inv * inv + self.lambda_cov * cov
         return {"total": total, "var": var, "inv": inv, "cov": cov}
-
 
 # ═══════════════════════════════════════════════════════════════
 # 赔率编码器
@@ -338,7 +335,6 @@ class OddsEncoder:
         
         return interpretations
 
-
 # ═══════════════════════════════════════════════════════════════
 # 赔率嵌入辅助函数
 # ═══════════════════════════════════════════════════════════════
@@ -416,7 +412,6 @@ def compute_odds_embedding(odds_h: float, odds_d: float, odds_a: float,
     }
     
     return encoder.encode(odds_raw)
-
 
 def embedding_distance(z1: np.ndarray, z2: np.ndarray, 
                        metric: str = 'cosine') -> float:
