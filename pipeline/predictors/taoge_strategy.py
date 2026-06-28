@@ -395,6 +395,26 @@ class TaoGeStrategy:
                     filtered_alts.append(s)
         alt_scores = filtered_alts[:2]
 
+        # ═══ 多约束评分优化 (WC2026真实数据) ═══
+        # 方向+OU+比分频率+总球分布 = 智能排序
+        try:
+            from pipeline.predictors.helpers import smart_score_rank, _score_dir
+            target_dir = _score_dir(best_score)
+            # OU方向: 从诚实度判断
+            honesty = ou_link.get('ou_honesty', {})
+            ou_grade = honesty.get('grade', 'honest_mid')
+            is_under = 'trap_low' in ou_grade or 'honest_low' in ou_grade \
+                       or ou_link.get('verdict', '').startswith('OU小')
+            target_ou = 'U' if is_under else 'O'
+            smart_scores = smart_score_rank(target_dir, target_ou, match.ou_line, top_n=5)
+            if smart_scores:
+                best_score = smart_scores[0]
+                alt_scores = smart_scores[1:3]
+                top_scores = smart_scores
+                evidence.append(f'📊 多约束优化: {target_dir}方向+{target_ou}球 → {best_score}')
+        except Exception as e:
+            pass  # 降级: 用原始比分锚
+
         return {
             'strategy': strategy,
             'primary': primary,

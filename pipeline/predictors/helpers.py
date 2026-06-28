@@ -25,6 +25,89 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from pipeline.predictors.data_classes import *  # noqa: F401, F403
 from pipeline.predictors.ou_linkage import OULinkageEngine
 
+
+# ═══ 多约束评分器 (WC2026真实数据驱动) ═══
+# 原理: 综合方向+OU+历史频率+总进球分布, 给每个比分打分
+# 公式: w = 方向匹配(硬约束) + OU匹配(0.3) + 比分频率(0.35) + 总球频率(0.2) + 方向先验(0.15)
+
+import json
+from pathlib import Path as _Path
+
+def _load_score_freq():
+    """加载WC2026全量64场比分频率数据"""
+    try:
+        p = _Path(__file__).parent.parent.parent / 'data' / 'score_freq_wc2026.json'
+        if p.exists():
+            return json.load(open(p, encoding='utf-8'))
+    except:
+        pass
+    # 兜底: 内嵌频率表
+    return {
+        'freq': {'0-0':7,'1-1':6,'1-0':5,'0-1':4,'2-1':4,'3-1':4,'1-3':4,
+                 '2-2':3,'3-0':3,'5-1':2,'1-4':2,'0-2':2,'2-0':2,'5-0':2,'0-3':2,'3-2':2},
+        'total_goals': {0:7,1:9,2:10,3:10,4:13,5:7,6:7,8:1}
+    }
+
+_FREQ_CACHE = None
+
+def _get_freq():
+    global _FREQ_CACHE
+    if _FREQ_CACHE is None:
+        _FREQ_CACHE = _load_score_freq()
+    return _FREQ_CACHE
+
+def smart_score_rank(target_dir, target_ou_flag, ou_line, top_n=5):
+    """多约束智能评分排序
+    
+    Args:
+        target_dir: 'H' (主胜), 'A' (客胜), 'D' (平)
+        target_ou_flag: 'O' (大球) or 'U' (小球)
+        ou_line: 大小球盘口 (2.0/2.25/2.5/2.75/3.0)
+        top_n: 返回前几个
+    
+    Returns:
+        list of score strings ranked by combined weight
+    """
+    freq_data = _get_freq()
+    freqs = freq_data['freq']
+    goals = freq_data['total_goals']
+    max_freq = max(freqs.values())
+    max_goal = max(goals.values())
+    
+    ranked = []
+    for h in range(7):
+        for a in range(7):
+            sc = f"{h}-{a}"
+            # 硬约束: 方向匹配
+            pd = 'H' if h>a else ('A' if a>h else 'D')
+            if pd != target_dir:
+                continue
+            
+            w = 0.0
+            # 约束1: OU匹配 (0.3)
+            total = h + a
+            actual_ou = 'O' if total > ou_line else 'U'
+            w += 0.30 if actual_ou == target_ou_flag else 0.0
+            
+            # 约束2: 比分频率 (0.35)
+            w += 0.35 * (freqs.get(sc, 1) / max_freq)
+            
+            # 约束3: 总进球频率 (0.20)
+            w += 0.20 * (goals.get(total, 1) / max_goal)
+            
+            # 约束4: 方向先验 (0.15) — H>D>A
+            dir_prior = {'H': 0.47, 'A': 0.27, 'D': 0.27}
+            w += 0.15 * dir_prior.get(pd, 0.25)
+            
+            ranked.append((round(w, 4), sc))
+    
+    ranked.sort(key=lambda x: -x[0])
+    return [s for _, s in ranked[:top_n]]
+
+def _score_dir(sc):
+    h,a = map(int, sc.split('-'))
+    return 'H' if h>a else ('A' if a>h else 'D')
+
 def _constrain_ou_to_line(ou_link: dict, match, form_result=None, silent: bool = False) -> dict:
     """
     P0-5: 外围OU盘口约束总进球 (何执策)
