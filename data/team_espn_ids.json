@@ -1,0 +1,196 @@
+{
+  "teams": {
+    "阿根廷": {
+      "en": "Argentina",
+      "espn_id": 202
+    },
+    "巴西": {
+      "en": "Brazil",
+      "espn_id": 205
+    },
+    "乌拉圭": {
+      "en": "Uruguay",
+      "espn_id": 212
+    },
+    "厄瓜多尔": {
+      "en": "Ecuador",
+      "espn_id": 209
+    },
+    "巴拉圭": {
+      "en": "Paraguay",
+      "espn_id": 210
+    },
+    "哥伦比亚": {
+      "en": "Colombia",
+      "espn_id": 208
+    },
+    "法国": {
+      "en": "France",
+      "espn_id": 477
+    },
+    "英格兰": {
+      "en": "England",
+      "espn_id": 573
+    },
+    "西班牙": {
+      "en": "Spain",
+      "espn_id": 451
+    },
+    "德国": {
+      "en": "Germany",
+      "espn_id": 484
+    },
+    "荷兰": {
+      "en": "Netherlands",
+      "espn_id": 460
+    },
+    "葡萄牙": {
+      "en": "Portugal",
+      "espn_id": 491
+    },
+    "比利时": {
+      "en": "Belgium",
+      "espn_id": 492
+    },
+    "克罗地亚": {
+      "en": "Croatia",
+      "espn_id": 478
+    },
+    "瑞士": {
+      "en": "Switzerland",
+      "espn_id": 486
+    },
+    "奥地利": {
+      "en": "Austria",
+      "espn_id": 497
+    },
+    "瑞典": {
+      "en": "Sweden",
+      "espn_id": 488
+    },
+    "挪威": {
+      "en": "Norway",
+      "espn_id": 475
+    },
+    "捷克": {
+      "en": "Czech Republic",
+      "espn_id": 489
+    },
+    "土耳其": {
+      "en": "Turkey",
+      "espn_id": 499
+    },
+    "波黑": {
+      "en": "Bosnia",
+      "espn_id": 498
+    },
+    "苏格兰": {
+      "en": "Scotland",
+      "espn_id": 580
+    },
+    "墨西哥": {
+      "en": "Mexico",
+      "espn_id": 482
+    },
+    "美国": {
+      "en": "United States",
+      "espn_id": 484
+    },
+    "加拿大": {
+      "en": "Canada",
+      "espn_id": 488
+    },
+    "巴拿马": {
+      "en": "Panama",
+      "espn_id": 2659
+    },
+    "海地": {
+      "en": "Haiti",
+      "espn_id": 2654
+    },
+    "塞内加尔": {
+      "en": "Senegal",
+      "espn_id": 654
+    },
+    "埃及": {
+      "en": "Egypt",
+      "espn_id": 2620
+    },
+    "突尼斯": {
+      "en": "Tunisia",
+      "espn_id": 659
+    },
+    "摩洛哥": {
+      "en": "Morocco",
+      "espn_id": 2869
+    },
+    "加纳": {
+      "en": "Ghana",
+      "espn_id": 656
+    },
+    "阿尔及利亚": {
+      "en": "Algeria",
+      "espn_id": 658
+    },
+    "科特迪瓦": {
+      "en": "Ivory Coast",
+      "espn_id": 660
+    },
+    "民主刚果": {
+      "en": "DR Congo",
+      "espn_id": 2652
+    },
+    "日本": {
+      "en": "Japan",
+      "espn_id": 627
+    },
+    "韩国": {
+      "en": "South Korea",
+      "espn_id": 655
+    },
+    "沙特": {
+      "en": "Saudi Arabia",
+      "espn_id": 657
+    },
+    "伊朗": {
+      "en": "Iran",
+      "espn_id": 653
+    },
+    "伊拉克": {
+      "en": "Iraq",
+      "espn_id": 652
+    },
+    "乌兹别克": {
+      "en": "Uzbekistan",
+      "espn_id": 2663
+    },
+    "卡塔尔": {
+      "en": "Qatar",
+      "espn_id": 2661
+    },
+    "约旦": {
+      "en": "Jordan",
+      "espn_id": 2664
+    },
+    "澳大利亚": {
+      "en": "Australia",
+      "espn_id": 646
+    },
+    "新西兰": {
+      "en": "New Zealand",
+      "espn_id": 2674
+    },
+    "南非": {
+      "en": "South Africa",
+      "espn_id": 2671
+    },
+    "佛得角": {
+      "en": "Cape Verde",
+      "espn_id": 2667
+    },
+    "库拉索": {
+      "en": "Curacao",
+      "espn_id": 2694
+    }
+  }
+}
