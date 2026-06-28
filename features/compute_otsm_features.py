@@ -33,8 +33,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger('OTSMFeatures')
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "data", "football_data.db")
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.yaml")
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(PROJECT_ROOT, "data", "football_data.db")
+CONFIG_PATH = os.path.join(PROJECT_ROOT, "config.yaml")
 
 # ── OTSM 特征定义 ─────────────────────────────────────────────────
 OTSМ_FEATURES = [
