@@ -60,8 +60,8 @@ export default function DataExplorer() {
         }),
         historicalService.getLeagues(),
       ])
-      setMatches(matchesRes.data?.matches || matchesRes.data?.data || [])
-      setTotal(matchesRes.data?.total || 0)
+      setMatches(matchesRes.data?.data || [])
+      setTotal((matchesRes.data as unknown as Record<string, unknown>)?.total as number ?? 0)
       setLeagues(leaguesRes.data?.data || [])
     } catch {
       if (!leagues.length) {

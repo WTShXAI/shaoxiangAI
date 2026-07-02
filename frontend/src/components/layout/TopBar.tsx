@@ -13,9 +13,9 @@ export default function TopBar() {
           alertService.getAlerts({ acknowledged: false }),
           monitorService.getMetricsSummary(),
         ])
-        setSystemHealth(healthRes.data)
-        setAlerts(alertsRes.data.alerts || [])
-        setMetricsSummary(metricsRes.data)
+        setSystemHealth(healthRes.data.data)
+        setAlerts(alertsRes.data.data || [])
+        setMetricsSummary(metricsRes.data.data)
       } catch {
         // 静默失败，保持上次数据
       }
