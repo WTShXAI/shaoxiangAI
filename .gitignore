@@ -6,6 +6,11 @@ __pycache__/
 dist/
 build/
 
+# 前端依赖与构建产物
+node_modules/
+frontend/dist/
+frontend/.vite/
+
 # 模型文件
 *.joblib
 *.pth
@@ -16,8 +21,12 @@ build/
 # 数据和报告
 *.db
 *.sqlite
+*.db-shm
+*.db-wal
 *.parquet
 *.npz
+data/api_cache/
+data/*.bak*
 
 # 环境
 .env
@@ -50,3 +59,8 @@ logs/*.log.*
 
 # 历史归档(纯快照,靠git历史可追溯)
 archive_backup/
+
+# 工具缓存
+.pytest_cache/
+.coverage
+htmlcov/

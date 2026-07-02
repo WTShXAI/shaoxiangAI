@@ -7,7 +7,7 @@
       "version": "4.1",
       "path": "saved_models/football_v4.1_production.joblib",
       "accuracy": 0.6243,
-      "draw_f1": 0.520,
+      "draw_f1": 0.52,
       "auc": 0.815,
       "model_type": "ensemble",
       "trained_at": "2026-06-18",
@@ -52,6 +52,133 @@
       "blend_role": "post-stacking 平局专精后融合 (env JEPA_BLEND_WEIGHT, 默认0.08)",
       "f1_home": 0.6445,
       "f1_away": 0.5204
+    }
+  },
+  "versions": [
+    {
+      "version": "4.1",
+      "timestamp": "2026-07-02T16:57:55.354909+00:00",
+      "accuracy": 0.609,
+      "auc": 0.806,
+      "mcc": 0,
+      "draw_f1": 0.4897,
+      "n_features": 72,
+      "models": [
+        "lightgbm",
+        "xgboost",
+        "odds_expert",
+        "heuristic",
+        "neural_net",
+        "draw_expert"
+      ],
+      "stacking": true,
+      "v41_config": {
+        "draw_expert_mult": 0.25,
+        "draw_cw_mult": 1.1,
+        "home_cw_mult": 0.9,
+        "draw_threshold": 0.46,
+        "ha_gap": 0.0
+      }
+    },
+    {
+      "version": "4.1",
+      "timestamp": "2026-07-02T16:58:12.919957+00:00",
+      "accuracy": 0.609,
+      "auc": 0.806,
+      "mcc": 0,
+      "draw_f1": 0.4897,
+      "n_features": 72,
+      "models": [
+        "lightgbm",
+        "xgboost",
+        "odds_expert",
+        "heuristic",
+        "neural_net",
+        "draw_expert"
+      ],
+      "stacking": true,
+      "v41_config": {
+        "draw_expert_mult": 0.25,
+        "draw_cw_mult": 1.1,
+        "home_cw_mult": 0.9,
+        "draw_threshold": 0.46,
+        "ha_gap": 0.0
+      }
+    },
+    {
+      "version": "4.1",
+      "timestamp": "2026-07-02T16:58:28.158610+00:00",
+      "accuracy": 0.609,
+      "auc": 0.806,
+      "mcc": 0,
+      "draw_f1": 0.4897,
+      "n_features": 72,
+      "models": [
+        "lightgbm",
+        "xgboost",
+        "odds_expert",
+        "heuristic",
+        "neural_net",
+        "draw_expert"
+      ],
+      "stacking": true,
+      "v41_config": {
+        "draw_expert_mult": 0.25,
+        "draw_cw_mult": 1.1,
+        "home_cw_mult": 0.9,
+        "draw_threshold": 0.46,
+        "ha_gap": 0.0
+      }
+    },
+    {
+      "version": "4.1",
+      "timestamp": "2026-07-02T16:58:44.292041+00:00",
+      "accuracy": 0.609,
+      "auc": 0.806,
+      "mcc": 0,
+      "draw_f1": 0.4897,
+      "n_features": 72,
+      "models": [
+        "lightgbm",
+        "xgboost",
+        "odds_expert",
+        "heuristic",
+        "neural_net",
+        "draw_expert"
+      ],
+      "stacking": true,
+      "v41_config": {
+        "draw_expert_mult": 0.25,
+        "draw_cw_mult": 1.1,
+        "home_cw_mult": 0.9,
+        "draw_threshold": 0.46,
+        "ha_gap": 0.0
+      }
+    }
+  ],
+  "current": {
+    "version": "4.1",
+    "timestamp": "2026-07-02T16:58:44.292041+00:00",
+    "accuracy": 0.609,
+    "auc": 0.806,
+    "mcc": 0,
+    "draw_f1": 0.4897,
+    "n_features": 72,
+    "models": [
+      "lightgbm",
+      "xgboost",
+      "odds_expert",
+      "heuristic",
+      "neural_net",
+      "draw_expert"
+    ],
+    "stacking": true,
+    "v41_config": {
+      "draw_expert_mult": 0.25,
+      "draw_cw_mult": 1.1,
+      "home_cw_mult": 0.9,
+      "draw_threshold": 0.46,
+      "ha_gap": 0.0
     }
   }
 }

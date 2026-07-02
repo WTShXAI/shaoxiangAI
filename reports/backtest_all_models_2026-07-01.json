@@ -1,55 +1,56 @@
 {
-  "timestamp": "2026-07-01 06:30:01",
+  "timestamp": "2026-07-03 00:53:00",
   "samples": 3000,
   "distribution": {
-    "A": 843,
-    "H": 1400,
-    "D": 757
+    "null": 182,
+    "A": 790,
+    "H": 1315,
+    "D": 713
   },
   "models": {
     "v4.1_production": {
-      "acc_1x2": 0.2523,
-      "f1_macro": 0.1343,
+      "acc_1x2": 0.2377,
+      "f1_macro": 0.128,
       "f1_home": 0.0,
-      "f1_draw": 0.403,
+      "f1_draw": 0.3841,
       "f1_away": 0.0,
-      "odds_baseline_acc": 0.5343,
+      "odds_baseline_acc": 0.5423,
       "samples": 3000
     },
     "v4.1_ensemble": {
-      "acc_1x2": 0.2523,
-      "f1_macro": 0.1343,
+      "acc_1x2": 0.2377,
+      "f1_macro": 0.128,
       "f1_home": 0.0,
-      "f1_draw": 0.403,
+      "f1_draw": 0.3841,
       "f1_away": 0.0,
-      "odds_baseline_acc": 0.5343,
+      "odds_baseline_acc": 0.5423,
       "samples": 3000
     },
     "nn_20260616": {
-      "acc_1x2": 0.2523,
-      "f1_macro": 0.1343,
+      "acc_1x2": 0.2377,
+      "f1_macro": 0.128,
       "f1_home": 0.0,
-      "f1_draw": 0.403,
+      "f1_draw": 0.3841,
       "f1_away": 0.0,
-      "odds_baseline_acc": 0.5343,
+      "odds_baseline_acc": 0.5423,
       "samples": 3000
     },
     "jepa_v5_lite": {
-      "acc_1x2": 0.3613,
-      "f1_macro": 0.3082,
-      "f1_home": 0.4732,
-      "f1_draw": 0.3386,
-      "f1_away": 0.1128,
-      "odds_baseline_acc": 0.5343,
+      "acc_1x2": 0.3577,
+      "f1_macro": 0.2989,
+      "f1_home": 0.4793,
+      "f1_draw": 0.3116,
+      "f1_away": 0.1057,
+      "odds_baseline_acc": 0.5423,
       "samples": 3000
     },
     "odds_baseline": {
-      "acc_1x2": 0.5343,
+      "acc_1x2": 0.5423,
       "f1_macro": 0.4,
-      "f1_home": 0.6647,
+      "f1_home": 0.6759,
       "f1_draw": 0.0,
-      "f1_away": 0.5353,
-      "odds_baseline_acc": 0.5343,
+      "f1_away": 0.5242,
+      "odds_baseline_acc": 0.5423,
       "samples": 3000
     }
   },
