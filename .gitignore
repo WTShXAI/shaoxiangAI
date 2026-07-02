@@ -47,3 +47,6 @@ deliverables/*.zip
 # 日志
 logs/*.log
 logs/*.log.*
+
+# 历史归档(纯快照,靠git历史可追溯)
+archive_backup/

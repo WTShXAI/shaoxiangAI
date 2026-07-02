@@ -22,20 +22,24 @@ from sklearn.utils.class_weight import compute_class_weight
 import joblib
 import pandas as pd
 
-from utils.constants import DEFAULT_DRAW_PROB
-
-# 路径解析: 优先环境变量, fallback 自动检测
+# 路径解析: 固定为本项目根目录 (本脚本所属 training/ 的上两级)
+# 注意: 历史版本曾 fallback 到 D:\AI\footballAI 平行项目, 会静默污染另一个项目,
+#       现强制锚定当前项目。如需指向别处, 显式设置环境变量 FOOTBALLAI_ROOT。
 _arch_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _fai_env = os.environ.get('FOOTBALLAI_ROOT', '')
-_fai_candidates = [
-    _fai_env,
-    os.path.join(os.path.dirname(_arch_root), 'footballAI'),
-    r'D:\AI\footballAI',
-]
-ROOT = next((p for p in _fai_candidates if p and os.path.isdir(p)), _arch_root)
+ROOT = _fai_env if (_fai_env and os.path.isdir(_fai_env)) else _arch_root
 
 os.environ.setdefault('PROJECT_ROOT', ROOT)
 
+# sys.path 注入必须在所有项目内导入 (utils / ensemble_trainer / draw_expert) 之前
+for _p in (ROOT, os.path.join(ROOT, 'predictors', 'components')):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+# 注册 draw_expert 为顶层模块 (joblib pickle 反序列化依赖)
+from predictors.components import draw_expert as _draw_expert_mod  # noqa: E402
+sys.modules.setdefault('draw_expert', _draw_expert_mod)
+
+from utils.constants import DEFAULT_DRAW_PROB, DEFAULT_HOME_PROB, DEFAULT_AWAY_PROB
 from ensemble_trainer import EnsembleTrainer
 from draw_expert import DrawExpert
 
@@ -62,12 +66,31 @@ def main():
     logger.info("=" * 60)
 
     # ─── 步骤1: 加载 production pipeline ───
-    logger.info("步骤1: 加载 v4.0 pipeline")
-    pipeline_path = os.path.join(ROOT, 'saved_models', 'football_v4.0_production.joblib')
-    if not os.path.exists(pipeline_path):
-        pipeline_path = os.path.join(ROOT, 'saved_models', 'football_balanced_production.joblib')
+    # 设计初衷: 从 v4.0 pipeline 出发优化生成 v4.1。
+    # 当 v4.0 基线不可用时, fallback 到当前项目的 production 模型 (通常是 v4.1),
+    # 复用其 feature_names / config / scaler 结构, 重新训练基模型与 meta learner。
+    logger.info("步骤1: 加载 production pipeline")
+    candidate_paths = [
+        os.path.join(ROOT, 'saved_models', 'football_v4.0_production.joblib'),
+        os.path.join(ROOT, 'saved_models', 'football_balanced_production.joblib'),
+        os.path.join(ROOT, 'saved_models', 'football_v4.1_production.joblib'),  # fallback
+    ]
+    pipeline_path = next((p for p in candidate_paths if os.path.exists(p)), None)
+    if pipeline_path is None:
+        raise FileNotFoundError(
+            "未找到任何 production pipeline 基线模型 (v4.0 / balanced / v4.1)。"
+            "请先运行基础训练或确认 saved_models/ 下有 football_v*.joblib。"
+        )
+    logger.info(f"  使用基线: {os.path.basename(pipeline_path)}")
     trainer = EnsembleTrainer.load_pipeline(pipeline_path)
     logger.info(f"  版本: {trainer.model_version}, 特征数: {len(trainer.feature_names)}")
+
+    # 修复: load_pipeline 用 __new__ 跳过 __init__, _init_paths 又以模块文件位置
+    # 解析相对 project_root (".") → db_path 错指 predictors/components/data/...。
+    # 这里显式锚定到本项目, 保证 load_training_data() 能读到真实数据库。
+    trainer.db_path = os.path.join(ROOT, trainer.config['database']['path'])
+    if not os.path.exists(trainer.db_path):
+        raise FileNotFoundError(f"训练数据库不存在: {trainer.db_path}")
 
     # 加载 NN
     nn_path = os.path.join(ROOT, 'saved_models', 'football_nn_20260616_125617.pth')
@@ -88,6 +111,8 @@ def main():
     de_scaler_path = os.path.join(ROOT, 'saved_models', 'draw_expert_scaler.joblib')
 
     has_full_de = all(os.path.exists(p) for p in [de_oof_path, de_idx_path, de_model_path])
+    # 预初始化 draw_expert 变量, 避免 has_full_de=False 时 L408 引用未定义
+    draw_expert = None
 
     # ─── 步骤3: 加载数据 ───
     logger.info("步骤3: 加载数据 + 时间切分")
@@ -428,9 +453,10 @@ def main():
     trainer.save_pipeline(save_path=save_path_fai)
     logger.info(f"  ✅ {save_path_fai}")
 
-    # 保存到 Architecture
+    # 保存到 Architecture (镜像副本)
     arch_models = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     save_path_arch = os.path.join(arch_models, 'models', 'main', f'football_v{MODEL_VERSION}_production.joblib')
+    os.makedirs(os.path.dirname(save_path_arch), exist_ok=True)  # 确保 models/main/ 存在
     joblib.dump({
         'xgb_model': xgb,
         'lgb_model': lgb_model,
@@ -451,10 +477,12 @@ def main():
     }, save_path_arch)
     logger.info(f"  ✅ {save_path_arch}")
 
-    # 更新 model_registry
+    # 更新 model_registry (兼容 active/production/models 结构)
     registry_path = os.path.join(ROOT, 'saved_models', 'model_registry.json')
-    registry = json.load(open(registry_path)) if os.path.exists(registry_path) else {}
-    registry['current'] = {
+    registry = json.load(open(registry_path, encoding='utf-8')) if os.path.exists(registry_path) else {}
+    registry.setdefault('models', {})
+    registry.setdefault('versions', [])  # 兼容历史键, 保留追加逻辑
+    version_entry = {
         'version': MODEL_VERSION,
         'timestamp': datetime.now(timezone.utc).isoformat(),
         'accuracy': round(float(v41_test_acc), 4),
@@ -466,8 +494,9 @@ def main():
         'stacking': True,
         'v41_config': V41_CONFIG,
     }
-    registry['versions'].append(registry['current'])
-    with open(registry_path, 'w') as f:
+    registry['current'] = version_entry
+    registry['versions'].append(version_entry)
+    with open(registry_path, 'w', encoding='utf-8') as f:
         json.dump(registry, f, indent=2, ensure_ascii=False)
     logger.info(f"  ✅ model_registry 已更新")
 
