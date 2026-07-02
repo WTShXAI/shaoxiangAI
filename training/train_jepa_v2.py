@@ -368,25 +368,26 @@ def train_model(
 
 def evaluate_worldcup(model, device):
     """Evaluate on World Cup 2026 matches"""
-    from validation.validate_full_features import (
-        load_stats, build_features, STATIC_72_COLS, COL_IDX
+    # 修复: load_stats / build_features / MANUAL_ODDS 定义在 calibrate_jepa,
+    # 而非 validate_full_features (后者导出名/签名不同, 会 ImportError)。
+    from validation.calibrate_jepa import (
+        load_stats, build_features as bf, MANUAL_ODDS, COL_IDX
     )
-    from validation.validate_full_features import MANUAL_ODDS, RESULTS_JSON as WC_JSON
-    
+    STATIC_72_COLS = list(COL_IDX.keys())
+
     mean, std = load_stats()
-    
+
     with open(os.path.join(ROOT, 'validation/wc2026_results.json'), 'r', encoding='utf-8') as f:
         matches = json.load(f)["matches"]
-    
+
     def mk(home, away):
         return f"{home.replace(' ','').replace('-','')}_{away.replace(' ','').replace('-','')}"
-    
+
     # Build features
-    from validation.validate_full_features import build_features as bf
     features_list = []
     actuals = []
     match_info = []
-    
+
     for m in matches:
         key = mk(m['home'], m['away'])
         if key not in MANUAL_ODDS:

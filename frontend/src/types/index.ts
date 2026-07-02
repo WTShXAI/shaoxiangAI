@@ -167,6 +167,24 @@ export interface TeamFeatures {
     scoringRate: number
   }
 }
+// 实时赛程 (来自 /fixtures/upcoming, football-data.org 实时API)
+export interface Fixture {
+  id: number
+  home: string
+  away: string
+  time: string         // UTC ISO
+  time_local: string   // 北京时间 HH:MM
+  group: string        // 小组赛分组, 淘汰赛为空
+  status: string       // TIMED / IN_PLAY / FINISHED 等
+  score_home?: number | null
+  score_away?: number | null
+}
+export interface FixturesResponse {
+  today: Fixture[]
+  tomorrow: Fixture[]
+  upcoming_count: number
+  error?: string
+}
 // API响应包装
 export interface ApiResponse<T> {
   success: boolean

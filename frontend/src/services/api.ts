@@ -13,6 +13,7 @@ import type {
   User,
   TeamFeatures,
   League,
+  FixturesResponse,
 } from '@/types'
 const api = axios.create({
   baseURL: '/api/v1',
@@ -116,6 +117,14 @@ export const matchService = {
   // 比赛比分
   getScores: (params?: { league?: string; date?: string }) =>
     api.get<ApiResponse<Match[]>>('/matches/scores', { params }),
+}
+// ============================================
+// 实时赛程服务 (football-data.org 实时API, 后端1小时缓存)
+// ============================================
+export const fixtureService = {
+  // 今天+明天的世界杯赛程 (前端快速按钮)
+  getUpcoming: () =>
+    api.get<FixturesResponse>('/fixtures/upcoming'),
 }
 // ============================================
 // 特征服务

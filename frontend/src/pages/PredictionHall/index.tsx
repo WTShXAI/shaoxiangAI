@@ -1,8 +1,134 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/store'
-import { predictionService, matchService } from '@/services/api'
-import type { Match, Prediction, PredictionStats } from '@/types'
+import { predictionService, matchService, fixtureService } from '@/services/api'
+import type { Match, Prediction, PredictionStats, Fixture } from '@/types'
+// ============================================
+// 子组件：实时赛程横幅 (今日/明日世界杯赛程, 手动刷新)
+// ============================================
+function FixturePill({ fixture, index }: { fixture: Fixture; index: number }) {
+  const isLive = fixture.status === 'IN_PLAY' || fixture.status === 'PAUSED'
+  const isFinished = fixture.status === 'FINISHED'
+  const hasScore = fixture.score_home != null && fixture.score_away != null
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: index * 0.04, duration: 0.3 }}
+      className="glass-card p-3 min-w-[220px] flex-shrink-0 hover:border-pitch-500/20 transition-colors"
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[10px] font-bold text-pitch-400 font-display">
+          {fixture.time_local}
+        </span>
+        <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${
+          isLive ? 'bg-danger-500/20 text-danger-400 animate-pulse' :
+          isFinished ? 'bg-white/5 text-white/30' :
+          'bg-pitch-500/15 text-pitch-400/80'
+        }`}>
+          {isLive ? '● 进行中' : isFinished ? '已结束' : fixture.group ? `${fixture.group}组` : '即将开始'}
+        </span>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-bold font-display text-white/90 truncate flex-1 text-right">{fixture.home}</span>
+        {hasScore ? (
+          <span className="text-sm font-black font-display text-white/70 px-1">
+            {fixture.score_home}-{fixture.score_away}
+          </span>
+        ) : (
+          <span className="text-[10px] font-bold text-white/20 px-1">VS</span>
+        )}
+        <span className="text-xs font-bold font-display text-white/90 truncate flex-1">{fixture.away}</span>
+      </div>
+    </motion.div>
+  )
+}
+function FixturesBanner() {
+  const [today, setToday] = useState<Fixture[]>([])
+  const [tomorrow, setTomorrow] = useState<Fixture[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchFixtures = async () => {
+    setRefreshing(true)
+    try {
+      const res = await fixtureService.getUpcoming()
+      const data = res.data
+      setToday(data.today || [])
+      setTomorrow(data.tomorrow || [])
+      setUpdatedAt(new Date())
+      setError(data.error || null)
+    } catch (err) {
+      console.error('获取赛程失败:', err)
+      setError('赛程获取失败')
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }
+  useEffect(() => { fetchFixtures() }, [])
+
+  const total = today.length + tomorrow.length
+  const timeStr = updatedAt ? updatedAt.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--'
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.05 }}
+      className="glass-card p-4"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-pitch-400 animate-pulse" />
+          <h3 className="text-xs font-bold uppercase tracking-widest text-white/50">实时赛程 · 2026世界杯</h3>
+          <span className="text-[10px] text-white/30">共 {total} 场</span>
+          {error && <span className="text-[10px] text-ember-400/70">{error}</span>}
+        </div>
+        <button
+          onClick={fetchFixtures}
+          disabled={refreshing}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium text-white/40 hover:text-pitch-400 hover:bg-pitch-500/10 transition-all disabled:opacity-40"
+        >
+          <svg className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992V4.356M19.671 16.5A8.25 8.25 0 005.672 8.023m-1.652 7.629v4.992h4.992M4.329 7.5A8.25 8.25 0 0018.328 15.977" />
+          </svg>
+          <span>{refreshing ? '刷新中' : `刷新 (${timeStr})`}</span>
+        </button>
+      </div>
+      {loading ? (
+        <div className="flex gap-3 overflow-hidden">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="skeleton h-20 w-[220px] rounded-2xl flex-shrink-0" />
+          ))}
+        </div>
+      ) : total === 0 ? (
+        <p className="text-xs text-white/30 py-4 text-center">当前窗口暂无赛程（赛事可能已结束或尚未开始）</p>
+      ) : (
+        <div className="space-y-3">
+          {today.length > 0 && (
+            <div>
+              <p className="text-[10px] font-bold text-white/40 mb-2 uppercase tracking-wider">今日 {today.length} 场</p>
+              <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-thin">
+                {today.map((f, i) => <FixturePill key={f.id} fixture={f} index={i} />)}
+              </div>
+            </div>
+          )}
+          {tomorrow.length > 0 && (
+            <div>
+              <p className="text-[10px] font-bold text-white/40 mb-2 uppercase tracking-wider">明日 {tomorrow.length} 场</p>
+              <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-thin">
+                {tomorrow.map((f, i) => <FixturePill key={f.id} fixture={f} index={i} />)}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </motion.div>
+  )
+}
 // ============================================
 // 子组件：焦点战轮播
 // ============================================
@@ -363,6 +489,8 @@ export default function PredictionHall() {
           ))}
         </div>
       </motion.div>
+      {/* 实时赛程横幅 */}
+      <FixturesBanner />
       {/* 焦点战轮播 */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
