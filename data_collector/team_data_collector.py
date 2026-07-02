@@ -104,7 +104,7 @@ class TeamDataCollector:
         return {'formation': found, 'raw': raw_text[:500]}
 
     def parse_injuries(self, raw_text: str) -> list:
-        """v4.0: 从WebFetch文本提取伤病信息"""
+        """v5.0: 从WebFetch文本提取伤病信息"""
         injuries = []
         import re
         
@@ -139,7 +139,7 @@ class TeamDataCollector:
         return unique[:10]
 
     def parse_coach_news(self, raw_text: str) -> list:
-        """v4.0: 提取教练相关新闻"""
+        """v5.0: 提取教练相关新闻"""
         import re
         coach_keywords = ['教练', '主帅', '主教练', '换帅', '下课', '新帅', '战术',
                           'coach', 'manager', '战术体系', '阵型调整']
@@ -155,7 +155,7 @@ class TeamDataCollector:
         return news[:5]
 
     def parse_team_strength(self, raw_text: str) -> dict:
-        """v4.0: 提取球队实力指标"""
+        """v5.0: 提取球队实力指标"""
         import re
         result = {
             'fifa_rank': None,
@@ -173,7 +173,7 @@ class TeamDataCollector:
         
         return result
 
-    # ━━━ 批量操作 (v4.0) ━━━
+    # ━━━ 批量操作 (v5.0) ━━━
     def batch_prefetch(self, matches: list) -> dict:
         """
         批量预取多场比赛的球队数据
@@ -214,7 +214,7 @@ class TeamDataCollector:
         }
 
     def get_match_context(self, home: str, away: str) -> dict:
-        """v4.0: 获取完整比赛上下文 (供VIP/SKY集成)"""
+        """v5.0: 获取完整比赛上下文 (供VIP/SKY集成)"""
         home_data = self.get_team_data(home, away)
         away_data = self.get_team_data(away, home)
         

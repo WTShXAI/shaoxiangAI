@@ -372,9 +372,9 @@ class FiveStepOptimizer:
         return result
     
     def step4_league_specific_modeling(self) -> Dict:
-        """步骤4 v4.0: 实际训练联赛模型 + 联赛感知集成"""
+        """步骤4 v5.0: 实际训练联赛模型 + 联赛感知集成"""
         logger.info("=" * 70)
-        logger.info("步骤4 v4.0: 联赛特定模型训练 + 联赛感知集成")
+        logger.info("步骤4 v5.0: 联赛特定模型训练 + 联赛感知集成")
         logger.info("=" * 70)
         
         if self.data is None or 'league' not in self.data.columns:
@@ -403,7 +403,7 @@ class FiveStepOptimizer:
                 'avg_home_goals': float(lg_data['home_score'].mean()),
             }
 
-            # ── v4.0: 对足够数据的联赛实际训练模型 ──
+            # ── v5.0: 对足够数据的联赛实际训练模型 ──
             if n_matches >= 100 and 'league' in self.data.columns:
                 try:
                     lg_indices = lg_mask.values.nonzero()[0]
@@ -475,7 +475,7 @@ class FiveStepOptimizer:
         ranked = sorted(league_perf.items(), key=lambda x: x[1].get('draw_rate_actual', 0), reverse=True)
 
         result = {
-            'step': 4, 'name': 'LeagueSpecificModeling_v4.0',
+            'step': 4, 'name': 'LeagueSpecificModeling_v5.0',
             'total_leagues': len(leagues),
             'models_trained': len(league_models),
             'viable_models': viable_count,

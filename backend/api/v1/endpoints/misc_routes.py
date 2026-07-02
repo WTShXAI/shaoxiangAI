@@ -13,7 +13,7 @@ router = APIRouter(tags=["misc"])
 
 @router.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def dashboard():
-    """哨响AI v4.0 — AI 对话界面"""
+    """哨响AI v5.0 — AI 对话界面"""
     _chat_html = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
         'static', 'conversation.html'
@@ -21,7 +21,7 @@ async def dashboard():
     if os.path.exists(_chat_html):
         with open(_chat_html, 'r', encoding='utf-8') as f:
             return f.read()
-    return "<h2>哨响AI v4.0</h2><p>对话界面文件未找到</p>"
+    return "<h2>哨响AI v5.0</h2><p>对话界面文件未找到</p>"
 
 @router.get("/generate.html", include_in_schema=False)
 async def generate_legacy():

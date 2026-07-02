@@ -677,7 +677,7 @@ def main():
     parser.add_argument('--output', type=str,
                         default='saved_models/footballai_enhanced_v4.0.joblib',
                         help='模型输出路径')
-    parser.add_argument('--version', type=str, default='v4.0',
+    parser.add_argument('--version', type=str, default='v5.0',
                         help='模型版本号 (30000模式默认 v5.0-30000)')
     parser.add_argument('--subset', type=int, default=None,
                         help='仅使用前 N 行训练 (调试用)')
@@ -700,7 +700,7 @@ def main():
 
     # ── 模式分发 ──
     if args.mode == '30000':
-        version = args.version if args.version != 'v4.0' else 'v5.0-30000'
+        version = args.version if args.version != 'v5.0' else 'v5.0-30000'
         train_with_30000_matches(
             data_path=data_path,
             output_path=output_path,

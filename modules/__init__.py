@@ -71,7 +71,7 @@ from .module_router import ModuleRouter, build_preset_scorers, create_default_sc
 from .expert_hub import ExpertHub           # LEGACY v3.0 — 新代码请用 ExpertHubV2
 from .progressive_optimizer import ProgressiveOptimizer
 
-# ---- v4.0 架构升级模块 (2026-06-18) ----
+# ---- v5.0 架构升级模块 (2026-06-18) ----
 _v4_imports = {
     'UnifiedPrediction': ('output_schema', 'UnifiedPrediction'),
     'FusedPrediction': ('output_schema', 'FusedPrediction'),

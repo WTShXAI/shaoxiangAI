@@ -67,9 +67,9 @@ def _lazy_import(name, module_path, class_name=None):
 
 class UnifiedPredictor(PredictorBase):
     """
-    FootballAI v4.0 统一预测器
+    FootballAI v5.0 统一预测器
     
-    整合: SKY v4.0 Stacking + VIP Math Fusion + Trap Detection
+    整合: SKY v5.0 Stacking + VIP Math Fusion + Trap Detection
     """
 
     def __init__(
@@ -87,7 +87,7 @@ class UnifiedPredictor(PredictorBase):
     ):
         """
         Args:
-            model_path: 模型路径 (None=自动搜索 v4.1 > v4.0)
+            model_path: 模型路径 (None=自动搜索 v4.1 > v5.0)
             sky_weight: SKY 通道权重 (v4.1 Stacking)
             vip_weight: VIP Math 通道权重
             trap_threshold: 陷阱检测阈值
@@ -122,7 +122,7 @@ class UnifiedPredictor(PredictorBase):
         self.ha_gap = 0.0
         self.de_mult = 0.45  # DrawExpert 衰减
 
-        # ── 加载 v4.0 模型 ──
+        # ── 加载 v5.0 模型 ──
         # P0修复: 确保 draw_expert 模块可被 joblib 反序列化找到
         import sys as _sys, os as _os
         _de_path = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), 'predictors', 'components')
@@ -144,7 +144,7 @@ class UnifiedPredictor(PredictorBase):
                        f"DrawExpert={'✓' if self.trainer.draw_expert_model else '✗'}")
 
     def _load_model(self, model_path=None):
-        """加载模型: v4.1 > v4.0 > v3.2"""
+        """加载模型: v4.1 > v5.0 > v3.2"""
         try:
             from predictors.components.ensemble_trainer import EnsembleTrainer
         except ImportError:
@@ -310,7 +310,7 @@ class UnifiedPredictor(PredictorBase):
             'warnings': [],
         }
 
-        # ── [L1] SKY: v4.0 Stacking 推理 ──
+        # ── [L1] SKY: v5.0 Stacking 推理 ──
         try:
             sky_probs = self._sky_predict(home, away, odds_h, odds_d, odds_a, 
                                            open_h, open_d, open_a, asian_handicap,

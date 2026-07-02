@@ -1,5 +1,5 @@
 """
-哨响AI v4.0 — 6层AI对话引擎 (Six-Layer Conversation Engine)
+哨响AI v5.0 — 6层AI对话引擎 (Six-Layer Conversation Engine)
 ==============================================================
 全自动链路：用户一句话 → 意图识别 → 专家分析 → 操盘解读 → 完整报告
 
@@ -129,7 +129,7 @@ class SixLayerResult:
     optimization_suggestions: List[str] = field(default_factory=list)
 
     # 元信息
-    pipeline_version: str = "v4.0-six-layer"
+    pipeline_version: str = "v5.0-six-layer"
     total_time_ms: float = 0.0
     errors: List[str] = field(default_factory=list)
     fallback_triggered: bool = False
@@ -168,7 +168,7 @@ class SixLayerResult:
 
 class SixLayerConversationEngine:
     """
-    6层AI对话引擎 — FootballAI v4.0 核心交互入口
+    6层AI对话引擎 — FootballAI v5.0 核心交互入口
 
     能力:
       - 自然语言理解: "这场赔率有问题，庄家在诱盘" → 自动路由到博弈论专家
@@ -1144,7 +1144,7 @@ class SixLayerConversationEngine:
     def _execute_general_query(self, result: SixLayerResult, user_input: str):
         """处理通用查询"""
         result.analysis_report = (
-            f"## 哨响AI v4.0\n\n"
+            f"## 哨响AI v5.0\n\n"
             f"收到您的查询:「{user_input[:60]}」\n\n"
             f"我可以帮您:\n"
             f"1. **预测比赛** — '巴西对阿根廷谁赢'\n"
@@ -1419,7 +1419,7 @@ class SixLayerConversationEngine:
         match_str = f"{home} vs {away}" if home and away else "比赛分析"
         league_str = f"({league})" if league else ""
         lines.append(f"{'═' * 60}")
-        lines.append(f"  哨响AI v4.0 | 6层AI分析报告")
+        lines.append(f"  哨响AI v5.0 | 6层AI分析报告")
         lines.append(f"  {match_str} {league_str}")
         lines.append(f"  {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}")
         lines.append(f"{'═' * 60}")
@@ -1763,7 +1763,7 @@ class SixLayerConversationEngine:
         """启动交互式对话模式"""
         print(f"""
 ╔══════════════════════════════════════════════════╗
-║    哨响AI v4.0 — 6层AI对话引擎                   ║
+║    哨响AI v5.0 — 6层AI对话引擎                   ║
 ║    Six-Layer Conversation Engine                 ║
 ║                                                  ║
 ║  输入示例:                                        ║
@@ -1824,7 +1824,7 @@ class SixLayerConversationEngine:
 
     def _print_help(self):
         print("""
-📖 哨响AI v4.0 使用指南
+📖 哨响AI v5.0 使用指南
 ────────────────────────────────────────
 1. 赛果预测: "巴西对阿根廷谁赢" / "预测这场"
 2. 赔率分析: "这个赔率正常吗" / "抽水率多少"
@@ -1871,7 +1871,7 @@ def get_engine(**kwargs) -> SixLayerConversationEngine:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="哨响AI v4.0 — 6层AI对话引擎",
+        description="哨响AI v5.0 — 6层AI对话引擎",
     )
     parser.add_argument("--query", "-q", type=str, default=None,
                         help="单次查询 (非交互模式)")
@@ -1928,7 +1928,7 @@ def _run_demo(engine: SixLayerConversationEngine):
 
     print(f"""
 ╔══════════════════════════════════════════════════╗
-║    哨响AI v4.0 — 6层架构演示模式                  ║
+║    哨响AI v5.0 — 6层架构演示模式                  ║
 ╚══════════════════════════════════════════════════╝
 """)
 

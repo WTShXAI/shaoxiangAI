@@ -285,7 +285,7 @@ class ModelBridge:
         return None
 
     def get_de_output(self) -> Optional[float]:
-        """v4.0: 返回DrawExpert P(Draw) (0-1), None if not available"""
+        """v5.0: 返回DrawExpert P(Draw) (0-1), None if not available"""
         if self._trainer and hasattr(self._trainer, '_last_submodel_probas'):
             sub = self._trainer._last_submodel_probas
             if sub and 'draw_expert' in sub:

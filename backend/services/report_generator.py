@@ -1,6 +1,6 @@
 """
 哨响AI — 报告生成服务（后端可调用的模块）
-v4.0: 8章节固定协议版，移除置信度(confidence)
+v5.0: 8章节固定协议版，移除置信度(confidence)
 
 章节结构:
   1. 赛前准备状态
@@ -116,7 +116,7 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
 <div class="report-header">
   <h1>🎯 哨响AI 预测报告</h1>
-  <div class="report-sub">🏆 {league} · {group} &nbsp;|&nbsp; 📅 {kickoff} &nbsp;|&nbsp; 🔑 match_id: {match_id} &nbsp;|&nbsp; <span class="protocol-badge">v4.0 8章节协议</span></div>
+  <div class="report-sub">🏆 {league} · {group} &nbsp;|&nbsp; 📅 {kickoff} &nbsp;|&nbsp; 🔑 match_id: {match_id} &nbsp;|&nbsp; <span class="protocol-badge">v5.0 8章节协议</span></div>
 </div>
 
 <div class="os">
@@ -386,7 +386,7 @@ def render_html(report_data: Dict) -> str:
 def build_report_data(match_info: Dict, odds: Dict, pred_result: Dict, intent: List[str]) -> Dict:
     """
     从预测服务输出构建 report_data。
-    v4.0: 决策基于隐含概率而非confidence
+    v5.0: 决策基于隐含概率而非confidence
     """
     # 从 pred_result 提取概率
     probs = pred_result.get('probabilities', {})

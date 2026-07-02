@@ -36,7 +36,7 @@ class SKYPredictor(PredictorBase):
     def __init__(self, model_path: str = None):
         """
         Args:
-            model_path: 模型路径，默认自动搜索 v4.1 > v4.0
+            model_path: 模型路径，默认自动搜索 v4.1 > v5.0
         """
         self.model_path = model_path or self._find_model()
         self.trainer = None
@@ -44,7 +44,7 @@ class SKYPredictor(PredictorBase):
         self._load()
 
     def _find_model(self) -> str:
-        """自动搜索: v4.1 > v4.0, 项目内路径优先"""
+        """自动搜索: v4.1 > v5.0, 项目内路径优先"""
         candidates = [
             os.path.join(ARCH_ROOT, 'models', 'main', 'football_v4.1_production.joblib'),
             os.path.join(ARCH_ROOT, 'saved_models', 'football_v4.1_production.joblib'),

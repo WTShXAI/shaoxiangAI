@@ -1,5 +1,5 @@
 """
-哨响AI v4.0 — 赛后复盘归因引擎 (Post-Match Attribution Analyzer)
+哨响AI v5.0 — 赛后复盘归因引擎 (Post-Match Attribution Analyzer)
 ==================================================================
 P2 深度专项模块。对比预测 vs 实际赛果，多维度根因分析。
 

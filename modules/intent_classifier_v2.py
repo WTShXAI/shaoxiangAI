@@ -1,7 +1,7 @@
 """
-哨响AI v4.0 — 意图分类器 v2 (Intent Classifier v2)
+哨响AI v5.0 — 意图分类器 v2 (Intent Classifier v2)
 ====================================================
-v4.0架构核心模块。基于贝叶斯分类器 + 规则引擎的混合意图识别系统。
+v5.0架构核心模块。基于贝叶斯分类器 + 规则引擎的混合意图识别系统。
 
 v2 升级:
     - 意图从8类扩展为5大类+15子类
@@ -14,7 +14,7 @@ v2 升级:
     - v2 新增 ANALYSIS/BACKTEST/OPTIMIZE 场景
     - v2 输出路由建议包含 WorkBuddy 专家调度信息
 
-意图分类体系 (v4.0):
+意图分类体系 (v5.0):
     大类          子类                        → 路由目标
     ═══════════════════════════════════════════════════════════
     PREDICT        match_result/score/goals   → prediction_engine + 全栈预测(A模式)
@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 # ═══════════════════════════════════════════════════════════════
 
 class IntentCategory(Enum):
-    """v4.0 五大意图大类"""
+    """v5.0 五大意图大类"""
     PREDICT = "predict"
     ANALYZE = "analyze"
     BACKTEST = "backtest"
@@ -294,7 +294,7 @@ class RouteResult:
 
 class IntentClassifierV2:
     """
-    v4.0 意图分类器 — 混合贝叶斯+规则
+    v5.0 意图分类器 — 混合贝叶斯+规则
 
     分类流程:
         1. 预处理: 分词 + 关键词提取

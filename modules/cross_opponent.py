@@ -1,5 +1,5 @@
 """
-哨响AI v4.0 — 共同对手交叉对比引擎 (Common Opponent Cross-Comparator)
+哨响AI v5.0 — 共同对手交叉对比引擎 (Common Opponent Cross-Comparator)
 =====================================================================
 从原 footballAI digital_human.py 移植的核心算法。
 

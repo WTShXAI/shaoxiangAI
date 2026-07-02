@@ -99,7 +99,7 @@ def blend_with_model(model_proba, d_prob, reliability=0.5):
     将 D-scorer 与模型预测融合
     
     Args:
-        model_proba: v3.2/v4.0 预测 [H, D, A]
+        model_proba: v3.2/v5.0 预测 [H, D, A]
         d_prob: D-scorer 的 P(D)
         reliability: D-scorer 可靠度 (0~1)
     """

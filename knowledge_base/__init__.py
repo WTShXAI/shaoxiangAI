@@ -1,7 +1,7 @@
 """
-哨响AI v4.0 — 知识底座 (Knowledge Base)
+哨响AI v5.0 — 知识底座 (Knowledge Base)
 =========================================
-v4.0架构 L5层。五库一索引的足球AI知识管理系统。
+v5.0架构 L5层。五库一索引的足球AI知识管理系统。
 
 五库:
     1. football_domain     — 足球领域知识 (联赛DNA、球队分层、主客场因子)
@@ -46,7 +46,7 @@ class KnowledgeEntry:
     responsible_expert: str = ""        # 负责专家
     tags: List[str] = field(default_factory=list)
     severity: str = "info"              # info | warning | critical
-    version_added: str = "v4.0"
+    version_added: str = "v5.0"
     last_updated: str = ""
 
     def matches_query(self, query: str) -> bool:

@@ -90,7 +90,7 @@ def cmd_predict(args: argparse.Namespace) -> None:
     engine.run()
 
 def cmd_agent(args: argparse.Namespace) -> None:
-    """运行6层AI智能体对话 (v4.0 Six-Layer Engine)"""
+    """运行6层AI智能体对话 (v5.0 Six-Layer Engine)"""
     from modules.six_layer_conversation import SixLayerConversationEngine
 
     engine = SixLayerConversationEngine()
@@ -103,7 +103,7 @@ def cmd_agent(args: argparse.Namespace) -> None:
         # 交互模式
         print("""
 ╔══════════════════════════════════════════════════╗
-║    哨响AI v4.0 — 6层AI智能体                     ║
+║    哨响AI v5.0 — 6层AI智能体                     ║
 ║    输入 'exit' 退出                               ║
 ╚══════════════════════════════════════════════════╝
 """)

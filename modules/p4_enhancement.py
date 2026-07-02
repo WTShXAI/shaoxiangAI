@@ -1,5 +1,5 @@
 """
-哨响AI v4.0 — P4 智能增强引擎 (Knowledge Auto-Updater + Transfer + Multi-Bookmaker)
+哨响AI v5.0 — P4 智能增强引擎 (Knowledge Auto-Updater + Transfer + Multi-Bookmaker)
 =====================================================================================
 P4剩余任务。三大增强模块:
 

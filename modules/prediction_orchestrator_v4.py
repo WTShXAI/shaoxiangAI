@@ -1,7 +1,7 @@
 """
-哨响AI v4.0 — 预测编排器 (Prediction Orchestrator V4)
+哨响AI v5.0 — 预测编排器 (Prediction Orchestrator V4)
 =======================================================
-P1 核心协同模块。将 v4.0 五大 P0 模块串联为完整预测管线。
+P1 核心协同模块。将 v5.0 五大 P0 模块串联为完整预测管线。
 
 管线流程:
     NL/API 输入
@@ -24,8 +24,8 @@ P1 核心协同模块。将 v4.0 五大 P0 模块串联为完整预测管线。
 
 设计原则:
     1. 复用现有 PredictionService (不改动 v3.2 管线)
-    2. v4.0 层作为增强壳 (非破坏性升级)
-    3. 降级保障: v4.0 层故障 → 自动回退原始 v3.2 输出
+    2. v5.0 层作为增强壳 (非破坏性升级)
+    3. 降级保障: v5.0 层故障 → 自动回退原始 v3.2 输出
 
 作者: Architecture · P1 Phase
 日期: 2026-06-18
@@ -38,7 +38,7 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
-# v4.0 模块
+# v5.0 模块
 from modules.intent_classifier_v2 import (
     IntentClassifierV2, RouteResult, classify_intent,
 )
@@ -62,7 +62,7 @@ from utils.constants import DEFAULT_HOME_PROB, DEFAULT_DRAW_PROB, DEFAULT_AWAY_P
 
 @dataclass
 class OrchestrationResult:
-    """一次完整的 v4.0 预测编排结果"""
+    """一次完整的 v5.0 预测编排结果"""
     # 意图信息
     intent: Optional[RouteResult] = None
     is_nl_input: bool = False
@@ -77,19 +77,19 @@ class OrchestrationResult:
     fused_prediction: Optional[FusedPrediction] = None
 
     # 元信息
-    pipeline_version: str = "v4.0-p1"
+    pipeline_version: str = "v5.0-p1"
     total_time_ms: float = 0.0
     fallback_triggered: bool = False
     fallback_reason: str = ""
     errors: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict:
-        """完整输出 (含 v4.0 增强信息)"""
+        """完整输出 (含 v5.0 增强信息)"""
         result = {}
         if self.prediction:
             result.update(self.prediction.to_dict())
 
-        # v4.0 增强层
+        # v5.0 增强层
         result["v4_enhancement"] = {
             "intent": self.intent.to_dict() if self.intent else None,
             "collaboration_mode": self.collaboration_mode,
@@ -111,18 +111,18 @@ class OrchestrationResult:
         return result
 
     def to_v3_compat(self) -> Dict:
-        """纯 v3.2 兼容输出 (去掉 v4.0 增强层)"""
+        """纯 v3.2 兼容输出 (去掉 v5.0 增强层)"""
         if self.prediction:
             return self.prediction.to_v3_compat()
         return {"prediction": {"home": DEFAULT_HOME_PROB, "draw": DEFAULT_DRAW_PROB, "away": DEFAULT_AWAY_PROB}, "confidence": DEFAULT_CONFIDENCE}
 
 # ═══════════════════════════════════════════════════════════════
-# 2. v4.0 预测编排器
+# 2. v5.0 预测编排器
 # ═══════════════════════════════════════════════════════════════
 
 class PredictionOrchestratorV4:
     """
-    v4.0 预测编排器 — 全链路协调中心
+    v5.0 预测编排器 — 全链路协调中心
 
     串联: 意图识别 → 专家调度 → 模型推理 → 知识增强 → 术语注入 → 标准化输出
     """
@@ -180,7 +180,7 @@ class PredictionOrchestratorV4:
         """
         API 模式: 结构化参数直接预测
 
-        适用场景: 后端 API 调用, 已有预测结果需要 v4.0 增强包装
+        适用场景: 后端 API 调用, 已有预测结果需要 v5.0 增强包装
 
         Args:
             home_team: 主队名
@@ -220,7 +220,7 @@ class PredictionOrchestratorV4:
                     home=h_prob, draw=d_prob, away=a_prob,
                     expert_id="prediction_service",
                     confidence=confidence or 0.5,
-                    summary=f"{home_team} vs {away_team} v4.0 预测",
+                    summary=f"{home_team} vs {away_team} v5.0 预测",
                 )
             else:
                 # 无概率 → 尝试调用实际 PredictionService
@@ -263,13 +263,13 @@ class PredictionOrchestratorV4:
             result.fallback_triggered = True
             result.fallback_reason = str(e)
             result.errors.append(str(e))
-            result.prediction = create_fallback_prediction(f"v4.0 编排异常: {e}")
+            result.prediction = create_fallback_prediction(f"v5.0 编排异常: {e}")
         except Exception as e:
             logger.critical(f"[V4 Orchestrator] 未预期错误: {e}", exc_info=True)
             result.fallback_triggered = True
             result.fallback_reason = str(e)
             result.errors.append(str(e))
-            result.prediction = create_fallback_prediction(f"v4.0 编排异常: {e}")
+            result.prediction = create_fallback_prediction(f"v5.0 编排异常: {e}")
 
         result.total_time_ms = (time.perf_counter() - start) * 1000
         return result
@@ -360,7 +360,8 @@ class PredictionOrchestratorV4:
             result.fallback_triggered = True
             result.fallback_reason = str(e)
             result.errors.append(str(e))
-            result.prediction = create_fallback_prediction(f"v4.0 编排异常: {e}")
+            result.prediction = create_fallback_prediction(f"v5.0 编排异常: {e}")
+
 
         result.total_time_ms = (time.perf_counter() - start) * 1000
         return result
@@ -468,7 +469,7 @@ class PredictionOrchestratorV4:
 
                 # 将完整报告附加到 evidence
                 result.prediction.evidence.data_sources.append(
-                    f"OddsDeepAnalyzer v4.0 (risk={report.overall_risk})"
+                    f"OddsDeepAnalyzer v5.0 (risk={report.overall_risk})"
                 )
                 result.prediction.evidence.degradation_indicators.extend(
                     [f"[庄家信号] {report.bookmaker_signal}"]

@@ -543,8 +543,8 @@ class PredictionService:
 
                 # ── Step 2: D-specialist概率 (OE+Heuristic加权, 权重按F1_D强度) ──
                 # Heuristic F1_D=0.422 > OE F1_D=0.376 → 权重0.55/0.45
-                # v4.0: DrawExpert可选参与 (若可用)
-                de_pdraw = model.get_de_output()  # v4.0: DrawExpert P(Draw)
+                # v5.0: DrawExpert可选参与 (若可用)
+                de_pdraw = model.get_de_output()  # v5.0: DrawExpert P(Draw)
 
                 # Phase 0: DrawExpert不可用→drawgate_v53 兜底 (何执策方案A)
                 # NOTE: 原532行引用 oh/od/oa/handicap_line/ou_line/league_name —— 这些变量在
@@ -571,20 +571,20 @@ class PredictionService:
                             dg_draw_prob = p_d_o + draw_boost * 0.25
                             de_pdraw = min(max(dg_draw_prob, 0.0), 1.0)
                             logger.debug(
-                                f"[D-Gate v4.0] DrawExpert缺省→drawgate_v53兜底: "
+                                f"[D-Gate v5.0] DrawExpert缺省→drawgate_v53兜底: "
                                 f"P(D)={de_pdraw:.3f} boost={draw_boost:.3f} mode={dg_result.get('dgate_mode','?')}"
                             )
                     except ImportError:
-                        logger.debug("[D-Gate v4.0] drawgate_v53 不可用，跳过DrawExpert兜底")
+                        logger.debug("[D-Gate v5.0] drawgate_v53 不可用，跳过DrawExpert兜底")
                     except (Exception,) as e:
-                        logger.debug(f"[D-Gate v4.0] drawgate_v53 兜底异常: {e}")
+                        logger.debug(f"[D-Gate v5.0] drawgate_v53 兜底异常: {e}")
 
                 if d_oe is not None and de_pdraw is not None:
-                    # v4.0: 三信号源融合 (Heuristic + OE + DrawExpert)
+                    # v5.0: 三信号源融合 (Heuristic + OE + DrawExpert)
                     d_spec = 0.40 * d_heur + 0.30 * d_oe + 0.30 * de_pdraw
                     h_spec = 0.55 * h_heur + 0.45 * h_oe  # H/A: 不含DrawExpert
                     a_spec = 0.55 * a_heur + 0.45 * a_oe
-                    logger.debug(f"[D-Gate v4.0] DrawExpert参与D-specialist: P(D)={de_pdraw:.3f}")
+                    logger.debug(f"[D-Gate v5.0] DrawExpert参与D-specialist: P(D)={de_pdraw:.3f}")
                 elif d_oe is not None:
                     d_spec = 0.55 * d_heur + 0.45 * d_oe
                     h_spec = 0.55 * h_heur + 0.45 * h_oe
@@ -594,7 +594,7 @@ class PredictionService:
                     d_spec = 0.55 * d_heur + 0.45 * de_pdraw
                     h_spec = h_heur
                     a_spec = a_heur
-                    logger.debug(f"[D-Gate v4.0] OE无信号, DrawExpert备用: P(D)={de_pdraw:.3f}")
+                    logger.debug(f"[D-Gate v5.0] OE无信号, DrawExpert备用: P(D)={de_pdraw:.3f}")
                 else:
                     # OE无信号 → D-specialist退化为纯Heuristic
                     d_spec = d_heur

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-哨响AI v4.0 — 单文件一键启动
+哨响AI v4.1 — 单文件一键启动
 ===============================
 单人维护版: 一行命令启动全部服务。
 
@@ -24,7 +24,7 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 def main():
     parser = argparse.ArgumentParser(
-        description="哨响AI v4.0 — 单人维护版一键启动",
+        description="哨响AI v4.1 — 单人维护版一键启动",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:

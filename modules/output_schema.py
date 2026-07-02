@@ -1,7 +1,7 @@
 """
-哨响AI v4.0 — 统一输出Schema (Unified Output Schema)
+哨响AI v5.0 — 统一输出Schema (Unified Output Schema)
 =====================================================
-v4.0架构核心模块。所有专家、模型、分析模块的输出都必须遵循此标准。
+v5.0架构核心模块。所有专家、模型、分析模块的输出都必须遵循此标准。
 
 五元组标准:
     probability   — 三分类概率 (H/D/A)，和为1
@@ -161,7 +161,7 @@ class EvidencePackage:
 @dataclass
 class UnifiedPrediction:
     """
-    v4.0 统一预测输出 — 所有专家、模型、分析模块的标准输出格式
+    v5.0 统一预测输出 — 所有专家、模型、分析模块的标准输出格式
 
     五元组:
         probability:   ThreeWayProbability — 核心三分类概率

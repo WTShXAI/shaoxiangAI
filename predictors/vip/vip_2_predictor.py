@@ -378,7 +378,7 @@ class VIP2Predictor:
                 model_probs_raw, corrected_probs,
             }
         """
-        # ── v4.0: 自动注入球队上下文 (TeamDataCollector) ──
+        # ── v5.0: 自动注入球队上下文 (TeamDataCollector) ──
         home_team = match.get('home', '')
         away_team = match.get('away', '')
         team_context = None

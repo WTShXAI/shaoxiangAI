@@ -1,7 +1,7 @@
 """
 [DEPRECATED] P0-1: 此文件的 load_model() 直接使用 joblib.load 绕过 ModelBridge，存在数据泄露风险。
 生产预测请使用 agents.model_bridge.ModelBridge.predict()
-FootballAI Enhanced Model (v4.0)
+FootballAI Enhanced Model (v5.0)
 基于 33,589 场比赛增强数据的集成预测模型
 
 架构: XGBoost (0.45) + Calibrated Ridge (0.35) + Poisson (0.20)
@@ -54,7 +54,7 @@ def _get_adaptive_training():
     return AdaptiveTrainingStrategy
 
 class FootballAIEnhanced:
-    """基于增强数据的 FootballAI 集成模型 (v4.0)"""
+    """基于增强数据的 FootballAI 集成模型 (v5.0)"""
 
     # ── CSV → 模型 列名映射 ──
     # CSV 格式: home_last_5_wins; 用户期望: last_5_wins_home
@@ -71,7 +71,7 @@ class FootballAIEnhanced:
         'avg_goals_against_away':'away_avg_goals_against',
     }
 
-    def __init__(self, model_version: str = "v4.0"):
+    def __init__(self, model_version: str = "v5.0"):
         self.model_version = model_version
         self.xgb_model = None
         self.ridge_model = None  # CalibratedClassifierCV wrapping RidgeClassifier

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-哨响AI — 统一分析报告生成器 v4.0（8章节固定协议版）
+哨响AI — 统一分析报告生成器 v5.0（8章节固定协议版）
 =====================================================
 基于固定分析协议(analysis_protocol)，统一所有分析输出格式。
 
@@ -76,7 +76,7 @@ def generate_report(
     totals_under_t1: float = 0.0,
     model_results: Optional[Dict] = None,
     backtest_stats: Optional[Dict] = None,
-    # v4.0 协议参数
+    # v5.0 协议参数
     api_odds: Optional[Dict] = None,
     image_odds: Optional[Dict] = None,
     odds_comparison: Optional[Dict] = None,
@@ -89,7 +89,7 @@ def generate_report(
     score_predictions: Optional[List] = None,
 ) -> str:
     """
-    生成统一格式的欧盘分析报告（v4.0 固定8章节协议版）
+    生成统一格式的欧盘分析报告（v5.0 固定8章节协议版）
 
     注意：移除了confidence参数，不输出任何置信度信息
     """
@@ -118,7 +118,7 @@ def generate_report(
     lines.append(sep)
     lines.append(f"赛事: {league}")
     lines.append(f"分析时间: {now}")
-    lines.append(f"协议版本: v4.0 固定分析协议（8章节）")
+    lines.append(f"协议版本: v5.0 固定分析协议（8章节）")
     lines.append("")
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -394,7 +394,7 @@ def generate_report(
     lines.append("")
     lines.append(sep)
     lines.append(f"生成时间: {now}")
-    lines.append("模型: OTSM v4.0 + AORE 四模型融合 (纯欧盘)")
+    lines.append("模型: OTSM v5.0 + AORE 四模型融合 (纯欧盘)")
     lines.append("协议: 固定分析协议 v1.0（8章节）")
     lines.append("注意: 本分析仅使用欧盘1X2数据")
 
@@ -506,7 +506,7 @@ def generate_from_report_data(report_data: Dict) -> str:
 
 if __name__ == "__main__":
     # 使用示例数据
-    print("生成示例分析报告（v4.0 8章节固定协议版）...")
+    print("生成示例分析报告（v5.0 8章节固定协议版）...")
 
     sample_report = generate_report(
         home_team="卡塔尔",

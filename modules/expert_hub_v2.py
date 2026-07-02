@@ -1,7 +1,7 @@
 """
-哨响AI v4.0 — 专家调度框架 v2 (ExpertHub v2)
+哨响AI v5.0 — 专家调度框架 v2 (ExpertHub v2)
 ===============================================
-v4.0架构核心模块。在 v3.0 ExpertHub 基础上:
+v5.0架构核心模块。在 v3.0 ExpertHub 基础上:
     1. 新增 WorkBuddyExpertSpec — 11位WorkBuddy专家声明式描述
     2. 新增 CollaborationScheduler — 四类协同模式(A/B/C/D)调度逻辑
     3. 新增 DomainDispatcher — 按领域域名组并行调度
@@ -397,12 +397,12 @@ class CollaborationScheduler:
         return results
 
 # ═══════════════════════════════════════════════════════════════
-# 5. v4.0 ExpertHub 扩展
+# 5. v5.0 ExpertHub 扩展
 # ═══════════════════════════════════════════════════════════════
 
 class ExpertHubV2:
     """
-    v4.0 专家中心调度器 — 兼容 v3.0 ExpertHub
+    v5.0 专家中心调度器 — 兼容 v3.0 ExpertHub
 
     新增能力:
         - WorkBuddy专家注册与管理
@@ -450,7 +450,7 @@ class ExpertHubV2:
         algo_experts = self.get_algorithm_experts()
         eng_experts = self.get_engineering_experts()
         return {
-            "version": "v4.0",
+            "version": "v5.0",
             "total_experts": len(self.wb_experts),
             "algorithm_experts": len(algo_experts),
             "engineering_experts": len(eng_experts),
@@ -563,7 +563,7 @@ def reset_hub():
 def describe_experts() -> str:
     """生成专家团描述"""
     hub = get_hub()
-    lines = ["=== FootballAI v4.0 专家团 ===\n"]
+    lines = ["=== FootballAI v5.0 专家团 ===\n"]
     lines.append("【算法技术序列 8人】")
     for name in ["郝优算", "季泊松", "杜博弈", "荣合众", "曾均衡", "施时序", "毕建模", "齐优化"]:
         spec = hub.get_expert(name)

@@ -432,11 +432,11 @@ async def predict_multi_market(req: PredictionRequest):
         raise HTTPException(status_code=500, detail=f"预测失败: {str(e)}")
 
 # ═══════════════════════════════════════════════════════════════
-# v4.0 多专家协同预测端点 (P1-2)
+# v5.0 多专家协同预测端点 (P1-2)
 # ═══════════════════════════════════════════════════════════════
 
 class V4PredictRequest(BaseModel):
-    """v4.0 预测请求"""
+    """v5.0 预测请求"""
     home_team: str = Field(..., description="主队名")
     away_team: str = Field(..., description="客队名")
     league: Optional[str] = Field(None, description="联赛名")
@@ -454,7 +454,7 @@ class V4PredictRequest(BaseModel):
         return v
 
 class V4PredictResponse(BaseModel):
-    """v4.0 预测响应"""
+    """v5.0 预测响应"""
     home_team: str
     away_team: str
     league: Optional[str] = None
@@ -462,7 +462,7 @@ class V4PredictResponse(BaseModel):
     probabilities: dict  # {home, draw, away}
     top_pick: str
     confidence: float
-    # v4.0 增强层
+    # v5.0 增强层
     collaboration_mode: str
     experts_scheduled: List[str]
     intent: Optional[dict] = None
@@ -471,14 +471,14 @@ class V4PredictResponse(BaseModel):
     # 兼容层
     v3_compat: Optional[dict] = None
     # 元信息
-    pipeline_version: str = "v4.0-p1"
+    pipeline_version: str = "v5.0-p1"
     execution_time_ms: float = 0.0
     fallback_triggered: bool = False
 
 @router.post("/v4", response_model=V4PredictResponse)
 async def predict_v4(request: V4PredictRequest):
     """
-    v4.0 多专家协同预测
+    v5.0 多专家协同预测
 
     支持两种输入模式:
     1. **结构化模式**: 仅提供 home_team/away_team → 直接预测
@@ -560,15 +560,15 @@ async def predict_v4(request: V4PredictRequest):
         raise HTTPException(status_code=400, detail=f"参数错误: {str(e)}")
     except Exception as e:
         logger.error(f"[V4] 预测失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"v4.0 预测失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"v5.0 预测失败: {str(e)}")
 
 # ═══════════════════════════════════════════════════════════════
-# v4.0 系统健康端点 (P4)
+# v5.0 系统健康端点 (P4)
 # ═══════════════════════════════════════════════════════════════
 
 @router.get("/v4/health")
 async def v4_health():
-    """v4.0 系统健康状态 + 专家团信息"""
+    """v5.0 系统健康状态 + 专家团信息"""
     try:
         from modules.auto_optimizer import get_optimizer
         from modules.expert_hub_v2 import get_hub, describe_experts
@@ -582,7 +582,7 @@ async def v4_health():
         kb_stats = kb.get_stats()
 
         return _ensure_json_serializable({
-            "version": "v4.0-p4",
+            "version": "v5.0-p4",
             "health": status["health"],
             "health_advice": status["health_advice"],
             "performance": status["performance"]["current"],
@@ -606,7 +606,7 @@ async def v4_health():
     except Exception as e:
         # 离线模式: 返回静态信息
         return _ensure_json_serializable({
-            "version": "v4.0-p4",
+            "version": "v5.0-p4",
             "health": "healthy",
             "health_advice": "✅ 系统健康",
             "performance": {"accuracy": 0.592, "d_f1": 0.504},
@@ -621,7 +621,7 @@ async def v4_health():
         })
 
 # ═══════════════════════════════════════════════════════════════
-# v4.0 赛后复盘/回测端点 (P4+)
+# v5.0 赛后复盘/回测端点 (P4+)
 # ═══════════════════════════════════════════════════════════════
 
 class BacktestRequest(BaseModel):
@@ -637,7 +637,7 @@ class BacktestResponse(BaseModel):
 
 @router.post("/v4/backtest", response_model=BacktestResponse)
 async def v4_backtest(request: BacktestRequest):
-    """v4.0 赛后复盘回测"""
+    """v5.0 赛后复盘回测"""
     try:
         from modules.post_match_analyzer import PostMatchAnalyzer
         from modules.prediction_orchestrator_v4 import get_orchestrator
