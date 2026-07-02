@@ -18,7 +18,7 @@
   - 全链路可追溯: 每次降级都记录原因和时间戳
   - 恢复自动: 模块恢复后自动切回高级链路
 
-作者: Architecture v4.0 · Resilience Phase
+作者: Architecture · Resilience Phase
 日期: 2026-06-19
 """
 from __future__ import annotations

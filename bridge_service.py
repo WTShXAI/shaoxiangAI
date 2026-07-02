@@ -8,7 +8,7 @@
                                        └─> D-Gate / OU联动 / 模型 / TaoGe策略
 
 启动:
-  "D:\\Architecture v4.0\\.venv\\Scripts\\python.exe" bridge_service.py
+  "D:\\Architecture\\.venv\\Scripts\\python.exe" bridge_service.py
   或: python bridge_service.py --port 8000
 
 端点:

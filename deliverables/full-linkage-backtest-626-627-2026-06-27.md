@@ -3,7 +3,7 @@
 **回测时间**: 2026-06-27 13:59 CST  
 **回测样本**: 11场 (6/26五场 + 6/27六场)  
 **已完赛**: 7场 / 待定: 4场 / 错误: 0  
-**venv**: 本地 D:\Architecture v4.0\.venv (Python 3.11.9 + torch 2.6.0+cu124 + CUDA)
+**venv**: 本地 D:\Architecture\.venv (Python 3.11.9 + torch 2.6.0+cu124 + CUDA)
 
 ---
 

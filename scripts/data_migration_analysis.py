@@ -4,7 +4,7 @@
 功能：
 1. 从 D:\AI\footballAI\data\football_data.db 导入历史比赛数据
 2. 从 D:\AI\SP\data\sp_data.db 导入五大联赛赔率数据
-3. 清洗、格式对齐后注入 D:\Architecture v4.0 项目数据库
+3. 清洗、格式对齐后注入 D:\Architecture 项目数据库
 4. 基于历史数据执行深度回测分析
 """
 import sys
@@ -16,7 +16,7 @@ from pathlib import Path
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
-PROJECT_ROOT = Path(r"D:\Architecture v4.0")
+PROJECT_ROOT = Path(r"D:\Architecture")
 sys.path.insert(0, str(PROJECT_ROOT))
 def analyze_source_databases():
     """分析源数据库中的数据量"""

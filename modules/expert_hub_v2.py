@@ -14,7 +14,7 @@ v4.0架构核心模块。在 v3.0 ExpertHub 基础上:
     模式C (平局攻坚): 曾均衡主导 → 季泊松+荣合众辅助
     模式D (系统迭代): 全团联动 → 并行诊断 → 交叉评审 → 优化
 
-作者: Architecture v4.0
+作者: Architecture
 日期: 2026-06-18
 """
 from __future__ import annotations

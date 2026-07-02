@@ -15,7 +15,7 @@
   # 任何层读
   print(ctx.odds_1x2)
 
-作者: Architecture v4.0 · P0 Phase
+作者: Architecture · P0 Phase
 日期: 2026-06-19
 """
 from __future__ import annotations

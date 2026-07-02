@@ -15,7 +15,7 @@
   3. 射手榜攻击力对比
   4. 操盘手视角反推: 如果你是庄家, 如何平衡窗口
 
-作者: Architecture v4.0
+作者: Architecture
 日期: 2026-06-19
 """
 from __future__ import annotations
@@ -98,7 +98,7 @@ class MatchAnalyzer:
             import importlib.util
             spec = importlib.util.spec_from_file_location(
                 'scorer_tracker',
-                'D:/Architecture v4.0/modules/scorer_tracker.py'
+                'D:/Architecture/modules/scorer_tracker.py'
             )
             stmod = importlib.util.module_from_spec(spec)
             import sys

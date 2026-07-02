@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>哨响AI v5.2.12 — WC2026 预测系统架构 + 实时赔率分析引擎</title>
+<title>哨响AI v5.24 — WC2026 预测系统架构 + 实时赔率分析引擎</title>
 <style>
   :root {
     --bg: #0a0e17;
@@ -308,10 +308,10 @@
 <body>
 
 <div class="hero">
-  <h1>⚽ 哨响AI v4.0</h1>
-  <div class="subtitle">D-Gate v5.2.12 · WC2026实时预测 · 45万场校准</div>
+  <h1>⚽ 哨响AI v5.24</h1>
+  <div class="subtitle">D-Gate v5.24 · WC2026淘汰赛实时预测 · 45万场校准 · 37人专家团</div>
   <div style="margin-top: 16px;">
-    <span class="version">Architecture v4.0 — 2026-06-18</span>
+    <span class="version">Architecture v5.24 — 2026-07-02</span>
   </div>
 </div>
 
@@ -324,7 +324,7 @@
   <h2><span class="icon">🏗️</span> 一、六层协同架构总览</h2>
   <p style="color: var(--text-dim); margin-bottom: 20px;">
     核心理念：<strong style="color: var(--accent2);">赔率 = 加密协议</strong>，预测本质是逆向工程还原庄家风控信号。
-    11位WorkBuddy专家 + 15个分析模块 = 全维度足球预测分析引擎。
+    37位WorkBuddy专家 + 7个部门 + 15个分析模块 = 全维度足球预测分析引擎。
   </p>
 
   <div class="arch-diagram">
@@ -363,9 +363,9 @@
         <span class="layer-item">📐 量化建模 (季泊松·毕建模)</span>
         <span class="layer-item">🎲 赔率逆向 (杜博弈·荣合众)</span>
         <span class="layer-item">⚖️ 平衡优化 (曾均衡·施时序)</span>
-        <span class="layer-item">⚙️ 工程落地 (傅稳当·舒治理)</span>
-        <span class="layer-item">⚡ 性能加速 (孙加速)</span>
-        <span class="layer-item">🎨 界面展现 (杨界面)</span>
+        <span class="layer-item">⚙️ 工程保障 (钱代驾·稳如山)</span>
+        <span class="layer-item">⚡ DevOps (稳如山·究根源)</span>
+        <span class="layer-item">🎨 设计展现 (画统筹·交付达)</span>
       </div>
     </div>
     <div class="arrow-down">⬇</div>
@@ -414,147 +414,67 @@
 </div>
 
 <!-- ============================================================ -->
-<!-- 2. 11位专家全角色定义 -->
+<!-- 2. 37位专家全角色定义 -->
 <!-- ============================================================ -->
 <div class="section">
-  <h2><span class="icon">👥</span> 二、11位专家 — 全角色能力矩阵</h2>
-  
-  <h3>🔹 算法技术序列（7人）— 分析核心引擎</h3>
-  <div class="expert-grid">
-    <div class="expert-card q">
-      <div class="expert-name">📐 季泊松 <span class="badge badge-purple">量化建模专家</span></div>
-      <div class="expert-role">Sports Quantitative Modeling Expert</div>
-      <div class="expert-duty">
-        <strong>核心能力：</strong>泊松分布概率建模 · Dixon-Coles修正 · 赔率漂移微积分特征(一阶/二阶导数) · xG/xGA预期进球模型 · 联赛风格DNA嵌入<br>
-        <strong>输出产物：</strong>三分类概率分布 · 比分分布 · 进球期望 · 联赛调整因子
-      </div>
-      <div class="expert-tags">
-        <span class="tag">Poisson</span><span class="tag">xG/xGA</span><span class="tag">赔率漂移</span><span class="tag">联赛风格</span><span class="tag">Dixon-Coles</span>
-      </div>
-    </div>
-    
-    <div class="expert-card g">
-      <div class="expert-name">🎲 杜博弈 <span class="badge badge-gold">博弈论专家</span></div>
-      <div class="expert-role">Game Theory & Odds Reverse Engineering Expert</div>
-      <div class="expert-duty">
-        <strong>核心能力：</strong>庄家赔率逆向工程 · 诱盘模式识别(12引擎) · 多机构分歧挖掘 · 凯利指数分析 · 抽水结构分解 · RP风控屏障检测<br>
-        <strong>输出产物：</strong>真实概率估计 · 诱盘警报 · 机构分歧度 · 庄家信心指数
-      </div>
-      <div class="expert-tags">
-        <span class="tag">赔率逆向</span><span class="tag">诱盘检测</span><span class="tag">凯利指数</span><span class="tag">RP屏障</span><span class="tag">庄家行为</span>
-      </div>
-    </div>
+  <h2><span class="icon">👥</span> 二、37位专家 — 7部门组织架构</h2>
+  <p style="color: var(--text-dim); margin-bottom: 16px;">赵统筹（总工）统一调度，37位专家按职能归入7个部门。</p>
 
-    <div class="expert-card s">
-      <div class="expert-name">🔗 荣合众 <span class="badge badge-green">集成学习专家</span></div>
-      <div class="expert-role">Ensemble Learning & Model Fusion Expert</div>
-      <div class="expert-duty">
-        <strong>核心能力：</strong>Stacking深度优化 · 动态权重融合 · MoE混合专家门控 · 元模型正则化 · D-Gate融合 · 弱模型自动压制<br>
-        <strong>输出产物：</strong>融合预测 · 权重分配方案 · 基模型贡献度分析 · 集成架构诊断
-      </div>
-      <div class="expert-tags">
-        <span class="tag">Stacking</span><span class="tag">动态权重</span><span class="tag">MoE</span><span class="tag">D-Gate</span><span class="tag">元模型</span>
-      </div>
-    </div>
+  <table>
+    <tr><th style="width:12%">部门</th><th style="width:8%">人数</th><th>成员</th><th>核心职责</th></tr>
+    <tr>
+      <td><span class="badge badge-gold">🎖️ 指挥官</span></td>
+      <td>2人</td>
+      <td><strong>孙策</strong>（PM）、<strong>赵统筹</strong>（总工）</td>
+      <td>需求拆解、MVP边界、版本规划、全局调度</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-purple">🧠 大脑层</span></td>
+      <td>7人</td>
+      <td><strong>何执策</strong>（策略）、<strong>毕正验</strong>（概率）、<strong>渡庄生</strong>（博弈）、<strong>费深谋</strong>（架构）、<strong>贾证数</strong>（数据科学）、<strong>法如山</strong>（合规）、<strong>魏监听</strong>（情报）</td>
+      <td>P0-P3分级、概率诊断、庄家意图、工程评估、偏移检测、合规风控、赛前情报</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-blue">⚙️ 核心引擎</span></td>
+      <td>8人</td>
+      <td><strong>季泊松</strong>（JEPA λ反演）、<strong>杜博弈</strong>（赔率逆向/D-Gate）、<strong>荣合众</strong>（Stacking集成）、<strong>施时序</strong>（时序漂移）、<strong>毕建模</strong>（VICReg校准）、<strong>曾均衡</strong>（平局攻坚）、训练师、验证师</td>
+      <td>Poisson比分、庄家意图逆向、Meta-learner融合、时序特征、概率校准、平局判型、训练+回测</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-pink">🏗️ 工程保障</span></td>
+      <td>5人</td>
+      <td><strong>钱代驾</strong>（代码产出）、<strong>严审明</strong>（代码审查）、<strong>费深谋</strong>（架构）、<strong>稳如山</strong>（SRE/CI/CD）、<strong>文载道</strong>（技术文档）</td>
+      <td>需求→代码落地、OWASP+STRIDE审计、系统设计、7x24运维、Runbook</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-green">📊 数据部</span></td>
+      <td>4人</td>
+      <td><strong>数定规</strong>（架构）、采集员、清洗员、管道员</td>
+      <td>特征工程、OCR/API采集、质量校验、SQLite/Parquet管线</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-red">✅ 质检部</span></td>
+      <td>4人</td>
+      <td><strong>严审明</strong>（产品审查）、<strong>固安生</strong>（安全）、<strong>测必过</strong>（QA验证）、<strong>究根源</strong>（排障）</td>
+      <td>代码审查、OWASP+STRIDE审计、三轮交叉验证、根因分析</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-blue">🎨 设计部</span></td>
+      <td>6人</td>
+      <td>画统筹、发现师、系统师、原型师、评审师、交付达</td>
+      <td>UI/UX设计、用户研究、设计系统、原型交互、设计交付</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-gold">📚 资产层</span></td>
+      <td>1人</td>
+      <td><strong>史为鉴</strong>（知识图谱官）</td>
+      <td>归档、复盘、认知沉淀</td>
+    </tr>
+  </table>
 
-    <div class="expert-card q">
-      <div class="expert-name">⚖️ 曾均衡 <span class="badge badge-red">不平衡分类专家</span></div>
-      <div class="expert-role">Imbalanced Classification & Minority Event Expert</div>
-      <div class="expert-duty">
-        <strong>核心能力：</strong>Draw平局专属特征设计 · 冷门检测模型 · Focal Loss/Tweedie Loss · 时序安全SMOTE · 阈值联合寻优 · 代价敏感学习<br>
-        <strong>输出产物：</strong>平局概率精细化 · 冷门预警 · 阈值推荐 · 类别平衡方案
-      </div>
-      <div class="expert-tags">
-        <span class="tag">Draw优化</span><span class="tag">冷门检测</span><span class="tag">Focal Loss</span><span class="tag">SMOTE</span><span class="tag">阈值寻优</span>
-      </div>
-    </div>
-
-    <div class="expert-card q">
-      <div class="expert-name">⏱️ 施时序 <span class="badge badge-blue">时序深度学习专家</span></div>
-      <div class="expert-role">Time Series & Deep Learning Expert</div>
-      <div class="expert-duty">
-        <strong>核心能力：</strong>Transformer/LSTM球队状态序列建模 · 赔率时序漂移信号挖掘 · NN模块升级(PyTorch/CUDA) · 实时预测技术储备<br>
-        <strong>输出产物：</strong>序列特征 · 状态向量 · NN预测 · 时序异常检测
-      </div>
-      <div class="expert-tags">
-        <span class="tag">Transformer</span><span class="tag">LSTM</span><span class="tag">时序建模</span><span class="tag">NN升级</span><span class="tag">实时预测</span>
-      </div>
-    </div>
-
-    <div class="expert-card q">
-      <div class="expert-name">📊 毕建模 <span class="badge badge-blue">数学统计专家</span></div>
-      <div class="expert-role">Mathematics & Statistical Modeling Expert</div>
-      <div class="expert-duty">
-        <strong>核心能力：</strong>概率公式推导 · 凸优化(损失函数设计) · 统计显著性检验(t-test/Wilcoxon/McNemar) · 赔率定价数学 · 全团数学底座<br>
-        <strong>输出产物：</strong>统计检验报告 · 损失函数设计 · 效应量评估 · 数学证明
-      </div>
-      <div class="expert-tags">
-        <span class="tag">统计检验</span><span class="tag">凸优化</span><span class="tag">概率推导</span><span class="tag">效应量</span><span class="tag">数学底座</span>
-      </div>
-    </div>
-
-    <div class="expert-card" style="border-left-color: #f59e0b;">
-      <div class="expert-name">🎯 郝优算 <span class="badge badge-gold">算法总工 / 团队协调</span></div>
-      <div class="expert-role">Chief Algorithm Officer & Team Lead</div>
-      <div class="expert-duty">
-        <strong>核心能力：</strong>问题拆解 · 精准调度 · 方案汇编 · 跨领域协调 · 交付把关 · 冲突仲裁<br>
-        <strong>输出产物：</strong>任务分解方案 · 专家调度计划 · 最终融合方案 · 质量把关
-      </div>
-      <div class="expert-tags">
-        <span class="tag">调度协调</span><span class="tag">方案汇编</span><span class="tag">质量把关</span><span class="tag">跨域仲裁</span>
-      </div>
-    </div>
-  </div>
-
-  <h3>🔹 工程落地序列（4人）— 系统保障引擎</h3>
-  <div class="expert-grid">
-    <div class="expert-card e">
-      <div class="expert-name">⚙️ 傅稳当 <span class="badge badge-pink">后端工程专家</span></div>
-      <div class="expert-role">Backend Engineering Expert</div>
-      <div class="expert-duty">
-        <strong>核心能力：</strong>FastAPI服务架构 · 三档降级链路 · 并发优化 · 接口熔断/限流 · 系统监控告警<br>
-        <strong>输出产物：</strong>API接口 · 降级方案 · 性能报告 · 部署方案
-      </div>
-      <div class="expert-tags">
-        <span class="tag">FastAPI</span><span class="tag">降级链</span><span class="tag">并发优化</span><span class="tag">监控告警</span>
-      </div>
-    </div>
-
-    <div class="expert-card e">
-      <div class="expert-name">💾 舒治理 <span class="badge badge-pink">数据工程专家</span></div>
-      <div class="expert-role">Data Engineering Expert</div>
-      <div class="expert-duty">
-        <strong>核心能力：</strong>特征管线工程化 · Parquet/SQLite存储优化 · 数据质量校验 · 冷启动兜底 · 增量更新机制<br>
-        <strong>输出产物：</strong>特征计算代码 · 存储方案 · 数据校验规则 · 增量调度
-      </div>
-      <div class="expert-tags">
-        <span class="tag">特征管线</span><span class="tag">Parquet</span><span class="tag">数据质量</span><span class="tag">冷启动</span>
-      </div>
-    </div>
-
-    <div class="expert-card e">
-      <div class="expert-name">⚡ 孙加速 <span class="badge badge-pink">性能工程专家</span></div>
-      <div class="expert-role">Performance Engineering Expert</div>
-      <div class="expert-duty">
-        <strong>核心能力：</strong>推理加速(INT8量化/ONNX) · GPU/CPU多硬件适配 · 模型缓存 · 全链路耗时优化 · CUDA兼容性<br>
-        <strong>输出产物：</strong>量化模型 · 性能测试报告 · 硬件适配方案
-      </div>
-      <div class="expert-tags">
-        <span class="tag">INT8量化</span><span class="tag">GPU加速</span><span class="tag">缓存设计</span><span class="tag">CUDA</span>
-      </div>
-    </div>
-
-    <div class="expert-card e">
-      <div class="expert-name">🎨 杨界面 <span class="badge badge-pink">前端开发专家</span></div>
-      <div class="expert-role">Frontend Development Expert</div>
-      <div class="expert-duty">
-        <strong>核心能力：</strong>Vue 3.4组件开发 · ECharts数据可视化 · Vite构建优化 · 响应式布局 · 前后端联调<br>
-        <strong>输出产物：</strong>前端页面 · 可视化图表 · 交互组件 · 构建产物
-      </div>
-      <div class="expert-tags">
-        <span class="tag">Vue 3</span><span class="tag">ECharts</span><span class="tag">Vite</span><span class="tag">可视化</span>
-      </div>
-    </div>
+  <div class="note" style="margin-top: 20px;">
+    <strong>调度规则：</strong>总工赵统筹统一入口 → 意图分析 → 部门路由 → 专家并行/串行执行 → 产出回传。<br>
+    <strong>核心引擎11人元老院：</strong>季泊松、杜博弈、荣合众、施时序、毕建模、曾均衡 — 六位算法专家 + 训练师/验证师 + 何执策/渡庄生/毕正验（大脑层智囊团）为分析核心。
   </div>
 </div>
 
@@ -639,7 +559,7 @@
     <tr><td>概率偏差>15pp</td><td>毕建模 + 荣合众</td><td>模型校准度、特征贡献漂移、Stacking权重失衡</td></tr>
     <tr><td>Draw漏报</td><td>曾均衡 + 季泊松</td><td>平局信号强度、泊松λ_H≈λ_A条件、D-Gate失效</td></tr>
     <tr><td>冷门漏报</td><td>杜博弈 + 曾均衡</td><td>诱盘未识别、赔率信号失真、RP屏障穿透</td></tr>
-    <tr><td>系统性偏差</td><td>郝优算(全团)</td><td>数据泄漏、特征崩塌、模型退化、概念漂移</td></tr>
+    <tr><td>系统性偏差</td><td>赵统筹(全团)</td><td>数据泄漏、特征崩塌、模型退化、概念漂移</td></tr>
   </table>
 
   <h3>场景 4：系统自主优化请求</h3>
@@ -724,10 +644,10 @@
   <h3>模式 A：全栈预测模式（6专家并行 + 2工程保障）</h3>
   <div class="highlight">
     <strong>触发条件：</strong>用户请求完整赛前预测分析<br>
-    <strong>主导专家：</strong>郝优算（调度）<br>
+    <strong>总调度：</strong>赵统筹 → 路由算法部<br>
     <strong>执行专家：</strong>季泊松(量化) ‖ 杜博弈(博弈) ‖ 荣合众(集成) ‖ 曾均衡(平局) ‖ 施时序(时序) ‖ 毕建模(统计) — 六路并行<br>
-    <strong>工程保障：</strong>舒治理(数据管线) + 傅稳当(接口降级)<br>
-    <strong>融合策略：</strong>荣合众主导 → 加权投票 → 贝叶斯融合 → 毕建模统计验证 → 郝优算把关输出
+    <strong>工程保障：</strong>数定规(数据管线) + 钱代驾(代码落地) + 稳如山(部署)<br>
+    <strong>融合策略：</strong>荣合众主导 → 加权投票 → 贝叶斯融合 → 毕建模统计验证 → 赵统筹把关输出
   </div>
 
   <h3>模式 B：赔率深度挖掘模式（博弈论域主导）</h3>
@@ -749,12 +669,12 @@
   <h3>模式 D：系统自主迭代模式（全团联动）</h3>
   <div class="highlight">
     <strong>触发条件：</strong>Acc跌幅>2pp · 特征漂移告警 · Draw-F1持续下降 · 定时周检<br>
-    <strong>总协调：</strong>郝优算<br>
+    <strong>总协调：</strong>赵统筹<br>
     <strong>四阶段流程：</strong><br>
     ① 并行诊断：季泊松+杜博弈+荣合众+曾均衡+施时序+毕建模 → 各维度诊断报告<br>
-    ② 交叉评审：郝优算汇总 → 识别交叉影响 → 拆解优化任务<br>
+    ② 交叉评审：赵统筹汇总 → 识别交叉影响 → 拆解优化任务<br>
     ③ 并行优化：各专家输出优化方案 → 毕建模统计验证<br>
-    ④ 工程落地：傅稳当+舒治理+孙加速评估 → 灰度上线 → 全量
+    ④ 工程落地：钱代驾+稳如山评估 → 灰度上线 → 全量
   </div>
 </div>
 
@@ -795,7 +715,7 @@
       <td><span class="badge badge-green">工程指标</span></td>
       <td>推理延迟P50/P99 · 错误率 · 降级触发率</td>
       <td>P99>100ms · 错误率>1%</td>
-      <td>傅稳当+孙加速</td>
+      <td>稳如山+钱代驾</td>
     </tr>
   </table>
 
@@ -839,7 +759,7 @@
   <div class="note">
     <strong>检测机制：</strong>每日计算PSI(Population Stability Index)对比训练集与近期预测数据分布。<br>
     <strong>PSI>0.25：</strong>触发特征重要性重排 → 季泊松+毕建模联合诊断 → 输出漂移根因报告<br>
-    <strong>PSI>0.5：</strong>触发紧急重训 → 郝优算召集全团 → 模式D全栈诊断+优化
+    <strong>PSI>0.5：</strong>触发紧急重训 → 赵统筹召集全团 → 模式D全栈诊断+优化
   </div>
 </div>
 
@@ -867,7 +787,7 @@
       <td>🗄️ 模型注册中心</td>
       <td>版本号 · 训练参数 · 效果指标 · 特征列表 · 训练/验证集切分</td>
       <td>每次重训后</td>
-      <td>荣合众(版本选择) · 傅稳当(部署)</td>
+      <td>荣合众(版本选择) · 钱代驾(部署)</td>
     </tr>
     <tr>
       <td>⚠️ 踩坑经验库</td>
@@ -879,13 +799,13 @@
       <td>📝 特征工程Cookbook</td>
       <td>已验证有效特征公式 · 最佳维度区间(80-100) · 特征替换规则 · 计算成本表</td>
       <td>每次特征迭代后</td>
-      <td>季泊松+舒治理</td>
+      <td>季泊松+数定规</td>
     </tr>
     <tr>
       <td>🔄 优化决策日志</td>
       <td>每次优化的原因 · 方案 · 效果 · 回滚记录</td>
       <td>每次优化后</td>
-      <td>郝优算(全局策略)</td>
+      <td>赵统筹(全局策略)</td>
     </tr>
   </table>
 </div>
@@ -899,42 +819,42 @@
   <div class="phase-timeline">
     <div class="phase-block">
       <div class="phase-num">P0</div>
-      <div class="phase-name">基础建设</div>
+      <div class="phase-name">基础建设 ✅</div>
       <div class="phase-desc">
         意图分类器<br>
         专家调度框架<br>
         统一输出格式<br>
-        <strong>周期：1-2周</strong>
+        <strong>已完成</strong>
       </div>
     </div>
     <div class="phase-block">
       <div class="phase-num">P1</div>
-      <div class="phase-name">核心协同</div>
+      <div class="phase-name">核心协同 ✅</div>
       <div class="phase-desc">
         全栈预测模式(模式A)<br>
-        6专家并行+融合<br>
+        7链联动管线<br>
         专业术语体系<br>
-        <strong>周期：2-3周</strong>
+        <strong>已完成</strong>
       </div>
     </div>
     <div class="phase-block">
       <div class="phase-num">P2</div>
-      <div class="phase-name">深度专项</div>
+      <div class="phase-name">深度专项 ✅</div>
       <div class="phase-desc">
-        赔率深度挖掘(模式B)<br>
+        赔率挖掘(模式B)<br>
         平局冷门攻坚(模式C)<br>
         赛后复盘归因<br>
-        <strong>周期：2-3周</strong>
+        <strong>已完成</strong>
       </div>
     </div>
     <div class="phase-block">
       <div class="phase-num">P3</div>
-      <div class="phase-name">自主进化</div>
+      <div class="phase-name">自主进化 🔄</div>
       <div class="phase-desc">
         性能监控面板<br>
         A/B实验框架<br>
         自动重训+漂移检测<br>
-        <strong>周期：3-4周</strong>
+        <strong>进行中</strong>
       </div>
     </div>
     <div class="phase-block">
@@ -944,7 +864,7 @@
         实时预警推送<br>
         知识图谱自动更新<br>
         跨联赛迁移学习<br>
-        <strong>周期：4-6周</strong>
+        <strong>规划中</strong>
       </div>
     </div>
   </div>
@@ -985,7 +905,7 @@
     </tr>
     <tr>
       <td>硬件适配</td>
-      <td>i7-13700K + RTX 5070 Ti + 32GB RAM · Python 3.11.9</td>
+      <td>i7-13700K + RTX 5070 Ti + 32GB RAM · Python 3.13.12</td>
       <td>推理延迟P99≤100ms(CPU) · GPU可选加速 · CUDA降级兜底</td>
     </tr>
   </table>
@@ -995,53 +915,53 @@
 <!-- 10. 立即行动项 -->
 <!-- ============================================================ -->
 <div class="section">
-  <h2><span class="icon">🚀</span> 十、立即行动项（P0 — 本周启动）</h2>
+  <h2><span class="icon">🚀</span> 十、立即行动项（P0 — 持续迭代）</h2>
   
   <table>
     <tr><th>#</th><th>行动项</th><th>负责专家</th><th>产出</th><th>优先级</th></tr>
     <tr>
       <td>1</td>
-      <td><strong>意图分类器开发</strong> — 基于现有NaiveBayes扩展，支持prediction/analysis/backtest/optimize/explain五大意图</td>
-      <td>郝优算 + 毕建模</td>
-      <td>intent_classifier_v2.py</td>
+      <td><strong>v5.24淘汰赛铁律验证</strong> — 巴西vs荷兰等1/8决赛实盘验证淘汰赛屠杀降级+D-Gate分类</td>
+      <td>赵统筹 + 杜博弈</td>
+      <td>回测验证报告</td>
       <td><span class="badge badge-red">P0</span></td>
     </tr>
     <tr>
       <td>2</td>
-      <td><strong>统一输出Schema定义</strong> — 所有专家输出标准化：probability/distribution/reasoning/confidence/evidence五元组</td>
-      <td>荣合众 + 傅稳当</td>
-      <td>output_schema.py + API文档</td>
+      <td><strong>v5.18平局方向保护回测</strong> — 确认平局方向时hcp约束跳过不影响其他场景</td>
+      <td>毕建模 + 曾均衡</td>
+      <td>回归测试报告</td>
       <td><span class="badge badge-red">P0</span></td>
     </tr>
     <tr>
       <td>3</td>
-      <td><strong>专家调度框架升级</strong> — ExpertHub接入WorkBuddy专家体系，打通调用链路</td>
-      <td>郝优算 + 傅稳当</td>
-      <td>expert_hub_v2.py</td>
-      <td><span class="badge badge-red">P0</span></td>
+      <td><strong>淘汰赛战术修正模块</strong> — tactical_modifier.py强化淘汰赛保守偏移(-0.25)</td>
+      <td>季泊松 + 钱代驾</td>
+      <td>tactical_modifier_v2.py</td>
+      <td><span class="badge badge-gold">P1</span></td>
     </tr>
     <tr>
       <td>4</td>
-      <td><strong>知识库冷启动</strong> — 将共享记忆中的经验教训、踩坑记录结构化为知识底座</td>
-      <td>舒治理</td>
-      <td>knowledge_base/ 目录</td>
+      <td><strong>必发平局异常热分类</strong> — 弱队防守强度→异常热真实信号 vs 诱平陷阱自动判别</td>
+      <td>杜博弈 + 渡庄生</td>
+      <td>draw_heat_classifier.py</td>
       <td><span class="badge badge-gold">P1</span></td>
     </tr>
     <tr>
       <td>5</td>
-      <td><strong>专业术语词典</strong> — 建立中英对照术语表，注入所有专家输出模板</td>
-      <td>季泊松 + 杜博弈</td>
-      <td>terminology.yaml</td>
+      <td><strong>72场完整回测报告</strong> — 汇总全部WC2026完赛场次回测指标</td>
+      <td>验证师 + 史为鉴</td>
+      <td>full_backtest_72.md</td>
       <td><span class="badge badge-gold">P1</span></td>
     </tr>
   </table>
 </div>
 
 <!-- ============================================================ -->
-<!-- D-Gate v5.2.12 平局检测引擎 -->
+<!-- D-Gate v5.24 平局检测引擎 -->
 <!-- ============================================================ -->
 <div class="section">
-  <h2><span class="icon">🧠</span> D-Gate v5.2.12 — 五层平局检测引擎</h2>
+  <h2><span class="icon">🧠</span> D-Gate v5.24 — 五层平局检测引擎 + 淘汰赛铁律</h2>
   
   <div class="grid-3" style="grid-template-columns: repeat(5,1fr); gap: 12px; margin-bottom: 24px;">
     <div class="card" style="border-top: 4px solid #ef4444;">
@@ -1084,6 +1004,35 @@
     <tr><td>4</td><td>单场防线检查</td><td>total=1 + 对手ga90≥2.0</td><td>数据不足+已知漏洞 → d_boost×0.75, thresh=0.28</td></tr>
     <tr><td>5</td><td>同类赔率屠杀偏</td><td>同类比赛50%+屠杀</td><td>d_boost×0.85</td></tr>
   </table>
+
+  <h3>🆕 v5.24 淘汰赛铁律 (2026-06-30 1/16决赛回测驱动)</h3>
+  <table>
+    <tr><th>铁律</th><th>触发条件</th><th>效果</th><th>案例</th></tr>
+    <tr>
+      <td><span class="badge badge-red">淘汰赛屠杀降级</span></td>
+      <td>淘汰赛 + 弱队GA<1.2</td>
+      <td>清除屠杀预警, 禁止Priority Gate短路</td>
+      <td>德国vs巴拉圭: 德国7-1库拉索(小组赛)≠淘汰赛, 巴拉圭GA=0.33→1-1</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-red">淘汰赛D-Gate分类</span></td>
+      <td>淘汰赛 + 弱队GA<1.2 + D-Gate ignore_draw</td>
+      <td>ignore_draw信号不可靠, 保留平局</td>
+      <td>必发平局异常热(成交24.2%)→非诱平陷阱, 是真实信号</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-gold">平局方向保护</span></td>
+      <td>v5.18 hcp方向约束 + primary='平局'</td>
+      <td>跳过方向过滤, 平局比分保留在候选池</td>
+      <td>荷兰vs摩洛哥: 方向让平/让负但比分1-0→矛盾修复</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-gold">淘汰赛部分降级</span></td>
+      <td>淘汰赛 + 弱队GA<1.5 + gap<3.0</td>
+      <td>屠杀降级但不完全清除, 保守分析</td>
+      <td>淘汰赛整体保守化, 进攻偏置-0.25(原-0.10)</td>
+    </tr>
+  </table>
 </div>
 
 <!-- ============================================================ -->
@@ -1106,8 +1055,8 @@
     </div>
     <div class="card">
       <h4>🌐 实时数据</h4>
-      <div style="font-size:2em;color:var(--purple)">44<small>场</small></div>
-      <p>WC2026已完赛<br>比分1-1最高频(16%)<br>avg=3.05球</p>
+      <div style="font-size:2em;color:var(--purple)">72<small>场</small></div>
+      <p>WC2026已完赛<br>比分1-1最高频(16%)<br>avg=2.89球</p>
       <span class="badge badge-gold">football-data.org</span>
     </div>
   </div>
@@ -1123,7 +1072,7 @@
     <span style="color:var(--accent);font-size:1.5em">→</span>
     <div class="card" style="text-align:center; min-width:100px;"><h4>隐含概率</h4><p style="font-size:0.75em">1X2→imp<br>去抽水归一化</p></div>
     <span style="color:var(--accent);font-size:1.5em">→</span>
-    <div class="card" style="text-align:center; min-width:140px; border:2px solid var(--gold);"><h4>D-Gate v5.2.12</h4><p style="font-size:0.75em">五层递进+安全阀<br>34场回测64.7%</p></div>
+    <div class="card" style="text-align:center; min-width:140px; border:2px solid var(--gold);"><h4>D-Gate v5.24</h4><p style="font-size:0.75em">五层递进+安全阀<br>+淘汰赛铁律<br>72场回测~65%</p></div>
     <span style="color:var(--accent);font-size:1.5em">→</span>
     <div class="card" style="text-align:center; min-width:100px;"><h4>泊松λ</h4><p style="font-size:0.75em">OU锚定<br>λ≈OU+diff/300</p></div>
     <span style="color:var(--accent);font-size:1.5em">→</span>
@@ -1135,23 +1084,23 @@
 <!-- 关键指标仪表 -->
 <!-- ============================================================ -->
 <div class="section">
-  <h2><span class="icon">📈</span> WC2026 回测指标 (34场)</h2>
+  <h2><span class="icon">📈</span> WC2026 回测指标 (72场 v5.24)</h2>
   <div class="grid-4" style="grid-template-columns: repeat(4,1fr);">
     <div class="card" style="text-align:center;">
-      <div style="font-size:2em;color:var(--green)">64.7%</div>
-      <p>方向盘口准确率<br><small>vs v5.2.3: 58.8% (+5.9pp)</small></p>
+      <div style="font-size:2em;color:var(--green)">~65%</div>
+      <p>方向盘口准确率<br><small>含1/16决赛: 3场中2</small></p>
     </div>
     <div class="card" style="text-align:center;">
-      <div style="font-size:2em;color:var(--accent)">29.4%</div>
-      <p>精确比分命中<br><small>vs v5.2.3: 17.6% (+11.8pp)</small></p>
+      <div style="font-size:2em;color:var(--accent)">~25%</div>
+      <p>精确比分命中<br><small>vs v5.2.3: 17.6%</small></p>
     </div>
     <div class="card" style="text-align:center;">
-      <div style="font-size:2em;color:var(--purple)">65%</div>
-      <p>接近命中(±1球)<br><small>vs v5.2.3: 51% (+14pp)</small></p>
+      <div style="font-size:2em;color:var(--purple)">~60%</div>
+      <p>接近命中(±1球)<br><small>vs v5.2.3: 51%</small></p>
     </div>
     <div class="card" style="text-align:center;">
-      <div style="font-size:2em;color:var(--gold)">0</div>
-      <p>v5.2.8安全阀假阳性<br><small>葡萄牙误判已修正</small></p>
+      <div style="font-size:2em;color:var(--gold)">4</div>
+      <p>v5.24新增铁律<br><small>淘汰赛屠杀降级等</small></p>
     </div>
   </div>
 </div>
@@ -1160,9 +1109,9 @@
 <!-- Footer -->
 <!-- ============================================================ -->
 <div style="text-align: center; padding: 40px; color: var(--text-dim); font-size: 0.85em;">
-  <p>哨响AI D-Gate v5.2.12 · WC2026实时预测系统</p>
-  <p style="font-size:0.75em; margin-top:4px;">校准数据: William Hill 458K场 + WC2014-2026 287场 + football-data.org实时API</p>
-  <p>FootballAI Full-Stack Expert Team · 11 Experts · 6-Layer Architecture</p>
+  <p>哨响AI D-Gate v5.24 · WC2026淘汰赛实时预测系统</p>
+  <p style="font-size:0.75em; margin-top:4px;">校准数据: William Hill 458K场 + WC2014-2026 287场 + football-data.org 72场实时API</p>
+  <p>FootballAI Full-Stack Expert Team · 37 Experts · 7 Departments · 6-Layer Architecture</p>
   <p style="margin-top: 8px;">© 2026 FootballAI · 基于 v3.2 基线 (Acc 59.20% · Draw-F1 0.504 · AUC 0.814)</p>
 </div>
 

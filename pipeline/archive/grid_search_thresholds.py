@@ -1,7 +1,7 @@
 """Grid search threshold combinations to find Canada fix with minimal FP impact"""
 import sys,os,math,warnings;from pathlib import Path
 warnings.filterwarnings('ignore')
-p1=Path(r'D:/Architecture v4.0');p2=Path(r'D:/AI/footballAI')
+p1=Path(r'D:/Architecture');p2=Path(r'D:/AI/footballAI')
 from predictors.unified_predictor import UnifiedPredictor
 up=UnifiedPredictor(model_path=str(p2/'saved_models'/'football_v4.1_production.joblib'),enable_trap=False,enable_dh=False,use_threshold=False)
 from rules.d_gate_v52 import get_cover_adjustment, COVER_DB

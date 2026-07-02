@@ -2,7 +2,7 @@
 import json
 from collections import defaultdict
 
-with open('D:/Architecture v4.0/data/full_backtest_72_matches.json', encoding='utf-8') as f:
+with open('D:/Architecture/data/full_backtest_72_matches.json', encoding='utf-8') as f:
     data = json.load(f)
 
 total = len(data)

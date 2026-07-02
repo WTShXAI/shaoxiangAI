@@ -44,11 +44,11 @@ class V5Predictor:
         
         # Default model: JEPALite (167K, 272K trained, Acc55.9% F1_D=0.507)
         if not model_path:
-            default = Path('D:/Architecture v4.0/models/jepa/checkpoints/best_model_lite.pt')
+            default = Path('D:/Architecture/models/jepa/checkpoints/best_model_lite.pt')
             if default.exists():
                 self.model_path = str(default)
             else:
-                fallback = Path('D:/Architecture v4.0/models/jepa/checkpoints/best_model.pt')
+                fallback = Path('D:/Architecture/models/jepa/checkpoints/best_model.pt')
                 if fallback.exists():
                     self.model_path = str(fallback)
         

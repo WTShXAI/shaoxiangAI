@@ -1,5 +1,5 @@
 param(
-    [string]$ProjectRoot = "D:\Architecture v4.0"
+    [string]$ProjectRoot = "D:\Architecture"
 )
 
 function ExitWith($msg){ Write-Host $msg -ForegroundColor Red; exit 1 }

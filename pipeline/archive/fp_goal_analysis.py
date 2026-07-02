@@ -10,7 +10,7 @@ import sys, os, math, warnings
 from pathlib import Path
 warnings.filterwarnings('ignore')
 
-ARCH_ROOT = Path(r"D:/Architecture v4.0")
+ARCH_ROOT = Path(r"D:/Architecture")
 FAI_ROOT = Path(r"D:/AI/footballAI")
 
 # 12个v5.1误判 (来自生产引擎回测)

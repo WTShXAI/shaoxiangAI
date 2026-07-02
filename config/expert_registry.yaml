@@ -1,6 +1,6 @@
-# 哨响AI — 专家注册配置 (v6.0.0)
-# ExpertHub 启动时从该文件加载所有专家
-# 也可通过 load_default_experts() 代码注册
+# 哨响AI - 专家注册配置
+# ======================
+# ExpertHub 启动时加载
 
 experts:
   - expert_id: trend_analyzer

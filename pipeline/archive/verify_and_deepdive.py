@@ -12,7 +12,7 @@ from pathlib import Path
 from collections import defaultdict, Counter
 warnings.filterwarnings('ignore')
 
-ARCH_ROOT = Path(r"D:/Architecture v4.0")
+ARCH_ROOT = Path(r"D:/Architecture")
 
 GROUPS = {
     'A': ['加拿大','波黑','卡塔尔','瑞士'],

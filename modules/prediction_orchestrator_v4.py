@@ -27,7 +27,7 @@ P1 核心协同模块。将 v4.0 五大 P0 模块串联为完整预测管线。
     2. v4.0 层作为增强壳 (非破坏性升级)
     3. 降级保障: v4.0 层故障 → 自动回退原始 v3.2 输出
 
-作者: Architecture v4.0 · P1 Phase
+作者: Architecture · P1 Phase
 日期: 2026-06-18
 """
 from __future__ import annotations

@@ -1,5 +1,5 @@
 """Test TournamentArchitect bracket tree"""
-import sys; sys.path.insert(0,'D:/Architecture v4.0')
+import sys; sys.path.insert(0,'D:/Architecture')
 from pipeline.reverse_engine import TournamentArchitect
 
 ta = TournamentArchitect()

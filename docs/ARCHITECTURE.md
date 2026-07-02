@@ -42,7 +42,7 @@
 ## 2. 目录结构
 
 ```
-D:\Architecture v4.0\
+D:\Architecture\
 ├── main.py                  # 统一入口 (pipeline/backend/predict/agent)
 ├── start.py                 # 容器化启动入口
 ├── config/                  # 配置 (settings.yaml)

@@ -11,7 +11,7 @@ from pathlib import Path
 
 warnings.filterwarnings('ignore')
 
-ARCH_ROOT = Path(r"D:/Architecture v4.0")
+ARCH_ROOT = Path(r"D:/Architecture")
 FAI_ROOT = Path(r"D:/AI/footballAI")
 
 # 手动OCR提取的半场赔率数据 (从图片下半部分)

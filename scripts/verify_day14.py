@@ -1,13 +1,13 @@
 """哨响AI v5.2 — Day14 (6/14) 回测 — 验证防泄露+Day16-18修复"""
 import sys, os, json
-os.chdir('D:/Architecture v4.0')
-sys.path.insert(0, 'D:/Architecture v4.0')
-sys.path.insert(0, 'D:/Architecture v4.0/predictors/components')
+os.chdir('D:/Architecture')
+sys.path.insert(0, 'D:/Architecture')
+sys.path.insert(0, 'D:/Architecture/predictors/components')
 
 from pipeline.predictors.data_classes import MatchInput
 from pipeline.predictors.pipeline import FullLinkagePipeline
 
-with open('D:/Architecture v4.0/data/wc2026_72matches_with_odds.json', encoding='utf-8') as f:
+with open('D:/Architecture/data/wc2026_72matches_with_odds.json', encoding='utf-8') as f:
     all_matches = json.load(f)
 
 target = '6/14'

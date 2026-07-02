@@ -9,7 +9,7 @@ WC2026 球队实力排名 (仅已完赛34场) + cs_other信号对照
 import sys, math
 from collections import defaultdict
 
-ARCH_ROOT = r"D:\Architecture v4.0"
+ARCH_ROOT = r"D:\Architecture"
 
 # ═══════════════════════════════
 # 34场已完赛赛果

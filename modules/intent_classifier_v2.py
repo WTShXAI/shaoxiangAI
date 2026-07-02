@@ -23,7 +23,7 @@ v2 升级:
     OPTIMIZE       feature/model/weight/all   → 自主优化(D模式)
     EXPLAIN        prediction/feature/error   → 归因分析
 
-作者: Architecture v4.0
+作者: Architecture
 日期: 2026-06-18
 """
 from __future__ import annotations

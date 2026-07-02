@@ -1,9 +1,9 @@
 """哨响AI v5.2 — Day14-15回测验证P0修复效果"""
 import sys, os, json
 # P0修复: 确保从项目根目录运行, draw_expert模块在sys.path
-os.chdir('D:/Architecture v4.0')
-sys.path.insert(0, 'D:/Architecture v4.0')
-sys.path.insert(0, 'D:/Architecture v4.0/predictors/components')
+os.chdir('D:/Architecture')
+sys.path.insert(0, 'D:/Architecture')
+sys.path.insert(0, 'D:/Architecture/predictors/components')
 
 print("=" * 60)
 print("哨响AI v5.2 — Day 14-15 回测验证")
@@ -11,7 +11,7 @@ print("P0修复: de_mult=0.45, draw_threshold=0.28, PriorityGate=3球")
 print("=" * 60)
 
 # 加载72场
-with open('D:/Architecture v4.0/data/wc2026_72matches_with_odds.json', encoding='utf-8') as f:
+with open('D:/Architecture/data/wc2026_72matches_with_odds.json', encoding='utf-8') as f:
     all_matches = json.load(f)
 
 target_dates = ['6/14', '6/15']

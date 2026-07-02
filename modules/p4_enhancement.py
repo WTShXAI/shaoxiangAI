@@ -7,7 +7,7 @@ P4剩余任务。三大增强模块:
     2. LeagueTransferAdapter — 跨联赛迁移学习 (贝叶斯收缩到联赛先验)
     3. MultiBookmakerCollector — 多机构赔率采集 (The Odds API标准接口)
 
-作者: Architecture v4.0 · P4 Phase
+作者: Architecture · P4 Phase
 日期: 2026-06-18
 """
 from __future__ import annotations

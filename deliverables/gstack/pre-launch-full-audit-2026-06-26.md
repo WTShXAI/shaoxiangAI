@@ -117,7 +117,7 @@
 
 ### P1-7 🟠 14个pipeline脚本硬编码项目路径
 - **位置**: `pipeline/wc2026_v41_backtest.py:13-14`, `pipeline/fp_goal_analysis.py:13-14` 等
-- **内容**: `ARCH_ROOT = Path(r"D:/Architecture v4.0")`, `FAI_ROOT = Path(r"D:/AI/footballAI")`
+- **内容**: `ARCH_ROOT = Path(r"D:/Architecture")`, `FAI_ROOT = Path(r"D:/AI/footballAI")`
 - **影响**: 部署路径变更需逐个修改
 
 ### P1-8 🟠 聊天/Unified两套risk_tag计算可能冲突

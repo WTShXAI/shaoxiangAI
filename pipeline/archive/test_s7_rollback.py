@@ -2,7 +2,7 @@
 import sys,os,math,warnings
 from pathlib import Path
 warnings.filterwarnings('ignore')
-ARCH_ROOT=Path(r'D:/Architecture v4.0');FAI_ROOT=Path(r'D:/AI/footballAI')
+ARCH_ROOT=Path(r'D:/Architecture');FAI_ROOT=Path(r'D:/AI/footballAI')
 
 # This is equivalent to v5.1 baseline, S7/S1 logic is what we're testing
 

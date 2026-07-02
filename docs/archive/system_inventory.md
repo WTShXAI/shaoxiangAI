@@ -186,7 +186,7 @@ from rules.d_gate_v52 import COVER_DB
 ### 路径变量
 
 ```python
-ARCH_ROOT = Path('D:/Architecture v4.0')
+ARCH_ROOT = Path('D:/Architecture')
 FAI_ROOT  = Path('D:/AI/footballAI')
 ```
 
@@ -212,7 +212,7 @@ print(f'判型: {verdict}, 模式: {mode}, 信号: {signals}')
 
 ```python
 import sys
-sys.path.insert(0, 'D:/Architecture v4.0')
+sys.path.insert(0, 'D:/Architecture')
 sys.path.insert(0, 'D:/AI/footballAI')
 
 from predictors.unified_predictor import UnifiedPredictor

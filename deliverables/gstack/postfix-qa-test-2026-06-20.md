@@ -2,7 +2,7 @@
 
 > **日期**: 2026-06-20  
 > **执行者**: gstack-qa-lead  
-> **项目路径**: `D:\Architecture v4.0`  
+> **项目路径**: `D:\Architecture`  
 > **测试环境**: Python 3.13.12, Windows, RTX 5070 Ti  
 > **QA模式**: Exhaustive (修复后全量验证)
 
@@ -28,7 +28,7 @@
 
 ### 执行命令
 ```bash
-cd D:\Architecture v4.0
+cd D:\Architecture
 set PYTHONUTF8=1
 python tests/test_v4_modules.py
 ```

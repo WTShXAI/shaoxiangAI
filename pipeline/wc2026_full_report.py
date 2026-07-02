@@ -10,7 +10,7 @@ from pathlib import Path
 from collections import defaultdict
 warnings.filterwarnings('ignore')
 
-ARCH_ROOT = Path(r"D:/Architecture v4.0")
+ARCH_ROOT = Path(r"D:/Architecture")
 FAI_ROOT = Path(r"D:/AI/footballAI")
 
 def load_cs_other():

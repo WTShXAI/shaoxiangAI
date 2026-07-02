@@ -38,7 +38,7 @@
 ## 2. 目录结构
 
 ```
-D:\Architecture v4.0\
+D:\Architecture\
 ├── main.py                  # 统一入口 (pipeline/backend/predict/agent)
 ├── start.py                 # 容器化启动入口
 ├── config/                  # 配置文件
@@ -113,7 +113,7 @@ D:\Architecture v4.0\
 ```bash
 # 1. 克隆仓库
 git clone <仓库地址>
-cd Architecture v4.0
+cd Architecture
 
 # 2. 创建虚拟环境
 python -m venv .venv

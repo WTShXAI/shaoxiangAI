@@ -5,7 +5,7 @@
 """
 import sys, math
 from pathlib import Path
-ARCH_ROOT = Path(r"D:/Architecture v4.0")
+ARCH_ROOT = Path(r"D:/Architecture")
 
 from rules.d_gate_engine import apply_dgate_v51
 

@@ -428,7 +428,7 @@ def main():
     trainer.save_pipeline(save_path=save_path_fai)
     logger.info(f"  ✅ {save_path_fai}")
 
-    # 保存到 Architecture v4.0
+    # 保存到 Architecture
     arch_models = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     save_path_arch = os.path.join(arch_models, 'models', 'main', f'football_v{MODEL_VERSION}_production.joblib')
     joblib.dump({

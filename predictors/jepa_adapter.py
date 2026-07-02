@@ -110,7 +110,7 @@ class JEPAAdapter:
         """Load JEPA model from checkpoint, falling back to random init."""
         path = Path(model_path)
         if not path.is_absolute():
-            path = Path('D:/Architecture v4.0') / model_path
+            path = Path('D:/Architecture') / model_path
 
         if not path.exists():
             logger.warning("JEPA model not found at %s, using random init", model_path)

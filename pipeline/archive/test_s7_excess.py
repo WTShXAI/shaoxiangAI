@@ -1,7 +1,7 @@
 """Test S7_excess approach vs current absolute S7 threshold"""
 import sys,os,math,warnings;from pathlib import Path
 warnings.filterwarnings('ignore')
-p1=Path(r'D:/Architecture v4.0');p2=Path(r'D:/AI/footballAI')
+p1=Path(r'D:/Architecture');p2=Path(r'D:/AI/footballAI')
 from predictors.unified_predictor import UnifiedPredictor
 up=UnifiedPredictor(model_path=str(p2/'saved_models'/'football_v4.1_production.joblib'),enable_trap=False,enable_dh=False,use_threshold=False)
 

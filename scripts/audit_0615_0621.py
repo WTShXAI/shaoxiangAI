@@ -160,7 +160,7 @@ for r in bad:
     print(f"  {r['match']}: 实={r['actual']} 预={r['verdict']} {r['score']} → {r['error']}")
 
 # Write report
-with open('D:/Architecture v4.0/deliverables/wc-audit-0615-0621.md', 'w', encoding='utf-8') as f:
+with open('D:/Architecture/deliverables/wc-audit-0615-0621.md', 'w', encoding='utf-8') as f:
     f.write(f'# WC2026 预测审查 6/15-6/21 (Elo+D-Gate)\n\n')
     f.write('## 汇总\n| 指标 | 结果 |\n|------|------|\n')
     f.write(f'| 总场次 | {total} |\n')

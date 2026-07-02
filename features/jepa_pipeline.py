@@ -540,7 +540,7 @@ class JEPADataPipeline:
 
 # ─── CLI Entry Point ─────────────────────────────────────────────────────────
 
-def build_all_splits(output_dir="D:/Architecture v4.0/data",
+def build_all_splits(output_dir="D:/Architecture/data",
                      data_dir="D:/AI/footballAI/data",
                      max_samples=None):
     """

@@ -1,8 +1,8 @@
 """Debug model loading issue"""
 import sys, os
-sys.path.insert(0, 'D:/Architecture v4.0')
-sys.path.insert(0, 'D:/Architecture v4.0/predictors')
-sys.path.insert(0, 'D:/Architecture v4.0/predictors/components')
+sys.path.insert(0, 'D:/Architecture')
+sys.path.insert(0, 'D:/Architecture/predictors')
+sys.path.insert(0, 'D:/Architecture/predictors/components')
 
 # Try loading EnsembleTrainer directly
 try:
@@ -13,7 +13,7 @@ except Exception as e:
 
 # Try loading the model file
 import joblib
-model_path = 'D:/Architecture v4.0/saved_models/football_v4.1_production.joblib'
+model_path = 'D:/Architecture/saved_models/football_v4.1_production.joblib'
 try:
     trainer = joblib.load(model_path)
     print('Model load OK')

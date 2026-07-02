@@ -4,7 +4,7 @@ import os, sys, json, importlib.util, warnings, sqlite3
 from collections import Counter
 warnings.filterwarnings('ignore')
 
-ROOT = 'D:/Architecture v4.0'
+ROOT = 'D:/Architecture'
 checks = []
 
 def check(cat, name, ok, detail=''):

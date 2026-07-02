@@ -17,7 +17,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict
 
-ARCH_ROOT = Path(r"D:/Architecture v4.0")
+ARCH_ROOT = Path(r"D:/Architecture")
 DB_PATH = ARCH_ROOT / "data" / "wc2026_timeline.db"
 
 # ═══════════════════════════════════════════════════════

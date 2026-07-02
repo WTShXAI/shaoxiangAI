@@ -23,7 +23,7 @@
   KnowledgeLayer.consult(match_context) → Layer0Context
   → 包含: 相似比赛、历史规律、相关教训、陷阱历史、模型表现
 
-作者: Architecture v4.0 · L0 Phase
+作者: Architecture · L0 Phase
 日期: 2026-06-19
 """
 from __future__ import annotations

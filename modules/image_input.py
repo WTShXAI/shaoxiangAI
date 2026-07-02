@@ -23,7 +23,7 @@
   python -m modules.image_input --image screenshot.png
   python -m modules.image_input --text "巴西vs阿根廷\n胜平负: 2.10 3.30 3.60"
 
-作者: Architecture v4.0 · L1 Phase
+作者: Architecture · L1 Phase
 日期: 2026-06-19
 """
 from __future__ import annotations

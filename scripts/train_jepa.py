@@ -20,7 +20,7 @@ class JEPATrainer:
     """Training pipeline for FootballJEPA"""
 
     def __init__(self, model, dual_encoder, loss_fn, device='cpu',
-                 lr=1e-3, weight_decay=1e-5, output_dir='D:/Architecture v4.0/models/jepa/checkpoints'):
+                 lr=1e-3, weight_decay=1e-5, output_dir='D:/Architecture/models/jepa/checkpoints'):
         self.model = model
         self.dual_encoder = dual_encoder
         self.loss_fn = loss_fn
@@ -178,7 +178,7 @@ class JEPATrainer:
 
         return history
 
-def load_jepa_data(split='train', data_dir='D:/Architecture v4.0/data'):
+def load_jepa_data(split='train', data_dir='D:/Architecture/data'):
     """Load pre-built JEPA dataset"""
     data = np.load(Path(data_dir) / f'jepa_{split}.npz')
     return data['static'], data['sequence'], data['drift'], data['labels']

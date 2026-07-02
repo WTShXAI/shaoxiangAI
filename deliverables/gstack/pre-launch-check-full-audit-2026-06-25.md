@@ -107,7 +107,7 @@
   - `draw_expert_v1.joblib` (95KB) — 仅在 D:\AI\footballAI
   - `draw_expert_scaler.joblib` — 仅在 D:\AI\footballAI
 - **影响**: 部署到新机器必然失败，无法独立运行
-- **建议**: 复制模型文件到 `D:\Architecture v4.0\saved_models\` 或 `models\`
+- **建议**: 复制模型文件到 `D:\Architecture\saved_models\` 或 `models\`
 
 ---
 
@@ -128,7 +128,7 @@
 - **位置**: `start_server.bat:6`
 - **现状**: `d:\AI\footballAI\.venv\Scripts\python.exe` — 依赖外部项目的 Python 环境
 - **风险**: footballAI 项目变更/删除会导致 v4.0 无法启动
-- **建议**: 改为 `D:\Architecture v4.0\.venv\Scripts\python.exe`
+- **建议**: 改为 `D:\Architecture\.venv\Scripts\python.exe`
 
 ### P1-4: start_server.bat 绑定 0.0.0.0
 - **位置**: `start_server.bat:6` — `--host 0.0.0.0`

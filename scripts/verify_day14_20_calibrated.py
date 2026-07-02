@@ -1,8 +1,8 @@
 """哨响AI v6.0 — Day14-Day20 全量校准回测 — OCR让球 + API matchday + 防泄露"""
 import sys, os, json
-os.chdir('D:/Architecture v4.0')
-sys.path.insert(0, 'D:/Architecture v4.0')
-sys.path.insert(0, 'D:/Architecture v4.0/predictors/components')
+os.chdir('D:/Architecture')
+sys.path.insert(0, 'D:/Architecture')
+sys.path.insert(0, 'D:/Architecture/predictors/components')
 
 from pipeline.predictors.data_classes import MatchInput
 from pipeline.predictors.pipeline import FullLinkagePipeline

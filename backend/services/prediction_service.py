@@ -511,6 +511,24 @@ class PredictionService:
                 p_a_o = odds_implied.get('away', 0.33)
                 proba_spread = abs(p_h_o - p_a_o)
 
+                # ── P0-窄spread D先验补偿 (v2回测: 18场窄spread D-F1=0) ──
+                # 赔率暗示势均(spread<0.15)时平局先验高, 但4.7融合后D仍赢不过H/A的argmax.
+                # 仅在极窄区给d_prob加法抬权, 不动宽spread(52场现状够用, 避免重蹈Path B 8.6pp Acc代价).
+                # 量级参考 Path B apply_drawgate 在窄spread区的 draw_boost≈0.06-0.09, 此处取保守加法分量.
+                narrow_d_boost = 0.0
+                if proba_spread < 0.15:
+                    # 越窄抬得越多: 0.15→+0.03, 0.0→+0.06 线性
+                    narrow_d_boost = 0.06 * (1.0 - proba_spread / 0.15)
+                    d_prob += narrow_d_boost
+                    ha = h_prob + a_prob
+                    if ha > 1e-6:
+                        h_prob -= narrow_d_boost * (h_prob / ha)
+                        a_prob -= narrow_d_boost * (a_prob / ha)
+                    logger.info(
+                        f"[NarrowSpread-D] {home_team} vs {away_team} "
+                        f"spread={proba_spread:.3f} +D={narrow_d_boost:.3f}"
+                    )
+
                 # ── Step 1: 获取OE子模型独立输出 ──
                 oe_out = model.get_oe_output()  # 从model_bridge缓存读取
                 h_oe = d_oe = a_oe = None
@@ -529,26 +547,33 @@ class PredictionService:
                 de_pdraw = model.get_de_output()  # v4.0: DrawExpert P(Draw)
 
                 # Phase 0: DrawExpert不可用→drawgate_v53 兜底 (何执策方案A)
-                if de_pdraw is None and oh > 0 and od > 0 and oa > 0:
+                # NOTE: 原532行引用 oh/od/oa/handicap_line/ou_line/league_name —— 这些变量在
+                #   predict_single 作用域内从未定义, 且 NameError 不被外层 except(ValueError/
+                #   TypeError/sqlite) 捕获, DrawExpert 缺省时整条 predict_single 会崩溃. 已修.
+                if de_pdraw is None:
                     try:
-                        from rules.drawgate_v53 import apply_drawgate, detect_match_type, imp_from_odds
-                        imp_h, imp_d, imp_a = imp_from_odds(oh, od, oa)
-                        match_type = detect_match_type(league_name)
-                        dg_result = apply_drawgate(
-                            imp_h, imp_d, imp_a,
-                            odds={"home": oh, "draw": od, "away": oa},
-                            handicap=handicap_line or 0.0,
-                            ou_line=ou_line or 2.5,
-                            match_type=match_type,
-                        )
-                        # DrawGate boost (0~0.15) 转为 DrawExpert 概率估计 (0~1)
-                        draw_boost = dg_result.get("draw_boost", 0.0)
-                        dg_draw_prob = imp_d + draw_boost * 0.25
-                        de_pdraw = min(max(dg_draw_prob, 0.0), 1.0)
-                        logger.debug(
-                            f"[D-Gate v4.0] DrawExpert缺省→drawgate_v53兜底: "
-                            f"P(D)={de_pdraw:.3f} boost={draw_boost:.3f} mode={dg_result.get('dgate_mode','?')}"
-                        )
+                        from rules.drawgate_v53 import apply_drawgate, detect_match_type
+                        # 从作用域内取真实赔率: odds_data 来自491行 _build_heuristic_odds 产出
+                        oh = (odds_data or {}).get('home', 0.0)
+                        od = (odds_data or {}).get('draw', 0.0)
+                        oa = (odds_data or {}).get('away', 0.0)
+                        if oh > 0 and od > 0 and oa > 0:
+                            # 复用509-511行已算的隐含概率, 不重复调 imp_from_odds
+                            dg_result = apply_drawgate(
+                                p_h_o, p_d_o, p_a_o,
+                                odds={"home": oh, "draw": od, "away": oa},
+                                handicap=(custom_odds or {}).get('asian_handicap', 0.0),
+                                ou_line=(custom_odds or {}).get('ou_line', 2.5),
+                                match_type=detect_match_type(league),
+                            )
+                            # DrawGate boost (0~0.15) 转为 DrawExpert 概率估计 (0~1)
+                            draw_boost = dg_result.get("draw_boost", 0.0)
+                            dg_draw_prob = p_d_o + draw_boost * 0.25
+                            de_pdraw = min(max(dg_draw_prob, 0.0), 1.0)
+                            logger.debug(
+                                f"[D-Gate v4.0] DrawExpert缺省→drawgate_v53兜底: "
+                                f"P(D)={de_pdraw:.3f} boost={draw_boost:.3f} mode={dg_result.get('dgate_mode','?')}"
+                            )
                     except ImportError:
                         logger.debug("[D-Gate v4.0] drawgate_v53 不可用，跳过DrawExpert兜底")
                     except (Exception,) as e:

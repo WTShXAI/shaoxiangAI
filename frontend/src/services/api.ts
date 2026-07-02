@@ -111,7 +111,7 @@ export const trainingService = {
 // ============================================
 export const matchService = {
   // 比赛列表
-  getMatches: (params?: { league?: string; status?: string; date?: string }) =>
+  getMatches: (params?: { league?: string; status?: string; date?: string; limit?: number; offset?: number }) =>
     api.get<ApiResponse<Match[]>>('/matches/list', { params }),
   // 比赛比分
   getScores: (params?: { league?: string; date?: string }) =>

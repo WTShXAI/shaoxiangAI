@@ -23,7 +23,7 @@
   tl.log_experiment(name="Draw阈值测试", params={"draw_threshold": 0.48},
                      metrics={"acc": 0.43, "draw_f1": 0.55}, baseline={"acc": 0.40})
 
-作者: Architecture v4.0 · Tuning Phase
+作者: Architecture · Tuning Phase
 日期: 2026-06-19
 """
 from __future__ import annotations

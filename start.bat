@@ -2,7 +2,7 @@
 chcp 65001 >nul
 title 哨响AI v6.0 服务
 
-set PROJECT_ROOT=D:\Architecture v4.0
+set PROJECT_ROOT=D:\Architecture
 
 :: 环境变量默认值
 if not defined SECRET_KEY set SECRET_KEY=dev-placeholder-change-me

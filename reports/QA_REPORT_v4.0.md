@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | **Date** | 2026-06-20 |
-| **Project** | D:\Architecture v4.0 |
+| **Project** | D:\Architecture |
 | **Tier** | Standard |
 | **Scope** | 测试套件 + 模块导入 + API冒烟 + 模型推理 + D-Gate + SSE |
 | **Python** | 3.13.12 |
@@ -196,10 +196,10 @@ predict_card: home=巴西 away=阿根廷 h=0.5708 d=0.2705 a=0.1587
 #### ISSUE-002: VIP 预测通道依赖缺失
 - **严重度**: CRITICAL
 - **类别**: functional
-- **描述**: VIP预测器导入 `from trap_probability_bridge import apply_trap_correction`, 但 `trap_probability_bridge.py` 仅存在于 `D:\AI\footballAI`, 不在 `D:\Architecture v4.0` 中
+- **描述**: VIP预测器导入 `from trap_probability_bridge import apply_trap_correction`, 但 `trap_probability_bridge.py` 仅存在于 `D:\AI\footballAI`, 不在 `D:\Architecture` 中
 - **错误**: `name 'apply_trap_correction' is not defined`
 - **影响**: 三通道预测架构中 VIP 通道完全失效
-- **修复建议**: 将 `trap_probability_bridge.py` 复制到 `D:\Architecture v4.0` 或创建符号链接
+- **修复建议**: 将 `trap_probability_bridge.py` 复制到 `D:\Architecture` 或创建符号链接
 
 #### ISSUE-003: 跨项目路径依赖与模块污染
 - **严重度**: CRITICAL
@@ -208,9 +208,9 @@ predict_card: home=巴西 away=阿根廷 h=0.5708 d=0.2705 a=0.1587
   - 模型加载依赖 `D:\AI\footballAI\draw_expert.py` (pickle引用)
   - VIP预测器依赖 `D:\AI\footballAI\trap_probability_bridge.py`
   - NN模型路径 `D:\AI\footballAI\saved_models\football_nn_*.pth`
-  - 当 `D:\AI\footballAI` 在 sys.path 优先位置时, 其 `modules/` 包遮蔽 `D:\Architecture v4.0\modules/`, 导致 knowledge_layer/degradation_guard/feedback_loop 导入失败
+  - 当 `D:\AI\footballAI` 在 sys.path 优先位置时, 其 `modules/` 包遮蔽 `D:\Architecture\modules/`, 导致 knowledge_layer/degradation_guard/feedback_loop 导入失败
 - **影响**: 部署环境必须同时存在两个项目目录, 且路径顺序敏感
-- **修复建议**: 将所有依赖文件合并到 `D:\Architecture v4.0`, 消除跨项目依赖
+- **修复建议**: 将所有依赖文件合并到 `D:\Architecture`, 消除跨项目依赖
 
 ### HIGH (重大问题)
 

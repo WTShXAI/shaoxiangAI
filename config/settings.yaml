@@ -1,71 +1,49 @@
-# ⛔ DEPRECATED — 所有修改请改 backend/core/config.py (Pydantic)
-# 哨响AI v6.0.0 — 旧版配置 (仅保留参考)
+# 哨响AI - 统一设置 (YAML 参考)
 # ================================
-# 用法:
-#   from config.settings import load_config
-#   cfg = load_config()
-#   threshold = cfg['prediction']['draw_threshold']
-#
-# 版本: v4.1-solo · 最后更新: 2026-06-25 (P0判型修复: 0.46→0.32)
+# 运行时配置由 backend/core/config.py (Pydantic) 管理
+# 本文件仅作为参考文档，不再被代码加载
 
-# ═══════════════════════════════════════════════════════════
-# 一、全局开关 — 出问题一键回退
-# ═══════════════════════════════════════════════════════════
 global_switches:
-  pure_v32_mode: false          # 纯净模式: true=仅用v3.2基线, 所有新功能关闭
-  enable_6layer_engine: true    # 6层AI引擎主开关
-  enable_l0_knowledge: true     # L0知识记忆层
-  enable_l4_barrier: true       # L4风控防线
-  enable_l4_scenario: true      # L4场景适配
-  enable_l4_degradation: true   # L4容错降级
-  enable_cross_opponent: true   # 共同对手交叉对比
-  enable_balance_sim: true      # 操盘手平衡模拟
-  enable_scorer_tracker: true   # 射手榜追踪
-  enable_image_input: true      # L1截图输入
+  pure_v32_mode: false
+  enable_6layer_engine: true
+  enable_l0_knowledge: true
+  enable_l4_barrier: true
+  enable_l4_scenario: true
+  enable_l4_degradation: true
+  enable_cross_opponent: true
+  enable_balance_sim: true
+  enable_scorer_tracker: true
+  enable_image_input: true
 
-# ═══════════════════════════════════════════════════════════
-# 二、预测参数 — 阈值/权重/校准
-# ═══════════════════════════════════════════════════════════
 prediction:
-  # 分类阈值
-  draw_threshold: 0.32          # P(D) > 此值 → 预测平局 (P0判型优化: 0.46→0.32, MacroF1 0.465→0.507)
-  ha_gap: 0.0                   # P(H) > P(A) + 此值 → 预测主胜
-  
-  # v3.2 基线 (永不改变)
+  draw_threshold: 0.32
+  ha_gap: 0.0
   v32_baseline:
-    draw_threshold: 0.0         # argmax
+    draw_threshold: 0.0
     ha_gap: 0.0
-
-  # D-Gate 精度过滤
   d_gate:
-    junk_threshold: 0.02        # margin < 此值 → 垃圾区
-    fuzzy_threshold: 0.05       # margin < 此值 → 模糊区
-    usable_threshold: 0.08      # margin < 此值 → 可用区
+    junk_threshold: 0.02
+    fuzzy_threshold: 0.05
+    usable_threshold: 0.08
 
-# ═══════════════════════════════════════════════════════════
-# 三、杯赛/场景参数
-# ═══════════════════════════════════════════════════════════
 scenarios:
   league:
     draw_target_rate: 0.25
     home_advantage: 0.08
     confidence_mult: 1.0
     trap_threshold_mult: 1.0
-  
   cup_group:
     draw_target_rate: 0.375
     home_advantage: 0.03
     cold_start_mix: 0.15
     confidence_mult: 0.85
     trap_threshold_mult: 1.2
-  
   cup_knockout:
     draw_target_rate: 0.40
     home_advantage: 0.02
     cold_start_mix: 0.05
     confidence_mult: 0.80
     trap_threshold_mult: 1.3
-  
   final:
     draw_target_rate: 0.42
     home_advantage: 0.0
@@ -73,30 +51,22 @@ scenarios:
     confidence_mult: 0.70
     trap_threshold_mult: 1.5
     forbid_heavy_favorite_bet: true
-  
   strong_favorite:
     draw_target_rate: 0.15
     trap_threshold_mult: 0.80
     confidence_mult: 0.85
     forbid_heavy_favorite_bet: true
-  
   derby:
     draw_target_rate: 0.32
     home_advantage: 0.04
     trap_threshold_mult: 1.1
     confidence_mult: 0.90
 
-# ═══════════════════════════════════════════════════════════
-# 四、容错降级参数
-# ═══════════════════════════════════════════════════════════
 degradation:
-  max_consecutive_failures: 3   # 连续失败次数 → 标记不健康
-  recovery_threshold: 2         # 连续成功次数 → 自动恢复
-  uniform_fallback: [0.333, 0.334, 0.333]  # 终极兜底概率
+  max_consecutive_failures: 3
+  recovery_threshold: 2
+  uniform_fallback: [0.333, 0.334, 0.333]
 
-# ═══════════════════════════════════════════════════════════
-# 五、路径配置
-# ═══════════════════════════════════════════════════════════
 paths:
   project_root: "."
   model_dir: "saved_models"
@@ -112,46 +82,36 @@ paths:
   sandbox_dir: "sandbox"
   archive_dir: "archive"
 
-# ═══════════════════════════════════════════════════════════
-# 六、专家权重 (可动态调整)
-# ═══════════════════════════════════════════════════════════
 experts:
-  quant_poisson:       # 季泊松(量化)
+  quant_poisson:
     enable: true
     default_weight: 1.0
-  game_theorist:       # 杜博弈(博弈)
+  game_theorist:
     enable: true
     default_weight: 1.0
-  imbalance_expert:    # 曾均衡(平局)
+  imbalance_expert:
     enable: true
     default_weight: 1.0
-  ensemble_master:     # 荣合众(集成)
+  ensemble_master:
     enable: true
     default_weight: 1.0
-  model_builder:       # 毕建模(数学)
+  model_builder:
     enable: true
     default_weight: 0.8
-  temporal_analyst:    # 施时序(时序)
+  temporal_analyst:
     enable: true
     default_weight: 0.8
-  optimizer:           # 齐优化(优化)
+  optimizer:
     enable: true
     default_weight: 0.5
 
-# ═══════════════════════════════════════════════════════════
-# 七、服务配置
-# ═══════════════════════════════════════════════════════════
 server:
   host: "0.0.0.0"
-  port: 8000
-  reload: false                  # 单人用不需要热重载
+  port: 9000
 
-# ═══════════════════════════════════════════════════════════
-# 八、日志配置
-# ═══════════════════════════════════════════════════════════
 logging:
-  level: "INFO"                  # DEBUG/INFO/WARNING/ERROR
+  level: "INFO"
   format: "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
   file: "logs/app.log"
-  max_bytes: 10485760            # 10MB 轮转
-  backup_count: 3
+  max_bytes: 10485760
+  backup_count: 5

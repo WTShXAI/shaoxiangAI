@@ -1,8 +1,8 @@
 """验证赛会赛制师关键情景 vs 实际赛果"""
-import json, sys; sys.path.insert(0,'D:/Architecture v4.0')
+import json, sys; sys.path.insert(0,'D:/Architecture')
 from pipeline.reverse_engine import TournamentArchitect
 
-with open('D:/Architecture v4.0/data/wc2026_72matches_with_odds.json',encoding='utf-8') as f:
+with open('D:/Architecture/data/wc2026_72matches_with_odds.json',encoding='utf-8') as f:
     data = json.load(f)
 
 ta = TournamentArchitect()

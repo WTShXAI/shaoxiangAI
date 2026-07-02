@@ -23,7 +23,7 @@
                           is_final=False, matchday=1)
     # → CupConfig(d_boost=0.375, trap_mult=1.2, cold_start=True, ...)
 
-作者: Architecture v4.0 · L4 Phase
+作者: Architecture · L4 Phase
 日期: 2026-06-19
 """
 from __future__ import annotations

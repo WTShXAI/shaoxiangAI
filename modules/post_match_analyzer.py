@@ -17,7 +17,7 @@ P2 深度专项模块。对比预测 vs 实际赛果，多维度根因分析。
     - 专家建议
     - 知识库关联教训
 
-作者: Architecture v4.0 · P2 Phase
+作者: Architecture · P2 Phase
 日期: 2026-06-18
 """
 from __future__ import annotations

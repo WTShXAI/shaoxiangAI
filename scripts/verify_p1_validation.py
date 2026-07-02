@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 warnings.filterwarnings('ignore')
 
-ARCH_ROOT = Path(r"D:/Architecture v4.0")
+ARCH_ROOT = Path(r"D:/Architecture")
 FAI_ROOT = Path(r"D:/AI/footballAI")
 MODELS_DIR = FAI_ROOT / "saved_models"
 

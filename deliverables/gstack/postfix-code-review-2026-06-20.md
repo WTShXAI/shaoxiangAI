@@ -2,7 +2,7 @@
 
 **日期**: 2026-06-20
 **审查人**: gstack-product-reviewer (代码审查)
-**项目路径**: `D:\Architecture v4.0`
+**项目路径**: `D:\Architecture`
 **审查范围**: 验证用户团队声称修复的11项非安全类P0问题 + 检查遗漏项 + 回归检测
 
 ---
@@ -161,7 +161,7 @@
 
 **严重度**: P0（阻断 `from modules.xxx import ...` 导入）
 
-**现状**: `unified_predictor.py:53` 执行 `sys.path.insert(1, FOOTBALLAI_ROOT)`，导致 `D:\AI\footballAI\modules\__init__.py` 优先于 `D:\Architecture v4.0\modules\__init__.py` 被加载。
+**现状**: `unified_predictor.py:53` 执行 `sys.path.insert(1, FOOTBALLAI_ROOT)`，导致 `D:\AI\footballAI\modules\__init__.py` 优先于 `D:\Architecture\modules\__init__.py` 被加载。
 
 **实测验证**:
 ```

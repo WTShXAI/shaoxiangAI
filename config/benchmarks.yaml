@@ -1,40 +1,33 @@
-# FootballAI 版本基线指标
-# v5.2.14 — 所有模型对比指标集中管理
-# 格式: 联赛OOF(250K+) / 世界杯(26场) / 联赛均衡赛(6K)
+# 哨响AI - 版本基准指标
+# ========================
 
 v3_2:
   accuracy: 0.592
   draw_f1: 0.504
   auc: 0.814
-  description: "Stacking(XGBoost+Ridge+Heuristic), 72维特征, argmax判型"
+  description: "Stacking(XGB+Ridge+Heuristic), 72维特征, argmax判型"
 
 v4_0:
   accuracy: 0.5655
   draw_f1: 0.512
   auc: 0.826
-  description: "Stacking(LGBM+XGBoost+OddsExpert+Heuristic+NN), 72维, DE×1.0"
+  description: "Stacking(LGBM+XGB+OddsExpert+Heuristic+NN), 72维, DE×1.0"
 
 v4_1:
   accuracy: 0.6243
   draw_f1: 0.520
   auc: 0.815
-  description: "Stacking DE×0.25 + DrawCW×1.10 + 阈值判型0.32, OOF 2023+ (P0网格搜索最优)"
+  description: "Stacking DE×0.25 + DrawCW×1.10 + 阈值判型0.32, OOF 2023+"
 
 v5_2:
-  accuracy: 0.471   # 34场世界杯回测
+  accuracy: 0.471
   draw_f1: 0.769
-  draw_recall: 1.000  # 11/11 零漏判
-  description: "D-Gate v5.2.14 五层判型 + JEPA v5.0 + Tournament Dynamics R1-R4"
-
-worldcup_baseline:
-  sample_count: 34
-  actual_draw_rate: 0.385
-  league_draw_rate: 0.250
-  description: "世界杯分布偏移 — 平局率38.5% vs 联赛25%"
+  draw_recall: 1.000
+  description: "D-Gate v5.2.14 五层判型 + JEPA v5.0 + Tournament Dynamics"
 
 jepa_v5:
   params: 657000
   lite_params: 167000
-  accuracy: 0.333   # 72维特征, 未校准
+  accuracy: 0.333
   draw_f1: 0.364
-  description: "JEPA World Model v5.0 — 未校准状态, 需阈值调优"
+  description: "JEPA World Model v5.0 - 未校准状态"

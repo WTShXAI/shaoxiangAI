@@ -402,7 +402,7 @@ async def realtime_websocket(websocket: WebSocket):
 
     try:
         # 首次连接，先推一次当前数据
-        db = sqlite3.connect("D:/Architecture v4.0/data/football_data.db")
+        db = sqlite3.connect("D:/Architecture/data/football_data.db")
         cursor = db.cursor()
         cursor.execute("SELECT COUNT(*) FROM teams")
         team_count = cursor.fetchone()[0]

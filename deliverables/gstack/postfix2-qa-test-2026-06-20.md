@@ -2,7 +2,7 @@
 
 > **日期**: 2026-06-20  
 > **执行者**: gstack-qa-lead  
-> **项目路径**: `D:\Architecture v4.0`  
+> **项目路径**: `D:\Architecture`  
 > **测试环境**: Python 3.13, Windows, RTX 5070 Ti  
 > **QA模式**: Exhaustive (第二轮修复后全量验证)  
 > **QA Skill**: Standard Test-Fix-Verify 流程
@@ -42,7 +42,7 @@
 
 ### 执行命令
 ```bash
-cd D:\Architecture v4.0
+cd D:\Architecture
 set PYTHONUTF8=1
 python tests/test_v4_modules.py
 ```
@@ -595,7 +595,7 @@ sys.path.insert(0, FOOTBALLAI_ROOT)
 | Python | 3.13 |
 | OS | Windows |
 | GPU | NVIDIA GeForce RTX 5070 Ti |
-| 项目路径 | D:\Architecture v4.0 |
+| 项目路径 | D:\Architecture |
 | 测试时间 | 2026-06-20 |
 | QA Skill | Standard Test-Fix-Verify |
 | QA执行者 | gstack-qa-lead |

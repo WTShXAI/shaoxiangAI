@@ -27,7 +27,6 @@
       "threshold": 0.24
     },
     "mode_b": {
-      "_deprecated": "v5.4: Mode B disabled based on 0% accuracy in 26-match backtest",
       "enabled": false,
       "spread_max": 0.2,
       "draw_threshold_drop": 0.04,
@@ -41,13 +40,6 @@
       "hcp_max": 0.75,
       "confidence_decay": 0.88,
       "draw_boost": 0.04
-    },
-    "group_stage_rotation": {
-      "enabled": false,
-      "min_matchday": 3,
-      "confidence_decay": 0.80,
-      "trigger_upset": true,
-      "_note": "v5.4: 需要matchday context, 默认关闭"
     }
   },
   "league": {
@@ -78,7 +70,6 @@
       "threshold": 0.22
     },
     "mode_b": {
-      "_deprecated": "v5.4: Mode B disabled",
       "enabled": false,
       "spread_max": 0.22,
       "draw_threshold_drop": 0.04,
@@ -92,13 +83,6 @@
       "hcp_max": 0.75,
       "confidence_decay": 0.88,
       "draw_boost": 0.03
-    },
-    "group_stage_rotation": {
-      "enabled": false,
-      "min_matchday": 3,
-      "confidence_decay": 0.80,
-      "trigger_upset": true,
-      "_note": "v5.4: 需要matchday context, 默认关闭"
     }
   }
 }

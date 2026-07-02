@@ -20,7 +20,7 @@
   python six_layer_conversation.py --query "..."      # 单次查询
   python six_layer_conversation.py --demo             # 演示模式
 
-作者: Architecture v4.0 · 2026-06-18
+作者: Architecture · 2026-06-18
 """
 from __future__ import annotations
 from utils.constants import DEFAULT_DRAW_PROB

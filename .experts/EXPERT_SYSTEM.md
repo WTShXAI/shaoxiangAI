@@ -101,9 +101,9 @@
 
 ```
 专家配置:  C:\Users\ShXAI\.workbuddy\plugins\marketplaces\my-experts\plugins\
-项目备份:  D:\Architecture v4.0\.experts\
-归档目录:  D:\Architecture v4.0\deliverables\
-项目源码:  D:\Architecture v4.0\
+项目备份:  D:\Architecture\.experts\
+归档目录:  D:\Architecture\deliverables\
+项目源码:  D:\Architecture\
 ```
 
 ## 恢复指令

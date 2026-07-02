@@ -27,7 +27,7 @@
     # result.alternative_scores — 含修正后的比分
     # result.upset_alert — 是否触发冷门预警
 
-作者: Architecture v4.0 · 移植自 vip_final.py / digital_human.py
+作者: Architecture · 移植自 vip_final.py / digital_human.py
 日期: 2026-06-19
 """
 from __future__ import annotations

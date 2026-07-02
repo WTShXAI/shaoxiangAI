@@ -1,5 +1,5 @@
 # footballai-core/footballai/rules — 代理到主 rules/ 包 (2026-06-28)
-# 所有规则文件统一存储于 D:\Architecture v4.0\rules\
+# 所有规则文件统一存储于 D:\Architecture\rules\
 # footballai-core 在此处仅做 re-export
 
 import sys as _sys

@@ -45,7 +45,7 @@
 
 **⚠️ 关键发现——配置路径不匹配**：
 - ModelBridge的 `_load_config()` 读取 `_PROJECT_ROOT/config.yaml`（项目根目录），但实际配置文件在 `config/config.yaml`
-- `D:/Architecture v4.0/config.yaml` **不存在**！
+- `D:/Architecture/config.yaml` **不存在**！
 - 因此 `_load_config()` 返回空字典 `{}`，`_resolve_model_path()` 使用默认值 `saved_models/football_balanced_production.joblib`（v3.2路径）
 - v3.2文件已被清理（不存在），fallback搜索机制在 `saved_models/` 中找到 `football_v4.1_production.joblib`
 - **结论**：ModelBridge确实加载v4.1，但是 **靠fallback意外生效**，而非配置正确读取。如果未来有人在项目根目录放置 `config.yaml`，会静默覆盖行为
@@ -194,11 +194,11 @@ abs(oh_p - oa_p) < 1.6  # oh_p/oa_p 是赔率值，非概率
 
 **验证结果**：
 ```python
-sys.path.insert(0, 'D:/Architecture v4.0/predictors/components')
+sys.path.insert(0, 'D:/Architecture/predictors/components')
 sys.path.insert(1, 'D:/AI/footballAI')
 import modules
 # 结果: modules loaded from D:\AI/footballAI\modules\__init__.py  ← footballAI的modules包！
-#       NOT from D:\Architecture v4.0\modules\__init__.py
+#       NOT from D:\Architecture\modules\__init__.py
 ```
 
 **遮蔽确认**：
@@ -363,7 +363,7 @@ import modules
 - 三个生产预测器仍执行 `sys.path.insert(1, FOOTBALLAI_ROOT)`
 - 实测确认 `import modules` 加载footballAI的modules包
 - 推荐方案（pip install -e .）未实施
-- **缓解**：设置环境变量 `FOOTBALLAI_ROOT=D:\Architecture v4.0` 可临时消除遮蔽
+- **缓解**：设置环境变量 `FOOTBALLAI_ROOT=D:\Architecture` 可临时消除遮蔽
 
 ---
 

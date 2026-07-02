@@ -11,7 +11,7 @@
     st = ScorerTracker()
     boost = st.get_team_attack_boost('德国')  # → 0.08 (Havertz×2 + Musiala + 多人进球)
 
-作者: Architecture v4.0
+作者: Architecture
 日期: 2026-06-19
 """
 from __future__ import annotations

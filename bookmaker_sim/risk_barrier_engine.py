@@ -18,7 +18,7 @@
     - bookmaker_intent: 庄家意图推断
     - prediction_impact: 对预测的修正建议
 
-作者: Architecture v4.0 · L4 Phase
+作者: Architecture · L4 Phase
 日期: 2026-06-19
 """
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """
 2026WC Screenshot OU Extractor v1.0
 ====================================
-固定路径: D:\Architecture v4.0\2026WC\{date}/*.png
+固定路径: D:\Architecture\2026WC\{date}/*.png
 用途: 从赛前截图提取外围OU大小球盘口, 用于OU约束层
 
 原理: 庄家Poisson模型算出的OU线是市场共识, 精度远高于我们自己的λ估计。

@@ -121,7 +121,7 @@
 ### 可立即执行
 ```bash
 # 启动服务
-D:\Architecture v4.0\start_server.bat
+D:\Architecture\start_server.bat
 # 访问: http://127.0.0.1:8000
 # API文档: http://127.0.0.1:8000/docs
 ```

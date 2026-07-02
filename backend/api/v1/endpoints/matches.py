@@ -21,6 +21,32 @@ router = APIRouter()
 FD_API_KEY = API_CONFIG.get("primary", {}).get("api_key", "") or os.getenv("FOOTBALL_DATA_API_KEY", "")
 FD_BASE_URL = "https://api.football-data.org/v4"
 
+# ─── 请求缓存 (v5.24 Sprint3) ──────────────────────────────────
+from threading import Lock
+_cache: dict = {}
+_cache_lock = Lock()
+CACHE_TTL = 300  # 5分钟
+
+def _cache_key(league, status, limit, offset) -> str:
+    return f"{league}|{status}|{limit}|{offset}"
+
+def _cache_get(key: str) -> tuple | None:
+    import time
+    with _cache_lock:
+        entry = _cache.get(key)
+        if entry and time.time() - entry['ts'] < CACHE_TTL:
+            return entry['data']
+        return None
+
+def _cache_set(key: str, data: tuple):
+    import time
+    with _cache_lock:
+        _cache[key] = {'data': data, 'ts': time.time()}
+        # 限制缓存条目数
+        if len(_cache) > 50:
+            oldest = min(_cache, key=lambda k: _cache[k]['ts'])
+            del _cache[oldest]
+
 # 联赛中文名映射
 LEAGUE_ZH = {
     "Premier League": "英超",
@@ -84,152 +110,31 @@ def fetch_live_from_api() -> list:
         logger.error(f"获取实时比赛时发生未知错误: {e}")
         return []
 
-# 英→中队名映射（用于 API 数据翻译 + 去重匹配）
-EN_ZH_TEAM = {
-    # 世界杯球队
-    'Qatar': '卡塔尔', 'Switzerland': '瑞士', 'United States': '美国',
-    'Paraguay': '巴拉圭', 'Brazil': '巴西', 'Morocco': '摩洛哥',
-    'Haiti': '海地', 'Scotland': '苏格兰', 'Australia': '澳大利亚',
-    'Turkey': '土耳其', 'Germany': '德国', 'Netherlands': '荷兰',
-    'Japan': '日本', 'Ivory Coast': '科特迪瓦', 'Ecuador': '厄瓜多尔',
-    'Sweden': '瑞典', 'Tunisia': '突尼斯', 'Curaçao': '库拉索',
-    'Spain': '西班牙', 'Belgium': '比利时', 'Saudi Arabia': '沙特阿拉伯',
-    'Iran': '伊朗', 'New Zealand': '新西兰', 'Egypt': '埃及',
-    'France': '法国', 'Argentina': '阿根廷', 'Portugal': '葡萄牙',
-    'England': '英格兰', 'Colombia': '哥伦比亚', 'Uruguay': '乌拉圭',
-    'Italy': '意大利', 'Croatia': '克罗地亚', 'Denmark': '丹麦',
-    'Mexico': '墨西哥', 'Poland': '波兰', 'Serbia': '塞尔维亚',
-    'South Korea': '韩国', 'Canada': '加拿大', 'Costa Rica': '哥斯达黎加',
-    'Cameroon': '喀麦隆', 'Ghana': '加纳', 'Nigeria': '尼日利亚',
-    'Senegal': '塞内加尔', 'Chile': '智利', 'Peru': '秘鲁',
-    'Wales': '威尔士', 'Ukraine': '乌克兰', 'Austria': '奥地利',
-    'Czech Republic': '捷克', 'Romania': '罗马尼亚', 'Hungary': '匈牙利',
-    'Russia': '俄罗斯', 'Norway': '挪威', 'Republic of Ireland': '爱尔兰',
-    'Greece': '希腊', 'Switzerland': '瑞士', 'Venezuela': '委内瑞拉',
-    'Bolivia': '玻利维亚', 'Paraguay': '巴拉圭', 'Honduras': '洪都拉斯',
-    'Jamaica': '牙买加', 'Panama': '巴拿马', 'El Salvador': '萨尔瓦多',
-    'Guinea': '几内亚', 'Mali': '马里', 'Algeria': '阿尔及利亚',
-    'DR Congo': '民主刚果', 'South Africa': '南非', 'Zimbabwe': '津巴布韦',
-    # 五大联赛俱乐部
-    'Manchester City': '曼城', 'Manchester United': '曼联',
-    'Liverpool FC': '利物浦', 'Liverpool': '利物浦',
-    'Chelsea FC': '切尔西', 'Chelsea': '切尔西',
-    'Arsenal FC': '阿森纳', 'Arsenal': '阿森纳',
-    'Tottenham Hotspur': '热刺', 'Tottenham': '热刺',
-    'Newcastle United': '纽卡斯尔', 'Newcastle': '纽卡斯尔',
-    'Aston Villa': '阿斯顿维拉', 'West Ham United': '西汉姆',
-    'West Ham': '西汉姆', 'Brighton & Hove Albion': '布莱顿',
-    'Brighton': '布莱顿', 'Crystal Palace': '水晶宫',
-    'Fulham FC': '富勒姆', 'Fulham': '富勒姆',
-    'Wolverhampton Wanderers': '狼队', 'Wolverhampton': '狼队',
-    'AFC Bournemouth': '伯恩茅斯', 'Bournemouth': '伯恩茅斯',
-    'Nottingham Forest': '诺丁汉森林', 'Brentford FC': '布伦特福德',
-    'Brentford': '布伦特福德', 'Everton FC': '埃弗顿', 'Everton': '埃弗顿',
-    'Leicester City': '莱斯特城', 'Leicester': '莱斯特城',
-    'Leeds United': '利兹联', 'Leeds': '利兹联',
-    'Burnley FC': '伯恩利', 'Burnley': '伯恩利',
-    'Southampton FC': '南安普顿', 'Southampton': '南安普顿',
-    'Watford FC': '沃特福德', 'Watford': '沃特福德',
-    'Norwich City': '诺维奇', 'Sunderland': '桑德兰',
-    'Sheffield United': '谢菲尔德联', 'Luton Town': '卢顿',
-    'Real Madrid': '皇家马德里', 'FC Barcelona': '巴塞罗那',
-    'Barcelona': '巴塞罗那', 'Atlético Madrid': '马德里竞技',
-    'Atletico Madrid': '马德里竞技', 'Sevilla FC': '塞维利亚',
-    'Sevilla': '塞维利亚', 'Real Sociedad': '皇家社会',
-    'Real Betis': '皇家贝蒂斯', 'Villarreal CF': '比利亚雷亚尔',
-    'Villarreal': '比利亚雷亚尔', 'Athletic Club': '毕尔巴鄂竞技',
-    'Athletic Bilbao': '毕尔巴鄂竞技', 'Valencia CF': '瓦伦西亚',
-    'Valencia': '瓦伦西亚', 'RC Celta': '塞尔塔',
-    'Celta de Vigo': '塞尔塔', 'CA Osasuna': '奥萨苏纳',
-    'Getafe CF': '赫塔菲', 'Getafe': '赫塔菲',
-    'Rayo Vallecano': '巴列卡诺', 'RCD Mallorca': '马洛卡',
-    'Mallorca': '马洛卡', 'Girona FC': '赫罗纳',
-    'Girona': '赫罗纳', 'UD Almería': '阿尔梅里亚',
-    'UD Las Palmas': '拉斯帕尔马斯', 'Cádiz CF': '加的斯',
-    'Elche CF': '埃尔切', 'RCD Espanyol': '西班牙人',
-    'Espanyol': '西班牙人', 'Deportivo de La Coruña': '拉科鲁尼亚',
-    'Deportivo': '拉科鲁尼亚', 'Levante UD': '莱万特',
-    'Juventus': '尤文图斯', 'FC Internazionale Milano': '国际米兰',
-    'Inter Milan': '国际米兰', 'Inter': '国际米兰',
-    'AC Milan': 'AC米兰', 'Milan': 'AC米兰',
-    'SSC Napoli': '那不勒斯', 'Napoli': '那不勒斯',
-    'AS Roma': '罗马', 'Roma': '罗马',
-    'SS Lazio': '拉齐奥', 'Lazio': '拉齐奥',
-    'Atalanta BC': '亚特兰大', 'Atalanta': '亚特兰大',
-    'ACF Fiorentina': '佛罗伦萨', 'Fiorentina': '佛罗伦萨',
-    'Bologna FC': '博洛尼亚', 'Bologna': '博洛尼亚',
-    'Torino FC': '都灵', 'Torino': '都灵',
-    'US Sassuolo': '萨索洛', 'Sassuolo': '萨索洛',
-    'Empoli FC': '恩波利', 'Empoli': '恩波利',
-    'Cagliari Calcio': '卡利亚里', 'Cagliari': '卡利亚里',
-    'Udinese Calcio': '乌迪内斯', 'Udinese': '乌迪内斯',
-    'Hellas Verona': '维罗纳', 'Genoa CFC': '热那亚',
-    'Genoa': '热那亚', 'US Cremonese': '克雷莫纳',
-    'US Lecce': '莱切', 'Lecce': '莱切',
-    'Salernitana': '萨勒尼塔纳', 'Spezia Calcio': '斯佩齐亚',
-    'Sampdoria': '桑普多利亚', 'Venezia FC': '威尼斯',
-    'Palermo': '巴勒莫', 'FC Bayern München': '拜仁慕尼黑',
-    'FC Bayern Munich': '拜仁慕尼黑', 'Bayern': '拜仁慕尼黑',
-    'Borussia Dortmund': '多特蒙德', 'Dortmund': '多特蒙德',
-    'RB Leipzig': '莱比锡', 'Bayer 04 Leverkusen': '勒沃库森',
-    'Leverkusen': '勒沃库森', 'VfB Stuttgart': '斯图加特',
-    'Stuttgart': '斯图加特', 'Eintracht Frankfurt': '法兰克福',
-    'Frankfurt': '法兰克福', 'SC Freiburg': '弗赖堡',
-    'Freiburg': '弗赖堡', 'TSG Hoffenheim': '霍芬海姆',
-    'Hoffenheim': '霍芬海姆', 'VfL Wolfsburg': '沃尔夫斯堡',
-    'Wolfsburg': '沃尔夫斯堡', 'Borussia Mönchengladbach': '门兴',
-    'Mönchengladbach': '门兴', 'FC Augsburg': '奥格斯堡',
-    'Augsburg': '奥格斯堡', '1. FSV Mainz 05': '美因茨',
-    'Mainz': '美因茨', '1. FC Union Berlin': '柏林联合',
-    'Union Berlin': '柏林联合', 'SV Werder Bremen': '不莱梅',
-    'Werder Bremen': '不莱梅', 'FC Schalke 04': '沙尔克04',
-    'Schalke': '沙尔克04', 'Hertha BSC': '柏林赫塔',
-    'Hertha': '柏林赫塔', '1. FC Köln': '科隆',
-    'FC Köln': '科隆', 'Hamburger SV': '汉堡',
-    'Hamburg': '汉堡', 'VfL Bochum': '波鸿',
-    'Bochum': '波鸿', '1. FC Heidenheim': '海登海姆',
-    'Heidenheim': '海登海姆', 'SV Darmstadt 98': '达姆施塔特',
-    'Darmstadt': '达姆施塔特', 'SC Paderborn': '帕德博恩',
-    'Paris Saint-Germain': '巴黎圣日耳曼', 'PSG': '巴黎圣日耳曼',
-    'Olympique de Marseille': '马赛', 'Marseille': '马赛',
-    'AS Monaco': '摩纳哥', 'Monaco': '摩纳哥',
-    'Olympique Lyonnais': '里昂', 'Lyon': '里昂',
-    'Olympique Lyon': '里昂', 'LOSC Lille': '里尔',
-    'Lille': '里尔', 'Stade Rennais FC': '雷恩',
-    'Rennes': '雷恩', 'OGC Nice': '尼斯',
-    'Nice': '尼斯', 'RC Lens': '朗斯',
-    'Lens': '朗斯', 'FC Nantes': '南特',
-    'Nantes': '南特', 'Montpellier HSC': '蒙彼利埃',
-    'Montpellier': '蒙彼利埃', 'Stade Brestois 29': '布雷斯特',
-    'Brest': '布雷斯特', 'Toulouse FC': '图卢兹',
-    'Toulouse': '图卢兹', 'Stade de Reims': '兰斯',
-    'Reims': '兰斯', 'FC Lorient': '洛里昂',
-    'Lorient': '洛里昂', 'Clermont Foot 63': '克莱蒙',
-    'Clermont': '克莱蒙', 'Le Havre AC': '勒阿弗尔',
-    'Le Havre': '勒阿弗尔', 'FC Metz': '梅斯',
-    'Metz': '梅斯', 'Angers SCO': '昂热',
-    'Angers': '昂热', 'ESTAC Troyes': '特鲁瓦',
-    'Troyes': '特鲁瓦', 'AJ Auxerre': '欧塞尔',
-    'Auxerre': '欧塞尔', 'SM Caen': '卡昂',
-    'SC Bastia': '巴斯蒂亚', 'AS Saint-Étienne': '圣埃蒂安',
-    'Saint-Étienne': '圣埃蒂安',
-    # 反向映射：中→英（用于 DB→API 匹配）
-    '卡塔尔': 'Qatar', '瑞士': 'Switzerland', '美国': 'United States',
-    '巴拉圭': 'Paraguay', '巴西': 'Brazil', '摩洛哥': 'Morocco',
-    '海地': 'Haiti', '苏格兰': 'Scotland', '澳大利亚': 'Australia',
-    '土耳其': 'Turkey', '德国': 'Germany', '荷兰': 'Netherlands',
-    '日本': 'Japan', '科特迪瓦': 'Ivory Coast', '厄瓜多尔': 'Ecuador',
-    '瑞典': 'Sweden', '突尼斯': 'Tunisia', '库拉索': 'Curaçao',
-    '西班牙': 'Spain', '比利时': 'Belgium', '沙特阿拉伯': 'Saudi Arabia',
-    '伊朗': 'Iran', '新西兰': 'New Zealand', '埃及': 'Egypt',
-    '法国': 'France', '阿根廷': 'Argentina', '葡萄牙': 'Portugal',
-    '英格兰': 'England', '哥伦比亚': 'Colombia', '乌拉圭': 'Uruguay',
-    '意大利': 'Italy', '克罗地亚': 'Croatia', '丹麦': 'Denmark',
-    '墨西哥': 'Mexico', '波兰': 'Poland', '塞尔维亚': 'Serbia',
-    '韩国': 'South Korea', '加拿大': 'Canada', '智利': 'Chile',
-    '秘鲁': 'Peru', '威尔士': 'Wales', '乌克兰': 'Ukraine',
-    '奥地利': 'Austria', '挪威': 'Norway', '希腊': 'Greece',
-}
+# 英→中队名映射（从 JSON 配置文件加载，v5.24 工程化）
+import json
+_EN_ZH_CACHE: dict = {}
+
+def _load_team_names() -> dict:
+    """加载队名映射表（含缓存）"""
+    global _EN_ZH_CACHE
+    if _EN_ZH_CACHE:
+        return _EN_ZH_CACHE
+    try:
+        import os
+        config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'config', 'team_names.json')
+        with open(config_path, 'r', encoding='utf-8') as f:
+            _EN_ZH_CACHE = json.load(f)
+    except Exception:
+        # JSON 不可用时回退到内嵌最小映射
+        _EN_ZH_CACHE = {
+            'Brazil': '巴西', 'Germany': '德国', 'Argentina': '阿根廷',
+            'France': '法国', 'Spain': '西班牙', 'England': '英格兰',
+            'Italy': '意大利', 'Netherlands': '荷兰', 'Portugal': '葡萄牙',
+        }
+    return _EN_ZH_CACHE
+
+# 模块加载时初始化映射表
+EN_ZH = _load_team_names()
 
 def normalize_api_match(m: dict) -> dict:
     """将 Football-Data.org API 返回的比赛格式转为系统格式"""
@@ -258,8 +163,8 @@ def normalize_api_match(m: dict) -> dict:
     # 队名中文（通过映射表翻译）
     home_en = home_team.get("name", "?")
     away_en = away_team.get("name", "?")
-    home_zh = EN_ZH_TEAM.get(home_en, home_en)
-    away_zh = EN_ZH_TEAM.get(away_en, away_en)
+    home_zh = EN_ZH.get(home_en, home_en)
+    away_zh = EN_ZH.get(away_en, away_en)
 
     return {
         "match_id": m.get("id"),
@@ -290,12 +195,18 @@ async def get_matches(
     status: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     user: dict = Depends(get_current_user),
 ):
     """获取比赛列表（含赔率和预测数据）"""
     try:
+        # ─── 缓存检查 (v5.24) ───
+        ck = _cache_key(league, status, limit, offset)
+        cached = _cache_get(ck)
+        if cached:
+            return {"matches": cached[0], "total": cached[1], "cached": True}
+
         db = get_db()
         league_id = None
         if league:
@@ -422,18 +333,13 @@ async def get_matches(
                 'homeScore': m.get('home_score'),
                 'awayScore': m.get('away_score'),
                 'venue': m.get('venue'),
-                # 赔率 (snake_case + camelCase 双份)
+                # 赔率 (v5.24: 统一 snake_case)
                 'home_odds': m.get('home_odds'),
                 'draw_odds': m.get('draw_odds'),
                 'away_odds': m.get('away_odds'),
-                'homeOdds': m.get('home_odds'),
-                'drawOdds': m.get('draw_odds'),
-                'awayOdds': m.get('away_odds'),
-                # 半场比分 (snake_case + camelCase 双份)
+                # 半场比分
                 'halftime_home': m.get('halftime_home'),
                 'halftime_away': m.get('halftime_away'),
-                'halftimeHome': m.get('halftime_home'),
-                'halftimeAway': m.get('halftime_away'),
                 'confidence': m.get('confidence') or odds_confidence,
                 'prediction': m.get('prediction') or odds_prediction,
             }
@@ -443,6 +349,7 @@ async def get_matches(
                 item['prediction'] = max(probs, key=probs.get)
             normalized.append(item)
 
+        _cache_set(ck, (normalized, len(normalized)))
         return {"matches": normalized, "total": len(normalized)}
     except ValueError as e:
         logger.error(f"参数错误: {e}")
@@ -478,7 +385,7 @@ async def get_live_scores():
             away = m.get("away_team_name", "")
             # 同时存中文和英文键
             key_zh = (home, away)
-            key_en = (EN_ZH_TEAM.get(home, home), EN_ZH_TEAM.get(away, away))
+            key_en = (EN_ZH.get(home, home), EN_ZH.get(away, away))
             db_lookup[key_zh] = m
             db_lookup[key_en] = m
             db_team_key_set.add(key_zh)
@@ -501,8 +408,8 @@ async def get_live_scores():
                 "id": m.get("match_id"),
                 "date": m.get("match_date"),
                 "time": m.get("match_time"),
-                "home_team": EN_ZH_TEAM.get(home, home),  # 英文名（如果有映射）
-                "away_team": EN_ZH_TEAM.get(away, away),
+                "home_team": EN_ZH.get(home, home),  # 英文名（如果有映射）
+                "away_team": EN_ZH.get(away, away),
                 "home_team_zh": home,
                 "away_team_zh": away,
                 "league": m.get("league_name"),
@@ -513,7 +420,7 @@ async def get_live_scores():
                 "halftime_away": m.get("halftime_away"),
             })
             key_zh = (home, away)
-            key_en = (EN_ZH_TEAM.get(home, home), EN_ZH_TEAM.get(away, away))
+            key_en = (EN_ZH.get(home, home), EN_ZH.get(away, away))
             seen_team_keys.add(key_zh)
             seen_team_keys.add(key_en)
             seen_team_keys.add(m.get("match_id"))
