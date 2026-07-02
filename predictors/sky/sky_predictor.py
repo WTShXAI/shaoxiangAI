@@ -200,9 +200,15 @@ class SKYPredictor(PredictorBase):
         """
         L0: 构建特征向量
         简化版: 使用赔率衍生特征 + 默认值填充非赔率特征
+
+        Phase 0: 无赔率时从 DB/API 尝试获取，不再用零向量静默降级。
         """
         n_features = len(self.trainer.feature_names)
         feats = np.zeros(n_features, dtype=np.float64)
+
+        # Phase 0: 赔率缺失 → 尝试从 DB 获取实时赔率
+        if not odds:
+            odds = self._fetch_live_odds(home, away)
 
         if odds:
             h_odd = float(odds.get('H', 2.5))
@@ -246,6 +252,23 @@ class SKYPredictor(PredictorBase):
                 if fname in self.trainer.feature_names:
                     idx = self.trainer.feature_names.index(fname)
                     feats[idx] = val
+        else:
+            # 真·无赔率 → 均匀降级 (不再伪造差异化特征)
+            logger.warning(
+                f"[SKY] 无赔率数据: {home} vs {away}，使用均匀降级 "
+                f"(所有 odds=2.5, implied=0.333)"
+            )
+            imp_uniform = 1.0 / 3.0
+            uniform_map = {
+                'p_h_implied': imp_uniform, 'p_d_implied': imp_uniform, 'p_a_implied': imp_uniform,
+                'odds_h': 2.5, 'odds_d': 2.5, 'odds_a': 2.5,
+                'home_odds': 2.5, 'draw_odds': 2.5, 'away_odds': 2.5,
+                'match_evenness': 1.0, 'odds_balance': 0.0, 'imp_d_norm': imp_uniform,
+            }
+            for fname, val in uniform_map.items():
+                if fname in self.trainer.feature_names:
+                    idx = self.trainer.feature_names.index(fname)
+                    feats[idx] = val
 
         # ELO
         if elo_home is not None and elo_away is not None:
@@ -261,6 +284,51 @@ class SKYPredictor(PredictorBase):
                         feats[idx] = elo_away
 
         return feats.reshape(1, -1)
+
+    def _fetch_live_odds(self, home: str, away: str) -> Optional[Dict[str, float]]:
+        """
+        Phase 0: 从 DB / odds_fetcher 获取实时赔率。
+
+        优先级: DB odds_snapshots > odds_fetcher.get_odds() > None
+
+        Returns:
+            {"H": home_odds, "D": draw_odds, "A": away_odds} 或 None
+        """
+        try:
+            # 1. 尝试 DB
+            import sqlite3
+            db_path = os.path.join(ARCH_ROOT, 'data', 'football_data.db')
+            if os.path.exists(db_path):
+                conn = sqlite3.connect(db_path)
+                cur = conn.cursor()
+                cur.execute(
+                    '''SELECT home_odds, draw_odds, away_odds
+                       FROM odds_snapshots
+                       WHERE match_id IN (
+                           SELECT match_id FROM matches
+                           WHERE home_team_name=? AND away_team_name=?
+                           ORDER BY match_date DESC LIMIT 1
+                       )
+                       ORDER BY snapshot_time DESC LIMIT 1''',
+                    (home, away)
+                )
+                row = cur.fetchone()
+                conn.close()
+                if row and row[0] is not None:
+                    return {"H": float(row[0]), "D": float(row[1] or 3.2), "A": float(row[2])}
+
+            # 2. 回退 odds_fetcher
+            try:
+                from data_collector.odds_fetcher import get_odds
+                oh, od, oa, _hcp, _ou = get_odds(home, away)
+                return {"H": oh, "D": od, "A": oa}
+            except ImportError:
+                pass
+
+        except (Exception, sqlite3.Error, KeyError, IndexError) as e:
+            logger.debug(f"[SKY] _fetch_live_odds 失败: {e}")
+
+        return None
 
     def _model_predict(self, features: np.ndarray) -> np.ndarray:
         """L1+L2+L3: Stacking推理 (含DrawExpert)"""
