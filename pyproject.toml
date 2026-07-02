@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "shaoxiang-ai"
-version = "5.10.0"
+version = "6.0.0"
 description = "ShaoxiangAI — World Cup 2026 football prediction system"
 requires-python = ">=3.10"
 

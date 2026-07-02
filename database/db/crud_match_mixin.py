@@ -9,7 +9,7 @@ from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'football_data.db')
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data', 'football_data.db')
 
 
 class CrudMatchMixin:
@@ -221,5 +221,23 @@ class CrudMatchMixin:
             return [dict(r) for r in rows]
 
     # ===================== 球队相关操作 =====================
+
+    def get_next_scheduled_match(self) -> Optional[Dict]:
+        """获取下一场待预测比赛（status=scheduled, match_date>=今天）"""
+        with self.get_connection() as conn:
+            row = conn.execute("""
+                SELECT m.*, o.home_odds, o.draw_odds, o.away_odds
+                FROM matches m
+                LEFT JOIN (
+                    SELECT match_id, home_odds, draw_odds, away_odds,
+                           ROW_NUMBER() OVER (PARTITION BY match_id ORDER BY odds_id DESC) AS rn
+                    FROM odds
+                ) o ON m.match_id = o.match_id AND o.rn = 1
+                WHERE m.status = 'scheduled'
+                  AND m.match_date >= date('now', 'localtime')
+                ORDER BY m.match_date ASC, m.match_time ASC
+                LIMIT 1
+            """).fetchone()
+            return dict(row) if row else None
 
 

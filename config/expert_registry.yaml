@@ -1,0 +1,74 @@
+# 哨响AI — 专家注册配置 (v6.0.0)
+# ExpertHub 启动时从该文件加载所有专家
+# 也可通过 load_default_experts() 代码注册
+
+experts:
+  - expert_id: trend_analyzer
+    class_path: agents.experts.trend_agent.TrendAgent
+    category: trend
+    phase: 1
+    display_name: "趋势分析"
+    tags: ["trend", "pattern"]
+
+  - expert_id: alpha_decision
+    class_path: agents.experts.alpha_agent.AlphaAgent
+    category: value
+    phase: 2
+    display_name: "Alpha决策"
+    tags: ["alpha", "value"]
+
+  - expert_id: referee_model
+    class_path: agents.experts.referee_agent.RefereeAgent
+    category: risk
+    phase: 2
+    display_name: "裁判分析"
+    tags: ["referee", "card"]
+
+  - expert_id: upset_detector
+    class_path: agents.experts.upset_agent.UpsetAgent
+    category: risk
+    phase: 4
+    display_name: "冷门检测"
+    tags: ["upset", "dark_horse"]
+
+  - expert_id: media_intelligence
+    class_path: agents.experts.media_agent.MediaAgent
+    category: auxiliary
+    phase: 4
+    display_name: "媒体情报"
+    tags: ["media", "news"]
+
+  - expert_id: coach_tactics
+    class_path: agents.experts.coach_agent.CoachAgent
+    category: tactical
+    phase: 2
+    display_name: "教练战术"
+    tags: ["coach", "formation"]
+
+  - expert_id: quant_trader
+    class_path: agents.experts.quant_agent.QuantAgent
+    category: value
+    phase: 2
+    display_name: "量化交易"
+    tags: ["quant", "kelly"]
+
+  - expert_id: timespace_detector
+    class_path: agents.experts.timespace_agent.TimeSpaceAgent
+    category: temporal
+    phase: 3
+    display_name: "时空检测"
+    tags: ["time", "schedule"]
+
+  - expert_id: arbitrage_detector
+    class_path: agents.experts.arbitrage_agent.ArbitrageAgent
+    category: value
+    phase: 4
+    display_name: "套利检测"
+    tags: ["arbitrage", "odds"]
+
+  - expert_id: goal_timing
+    class_path: agents.experts.goal_timing_agent.GoalTimingAgent
+    category: temporal
+    phase: 3
+    display_name: "进球时序"
+    tags: ["goal", "timing"]

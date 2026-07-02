@@ -643,6 +643,132 @@ class FootballDataCollector:
             logger.error(f"解析赔率失败 match_id={match_id}: {e}")
             return None
 
+    # ===================== 采集→数据库同步 =====================
+
+    def sync_to_database(self, league_code: str = 'WC', season: int = 2026,
+                         date_from: str = None, date_to: str = None) -> int:
+        """
+        采集→入库一键同步。
+
+        保留现有 API 客户端逻辑不变，调用 get_matches() 后逐条写入数据库。
+        按 match_id 去重，二次执行不重复入库。
+
+        Args:
+            league_code: 联赛代码 (WC, PL, PD, SA, BL1, FL1, CL, EC 等)
+            season: 赛季年份
+            date_from: 起始日期 (YYYY-MM-DD)，不传则拉取得分榜/赛季接口
+            date_to: 结束日期 (YYYY-MM-DD)
+
+        Returns:
+            成功入库的比赛数量
+        """
+        league_id = None
+        for lid, code in self.LEAGUE_CODES.items():
+            if code == league_code:
+                league_id = lid
+                break
+        if league_id is None:
+            logger.error(f"未知联赛代码: {league_code}")
+            return 0
+
+        # 拉取比赛数据
+        if date_from or date_to:
+            matches = self.get_matches(league_id, date_from=date_from, date_to=date_to)
+        else:
+            # 无日期范围 → 拉取当前赛季
+            try:
+                matches = self.fetch_current_season_matches(league_id, league_code, season=season)
+            except (Exception, AttributeError):
+                matches = self.get_matches(league_id)
+
+        if not matches:
+            logger.warning(f"{league_code} 无比赛数据可同步")
+            return 0
+
+        # 写入数据库
+        try:
+            from database.db_manager import get_db
+            db = get_db()
+            synced = 0
+            for m in matches:
+                try:
+                    m['league_id'] = league_id
+                    m['league_name'] = f'{league_code} {season}' if not m.get('league_name') else m['league_name']
+                    db.add_match(m)
+                    synced += 1
+                except (Exception, KeyError, IndexError):
+                    pass
+            logger.info(f"[sync_to_database] {league_code}: 入库 {synced}/{len(matches)} 场 (match_id去重)")
+            return synced
+        except ImportError:
+            logger.error("无法导入 database.db_manager，跳过入库")
+            return 0
+        except (Exception, KeyError, IndexError) as e:
+            logger.error(f"入库失败: {e}")
+            return 0
+
+    def sync_odds_to_database(self, league_code: str = 'WC', season: int = 2026,
+                               date_from: str = None, date_to: str = None) -> int:
+        """
+        采集赔率→入库同步。
+
+        先拉取比赛列表，再逐场获取赔率写入 odds_snapshots 表。
+        依赖 sync_to_database() 先入库比赛记录（赔率表有外键关系）。
+
+        Returns:
+            成功入库的赔率快照数量
+        """
+        league_id = None
+        for lid, code in self.LEAGUE_CODES.items():
+            if code == league_code:
+                league_id = lid
+                break
+        if league_id is None:
+            logger.error(f"未知联赛代码: {league_code}")
+            return 0
+
+        if date_from or date_to:
+            matches = self.get_matches(league_id, date_from=date_from, date_to=date_to)
+        else:
+            try:
+                matches = self.fetch_current_season_matches(league_id, league_code, season=season)
+            except (Exception, AttributeError):
+                matches = self.get_matches(league_id)
+
+        if not matches:
+            logger.warning(f"{league_code} 无比赛数据可获取赔率")
+            return 0
+
+        try:
+            from database.db_manager import get_db
+            db = get_db()
+            synced = 0
+            from datetime import datetime, timezone
+            snapshot_time = datetime.now(timezone.utc).isoformat()
+
+            for m in matches:
+                mid = m.get('match_id')
+                if not mid:
+                    continue
+                odds_data = self.get_odds(mid)
+                if not odds_data:
+                    continue
+                try:
+                    db.add_odds_snapshot(mid, odds_data, snapshot_time)
+                    synced += 1
+                except (Exception, AttributeError):
+                    # 表可能未创建，记录告警
+                    logger.debug(f"赔率快照写入跳过 match_id={mid} (表可能未就绪)")
+                    pass
+            logger.info(f"[sync_odds_to_database] {league_code}: 赔率入库 {synced}/{len(matches)} 场")
+            return synced
+        except ImportError:
+            logger.error("无法导入 database.db_manager，跳过赔率入库")
+            return 0
+        except (Exception, KeyError, IndexError) as e:
+            logger.error(f"赔率入库失败: {e}")
+            return 0
+
     # ===================== ⛔ 死命令：模拟数据已永久禁用 =====================
     # 以下方法已永久禁用并删除，所有数据必须来自 football-data.org API
     # _mock_standings: 积分榜必须从API获取真实数据

@@ -1,0 +1,32 @@
+[
+  {
+    "match": "Netherlands vs Morocco",
+    "actual_score": "1-1",
+    "prediction": "1-1",
+    "direction": "平局"
+  },
+  {
+    "match": "Germany vs Paraguay",
+    "actual_score": "1-1",
+    "prediction": "1-1",
+    "direction": "平局"
+  },
+  {
+    "match": "Brazil vs Japan",
+    "actual_score": "2-1",
+    "prediction": "1-1",
+    "direction": "平局"
+  },
+  {
+    "match": "South Africa vs Canada",
+    "actual_score": "0-1",
+    "prediction": "1-1",
+    "direction": "平局"
+  },
+  {
+    "match": "Algeria vs Austria",
+    "actual_score": "3-3",
+    "prediction": "1-1",
+    "direction": "平局"
+  }
+]

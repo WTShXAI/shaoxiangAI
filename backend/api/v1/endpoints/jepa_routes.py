@@ -2,7 +2,8 @@
 JEPA v5.0 预测端点 — 路由归一至 api/v1/endpoints/ (2026-06-28)
 ============================================
 迁移说明: 原 backend/routers/ → 统一至 api/v1/endpoints/
-"""import logging
+"""
+import logging
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 

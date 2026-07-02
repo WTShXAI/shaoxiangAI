@@ -44,7 +44,7 @@ API_CONFIG = {
     },
     "mock": {
         "name": "MockData",
-        "base_url": "http://localhost:8000/mock",
+        "base_url": "http://localhost:9000/mock",
         "endpoints": {
             "matches": "/matches",
             "odds": "/odds"
@@ -126,7 +126,7 @@ if not _flask_secret:
 
 FLASK_CONFIG = {
     'host': '0.0.0.0',
-    'port': int(os.getenv("FLASK_PORT", 8000)),
+    'port': int(os.getenv("FLASK_PORT", 9000)),
     'debug': os.getenv("FLASK_DEBUG", "false").lower() == "true",
     'secret_key': _flask_secret
 }
@@ -168,7 +168,7 @@ EXTERNAL_SERVICES = {
     "cors_origins": [
         o.strip() for o in _env_or(
             "CORS_ORIGINS",
-            "http://localhost:3000,http://localhost:8000"
+            "http://localhost:3000,http://localhost:9000"
         ).split(",") if o.strip()
     ],
 }

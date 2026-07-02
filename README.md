@@ -1,70 +1,52 @@
-# 哨响AI — 智能足球预测系统 (LAMF v4.1.0)
+# 哨响AI — 智能足球预测系统 (LAMF v6.0.0)
 
-> 基于 LAMF (Local AI Model Framework) 的多智能体足球预测系统
+> 当前版本以 FastAPI 后端、ModelBridge 预测服务、规则门控和生产模型为主。
 
 ---
 
 ## 系统架构
 
-┌──────────────────────▼──────────────────────────────────┐
-│               LangGraph 多智能体工作流                     │
-│  Commander(路由) → DataAgent → MathAgent → Explainer     │
-│                    → Commander(汇总) → 最终决策            │
-└──────────────────────┬──────────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────────┐
-│                 ModelBridge v2.0                         │
-│  锁定模型 · 禁止回退 · 硬编码检测 · 审计字段 · 预测快照    │
-│         XGBoost + Ridge 双模型集成                        │
-└──────────────────────┬──────────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────────┐
-│              SQLite 数据层 (data/football_data.db)        │
-│         匹配数据 · 90+ 维特征 · 历史比赛记录               │
-└─────────────────────────────────────────────────────────┘
-```
+┌─────────────────────────────────────────────────────────┐
+│                  用户访问层 / 监控层                       │
+│  浏览器 / API 客户端 / 调度器 / 监控系统                     │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ HTTP REST / WS
+┌──────────────────────────────▼──────────────────────────────┐
+│                FastAPI 后端服务 (backend/main.py)           │
+│  ├─ API 路由: /api/v1/monitor, /api/v1/predict, /api/v1/auth   │
+│  ├─ 业务服务: backend/services/prediction_service.py         │
+│  ├─ 模型加载: agents/model_bridge.py                         │
+│  ├─ 规则与门控: rules/d_gate_engine.py + bookmaker_sim/*      │
+│  └─ 配置中心: backend/core/config.py (Pydantic)               │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+┌──────────────────────────────▼──────────────────────────────┐
+│                    预测与模型层                              │
+│  - ModelBridge + EnsembleTrainer / NN / Stacking             │
+│  - D-Gate 动态门控引擎                                       │
+│  - Bookmaker 仿真、贝叶斯推理与陷阱检测                      │
+│  - HeuristicPredictor 旧版启发式回退                         │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+┌──────────────────────────────▼──────────────────────────────┐
+│                      数据层                                  │
+│  - SQLite: data/football_data.db                             │
+│  - 生产模型: saved_models/*.joblib                           │
+│  - 训练/特征配置: config/config.yaml                          │
+└──────────────────────────────────────────────────────────────┘
 
 ---
 
-## LAMF 模型矩阵
+## 核心组件
 
-| 模型 | Agent 角色 | 核心职责 | 调用方式 |
-|------|-----------|---------|---------|
-| **gemma4:12b** | Commander 指挥官 | 意图理解、任务路由、结果汇总、最终决策 | `OllamaLLM(model="gemma4:12b")` |
-| **deepseek-r1:8b** | DataAgent 数据分析师 | 数据获取、90+特征计算、趋势识别、异常检测 | `OllamaLLM(model="deepseek-r1:8b")` |
-| **phi4:14b** | MathAgent 数学家 | 概率计算、风险评估、Kelly 准则、三层降级 | `OllamaLLM(model="phi4:14b")` |
-| **qwen3:8b** | Explainer 解释器 | 中文通俗解释、用户交互、文案润色 | `OllamaLLM(model="qwen3:8b")` |
-
----
-
-## 工作流
-
-```
-START → Commander(路由) → DataAgent → MathAgent → Explainer → Commander(汇总) → END
-                    ↘ → Commander(汇总) → END  (简化问答时跳过专家)
-```
-
-基于 LangGraph StateGraph，支持条件路由和降级到 SimpleWorkflow。
-
----
-
-## ML 模型系统
-
-| 组件 | 说明 |
-|------|------|
-| **集成模型** | XGBoost + Ridge 双模型，锁定为 `football_v4.1_production.joblib` |
-| **ModelBridge v2.0** | 单例模式、禁止回退、硬编码概率检测 (H=0.40/D=0.28/A=0.32)、审计字段 (_model/_version/_timestamp)、预测快照 (JSON) |
-| **特征体系** | 90+ 维特征：攻防实力、近期状态、交锋记录、盘口赔率、伤病指数、市场特征等 |
-
----
-
-## 三层降级策略
-
-| 层级 | 方式 | 说明 |
-|------|------|------|
-| **L1** | Ollama LLM (phi4:14b) | 完整上下文数学推理，最高质量 |
-| **L2** | ModelBridge ML 推理 | XGBoost+Ridge 集成，高准确率，含审计字段 |
-| **L3** | 规则 Fallback | 领域知识修正 + 泊松分布 + Kelly 准则，兜底保障 |
+- `main.py` 统一入口：pipeline/backend/predict/agent
+- `backend/main.py`：FastAPI 应用入口与路由注册
+- `backend/api/v1/endpoints/`：REST API 端点实现
+- `backend/services/prediction_service.py`：预测业务逻辑与模型桥接
+- `agents/model_bridge.py`：模型加载与模型版本解析
+- `rules/d_gate_engine.py`：D-Gate 规则和动态门控引擎
+- `backend/core/config.py` (Pydantic)：应用配置、模型路径、开关阈值
+- `config/README.md`：配置中心说明（16文件分3层）
 
 ---
 
@@ -73,44 +55,41 @@ START → Commander(路由) → DataAgent → MathAgent → Explainer → Comman
 ### 前置条件
 
 - Python 3.10+
-- [Ollama](https://ollama.com) 已安装并运行，确保以下模型已拉取:
-  ```bash
-  ollama pull gemma4:12b
-  ollama pull deepseek-r1:8b
-  ollama pull phi4:14b
-  ollama pull qwen3:8b
-  ```
-- 模型文件: `saved_models/football_v4.1_production.joblib`
+- Node.js 18+ (前端开发)
+- 依赖安装: `pip install -e .`（基于 pyproject.toml）
 - 数据库: `data/football_data.db`
+- 生产模型: `saved_models/football_v4.1_production.joblib`
 
 ### 启动
 
 ```bash
-# 创建虚拟环境并安装依赖
-pip install -r requirements.txt
+pip install -e .                          # 安装Python依赖
+python -m uvicorn backend.main:app --port 8000   # 启动后端
+cd frontend && npm install && npm run dev        # 启动前端 (端口3000)
+```
 
-# 激活虚拟环境
-# Windows: .venv\Scripts\activate
-# Linux/Mac: source .venv/bin/activate
+访问 API 文档:
 
-# 启动后端 (开发模式)
-python main.py backend --dev
-
-# 访问 API 文档
-# http://localhost:8000/docs
+```text
+http://localhost:8000/api/v1/docs
 ```
 
 ### 子命令
 
 ```bash
 python main.py pipeline              # 自动预测 + 回测管道
-python main.py pipeline --daemon     # 守护模式 (定时执行)
+python main.py pipeline --daemon     # 守护模式
 python main.py pipeline --backtest   # 仅回测
-python main.py pipeline --report     # 准确率报告
-python main.py backend [--dev]       # FastAPI 后端 (默认 :8000)
+python main.py pipeline --report     # 生成报告
+python main.py backend [--dev]       # 启动 FastAPI 后端
 python main.py backend --port 9000   # 自定义端口
-python main.py predict               # 单次预测引擎
-python main.py agent                 # 交互式智能体对话
+python main.py predict               # 运行预测引擎
+python main.py agent                 # 交互式对话（legacy，旧版 agent 流程）
+python main.py conversation          # 启动对话引擎（legacy，旧版 agent 流程）
+python main.py conv --demo           # 运行交互演示（legacy）
+python main.py conv -q "巴西对阿根廷" # 单次查询（legacy）
+python main.py eval                  # 模型上线评估流水线
+python main.py eval --quick          # 快速评估
 ```
 
 ### 环境变量
@@ -119,48 +98,42 @@ python main.py agent                 # 交互式智能体对话
 |------|--------|------|
 | `API_HOST` | `0.0.0.0` | 后端监听地址 |
 | `API_PORT` | `8000` | 后端端口 |
-| `DEBUG` | - | 设为 `true` 启用开发模式 (免 JWT) |
+| `DEBUG` | - | 设为 `true` 启用开发模式 |
+| `DATABASE_URL` | `sqlite:///data/football_data.db` | 后端数据库连接 |
 
 ---
 
 ## 项目结构
 
 ```
-footballAI/
-├── main.py                  # 统一入口 (pipeline/backend/predict/agent)
-├── config.yaml              # 特征/权重/默认值配置
-├── requirements.txt         # Python 运行时依赖
-├── agents/                  # LAMF 多智能体
-│   ├── commander.py         # Commander: gemma4:12b 意图路由+汇总
-│   ├── data_agent.py        # DataAgent: deepseek-r1:8b 数据分析
-│   ├── math_agent.py        # MathAgent: phi4:14b 概率计算+三层降级
-│   ├── explainer.py         # Explainer: qwen3:8b 中文解释
-│   ├── model_bridge.py      # ModelBridge v2.0: 模型锁定+硬编码检测
-│   ├── workflow.py          # LangGraph 工作流编排
-│   ├── scheduler.py         # Agent 调度器
-│   ├── state.py             # Agent 状态定义
-│   └── nodes.py             # 工作流节点
-├── backend/                 # FastAPI 后端服务
-├── frontend/                # 纯静态 SPA 前端 (v5.0 深空暗黑主题)
-├── features/                # 特征计算引擎 (90+ 维)
-│   └── feature_calculator.py
-├── rules/                   # 领域知识规则
-│   ├── domain_rules.py
-│   └── football_kb.yaml
-├── saved_models/            # 生产模型 (仅 5 文件)
-│   ├── football_v4.1_production.joblib      # 锁定生产模型
-│   ├── footballai_compressed_features.json  # 特征名列表
-│   ├── football_nn_20260616_125617.pth      # 神经网络模型
-│   ├── draw_expert_v1.joblib                # DrawExpert 模型
-│   └── model_registry_v2b.json              # 模型注册表
-├── data/                    # 数据
-│   └── football_data.db     # SQLite 主库
-├── scripts/                 # 工具脚本 (93 个, 6 个已废弃)
-├── docs/                    # 项目文档
-├── logs/                    # 日志
-├── output/                  # 输出
-└── tests/                   # 测试
+D:\Architecture v4.0\
+├── main.py                          # 统一入口 (pipeline/backend/predict/agent)
+├── backend/                         # FastAPI 后端服务
+│   ├── main.py                      # 应用入口与路由注册
+│   ├── api/v1/endpoints/            # REST API 端点实现
+│   ├── core/                        # 配置、数据库、依赖注入
+│   ├── services/                    # 业务服务层
+├── config/                          # 配置文件
+│   ├── config.yaml                  # 训练/特征/模型路径配置
+│   ├── settings.yaml                # 全局参数与阈值开关
+│   ├── settings.py                  # Python 配置加载器
+├── predictors/                      # 预测引擎组件
+├── pipeline/                        # 预测管道与回测脚本
+├── rules/                           # D-Gate / 领域规则
+├── saved_models/                    # 生产模型
+│   ├── football_v4.1_production.joblib
+│   ├── draw_expert_v1.joblib
+│   ├── football_nn_20260616_125617.pth
+├── data/                            # 数据库
+│   └── football_data.db
+├── docs/                            # 项目文档
+├── scripts/                         # 工具脚本
+├── tests/                           # 测试
+├── logs/                            # 日志
+└── CHANGELOG.md                     # 变更日志
 ```
+
+> 前端: `frontend/` — React 18 + TypeScript + Vite，514模块构建通过，`npm run dev` 启动。
 
 ---
 
@@ -169,25 +142,42 @@ footballAI/
 | 类别 | 技术 |
 |------|------|
 | 后端框架 | Python 3.10+ · FastAPI · uvicorn |
-| 数据库 | SQLite (data/football_data.db) |
-| 前端 | 纯静态 HTML+CSS+JS SPA (v5.0 深空暗黑主题) |
-| ML 模型 | XGBoost + Ridge (ModelBridge v2.0 锁定) |
-| LLM | Ollama 本地部署 (gemma4 / deepseek-r1 / phi4 / qwen3) |
-| 工作流 | LangGraph StateGraph (含 SimpleWorkflow 降级) |
-| 预测管道 | auto_pipeline.py (AutoPipeline) |
+| 数据库 | SQLite + SQLAlchemy |
+| 异步任务 | Redis + Celery |
+| 模型 | XGBoost + Ridge + EnsembleTrainer |
+| 规则与门控 | D-Gate / DrawGate / Bookmaker 仿真 |
+| 监控 | Prometheus · RotatingFileHandler |
+| 配置 | Pydantic Settings / YAML |
 
 ---
 
-## API 接口
+## API 接口 (25+ 路由)
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/` | 服务信息 |
-| GET | `/docs` | Swagger API 文档 |
+| GET | `/api/v1/docs` | Swagger API 文档 (DEBUG模式) |
 | GET | `/api/v1/monitor/health` | 健康检查 |
-| POST | `/api/v1/predict` | 单场预测 |
+| GET | `/api/v1/monitor/system` | 系统资源 (CPU/内存/磁盘) |
+| GET | `/api/v1/models/versions` | 模型版本列表 |
+| GET | `/api/v1/models/info` | 当前活跃模型信息 |
+| POST | `/api/v1/models/deploy` | 部署模型 |
+| POST | `/api/v1/models/rollback` | 回滚模型 |
+| POST | `/api/v1/predict/single` | 单场预测 |
+| POST | `/api/v1/predict/batch` | 批量预测 |
+| GET | `/api/v1/predict/next-match` | 下一场比赛预测 |
+| GET | `/api/v1/predict/history` | 预测历史记录 |
+| GET | `/api/v1/predict/stats` | 预测统计信息 |
+| GET | `/api/v1/matches/list` | 比赛列表 |
+| GET | `/api/v1/matches/scores` | 比赛比分 |
+| GET | `/api/v1/training/status` | 训练状态 |
+| POST | `/api/v1/training/start` | 启动训练 |
+| GET | `/api/v1/features/teams/{name}` | 球队特征查询 |
 | POST | `/api/v1/auth/login` | 用户登录 |
-| POST | `/api/v1/auth/register` | 用户注册 |
+| GET | `/api/v1/auth/me` | 当前用户信息 |
+| GET | `/api/v1/alerts/alerts` | 告警列表 |
+| GET | `/api/v1/historical/leagues` | 联赛列表 |
+| GET | `/api/v1/chat` | SSE 流式对话 |
+| GET | `/api/v1/jepa/predict` | JEPA模型预测 |
 
 ---
 
@@ -197,9 +187,9 @@ footballAI/
 |------|------|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 系统架构总览 |
 | [docs/MODEL_LOADING.md](docs/MODEL_LOADING.md) | ModelBridge v2.0 模型加载指南 |
-| [docs/API_ARCHITECTURE.md](docs/API_ARCHITECTURE.md) | LangGraph 工作流与 API 架构 |
-| [docs/PROMPT_TEMPLATES.md](docs/PROMPT_TEMPLATES.md) | LAMF 模型使用指南 + Prompt 模板库 |
+| [docs/API_ARCHITECTURE.md](docs/API_ARCHITECTURE.md) | FastAPI API 架构 + 历史 LangGraph/LLM 参考 |
+| [docs/archive/PROMPT_TEMPLATES.md](docs/archive/PROMPT_TEMPLATES.md) | LAMF 模型使用指南 + Prompt 模板库 (已归档) |
 | [docs/STARTUP_AND_HEALTH.md](docs/STARTUP_AND_HEALTH.md) | 启动与健康检查指南 |
-| [docs/FORMULAS.md](docs/FORMULAS.md) | 核心公式与算法 |
-| [docs/MODEL_CARD.md](docs/MODEL_CARD.md) | 模型卡片 (训练参数/评估指标) |
-| [docs/PREDICTION_AUDIT.md](docs/PREDICTION_AUDIT.md) | 预测审计与可复盘设计 |
+| [docs/archive/FORMULAS.md](docs/archive/FORMULAS.md) | 核心公式与算法 (已归档) |
+| [docs/archive/MODEL_CARD.md](docs/archive/MODEL_CARD.md) | 模型卡片 (训练参数/评估指标) (已归档) |
+| [docs/archive/PREDICTION_AUDIT.md](docs/archive/PREDICTION_AUDIT.md) | 预测审计与可复盘设计 (已归档) |

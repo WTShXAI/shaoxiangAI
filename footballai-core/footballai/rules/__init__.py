@@ -14,12 +14,13 @@ from rules.d_gate_utils import ALL_RESULTS, COVER_DB, STAR_PLAYERS  # noqa
 from rules.d_gate_engine import apply_dgate_v51  # noqa
 from rules.drawgate_v53 import apply_drawgate, imp_from_odds, detect_match_type  # noqa
 
-# 向后兼容: 让 footballai.rules.d_gate_v52 / d_gate_engine / drawgate_v53 指向主 rules/
-import rules.d_gate_v52 as _d_gate_v52
+# 向后兼容: 让 footballai.rules.d_gate_engine / drawgate_v53 / d_gate_utils 指向主 rules/
+# (v5.2兼容已废弃: d_gate_v52 → d_gate_utils, 2026-07-01)
 import rules.d_gate_engine as _d_gate_engine
 import rules.drawgate_v53 as _drawgate_v53
+import rules.d_gate_utils as _d_gate_utils
 
-_sys.modules['footballai.rules.d_gate_v52'] = _d_gate_v52
+_sys.modules['footballai.rules.d_gate_v52'] = _d_gate_utils  # DEPRECATED 向后兼容
 _sys.modules['footballai.rules.d_gate_engine'] = _d_gate_engine
 _sys.modules['footballai.rules.drawgate_v53'] = _drawgate_v53
-_sys.modules['footballai.rules.d_gate_utils'] = _sys.modules.get('rules.d_gate_utils')
+_sys.modules['footballai.rules.d_gate_utils'] = _d_gate_utils

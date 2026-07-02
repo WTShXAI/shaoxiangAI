@@ -144,6 +144,40 @@ class FullLinkagePipeline:
                     print(f"\n  ⚡ [Priority Gate] 屠杀预警 → 阻断Chain 1-3")
                     print(f"      强队: {form_result.home.team if form_result.goal_diff_advantage > 0 else form_result.away.team}")
 
+            # ═══ v5.24: 淘汰赛屠杀降级 ═══
+            # 案例: 德国vs巴拉圭(1/16决赛) — 德国小组赛7-1库拉索→屠杀预警
+            #       实际1-1点球负。巴拉圭小组赛2场零封(0-0澳洲/1-0土耳其)→防守强
+            # 淘汰赛下: 小组赛屠杀数据不代表淘汰赛表现, 弱队摆大巴+淘汰赛保守
+            # 规则: 淘汰赛+弱队防守好(GA<1.2) → 屠杀降级, 允许D-Gate平局信号
+            stage_val = getattr(match, 'stage', 'group')
+            if stage_val == 'knockout' and short_circuit and short_circuit_level == -1:
+                # 确定弱队
+                if form_result.goal_diff_advantage > 0:
+                    weak_ga = form_result.away.avg_ga
+                    weak_team = form_result.away.team
+                else:
+                    weak_ga = form_result.home.avg_ga
+                    weak_team = form_result.home.team
+
+                if weak_ga < 1.2:
+                    # 弱队防守好 → 屠杀降级
+                    short_circuit = False
+                    short_circuit_level = 4
+                    short_circuit_reason = ''
+                    if form_result.massacre_warning:
+                        form_result.massacre_warning = False
+                    print(f"\n  🟡 v5.24: 淘汰赛屠杀降级 — {weak_team}防守强(GA={weak_ga:.1f}<1.2)")
+                    print(f"      小组赛屠杀数据不代表淘汰赛表现, 允许D-Gate平局信号")
+                elif weak_ga < 1.5 and abs_gap < 3.0:
+                    # 弱队防守中等 + 差距不极端 → 降级但不完全清除
+                    short_circuit = False
+                    short_circuit_level = 4
+                    short_circuit_reason = ''
+                    if form_result.massacre_warning:
+                        form_result.massacre_warning = False
+                    print(f"\n  🟡 v5.24: 淘汰赛屠杀部分降级 — {weak_team}GA={weak_ga:.1f}+gap={abs_gap:.1f}")
+                    print(f"      差距不极端, 降级为常规分析")
+
         # ── 链0: 战意/情境分析 (动机层) ──
         context_adj = {}
         try:

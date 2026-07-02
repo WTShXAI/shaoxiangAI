@@ -1,67 +1,39 @@
 # 哨响AI 系统架构文档
 
-> 版本: v4.1.0 | D-Gate 引擎: v5.3 | 更新: 2026-06-28
+> 版本: v4.1.0 | 更新: 2026-06-29
+> 说明: 当前主线运行时为 FastAPI 后端 + ModelBridge/规则预测体系。历史 LLM/LangGraph 多智能体设计仅作参考，不是后端部署必需。
 
 ---
 
-## 1. 系统架构总览
+## 1. 当前主线架构
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      用户交互层                                   │
-│  浏览器 (SPA) / API 客户端 / WebSocket                            │
+│                      用户访问层                                   │
+│  API 客户端 / 监控系统 / 调度器                                   │
 └──────────────────────────┬──────────────────────────────────────┘
-                           │ HTTP REST / WS
+                           │ HTTP REST
 ┌──────────────────────────▼──────────────────────────────────────┐
-│                FastAPI 后端服务 (端口 8000)                       │
-│  ┌────────────────────────────────────────────────────────┐     │
-│  │               API 路由层 (api/v1)                       │     │
-│  │  predict / models / training / matches / features      │     │
-│  │  ab-test / alerts / historical / evaluation / admin    │     │
-│  │  auth / monitor / data-quality / chat / fixtures / jepa│     │
-│  └───────────────────────┬────────────────────────────────┘     │
-│                          │                                       │
-│  ┌───────────────────────▼────────────────────────────────┐     │
-│  │              UnifiedPredictor (适配器层)                 │     │
-│  │  统一监控 · 审计 · 降级路由 · A/B 测试路由              │     │
-│  └───────────────────────┬────────────────────────────────┘     │
-└──────────────────────────┼──────────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────────┐
-│                   预测引擎层 (D-Gate v5.3)                       │
-│                                                                  │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌───────────────┐ │
-│  │   DrawGate v5.3   │  │  HCP 盘口分析     │  │  OU 大小球    │ │
-│  │   + DrawExpert     │  │  亚盘/欧盘解析    │  │  Over/Under  │ │
-│  └────────┬─────────┘  └────────┬─────────┘  └───────┬───────┘ │
-│           │                     │                     │          │
-│  ┌────────▼─────────────────────▼─────────────────────▼───────┐ │
-│  │              LINKAGE_MATRIX (联动矩阵)                      │ │
-│  │  跨信号协同 · 权重分配 · 冲突解决 · 场景适配               │ │
-│  └────────┬───────────────────────────────┬──────────────────┘ │
-│           │                               │                     │
-│  ┌────────▼──────────┐      ┌─────────────▼───────────────┐   │
-│  │  Tournament Dyn   │      │  ModelBridge v2.0           │   │
-│  │  R1-R4 阶段适配   │      │  XGBoost + Ridge 集成       │   │
-│  └───────────────────┘      └─────────────────────────────┘   │
-│                                                                  │
-│  降级策略: L1 (LLM phi4:14b) → L2 (ML ModelBridge) → L3 (规则) │
+│                FastAPI 后端服务 (backend/main.py)                 │
+│  ├─ 注册路由: backend/api/v1/router.py                            │
+│  ├─ 端点实现: backend/api/v1/endpoints/                           │
+│  ├─ 文档: /api/v1/docs /api/v1/openapi.json                       │
+│  └─ 中间件: CORS / TrustedHost / request_id / 全局异常处理         │
 └──────────────────────────┬──────────────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────────────┐
-│                  LAMF 多智能体工作流                              │
-│  Commander(gemma4:12b) → DataAgent(deepseek-r1:8b)             │
-│  → MathAgent(phi4:14b) → Explainer(qwen3:8b)                   │
-│  → Commander(汇总) → 最终决策                                    │
-│                                                                  │
-│  基于 LangGraph StateGraph + SimpleWorkflow 降级                │
+│                      预测与模型层                                 │
+│  - backend/services/prediction_service.py                         │
+│  - agents/model_bridge.py                                          │
+│  - rules/d_gate_engine.py + rules/drawgate_v53.py                 │
+│  - saved_models/football_v4.1_production.joblib                    │
 └──────────────────────────┬──────────────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────────────┐
-│                     数据层                                       │
-│  SQLite (football_data.db) · 12 表                              │
-│  matches / teams / odds / match_features / predictions / ...    │
-│  特征工程: 90+ 维 · football-data.org 数据源                     │
+│                          数据层                                   │
+│  - SQLite: data/football_data.db                                  │
+│  - 训练/特征配置: config/config.yaml                              │
+│  - 特征计算: features/ / rules/ / data_collector/                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -74,22 +46,16 @@ D:\Architecture v4.0\
 ├── main.py                  # 统一入口 (pipeline/backend/predict/agent)
 ├── start.py                 # 容器化启动入口
 ├── config/                  # 配置 (settings.yaml)
-├── agents/                  # LAMF 多智能体
-│   ├── commander.py         # Commander: gemma4:12b 意图路由+汇总
-│   ├── data_agent.py        # DataAgent: deepseek-r1:8b 数据分析
-│   ├── math_agent.py        # MathAgent: phi4:14b 概率计算+三层降级
-│   ├── explainer.py         # Explainer: qwen3:8b 中文解释
-│   ├── model_bridge.py      # ModelBridge v2.0: 模型锁定+硬编码检测
-│   ├── workflow.py          # LangGraph 工作流编排
-│   ├── scheduler.py         # Agent 调度器
-│   ├── state.py             # Agent 状态定义
-│   └── nodes.py             # 工作流节点
+├── agents/                  # 模型加载与启发式回退
+│   ├── model_bridge.py      # ModelBridge: 生产模型加载与审计
+│   ├── heuristic_predictor.py # 旧版启发式回退逻辑
+│   └── __init__.py
 ├── backend/                 # FastAPI 后端服务 (端口 8000)
 │   ├── main.py              # 应用入口和路由注册
 │   ├── api/v1/              # API v1 路由
 │   │   ├── endpoints/       # 端点实现 (12 组路由)
 │   │   └── router.py        # 主路由聚合
-│   ├── routers/             # 附加路由 (chat/fixtures/jepa/misc)
+│   ├── routers/             # 迁移路由 (chat/fixtures/jepa/misc)
 │   ├── services/            # 业务逻辑层
 │   └── core/                # 配置、数据库、依赖注入
 │       ├── config.py        # Pydantic Settings (统一配置 v2)
@@ -144,8 +110,8 @@ D:\Architecture v4.0\
 | 预测引擎 | **D-Gate** (动态门控) | **v5.3** |
 | 平局预测 | **DrawGate** + **DrawExpert** (合并) | v5.3 |
 | 全链路联动 | **Full Linkage Predictor** | — |
-| LLM | **Ollama** 本地部署 | gemma4 / deepseek-r1 / phi4 / qwen3 |
-| 工作流 | **LangGraph** StateGraph | — |
+| LLM | **Ollama** 本地部署 | 历史/可选，非当前 backend 运行时必需 |
+| 工作流 | **LangGraph** StateGraph | 历史/可选，主要用于旧版 agent 流程 |
 | 前端 | 纯静态 HTML+CSS+JS SPA | v5.0 |
 | 消息队列 | **Celery** + Redis | — |
 | ML 追踪 | **MLflow** | — |

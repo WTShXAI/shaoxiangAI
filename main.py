@@ -10,9 +10,9 @@
     python main.py pipeline --report     # 生成准确率报告
     python main.py backend [--dev] [--port 9000]  # 启动 FastAPI 后端
     python main.py predict               # 启动预测引擎 (需要已训练模型)
-    python main.py agent                 # 运行6层AI智能体对话
-    python main.py conversation          # 启动6层AI对话引擎 (交互模式)
-    python main.py conv --demo           # 运行6层架构演示
+    
+    
+    
     python main.py conv -q "巴西对阿根廷" # 单次查询
     python main.py eval                  # 运行模型上线评估流水线
     python main.py eval --quick          # 快速评估 (仅核心三项)
@@ -56,7 +56,7 @@ def cmd_backend(args: argparse.Namespace) -> None:
     import uvicorn
 
     host = os.getenv("API_HOST", "0.0.0.0")
-    port = int(os.getenv("API_PORT", "8000"))
+    port = int(os.getenv("API_PORT", "9000"))
     debug = args.dev or os.getenv("DEBUG", "").lower() == "true"
 
     # 命令行覆盖端口

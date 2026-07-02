@@ -16,9 +16,18 @@ import os as _os
 _os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
 import sys
 import os
+import asyncio as _asyncio
 import json as _json_module
 from datetime import datetime, timezone
 _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# 确保 backend/ 在 sys.path 中 (uvicorn + 直接运行双路径兼容)
+_sys_backend = os.path.dirname(os.path.abspath(__file__))
+if _sys_backend not in sys.path:
+    sys.path.insert(0, _sys_backend)
+# 确保 predictors/components/ 在 sys.path (draw_expert 模型加载依赖, v6.0.0)
+_sys_predictors = os.path.join(_project_root, 'predictors', 'components')
+if _sys_predictors not in sys.path:
+    sys.path.insert(0, _sys_predictors)
 
 import time
 import logging
@@ -26,13 +35,20 @@ import uuid
 import contextvars
 from logging.handlers import RotatingFileHandler
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import HTMLResponse
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, FileResponse
-from a2wsgi import WSGIMiddleware
+
+# a2wsgi: 可选依赖 (Flask Legacy WSGI 桥接)
+try:
+    from a2wsgi import WSGIMiddleware
+    _wsgi_available = True
+except ImportError:
+    WSGIMiddleware = None
+    _wsgi_available = False
 
 from core.config import settings
 from core.database import engine, Base
@@ -80,8 +96,8 @@ _file_handler.setFormatter(JsonFormatter())
 _console_handler = logging.StreamHandler()
 _console_handler.setFormatter(
     logging.Formatter(
-        fmt="%(asctime)s [%(levelname)s] [%(request_id)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+        fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
     )
 )
 
@@ -164,9 +180,9 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description="智能足球预测决策系统 — 微服务架构",
-    docs_url=f"{settings.API_V1_PREFIX}/docs",
-    redoc_url=f"{settings.API_V1_PREFIX}/redoc",
-    openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
+    docs_url=settings.API_V1_PREFIX + "/docs" if settings.DEBUG else None,
+    redoc_url=settings.API_V1_PREFIX + "/redoc" if settings.DEBUG else None,
+    openapi_url=settings.API_V1_PREFIX + "/openapi.json" if settings.DEBUG else None,
     lifespan=lifespan,
 )
 
@@ -193,6 +209,44 @@ async def add_request_id_and_process_time(request: Request, call_next):
     response.headers["X-Request-ID"] = request_id
     response.headers["X-Process-Time"] = str(round(process_time, 4))
     return response
+
+# ── P0-1: 敏感端点认证保护 (2026-07-01) ──
+_SENSITIVE_PATH_PREFIXES = [
+    "/api/v1/admin/",       # 重启、清缓存
+    "/api/v1/models/deploy", # 模型部署
+    "/api/v1/models/rollback", # 模型回滚
+    "/api/v1/training/start",  # 启动训练
+    "/api/v1/alerts/",      # 告警规则增删
+]
+_SENSITIVE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
+
+@app.middleware("http")
+async def protect_sensitive_endpoints(request: Request, call_next):
+    """非DEBUG模式下保护敏感端点: admin/models/training/alerts 的写操作需认证"""
+    if not settings.DEBUG:
+        path = request.url.path
+        method = request.method
+        is_sensitive = any(path.startswith(p) for p in _SENSITIVE_PATH_PREFIXES)
+        is_write = method in _SENSITIVE_METHODS
+
+        if is_sensitive and is_write:
+            auth_header = request.headers.get("Authorization")
+            if not auth_header or not auth_header.startswith("Bearer "):
+                logger.warning(f"[AUTH] 未授权访问被拒绝: {method} {path}")
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "认证令牌缺失。生产环境下敏感操作需要 Bearer Token。"},
+                )
+            # P0-2修复: 验证Token内容 (2026-07-01)
+            token = auth_header[7:]  # 去掉 "Bearer " 前缀
+            expected = getattr(settings, 'API_AUTH_TOKEN', None)
+            if expected and token != expected:
+                logger.warning(f"[AUTH] 令牌不匹配被拒绝: {method} {path}")
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "认证令牌无效。"},
+                )
+    return await call_next(request)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -270,16 +324,51 @@ async def metrics():
     except ImportError:
         return JSONResponse(status_code=501, content={"error": "metrics_exporter not installed"})
 
+# ── 前端静态文件 (2026-07-01) ─────────────
+_frontend_dir = os.path.join(_project_root, 'frontend', 'dist')
+_frontend_assets = os.path.join(_frontend_dir, 'assets')
+if os.path.isdir(_frontend_assets):
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/assets", StaticFiles(directory=_frontend_assets), name="frontend_assets")
+    # favicon
+    _favicon = os.path.join(_frontend_dir, 'favicon.svg')
+    if os.path.exists(_favicon):
+        @app.get("/favicon.svg", include_in_schema=False)
+        async def frontend_favicon():
+            return FileResponse(_favicon)
+    # SPA fallback: 所有非API路径 → index.html
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_frontend(full_path: str, request: Request):
+        # 不拦截API/监控/WS路径
+        skip_prefixes = ('api/', 'ws/', 'metrics', 'static/', 'assets/', 'chat')
+        if full_path.startswith(skip_prefixes):
+            raise HTTPException(status_code=404)
+        _index = os.path.join(_frontend_dir, 'index.html')
+        if os.path.exists(_index):
+            return FileResponse(_index)
+        raise HTTPException(status_code=404)
+    # 首页
+    @app.get("/", include_in_schema=False)
+    async def serve_frontend_root():
+        _index = os.path.join(_frontend_dir, 'index.html')
+        if os.path.exists(_index):
+            return FileResponse(_index)
+        return {"message": "前端尚未构建。运行 cd frontend && npm run build"}
+    logger.info(f"[前端] 静态文件已挂载: {_frontend_dir}")
+
 # ── Flask Legacy WSGI 挂载 ────────────────
-try:
-    from flask_bridge import get_flask_app
-    flask_wsgi = get_flask_app()
-    app.mount("/", WSGIMiddleware(flask_wsgi))
-    logger.info("[挂载] Flask legacy API 已成功挂载 (WSGI 兼容层)")
-except ImportError as e:
-    logger.warning(f"[警告] Flask legacy API 未挂载: {e}")
-except (ValueError, KeyError, FileNotFoundError) as e:
-    logger.error(f"[错误] Flask WSGI 挂载失败: {e}")
+if _wsgi_available:
+    try:
+        from flask_bridge import get_flask_app
+        flask_wsgi = get_flask_app()
+        app.mount("/", WSGIMiddleware(flask_wsgi))
+        logger.info("[挂载] Flask legacy API 已成功挂载 (WSGI 兼容层)")
+    except ImportError as e:
+        logger.warning(f"[警告] Flask legacy API 未挂载: {e}")
+    except (ValueError, KeyError, FileNotFoundError) as e:
+        logger.error(f"[错误] Flask WSGI 挂载失败: {e}")
+else:
+    logger.info("[跳过] Flask legacy WSGI 未安装 (a2wsgi 不存在)")
 
 # ── 启动 ──────────────────────────────────
 if __name__ == "__main__":
@@ -291,3 +380,48 @@ if __name__ == "__main__":
         reload=settings.DEBUG,
         log_level=settings.LOG_LEVEL.lower(),
     )
+
+# ========== 新增：实时数据 WebSocket ==========
+from fastapi import WebSocket, WebSocketDisconnect
+import asyncio
+import json
+import sqlite3
+from datetime import datetime
+
+active_connections = []
+
+@app.websocket("/ws/realtime")
+async def realtime_websocket(websocket: WebSocket):
+    await websocket.accept()
+    active_connections.append(websocket)
+    print("✅ 前端 WebSocket 已连接")
+
+    try:
+        # 首次连接，先推一次当前数据
+        db = sqlite3.connect("D:/Architecture v4.0/data/football_data.db")
+        cursor = db.cursor()
+        cursor.execute("SELECT COUNT(*) FROM teams")  # 举例：球队数量
+        team_count = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM matches")  # 举例：比赛数量
+        match_count = cursor.fetchone()[0]
+        db.close()
+
+        await websocket.send_json({
+            "type": "init",
+            "teams": team_count,
+            "matches": match_count,
+            "time": datetime.now().isoformat()
+        })
+
+        # 每 5 秒推一次“心跳 + 数据变化”
+        while True:
+            await asyncio.sleep(5)
+            await websocket.send_json({
+                "type": "tick",
+                "time": datetime.now().isoformat(),
+                "msg": "数据已更新（模拟）"
+            })
+
+    except WebSocketDisconnect:
+        active_connections.remove(websocket)
+        print("❌ 前端 WebSocket 已断开")

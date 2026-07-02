@@ -1,3 +1,5 @@
+# ⛔ DEPRECATED — 所有修改请改 backend/core/config.py (Pydantic)
+# 旧版YAML配置, 仅保留参考. v6.0.0
 auto_pipeline:
   ab_testing:
     enabled: true

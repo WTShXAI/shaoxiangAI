@@ -28,7 +28,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
-  python start.py              # FastAPI 后端 (http://localhost:8000)
+  python start.py              # FastAPI 后端 (http://localhost:9000)
   python start.py --cli        # CLI 对话模式
   python start.py --demo       # 6层架构演示
   python start.py --port 8080  # 自定义端口
@@ -36,7 +36,7 @@ def main():
 
     parser.add_argument("--cli", action="store_true", help="CLI 对话模式")
     parser.add_argument("--demo", action="store_true", help="运行6层架构演示")
-    parser.add_argument("--port", type=int, default=None, help="服务端口 (默认: 8000)")
+    parser.add_argument("--port", type=int, default=None, help="服务端口 (默认: 9000)")
     parser.add_argument("--host", type=str, default=None, help="服务地址 (默认: 0.0.0.0)")
     parser.add_argument("--pure", action="store_true", help="纯净v3.2模式 (所有新功能关闭)")
 
@@ -58,7 +58,7 @@ def main():
         print("🔵 已切换至 v3.2 纯净模式 (所有扩展功能关闭)")
         print("   恢复: 编辑 config/settings.yaml, 将 pure_v32_mode 改为 false")
 
-    port = args.port or get_setting('server.port', 8000)
+    port = args.port or get_setting('server.port', 9000)
     host = args.host or get_setting('server.host', '0.0.0.0')
 
     # ── CLI 模式 ──

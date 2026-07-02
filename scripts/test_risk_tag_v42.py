@@ -31,7 +31,7 @@ TEST_CASES = [
     },
 ]
 
-URL = "http://localhost:8000/api/v1/chat"
+URL = "http://localhost:9000/api/v1/chat"
 
 for tc in TEST_CASES:
     print(f"\n{'='*70}")

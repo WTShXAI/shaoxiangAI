@@ -15,15 +15,21 @@ import os
 import json
 import urllib.request
 import logging
+from dotenv import load_dotenv
+
+# 确保从 .env 读取环境变量 (无论调用方是否已 load)
+load_dotenv()
 from typing import Dict, List, Optional
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-API_KEY = os.environ.get(
-    'FOOTBALL_DATA_API_KEY',
-    '993ff50d0e2c4b0cb367a7f79eafc6a0'  # 7天有效期
-)
+API_KEY = os.environ.get('FOOTBALL_DATA_API_KEY', '').strip()
+if not API_KEY:
+    logger.warning(
+        "FOOTBALL_DATA_API_KEY 未设置！请在 .env 文件中配置 "
+        "(访问 https://www.football-data.org/ 注册获取)。世界杯数据采集将不可用。"
+    )
 BASE_URL = "https://api.football-data.org/v4"
 CACHE_DIR = Path(__file__).parent.parent / "data" / "api_cache"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)

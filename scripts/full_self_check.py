@@ -34,7 +34,7 @@ for name, path in {
 # ═══ 3. 风控引擎 ═══
 for name, path in {
     'DrawGate v5.3':'rules/drawgate_v53.py',
-    'D-Gate v5.2':'rules/d_gate_v52.py',
+    'D-Gate v5.3':'rules/d_gate_utils.py',
     'D-Gate Engine':'rules/d_gate_engine.py',
     '操盘手陷阱':'bookmaker_sim/risk_barrier_engine.py',
     'Bayesian λ':'bookmaker_sim/margin_likelihood_bridge.py',

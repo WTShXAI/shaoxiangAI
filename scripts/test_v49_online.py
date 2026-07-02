@@ -3,7 +3,7 @@
 """v4.9 P0+P1 线上验证: 模式C(超热门翻车) + 模式A(2信号协同)"""
 import urllib.request, json, sys
 
-URL = "http://localhost:8000/api/v1/chat"
+URL = "http://localhost:9000/api/v1/chat"
 
 TEST_CASES = [
     {

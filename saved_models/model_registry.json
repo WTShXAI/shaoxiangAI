@@ -1,0 +1,57 @@
+{
+  "active": "4.1",
+  "production": "saved_models/football_v4.1_production.joblib",
+  "models": {
+    "v4.1_20260618": {
+      "name": "v4.1 Production",
+      "version": "4.1",
+      "path": "saved_models/football_v4.1_production.joblib",
+      "accuracy": 0.6243,
+      "draw_f1": 0.520,
+      "auc": 0.815,
+      "model_type": "ensemble",
+      "trained_at": "2026-06-18",
+      "registered_at": "2026-07-01T05:55:00",
+      "status": "active"
+    },
+    "ensemble_20260618": {
+      "name": "Ensemble v20260618",
+      "version": "4.1",
+      "path": "saved_models/football_ensemble_20260618_160404.joblib",
+      "accuracy": null,
+      "draw_f1": null,
+      "auc": null,
+      "model_type": "ensemble",
+      "trained_at": "2026-06-18",
+      "registered_at": "2026-07-01T06:20:00",
+      "status": "standby"
+    },
+    "nn_20260616": {
+      "name": "Neural Network v20260616",
+      "version": "4.1",
+      "path": "saved_models/football_nn_20260616_125617.pth",
+      "accuracy": null,
+      "draw_f1": null,
+      "auc": null,
+      "model_type": "neural_network",
+      "trained_at": "2026-06-16",
+      "registered_at": "2026-07-01T06:20:00",
+      "status": "standby"
+    },
+    "jepa_v5_lite": {
+      "name": "JEPA v5 Lite",
+      "version": "5.0",
+      "path": "models/jepa/checkpoints/best_model_lite.pt",
+      "accuracy": 0.5648,
+      "draw_f1": 0.4561,
+      "auc": null,
+      "model_type": "transformer",
+      "trained_at": "2026-06-21",
+      "registered_at": "2026-07-01T05:55:00",
+      "status": "active_blend",
+      "blend_role": "post-stacking 平局专精后融合 (env JEPA_BLEND_WEIGHT, 默认0.08)",
+      "f1_home": 0.6445,
+      "f1_away": 0.5204
+    }
+  }
+}

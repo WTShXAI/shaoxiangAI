@@ -1,11 +1,36 @@
 # 变更日志
 
-> 产品版本: v4.1.0 → v5.10
+> 产品版本: v4.1.0 → v6.0.0
 > D-Gate 引擎版本: v5.0 → v5.3
 
 ---
 
-## [v5.10] — 2026-06-28
+## [v6.0.0] — 2026-07-01
+
+### 新增
+- **全管线升级 v5.15-v5.23**: DC λ + HCP template scores (GitHub f4e94fe)
+- **React 18 前端**: TypeScript + Vite + TanStack Query, 5页面, 暗黑主题
+- **WorkBuddy 专家团**: 35人团队, 12部门, plugin.json 完整注册
+- **模型注册中心**: model_registry.json (4模型: v4.1 + ensemble + NN + JEPA)
+- **72场WC2026数据**: SQLite导入, 33,498场比赛, 5 upcoming ready
+
+### 修复
+- P0: Token认证中间件验证 (backend/main.py)
+- P0: `_asyncio` 导入 (WebSocket修复)
+- P0: 数据库路径错误 (6个Mixin的DB_PATH)
+- P0: `get_db()` 函数恢复 (database/db_manager.py)
+- P0: `get_next_scheduled_match()` 补充 (crud_match_mixin)
+- P0: 版本号硬编码 → settings.APP_VERSION (monitor.py)
+- P1: Swagger生产模式禁用, README全面更新, 配置DEPRECATED标记
+- P1: 5个缺失依赖安装, 模型路径修正, 40个__pycache__清理
+
+### 变更
+- 版本号统一: v5.10.0 → v6.0.0 (与GitHub对齐)
+- 配置中心: config/README.md 文档化
+
+---
+
+## [v5.10.0] — 2026-06-28
 
 ### 新增
 - **让球盘口代码恢复**: 恢复 sporttery_hcp/hcp_depth/LINKAGE_MATRIX/classify_hcp/HCP联动块/_hcp_disp 模块

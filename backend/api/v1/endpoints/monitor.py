@@ -7,6 +7,7 @@ import time
 from datetime import datetime, timezone
 from typing import Dict, Any
 from fastapi import APIRouter, Response
+from backend.core.config import settings
 
 router = APIRouter()
 
@@ -14,13 +15,57 @@ START_TIME = time.time()
 
 @router.get("/health")
 async def health_check():
-    """基础健康检查"""
+    """基础健康检查（含前端 SystemHealth 兼容字段）"""
     uptime = time.time() - START_TIME
+
+    # 数据库检查
+    db_health = "healthy"
+    try:
+        from core.database import engine
+        engine.connect().close()
+    except Exception:
+        db_health = "down"
+
+    # 模型检查
+    model_health = "healthy"
+    try:
+        from services.model_service import ModelService
+        svc = ModelService()
+        if not svc.get_current_model_path():
+            model_health = "degraded"
+    except Exception:
+        model_health = "down"
+
+    # CPU / 内存
+    cpu_pct = 0.0
+    mem_pct = 0.0
+    try:
+        import psutil
+        cpu_pct = round(psutil.cpu_percent(interval=0.1), 1)
+        mem_pct = round(psutil.virtual_memory().percent, 1)
+    except Exception:
+        pass
+
+    overall = "healthy"
+    if db_health == "down" or model_health == "down":
+        overall = "down"
+    elif model_health == "degraded":
+        overall = "degraded"
+
     return {
-        "status": "ok",
+        # 原始字段
+        "status": overall,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "uptime_seconds": round(uptime, 1),
-        "version": "4.1.0",
+        "version": settings.APP_VERSION,
+        # 前端 SystemHealth 兼容字段
+        "uptime": round(uptime),
+        "apiLatency": 0,
+        "predictionLatency": 0,
+        "modelHealth": model_health,
+        "databaseHealth": db_health,
+        "memoryUsage": mem_pct,
+        "cpuUsage": cpu_pct,
     }
 
 @router.get("/health/ready")
@@ -104,6 +149,8 @@ async def metrics_summary():
     try:
         from utils.metrics_exporter import get_metrics_exporter
         exporter = get_metrics_exporter()
-        return exporter.get_summary()
-    except ImportError:
-        return {"status": "metrics_exporter not available"}
+        if hasattr(exporter, 'get_summary'):
+            return exporter.get_summary()
+        return {"predictions_total": 0, "accuracy": 0, "uptime_hours": 0, "status": "metrics_collector_not_initialized"}
+    except (ImportError, Exception):
+        return {"predictions_total": 0, "accuracy": 0, "uptime_hours": 0, "status": "metrics_unavailable"}

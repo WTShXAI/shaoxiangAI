@@ -46,5 +46,5 @@ async def v5_predict(request: Request):
         return JSONResponse({'success': False, 'error': str(e)}, status_code=500)
 
 if __name__ == '__main__':
-    print("JEPA v5.0 KNN-Hybrid Server starting on port 8000...")
-    uvicorn.run(app, host='0.0.0.0', port=8000, log_level='error')
+    print("JEPA v5.0 KNN-Hybrid Server starting on port 9000...")
+    uvicorn.run(app, host='0.0.0.0', port=9000, log_level='error')

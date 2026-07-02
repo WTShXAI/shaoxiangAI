@@ -192,6 +192,47 @@ def get_all_odds(matches):
         results.append((home, away, oh, od, oa, hcp, ou))
     return results
 
+def save_odds_to_db(match_id: int, home: str, away: str, date: str = None,
+                     db_path: str = None) -> bool:
+    """
+    将赔率快照写入数据库 odds_snapshots 表。
+
+    Args:
+        match_id: 比赛API ID
+        home: 主队名
+        away: 客队名
+        date: 比赛日期
+        db_path: 数据库路径 (默认使用项目 data/football_data.db)
+
+    Returns:
+        True 写入成功，False 失败
+    """
+    try:
+        oh, od, oa, hcp, ou = get_odds(home, away, date)
+    except (Exception, ValueError, TypeError, KeyError) as e:
+        print(f"[save_odds_to_db] 获取赔率失败: {home} vs {away}: {e}")
+        return False
+
+    try:
+        import sqlite3 as _sqlite3
+        from pathlib import Path as _Path
+        db = db_path or str(_Path(__file__).parent.parent / 'data' / 'football_data.db')
+        conn = _sqlite3.connect(db)
+        cur = conn.cursor()
+        cur.execute(
+            '''INSERT OR REPLACE INTO odds_snapshots
+               (match_id, home_odds, draw_odds, away_odds,
+                handicap, ou_line, snapshot_time)
+               VALUES (?, ?, ?, ?, ?, ?, datetime('now'))''',
+            (match_id, oh, od, oa, hcp, ou)
+        )
+        conn.commit()
+        conn.close()
+        return True
+    except (Exception, _sqlite3.Error) as e:
+        print(f"[save_odds_to_db] 入库失败 match_id={match_id}: {e}")
+        return False
+
 if __name__ == '__main__':
     # Quick test
     test_matches = [('哥伦比亚','葡萄牙','6.28'), ('南非','韩国','6.25')]

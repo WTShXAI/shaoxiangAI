@@ -1,6 +1,6 @@
-# LAMF 架构与 API 依赖图 (v4.1.0)
+# API 架构与依赖图 (v4.1.0)
 
-> 更新: 2026-06-12 · 架构: LangGraph + ModelBridge v2.0 · 入口: main.py
+> 更新: 2026-06-29 · 说明: 本文档以当前 FastAPI / backend/api/v1 API 架构为主。历史 LangGraph/LLM agent 设计仅作归档参考，不依赖当前后端部署。
 
 ---
 
@@ -18,14 +18,14 @@
                                 │
                     ┌───────────┴──────────┐
                     ▼                      ▼
-            FastAPI 路由层          LangGraph 工作流
-         (backend/ 目录)         (agents/workflow.py)
+            FastAPI 路由层          旧版 LLM Agent 设计 (历史)
+         (backend/api/v1)         (modules/six_layer_conversation.py)
                     │                      │
                     └──────────┬───────────┘
                                ▼
                     ┌─────────────────────┐
-                    │   ModelBridge v2.0   │
-                    │  (单例, 锁定模型)     │
+                    │   ModelBridge / ML   │
+                    │   + 规则预测引擎      │
                     └──────────┬──────────┘
                                ▼
                     ┌─────────────────────┐
@@ -36,7 +36,9 @@
 
 ---
 
-## 2. LangGraph 工作流图
+## 2. 历史 LangGraph 工作流图（仅归档参考）
+
+> 说明: 以下内容记录的是旧版 LLM agent 调度和条件路由设计。当前 `python main.py backend` 启动时不依赖该工作流。
 
 工作流定义在 `agents/workflow.py`，使用 LangGraph `StateGraph` 构建条件路由。
 
@@ -143,13 +145,14 @@ MathAgent.invoke()
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/` | 服务信息 |
-| GET | `/docs` | Swagger API 文档 |
+| GET | `/api/v1/docs` | Swagger API 文档 |
 | GET | `/api/v1/monitor/health` | 健康检查 → `{"status":"ok"}` |
-| POST | `/api/v1/predict` | 单场预测 |
+| POST | `/api/v1/predict/single` | 单场预测 |
 | POST | `/api/v1/auth/login` | 用户登录 |
-| POST | `/api/v1/auth/register` | 用户注册 |
+| GET | `/api/v1/auth/me` | 当前用户信息 |
+| GET | `/api/v1/auth/users` | 用户列表 |
 
-> 注意: 精确的路由表以 `backend/` 目录下实际注册的路由为准，上述为常见端点。
+> 注意: 精确的路由表以 `backend/` 目录下实际注册的路由为准。`/api/v1/auth/register` 目前不可用。
 
 ---
 

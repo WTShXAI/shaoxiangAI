@@ -107,6 +107,12 @@ class PredictionService:
     FUSION_MODEL_WEIGHT = 0.30  # 模型概率权重
     OVER_UNDER_LINE = 2.5       # 大小球标准盘口
 
+    # v6.2: 分类阈值偏置 (回测验证最优, 纠正模型低估平局/高估客胜的偏差)
+    # 支持环境变量覆盖: THRESHOLD_BIAS_H/D/A (逗号分隔), 便于不重启调参
+    THRESHOLD_BIAS_H = float(os.environ.get("THRESHOLD_BIAS_H", "0.02"))
+    THRESHOLD_BIAS_D = float(os.environ.get("THRESHOLD_BIAS_D", "0.10"))
+    THRESHOLD_BIAS_A = float(os.environ.get("THRESHOLD_BIAS_A", "-0.04"))
+
     @property
     def model(self) -> Optional[Dict]:
         """延迟加载模型（基于 mtime 检测文件变更）"""
@@ -355,9 +361,9 @@ class PredictionService:
                 return None
 
             return self.predict_single(
-                next_match.get("home_team"),
-                next_match.get("away_team"),
-                next_match.get("league"),
+                next_match.get("home_team") or next_match.get("home_team_name"),
+                next_match.get("away_team") or next_match.get("away_team_name"),
+                next_match.get("league") or next_match.get("league_name"),
             )
         except (sqlite3.Error, sqlalchemy.exc.SQLAlchemyError) as e:
             logger.error(f"预测下一场比赛失败: {e}")
@@ -697,6 +703,23 @@ class PredictionService:
             # 10. 构建完整返回结果
             # P0: 读取OE子模型输出用于结果记录
             oe_probs = model.get_oe_output() if hasattr(model, 'get_oe_output') else None
+
+            # v6.1: JEPA 后融合 — 对最终概率叠加 JEPA 平局专精模型 (env 控制, 默认 w=0.08)
+            h_prob, d_prob, a_prob, prediction_mode = self._apply_jepa_blend(
+                home_team, away_team, h_prob, d_prob, a_prob,
+                custom_odds, odds_implied, prediction_mode,
+            )
+            # 融合后重新确定预测标签 (JEPA 可能让平局/胜负翻转)
+            probs = [h_prob, d_prob, a_prob]
+            # v6.2: 应用分类阈值偏置 (回测验证: 1000/3000场 MacroF1 +0.017, D-F1 +0.07)
+            # 依据: 模型系统性低估平局(预测D=171 vs 真实265)、高估客胜(预测A=532 vs 真实319)
+            # 阈值 (H+0.02, D+0.10, A-0.04) 纠正此偏差, 守住 H/A 降幅<0.02
+            _adj = [probs[0] + self.THRESHOLD_BIAS_H,
+                    probs[1] + self.THRESHOLD_BIAS_D,
+                    probs[2] + self.THRESHOLD_BIAS_A]
+            pred_idx = int(np.argmax(_adj))
+            confidence = float(probs[pred_idx])  # 置信度仍用原始概率(未偏置)
+
             result = self._build_prediction_result(
                 home_team, away_team, league, labels, pred_idx, confidence,
                 h_prob, d_prob, a_prob, fusion, odds_implied,
@@ -1016,6 +1039,69 @@ class PredictionService:
             logger.warning(f"[BayesCalib] 推断失败 ({home_team} vs {away_team}): {e}")
             return fusion, "bayes_error"
 
+    # ════════════════════════════════════════════════════════════════
+    # JEPA 后融合 (v6.1) — 把闲置的 JEPA v5 Lite 平局专精模型
+    # 以小权重叠加进最终概率, 外科式补强平局通道。
+    # 设计依据: config/jepa_v5.yaml stacking_weight=0.08, 全项目设计意图。
+    # 安全: 环境变量 JEPA_BLEND_WEIGHT=0 立即关闭, 失败自动降级原样返回。
+    # ════════════════════════════════════════════════════════════════
+    _jepa_quick_predict = None  # 进程级缓存, 避免每次 import
+
+    def _apply_jepa_blend(
+        self, home_team: str, away_team: str,
+        h_prob: float, d_prob: float, a_prob: float,
+        custom_odds: Optional[Dict[str, float]],
+        odds_implied: Optional[Dict[str, float]],
+        prediction_mode: str,
+    ) -> tuple:
+        """JEPA 后融合: final = (1-w)*stacking + w*jepa。
+        返回 (h, d, a, prediction_mode)。失败时原样返回, 永不抛错。"""
+        try:
+            w = float(os.environ.get("JEPA_BLEND_WEIGHT", "0.08"))
+        except ValueError:
+            w = 0.08
+        if w <= 0:
+            return h_prob, d_prob, a_prob, prediction_mode
+        try:
+            # 取三赔率: 优先 custom_odds, 其次 odds_implied, 最后概率反推
+            def _pick(key_odds, key_imp, fallback_p):
+                if custom_odds and custom_odds.get(key_odds):
+                    return float(custom_odds[key_odds])
+                if odds_implied and odds_implied.get(key_imp):
+                    p = float(odds_implied[key_imp])
+                    return 1.0 / max(p, 1e-6)
+                return 1.0 / max(fallback_p, 1e-6)
+            oh = _pick("home", "H", h_prob)
+            od = _pick("draw", "D", d_prob)
+            oa = _pick("away", "A", a_prob)
+
+            # 进程级缓存 quick_predict 函数引用
+            if type(self)._jepa_quick_predict is None:
+                from predictors.jepa_predictor import quick_predict
+                type(self)._jepa_quick_predict = staticmethod(quick_predict)
+            qp = type(self)._jepa_quick_predict
+
+            r = qp(home_team, away_team, "", oh, od, oa)
+            jp = r.get("jepa_probs")  # 期望 np.array([H,D,A]) 或 list
+            if jp is None:
+                # 兼容不同返回结构
+                jp = [r.get("h", h_prob), r.get("d", d_prob), r.get("a", a_prob)]
+            jh, jd, ja = float(jp[0]), float(jp[1]), float(jp[2])
+
+            # 线性混合 + 归一化
+            h2 = (1 - w) * h_prob + w * jh
+            d2 = (1 - w) * d_prob + w * jd
+            a2 = (1 - w) * a_prob + w * ja
+            tot = h2 + d2 + a2
+            if tot <= 0:
+                return h_prob, d_prob, a_prob, prediction_mode
+            h2, d2, a2 = h2 / tot, d2 / tot, a2 / tot
+            new_mode = f"{prediction_mode}+jepa{w:.2f}" if "jepa" not in prediction_mode else prediction_mode
+            return h2, d2, a2, new_mode
+        except Exception as e:
+            logger.debug(f"[JEPA] blend skipped ({home_team} vs {away_team}): {e}")
+            return h_prob, d_prob, a_prob, prediction_mode
+
     def _build_prediction_result(
         self, home_team: str, away_team: str, league: Optional[str],
         labels: List[str], pred_idx: int, confidence: float,
@@ -1038,11 +1124,18 @@ class PredictionService:
             "league": league,
             "match_date": None,
             "prediction": labels[pred_idx],
+            # 前端兼容别名
+            "result": {"H": "home", "D": "draw", "A": "away"}.get(labels[pred_idx], labels[pred_idx]),
+            "matchId": None,  # 由调用方 fill
             "confidence": round(confidence, 4),
             "probabilities": {
                 "H": round(fusion["H"], 4),
                 "D": round(fusion["D"], 4),
                 "A": round(fusion["A"], 4),
+                # 前端兼容别名
+                "home": round(fusion["H"], 4),
+                "draw": round(fusion["D"], 4),
+                "away": round(fusion["A"], 4),
             },
             "data_quality": quality_meta,
             "prediction_mode": prediction_mode,
@@ -1055,6 +1148,8 @@ class PredictionService:
                 "fusion": {"H": round(fusion["H"], 4), "D": round(fusion["D"], 4), "A": round(fusion["A"], 4)},
             },
             "score_prediction": score_prediction,
+            # 前端兼容别名
+            "score": score_prediction,
             "over_under": over_under,
             "risk_assessment": risk_assessment,
         }
@@ -1523,6 +1618,56 @@ class PredictionService:
             - is_cold_start: 是否冷启动(任一球队<3场或覆盖率<50%)
         """
         try:
+            # ── v6.3: 优先从 match_features 表读预计算特征 (符合 PRE-009 设计铁律) ──
+            # 设计依据: prediction_guard.py PRE-009 "特征表JOIN完整"
+            # 之前实时算特征导致世界杯/新比赛走冷启动, 即使补了特征表也不读
+            # 现在: 先按队名查 match_features, 有则直接用; 无则走实时计算兜底
+            try:
+                from database.db_manager import get_db as _get_db_feat
+                _db_feat = _get_db_feat()
+                with _db_feat.get_connection() as _conn_feat:
+                    _row_feat = _conn_feat.execute(
+                        "SELECT mf.* FROM match_features mf "
+                        "JOIN matches m ON mf.match_id = m.match_id "
+                        "WHERE m.home_team_name = ? AND m.away_team_name = ? "
+                        "AND mf.odds_imp_h IS NOT NULL "
+                        "ORDER BY m.match_date DESC LIMIT 1",
+                        (home_team, away_team)
+                    ).fetchone()
+                if _row_feat:
+                    _feat = {}
+                    for k, v in dict(_row_feat).items():
+                        if k in ('feature_id', 'match_id', 'created_at'):
+                            continue
+                        if isinstance(v, (int, float)) and not isinstance(v, bool):
+                            _feat[k] = float(v)
+                        elif v is None:
+                            _feat[k] = 0.0
+                        else:
+                            _feat[k] = v
+                    if _feat.get('odds_imp_h') is None:
+                        _feat = None  # 无赔率特征, 不用
+                    if _feat is None:
+                        _row_feat = None
+                    _cov = float(_feat.get('feat_coverage_ratio') or 0.5)
+                    _is_cold = bool(_feat.get('is_cold_start') or 0)
+                    _qmeta = {
+                        'home_match_count': int(_feat.get('home_match_count_norm') or 0),
+                        'away_match_count': int(_feat.get('away_match_count_norm') or 0),
+                        'feature_coverage_ratio': round(_cov, 4),
+                        'is_cold_start': _is_cold,
+                        'home_fields_provided': 10,
+                        'away_fields_provided': 10,
+                        'feature_source': 'match_features_table',
+                    }
+                    logger.info(
+                        f"[特征表] {home_team} vs {away_team} 命中预计算特征 "
+                        f"(覆盖率={_cov:.1%}, cold={_is_cold})"
+                    )
+                    return (_feat, _qmeta)
+            except Exception as _feat_err:
+                logger.debug(f"[特征表] 查询失败, 走实时计算: {_feat_err}")
+
             # backend/features/ 遮蔽了 footballAI/features/，用 importlib 直接从文件加载
             import importlib.util as _util
             import os as _os
@@ -1538,13 +1683,15 @@ class PredictionService:
             calc = FeatureCalculator()
             db = get_db()
 
-            # 获取两队聚合特征
-            home_data = db.get_team_features(home_team)
-            away_data = db.get_team_features(away_team)
-
-            # 注入 H2H 交锋优势
-            home_data['h2h_advantage'] = db.get_h2h_advantage(home_team, away_team)
-            away_data['h2h_advantage'] = -home_data['h2h_advantage']
+            # 获取两队聚合特征 (v6.0.0: fallback if mixin methods unavailable)
+            try:
+                home_data = db.get_team_features(home_team)
+                away_data = db.get_team_features(away_team)
+                home_data['h2h_advantage'] = db.get_h2h_advantage(home_team, away_team)
+                away_data['h2h_advantage'] = -home_data['h2h_advantage']
+            except AttributeError:
+                home_data = {'team_name': home_team, 'match_count': 0}
+                away_data = {'team_name': away_team, 'match_count': 0}
 
             # 注入排名差
             home_data['rank_diff_from_db'] = db.get_rank_diff_factor(home_team, away_team)

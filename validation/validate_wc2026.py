@@ -10,8 +10,8 @@ import requests
 
 # Add project root
 
-OCR_URL = "http://localhost:8000/api/v1/ocr/upload"
-PREDICT_URL = "http://localhost:8000/api/v1/v5/predict"
+OCR_URL = "http://localhost:9000/api/v1/ocr/upload"
+PREDICT_URL = "http://localhost:9000/api/v1/v5/predict"
 RESULTS_JSON = Path(__file__).parent / "wc2026_results.json"
 TIMEOUT = 30
 

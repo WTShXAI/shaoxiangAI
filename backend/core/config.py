@@ -21,7 +21,7 @@ _PROJECT_ROOT = os.path.dirname(
 _DEFAULT_DB_FILE = os.path.join(_PROJECT_ROOT, "data", "football_data.db")
 _DEFAULT_DATABASE_URL = "sqlite:///" + _DEFAULT_DB_FILE.replace("\\", "/")
 _DEFAULT_CORS_ORIGINS = os.getenv(
-    "CORS_ORIGINS", "http://localhost:3000,http://localhost:8000"
+    "CORS_ORIGINS", "http://localhost:3000,http://localhost:9000"
 )
 
 def _parse_cors_origins(raw: str) -> List[str]:
@@ -36,13 +36,13 @@ def _parse_cors_origins(raw: str) -> List[str]:
 class Settings(BaseSettings):
     # ── 服务 ──
     APP_NAME: str = "哨响AI - Football Prediction API"
-    APP_VERSION: str = "4.1.0"
+    APP_VERSION: str = "6.0.0"
     DEBUG: bool = False
     API_V1_PREFIX: str = "/api/v1"
 
     # ── 网络 ──
     HOST: str = "0.0.0.0"
-    PORT: int = 8000
+    PORT: int = 9000
     CORS_ORIGINS: List[str] = []
 
     # ── 数据库 ──
@@ -62,11 +62,11 @@ class Settings(BaseSettings):
     MODEL_DIR: str = "saved_models"
     DEFAULT_MODEL_NAME: str = "football_v4.1_production.joblib"
     MODEL_REGISTRY_PATH: str = "saved_models/model_registry.json"
-    # 详细模型路径 (来自 settings.yaml paths)
-    V41_MODEL: str = "models/main/football_v4.1_production.joblib"
-    V32_MODEL: str = "models/main/football_balanced_production.joblib"
-    DRAW_EXPERT: str = "models/draw_expert/draw_expert_v1.joblib"
-    NN_MODEL: str = "models/nn/football_nn_20260616_125617.pth"
+    # 详细模型路径 (v5.11 corrected 2026-07-01: actual path = saved_models/)
+    V41_MODEL: str = "saved_models/football_v4.1_production.joblib"
+    V32_MODEL: str = "saved_models/football_balanced_production.joblib"
+    DRAW_EXPERT: str = "saved_models/draw_expert_v1.joblib"
+    NN_MODEL: str = "saved_models/football_nn_20260616_125617.pth"
     SP_DB_PATH: str = "D:/AI/SP/data/sp_data.db"
 
     # ── 安全 ──
@@ -219,7 +219,7 @@ class Settings(BaseSettings):
                 self.CORS_ORIGINS = _parse_cors_origins(_DEFAULT_CORS_ORIGINS)
                 logger.warning("DEBUG 模式：CORS_ORIGINS 未设置，使用默认开发值 %s。", self.CORS_ORIGINS)
             else:
-                self.CORS_ORIGINS = ["http://localhost:3000", "http://localhost:8000"]
+                self.CORS_ORIGINS = ["http://localhost:3000", "http://localhost:9000"]
                 logger.warning("CORS_ORIGINS 未设置，回退为仅允许 localhost。")
 
         # ── SECRET_KEY ──

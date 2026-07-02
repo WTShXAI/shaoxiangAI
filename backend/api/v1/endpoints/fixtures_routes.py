@@ -2,7 +2,8 @@
 赛程查询端点 — 路由归一至 api/v1/endpoints/ (2026-06-28)
 ====================================
 迁移说明: 原 backend/routers/ → 统一至 api/v1/endpoints/
-"""import logging
+"""
+import logging
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter
 

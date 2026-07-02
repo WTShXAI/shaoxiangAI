@@ -20,7 +20,7 @@ for _,row in wc22.iterrows():
     ho=float(row['close_home_odds']); do=float(row['close_draw_odds']); ao=float(row['close_away_odds'])
     hs=int(row['home_score']); aw=int(row['away_score'])
     a='H' if hs>aw else ('D' if hs==aw else 'A')
-    r=requests.post('http://localhost:8000/api/v1/v5/predict',json={'home_odds':ho,'draw_odds':do,'away_odds':ao},timeout=10).json()
+    r=requests.post('http://localhost:9000/api/v1/v5/predict',json={'home_odds':ho,'draw_odds':do,'away_odds':ao},timeout=10).json()
     imp=1/ho+1/do+1/ao; ih=(1/ho)/imp; id_=(1/do)/imp; ia_=(1/ao)/imp
     all_matches.append({'ho':ho,'do':do,'ao':ao,'act':a,'imp_h':ih,'imp_a':ia_,'imp_d':id_,
                         'imp_gap':abs(ih-ia_),'overround':imp-1,
@@ -32,7 +32,7 @@ for m in matches26:
     k=m['home'].replace(' ','').replace('-','')+'_'+m['away'].replace(' ','').replace('-','')
     if k not in ODDS26: continue
     ho,do,ao=ODDS26[k]; a=m['result']
-    r=requests.post('http://localhost:8000/api/v1/v5/predict',json={'home_odds':ho,'draw_odds':do,'away_odds':ao},timeout=10).json()
+    r=requests.post('http://localhost:9000/api/v1/v5/predict',json={'home_odds':ho,'draw_odds':do,'away_odds':ao},timeout=10).json()
     imp=1/ho+1/do+1/ao; ih=(1/ho)/imp; ia_=(1/ao)/imp; id_=(1/do)/imp
     all_matches.append({'ho':ho,'do':do,'ao':ao,'act':a,'imp_h':ih,'imp_a':ia_,'imp_d':id_,
                         'imp_gap':abs(ih-ia_),'overround':imp-1,

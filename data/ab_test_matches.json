@@ -1,0 +1,107 @@
+[
+  {
+    "home": "Villarreal",
+    "away": "Atleti",
+    "hs": 5,
+    "as": 1,
+    "league": "PD"
+  },
+  {
+    "home": "Milan",
+    "away": "Cagliari",
+    "hs": 1,
+    "as": 2,
+    "league": "SA"
+  },
+  {
+    "home": "Torino",
+    "away": "Juventus",
+    "hs": 2,
+    "as": 2,
+    "league": "SA"
+  },
+  {
+    "home": "Verona",
+    "away": "Roma",
+    "hs": 0,
+    "as": 2,
+    "league": "SA"
+  },
+  {
+    "home": "Parma",
+    "away": "Sassuolo",
+    "hs": 1,
+    "as": 0,
+    "league": "SA"
+  },
+  {
+    "home": "Napoli",
+    "away": "Udinese",
+    "hs": 1,
+    "as": 0,
+    "league": "SA"
+  },
+  {
+    "home": "Cremonese",
+    "away": "Como 1907",
+    "hs": 1,
+    "as": 4,
+    "league": "SA"
+  },
+  {
+    "home": "Lecce",
+    "away": "Genoa",
+    "hs": 1,
+    "as": 0,
+    "league": "SA"
+  },
+  {
+    "home": "Sunderland",
+    "away": "Chelsea",
+    "hs": 2,
+    "as": 1,
+    "league": "PL"
+  },
+  {
+    "home": "Brighton Hove",
+    "away": "Man United",
+    "hs": 0,
+    "as": 3,
+    "league": "PL"
+  },
+  {
+    "home": "Crystal Palace",
+    "away": "Arsenal",
+    "hs": 1,
+    "as": 2,
+    "league": "PL"
+  },
+  {
+    "home": "Burnley",
+    "away": "Wolverhampton",
+    "hs": 1,
+    "as": 1,
+    "league": "PL"
+  },
+  {
+    "home": "Fulham",
+    "away": "Newcastle",
+    "hs": 2,
+    "as": 0,
+    "league": "PL"
+  },
+  {
+    "home": "Liverpool",
+    "away": "Brentford",
+    "hs": 1,
+    "as": 1,
+    "league": "PL"
+  },
+  {
+    "home": "Man City",
+    "away": "Aston Villa",
+    "hs": 1,
+    "as": 2,
+    "league": "PL"
+  }
+]

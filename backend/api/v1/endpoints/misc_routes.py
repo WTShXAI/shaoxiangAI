@@ -2,7 +2,8 @@
 杂项 HTTP 端点 — 路由归一至 api/v1/endpoints/ (2026-06-28)
 ========================================
 迁移说明: 原 backend/routers/ → 统一至 api/v1/endpoints/
-"""import logging
+"""
+import logging
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, JSONResponse
 import os

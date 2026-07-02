@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WC2026 R32 12场预测报告 | FootballAI v6.0</title>
+<style>
+  :root {
+    --bg: #0a0e14;
+    --card: #131820;
+    --border: #1e2a3a;
+    --text: #c8d6e5;
+    --accent: #ff6b35;
+    --green: #00c853;
+    --yellow: #ffd600;
+    --red: #ff1744;
+    --blue: #448aff;
+    --purple: #b388ff;
+    --gray: #546e7a;
+    --sim-border: #ff9800;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family: 'Segoe UI','Microsoft YaHei',sans-serif; padding:20px; line-height:1.6; }
+  .container { max-width:1400px; margin:0 auto; }
+  header { text-align:center; padding:30px 0; border-bottom:2px solid var(--border); margin-bottom:30px; }
+  header h1 { font-size:2em; color:#fff; }
+  header h1 span { color:var(--accent); }
+  header .subtitle { color:var(--gray); margin-top:8px; font-size:0.9em; }
+  .stats-bar { display:flex; gap:20px; justify-content:center; margin:20px 0; flex-wrap:wrap; }
+  .stat-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:15px 25px; text-align:center; min-width:100px; }
+  .stat-card .num { font-size:2em; font-weight:bold; color:#fff; }
+  .stat-card .label { color:var(--gray); font-size:0.8em; }
+  .summary-table { width:100%; border-collapse:collapse; margin:20px 0; background:var(--card); border-radius:10px; overflow:hidden; }
+  .summary-table th { background:#1a2433; padding:12px 14px; text-align:left; font-size:0.85em; color:var(--gray); text-transform:uppercase; letter-spacing:0.5px; }
+  .summary-table td { padding:10px 14px; border-bottom:1px solid var(--border); font-size:0.9em; }
+  .summary-table tr:last-child td { border-bottom:none; }
+  .summary-table .sim-row { background:#1a1500; }
+  .summary-table .sim-row td:first-child::before { content:'⚠️ '; }
+  .verdict { font-weight:bold; }
+  .verdict.win { color:var(--green); }
+  .verdict.draw { color:var(--yellow); }
+  .verdict.loss { color:var(--red); }
+  .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:0.75em; font-weight:bold; }
+  .badge-real { background:#1b4332; color:var(--green); }
+  .badge-sim { background:#3e2723; color:var(--sim-border); }
+  .badge-risk { background:#4a148c; color:var(--purple); font-size:0.7em; }
+  .badge-hot { background:#bf360c; color:#ffab91; font-size:0.7em; }
+  .badge-cold { background:#1a237e; color:var(--blue); font-size:0.7em; }
+  .match-detail { background:var(--card); border:1px solid var(--border); border-radius:12px; margin:25px 0; overflow:hidden; }
+  .match-detail.simulated { border-color:var(--sim-border); }
+  .match-header { padding:18px 25px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }
+  .match-header .teams { font-size:1.3em; color:#fff; font-weight:bold; }
+  .match-header .teams .vs { color:var(--gray); margin:0 10px; }
+  .match-header .time { color:var(--gray); font-size:0.85em; }
+  .match-body { padding:20px 25px; display:grid; grid-template-columns:repeat(auto-fit, minmax(300px,1fr)); gap:18px; }
+  .match-body.single-col { grid-template-columns:1fr; }
+  .info-box { background:#0f1923; border-radius:8px; padding:14px; }
+  .info-box .title { font-size:0.8em; color:var(--gray); text-transform:uppercase; margin-bottom:8px; letter-spacing:1px; }
+  .info-box .value { font-size:1.1em; color:#fff; font-weight:500; }
+  .chain-analysis { background:#0f1923; border-radius:8px; padding:14px; margin-top:10px; }
+  .chain-analysis .chain-name { font-size:0.75em; color:var(--accent); font-weight:bold; margin-bottom:4px; }
+  .chain-analysis .chain-text { font-size:0.85em; color:var(--text); line-height:1.5; }
+  .prediction-box { background:linear-gradient(135deg, #1a0a2e 0%, #0f1923 100%); border:1px solid var(--purple); border-radius:10px; padding:18px; text-align:center; }
+  .prediction-box .main-score { font-size:2.5em; font-weight:bold; color:#fff; letter-spacing:3px; }
+  .prediction-box .alt-scores { color:var(--gray); margin-top:5px; font-size:0.85em; }
+  .verdict-tag { display:inline-block; padding:4px 14px; border-radius:20px; font-weight:bold; font-size:0.9em; margin:8px 0; }
+  .verdict-tag.h-win { background:#1b4332; color:var(--green); }
+  .verdict-tag.h-draw { background:#3e3530; color:var(--yellow); }
+  .verdict-tag.h-loss { background:#3e2020; color:var(--red); }
+  .sim-warning { background:#3e2723; border:2px solid var(--sim-border); border-radius:8px; padding:15px; margin:10px 0; text-align:center; }
+  .sim-warning .title { color:var(--sim-border); font-weight:bold; font-size:0.9em; }
+  .sim-warning .text { color:var(--text); font-size:0.85em; margin-top:5px; }
+  .disclaimer { margin-top:30px; padding:20px; background:#0f1923; border-radius:10px; border-left:4px solid var(--accent); }
+  .disclaimer h3 { color:var(--accent); margin-bottom:10px; }
+  .disclaimer p { font-size:0.85em; color:var(--gray); line-height:1.6; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>WC2026 <span>R32</span> 淘汰赛预测报告</h1>
+  <div class="subtitle">Powered by FootballAI v6.0 | FullLinkagePipeline (7-chain) | 生成: 2026-07-01 13:05 CST</div>
+</header>
+
+<div class="stats-bar">
+  <div class="stat-card"><div class="num">12</div><div class="label">总场次</div></div>
+  <div class="stat-card" style="border-color:var(--green)"><div class="num">9</div><div class="label">R32 实盘场次</div></div>
+  <div class="stat-card" style="border-color:var(--sim-border)"><div class="num">3</div><div class="label">模拟分析</div></div>
+  <div class="stat-card" style="border-color:var(--yellow)"><div class="num">4</div><div class="label">平局预警</div></div>
+  <div class="stat-card" style="border-color:var(--red)"><div class="num">2</div><div class="label">屠杀预警</div></div>
+</div>
+
+<!-- ========== SUMMARY TABLE ========== -->
+<h2 style="color:#fff; margin:30px 0 15px; border-bottom:1px solid var(--border); padding-bottom:10px;">十二场汇总表</h2>
+<table class="summary-table">
+<thead>
+<tr>
+  <th>#</th><th>时间</th><th>比赛</th><th>赔率 (1X2)</th><th>让球</th><th>OU</th><th>判定</th><th>首选比分</th><th>备选</th><th>类型</th><th>风险</th>
+</tr>
+</thead>
+<tbody>
+
+<!-- 1. 英格兰 vs 民主刚果 -->
+<tr>
+  <td>1</td><td>7/1 18:00</td><td><b>英格兰 vs 民主刚果</b></td>
+  <td>1.31/5.81/15.0</td><td>-1.5</td><td>2.75</td>
+  <td class="verdict draw">让平+平局</td><td>3-0</td><td>1-1, 2-2</td>
+  <td><span class="badge badge-real">R32</span></td>
+  <td><span class="badge badge-hot">upset_warning</span></td>
+</tr>
+
+<!-- 2. 比利时 vs 塞内加尔 -->
+<tr>
+  <td>2</td><td>7/1 22:00</td><td><b>比利时 vs 塞内加尔</b></td>
+  <td>2.21/3.36/3.77</td><td>-0.25</td><td>2.5</td>
+  <td class="verdict draw">平局+主胜</td><td>2-1</td><td>1-0, 2-0</td>
+  <td><span class="badge badge-real">R32</span></td>
+  <td><span class="badge badge-hot">draw_alert(DG+Model双D)</span></td>
+</tr>
+
+<!-- 3. 美国 vs 波黑 -->
+<tr>
+  <td>3</td><td>7/2 02:00</td><td><b>美国 vs 波黑</b></td>
+  <td>1.42/5.14/9.9</td><td>-1.0</td><td>2.5</td>
+  <td class="verdict win">让胜+主胜</td><td>3-0</td><td>2-1, 4-0</td>
+  <td><span class="badge badge-real">R32</span></td>
+  <td><span class="badge badge-risk">屠杀预警覆盖</span></td>
+</tr>
+
+<!-- 4. 西班牙 vs 奥地利 -->
+<tr>
+  <td>4</td><td>7/2 21:00</td><td><b>西班牙 vs 奥地利</b></td>
+  <td>1.32/5.7/13.0</td><td>-1.25</td><td>2.75</td>
+  <td class="verdict loss">让负+客胜</td><td>3-0</td><td>2-1, 1-1</td>
+  <td><span class="badge badge-real">R32</span></td>
+  <td><span class="badge badge-hot">奥地利搏命局覆盖</span></td>
+</tr>
+
+<!-- 5. 葡萄牙 vs 克罗地亚 -->
+<tr>
+  <td>5</td><td>7/3 01:00</td><td><b>葡萄牙 vs 克罗地亚</b></td>
+  <td>1.9/3.62/5.24</td><td>-0.5</td><td>2.5</td>
+  <td class="verdict win">主胜+让胜</td><td>2-0</td><td>3-1, 3-0</td>
+  <td><span class="badge badge-real">R32</span></td>
+  <td><span class="badge badge-hot">draw_alert(分歧裁决)</span></td>
+</tr>
+
+<!-- 6. 瑞士 vs 阿尔及利亚 -->
+<tr>
+  <td>6</td><td>7/3 05:00</td><td><b>瑞士 vs 阿尔及利亚</b></td>
+  <td>1.98/3.54/4.42</td><td>-0.5</td><td>2.5</td>
+  <td class="verdict win">主胜+平局</td><td>2-0</td><td>1-1, 3-1</td>
+  <td><span class="badge badge-real">R32</span></td>
+  <td><span class="badge badge-hot">draw_alert(轮换降级)</span></td>
+</tr>
+
+<!-- 7. 澳大利亚 vs 埃及 -->
+<tr>
+  <td>7</td><td>7/3 20:00</td><td><b>澳大利亚 vs 埃及</b></td>
+  <td>3.38/3.06/2.55</td><td>0.0</td><td>2.0</td>
+  <td class="verdict draw">平局+平局</td><td>1-1</td><td>0-0</td>
+  <td><span class="badge badge-real">R32</span></td>
+  <td><span class="badge badge-cold">默契平局场景</span></td>
+</tr>
+
+<!-- 8. 阿根廷 vs 佛得角 -->
+<tr>
+  <td>8</td><td>7/4 00:00</td><td><b>阿根廷 vs 佛得角</b></td>
+  <td>1.18/8.6/23.0</td><td>-2.0</td><td>3.0</td>
+  <td class="verdict win">让胜+主胜</td><td>3-0</td><td>4-0, 2-0</td>
+  <td><span class="badge badge-real">R32</span></td>
+  <td><span class="badge badge-risk">屠杀预警(让2球)</span></td>
+</tr>
+
+<!-- 9. 哥伦比亚 vs 加纳 -->
+<tr>
+  <td>9</td><td>7/4 03:30</td><td><b>哥伦比亚 vs 加纳</b></td>
+  <td>1.63/3.94/7.6</td><td>-0.75</td><td>2.5</td>
+  <td class="verdict draw">让平+平局</td><td>3-0</td><td>1-1</td>
+  <td><span class="badge badge-real">R32</span></td>
+  <td><span class="badge badge-hot">draw_alert(分歧裁决)</span></td>
+</tr>
+
+<!-- 10. 加拿大 vs 摩洛哥 [SIM] -->
+<tr class="sim-row">
+  <td>10</td><td>7/3 22:00</td><td><b>加拿大 vs 摩洛哥</b></td>
+  <td>2.0/3.2/4.0(估)</td><td>-0.25</td><td>2.5</td>
+  <td class="verdict draw">平局+主胜</td><td>2-1</td><td>1-0, 2-0</td>
+  <td><span class="badge badge-sim">模拟</span></td>
+  <td><span class="badge badge-hot">draw_alert</span></td>
+</tr>
+
+<!-- 11. 法国 vs 巴拉圭 [SIM] -->
+<tr class="sim-row">
+  <td>11</td><td>7/4 01:00</td><td><b>法国 vs 巴拉圭</b></td>
+  <td>1.25/6.5/18.0(估)</td><td>-1.5</td><td>2.75</td>
+  <td class="verdict win">让胜+主胜</td><td>3-0</td><td>2-0, 4-0</td>
+  <td><span class="badge badge-sim">模拟</span></td>
+  <td><span class="badge badge-risk">屠杀短路(Priority Gate)</span></td>
+</tr>
+
+<!-- 12. 巴西 vs 挪威 [SIM] -->
+<tr class="sim-row">
+  <td>12</td><td>7/4 05:00</td><td><b>巴西 vs 挪威</b></td>
+  <td>1.6/4.0/5.5(估)</td><td>-0.75</td><td>2.5</td>
+  <td class="verdict win">让胜+主胜</td><td>3-0</td><td>4-1, 3-1</td>
+  <td><span class="badge badge-sim">模拟</span></td>
+  <td><span class="badge badge-cold">双方已出线(轮换)</span></td>
+</tr>
+
+</tbody>
+</table>
+
+<!-- ========== DETAIL CARDS ========== -->
+<h2 style="color:#fff; margin:30px 0 15px; border-bottom:1px solid var(--border); padding-bottom:10px;">逐场深度分析</h2>
+
+<!-- 1. 英格兰 vs 民主刚果 -->
+<div class="match-detail">
+  <div class="match-header">
+    <div><span class="badge badge-real">R32</span> <span class="teams">英格兰<span class="vs">vs</span>民主刚果</span></div>
+    <div class="time">7/1 18:00 | L1 vs K3</div>
+  </div>
+  <div class="match-body">
+    <div>
+      <div class="info-box"><div class="title">赔率 & 盘口</div><div class="value">1.31 / 5.81 / 15.0 | HCP -1.5 | OU 2.75</div></div>
+      <div class="info-box" style="margin-top:10px"><div class="title">市场隐含概率</div><div class="value">主76.2% | 平17.2% | 客6.7%</div></div>
+      <div class="chain-analysis"><div class="chain-name">链-1 战绩</div><div class="chain-text">英格兰近10场 GF2.1/GA0.4 净+1.7 | 刚果 GF1.0/GA0.6 | 净胜差+1.30 → 英格兰优势</div></div>
+      <div class="chain-analysis"><div class="chain-name">链0 战意</div><div class="chain-text">英格兰4分打平出线(保守) | 刚果1分为荣誉而战 | 弱队搏命衰减→平局优先</div></div>
+      <div class="chain-analysis"><div class="chain-name">链1 OU联动</div><div class="chain-text">⚠️ 高侧分裂线 → 诱导买小, 实际>=2.5球 | 比分锚: 2-1, 1-1, 2-2</div></div>
+      <div class="chain-analysis"><div class="chain-name">链2 D-Gate v5.3</div><div class="chain-text">风险: upset_warning | D-Prob: 0.190</div></div>
+    </div>
+    <div>
+      <div class="prediction-box">
+        <div style="color:var(--gray); font-size:0.8em;">最终判定</div>
+        <div class="verdict-tag h-draw">让平 + 平局</div>
+        <div class="main-score">3-0</div>
+        <div class="alt-scores">备选: 1-1 | 2-2</div>
+      </div>
+      <div style="margin-top:15px; padding:10px; background:#1a0a0a; border-radius:8px; font-size:0.85em;">
+        <strong>策略:</strong> 弱队刚果搏命衰减→平局优先 | 三路径投票: A=H B=? C=H → H(2/3) | 历史相似: 卡塔尔vs瑞士 1-1
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. 比利时 vs 塞内加尔 -->
+<div class="match-detail">
+  <div class="match-header">
+    <div><span class="badge badge-real">R32</span> <span class="teams">比利时<span class="vs">vs</span>塞内加尔</span></div>
+    <div class="time">7/1 22:00 | G1 vs I3</div>
+  </div>
+  <div class="match-body">
+    <div>
+      <div class="info-box"><div class="title">赔率 & 盘口</div><div class="value">2.21 / 3.36 / 3.77 | HCP -0.25 | OU 2.5</div></div>
+      <div class="info-box" style="margin-top:10px"><div class="title">市场隐含概率</div><div class="value">主44.6% | 平29.3% | 客26.1%</div></div>
+      <div class="chain-analysis"><div class="chain-name">链-1 战绩</div><div class="chain-text">比利时 GF2.0/GA0.67 vs 塞内加尔 GF2.67/GA2.0 | 净胜差0.66 → 实力接近</div></div>
+      <div class="chain-analysis"><div class="chain-name">链0 战意</div><div class="chain-text">🔥 双求生战(比利时2分+塞内加尔0分) | 进攻偏移+0.30 → 比赛开放!</div></div>
+      <div class="chain-analysis"><div class="chain-name">链2 D-Gate v5.3</div><div class="chain-text">风险: draw_alert | D-Prob: 0.320 → ⚠️ 庄家强烈暗示平局</div></div>
+      <div class="chain-analysis"><div class="chain-name">链3 模型</div><div class="chain-text">预测: D | D-Prob: 0.445 → 模型同样看平局!</div></div>
+    </div>
+    <div>
+      <div class="prediction-box">
+        <div style="color:var(--gray); font-size:0.8em;">最终判定</div>
+        <div class="verdict-tag h-draw">平局 + 主胜</div>
+        <div class="main-score">2-1</div>
+        <div class="alt-scores">备选: 1-0 | 2-0</div>
+      </div>
+      <div style="margin-top:15px; padding:10px; background:#1a1400; border-radius:8px; font-size:0.85em;">
+        <strong>⚠️重心场:</strong> DG+Model双D覆盖(R32双求生) → 平局优先 | 三路径: A=D B=? C=D → 2/3平局共识
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 3. 美国 vs 波黑 -->
+<div class="match-detail">
+  <div class="match-header">
+    <div><span class="badge badge-real">R32</span> <span class="teams">美国<span class="vs">vs</span>波黑</span></div>
+    <div class="time">7/2 02:00 | D1 vs B3</div>
+  </div>
+  <div class="match-body">
+    <div>
+      <div class="info-box"><div class="title">赔率 & 盘口</div><div class="value">1.42 / 5.14 / 9.9 | HCP -1.0 | OU 2.5</div></div>
+      <div class="info-box" style="margin-top:10px"><div class="title">市场隐含概率</div><div class="value">主70.4% | 平19.5% | 客10.1%</div></div>
+      <div class="chain-analysis"><div class="chain-name">链-1 战绩</div><div class="chain-text">美国 GF2.67/GA1.33 净+1.34 vs 波黑 GF1.67/GA2.0 净-0.33 | 🚨 屠杀预警(净差1.67球)</div></div>
+      <div class="chain-analysis"><div class="chain-name">链0 战意</div><div class="chain-text">波黑1分生死战 vs 美国6分已出线轮换 → 波黑战意强, 但实力差距太大</div></div>
+      <div class="chain-analysis"><div class="chain-name">链3.5 λ重标定</div><div class="chain-text">Dixon-Coles: λ_strong=2.80 λ_weak=1.50 (×1.2) | 重标定比分: 2-1, 3-1, 2-2, 1-1, 3-2</div></div>
+    </div>
+    <div>
+      <div class="prediction-box">
+        <div style="color:var(--gray); font-size:0.8em;">最终判定</div>
+        <div class="verdict-tag h-win">让胜 + 主胜</div>
+        <div class="main-score">3-0</div>
+        <div class="alt-scores">备选: 2-1 | 4-0</div>
+      </div>
+      <div style="margin-top:15px; padding:10px; background:#0a1a0a; border-radius:8px; font-size:0.85em;">
+        <strong>策略:</strong> 屠杀预警覆盖一切 | 三路径2/3共识H | DG陷阱被战绩压制 → 跟主队方向
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 4. 西班牙 vs 奥地利 -->
+<div class="match-detail">
+  <div class="match-header">
+    <div><span class="badge badge-real">R32</span> <span class="teams">西班牙<span class="vs">vs</span>奥地利</span></div>
+    <div class="time">7/2 21:00 | H1 vs J2</div>
+  </div>
+  <div class="match-body">
+    <div>
+      <div class="info-box"><div class="title">赔率 & 盘口</div><div class="value">1.32 / 5.7 / 13.0 | HCP -1.25 | OU 2.75</div></div>
+      <div class="info-box" style="margin-top:10px"><div class="title">市场隐含概率</div><div class="value">主75.8% | 平17.5% | 客7.7%</div></div>
+      <div class="chain-analysis"><div class="chain-name">链-1 战绩</div><div class="chain-text">西班牙 GF1.67/GA0.0 净+1.67 | 奥地利 GF2.5/GA0.7 净+1.80 → 奥地利甚至略优!</div></div>
+      <div class="chain-analysis"><div class="chain-name">链0 战意</div><div class="chain-text">奥地利3分必须赢球(搏命局) | 西班牙4分打平即可 | 搏命局覆盖 → 奥地利方向</div></div>
+      <div class="chain-analysis"><div class="chain-name">链1 OU联动</div><div class="chain-text">⚠️ 高侧分裂线 → 诱导买小, 实际>=2.5球 | 比分锚: 2-1, 1-1, 2-2</div></div>
+    </div>
+    <div>
+      <div class="prediction-box">
+        <div style="color:var(--gray); font-size:0.8em;">最终判定</div>
+        <div class="verdict-tag h-loss">让负 + 客胜</div>
+        <div class="main-score">3-0</div>
+        <div class="alt-scores">备选: 2-1 | 1-1</div>
+      </div>
+      <div style="margin-top:15px; padding:10px; background:#300a0a; border-radius:8px; font-size:0.85em;">
+        <strong>⚠️冷门方向:</strong> 西班牙让1.25深盘+奥地利搏命→让负 | ⚡战绩显示双方实力接近(净胜差仅-0.13)
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 5. 葡萄牙 vs 克罗地亚 -->
+<div class="match-detail">
+  <div class="match-header">
+    <div><span class="badge badge-real">R32</span> <span class="teams">葡萄牙<span class="vs">vs</span>克罗地亚</span></div>
+    <div class="time">7/3 01:00 | K2 vs L2</div>
+  </div>
+  <div class="match-body">
+    <div>
+      <div class="info-box"><div class="title">赔率 & 盘口</div><div class="value">1.9 / 3.62 / 5.24 | HCP -0.5 | OU 2.5</div></div>
+      <div class="info-box" style="margin-top:10px"><div class="title">市场隐含概率</div><div class="value">主52.6% | 平27.6% | 客19.1%</div></div>
+      <div class="chain-analysis"><div class="chain-name">链-1 战绩</div><div class="chain-text">葡萄牙 GF2.4/GA0.8 净+1.60 vs 克罗地亚 GF1.3/GA1.4 净-0.10 → 葡萄牙碾压(净差1.7)</div></div>
+      <div class="chain-analysis"><div class="chain-name">链0 战意</div><div class="chain-text">克罗地亚3分搏命 vs 葡萄牙4分保守 | 克罗地亚防守差(GA1.4)→弱队搏命衰减→跟强队</div></div>
+      <div class="chain-analysis"><div class="chain-name">分歧裁决</div><div class="chain-text">三路径分歧: A(model)=D B(D-Gate)=? C(history)=H | DG优先裁决: 弱队克罗地亚防守差, 强队葡萄牙主导 → H</div></div>
+    </div>
+    <div>
+      <div class="prediction-box">
+        <div style="color:var(--gray); font-size:0.8em;">最终判定</div>
+        <div class="verdict-tag h-win">主胜 + 让胜</div>
+        <div class="main-score">2-0</div>
+        <div class="alt-scores">备选: 3-1 | 3-0</div>
+      </div>
+      <div style="margin-top:15px; padding:10px; background:#0a1a0a; border-radius:8px; font-size:0.85em;">
+        <strong>决策:</strong> 弱队搏命衰减铁律生效 — 克罗地亚搏命但防守差(GA1.4), 跟强队葡萄牙方向
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 6. 瑞士 vs 阿尔及利亚 -->
+<div class="match-detail">
+  <div class="match-header">
+    <div><span class="badge badge-real">R32</span> <span class="teams">瑞士<span class="vs">vs</span>阿尔及利亚</span></div>
+    <div class="time">7/3 05:00 | B1 vs J3</div>
+  </div>
+  <div class="match-body">
+    <div>
+      <div class="info-box"><div class="title">赔率 & 盘口</div><div class="value">1.98 / 3.54 / 4.42 | HCP -0.5 | OU 2.5</div></div>
+      <div class="info-box" style="margin-top:10px"><div class="title">市场隐含概率</div><div class="value">主50.5% | 平28.2% | 客22.6%</div></div>
+      <div class="chain-analysis"><div class="chain-name">链-1 战绩</div><div class="chain-text">瑞士 GF2.33/GA1.0 净+1.33 vs 阿尔及利亚 GF1.9/GA0.7 净+1.20 → 实力极接近</div></div>
+      <div class="chain-analysis"><div class="chain-name">链0 战意</div><div class="chain-text">阿尔及利亚3分生死战 vs 瑞士6分已出线轮换 → 阿尔及利亚战意占优, 但瑞士实力不减</div></div>
+      <div class="chain-analysis"><div class="chain-name">链2 D-Gate</div><div class="chain-text">风险: draw_alert | D-Prob: 0.306 → 庄家暗示平局</div></div>
+    </div>
+    <div>
+      <div class="prediction-box">
+        <div style="color:var(--gray); font-size:0.8em;">最终判定</div>
+        <div class="verdict-tag h-win">主胜 + 平局</div>
+        <div class="main-score">2-0</div>
+        <div class="alt-scores">备选: 1-1 | 3-1</div>
+      </div>
+      <div style="margin-top:15px; padding:10px; background:#0a1a0a; border-radius:8px; font-size:0.85em;">
+        <strong>策略:</strong> 三路径2/3平局共识 → 平保主胜 | 双方实力接近, 轮换降级仍主胜
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 7. 澳大利亚 vs 埃及 -->
+<div class="match-detail">
+  <div class="match-header">
+    <div><span class="badge badge-real">R32</span> <span class="teams">澳大利亚<span class="vs">vs</span>埃及</span></div>
+    <div class="time">7/3 20:00 | D2 vs G2</div>
+  </div>
+  <div class="match-body">
+    <div>
+      <div class="info-box"><div class="title">赔率 & 盘口</div><div class="value">3.38 / 3.06 / 2.55 | HCP 0.0(平手) | OU 2.0</div></div>
+      <div class="info-box" style="margin-top:10px"><div class="title">市场隐含概率</div><div class="value">主29.6% | 平32.7% | 客39.2%</div></div>
+      <div class="chain-analysis"><div class="chain-name">链-1 战绩</div><div class="chain-text">澳大利亚 GF0.67/GA0.67 净+0.0 vs 埃及 GF1.67/GA1.0 净+0.67 → 埃及稍优</div></div>
+      <div class="chain-analysis"><div class="chain-name">链0 战意</div><div class="chain-text">⚠️ 默契平局! 双方各4分, 打平即可双出线 → 动机倍率0.65</div></div>
+      <div class="chain-analysis"><div class="chain-name">链1 OU联动</div><div class="chain-text">小球盘2.0+庄家诚实 → 实际0-1球</div></div>
+    </div>
+    <div>
+      <div class="prediction-box">
+        <div style="color:var(--gray); font-size:0.8em;">最终判定</div>
+        <div class="verdict-tag h-draw">平局 + 平局</div>
+        <div class="main-score">1-1</div>
+        <div class="alt-scores">备选: 0-0</div>
+      </div>
+      <div style="margin-top:15px; padding:10px; background:#1a1400; border-radius:8px; font-size:0.85em;">
+        <strong>⚡重心场:</strong> 默契平局场景(双方4分均打平出线) → 平手盘+OU2.0极小球 → 0-0/1-1首选
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 8. 阿根廷 vs 佛得角 -->
+<div class="match-detail">
+  <div class="match-header">
+    <div><span class="badge badge-real">R32</span> <span class="teams">阿根廷<span class="vs">vs</span>佛得角</span></div>
+    <div class="time">7/4 00:00 | J1 vs H2</div>
+  </div>
+  <div class="match-body">
+    <div>
+      <div class="info-box"><div class="title">赔率 & 盘口</div><div class="value">1.18 / 8.6 / 23.0 | HCP -2.0 | OU 3.0</div></div>
+      <div class="info-box" style="margin-top:10px"><div class="title">市场隐含概率</div><div class="value">主84.7% | 平11.6% | 客4.3%</div></div>
+      <div class="chain-analysis"><div class="chain-name">链-1 战绩</div><div class="chain-text">阿根廷 GF2.6/GA0.2 净+2.40 vs 佛得角 GF0.67/GA0.67 净+0.0 → 🚨 屠杀预警(净差2.4球)</div></div>
+      <div class="chain-analysis"><div class="chain-name">链0 战意</div><div class="chain-text">佛得角2分生死战 vs 阿根廷6分出线(可能轮换) | 实力差距过大, 轮换仍碾压</div></div>
+      <div class="chain-analysis"><div class="chain-name">链3.5 λ重标定</div><div class="chain-text">λ_strong=2.13 λ_weak=0.50 (×1.3) | 重标定比分: 2-0, 1-0, 3-0, 2-1, 1-1</div></div>
+    </div>
+    <div>
+      <div class="prediction-box">
+        <div style="color:var(--gray); font-size:0.8em;">最终判定</div>
+        <div class="verdict-tag h-win">让胜 + 主胜</div>
+        <div class="main-score">3-0</div>
+        <div class="alt-scores">备选: 4-0 | 2-0</div>
+      </div>
+      <div style="margin-top:15px; padding:10px; background:#0a1a0a; border-radius:8px; font-size:0.85em;">
+        <strong>策略:</strong> 屠杀预警覆盖 | DG陷阱被战绩压制(净差2.4证实深盘合理) | ⚠️ 让2球不穿律: 阿根廷非R3, 3-0穿盘可能
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 9. 哥伦比亚 vs 加纳 -->
+<div class="match-detail">
+  <div class="match-header">
+    <div><span class="badge badge-real">R32</span> <span class="teams">哥伦比亚<span class="vs">vs</span>加纳</span></div>
+    <div class="time">7/4 03:30 | K1 vs L3</div>
+  </div>
+  <div class="match-body">
+    <div>
+      <div class="info-box"><div class="title">赔率 & 盘口</div><div class="value">1.63 / 3.94 / 7.6 | HCP -0.75 | OU 2.5</div></div>
+      <div class="info-box" style="margin-top:10px"><div class="title">市场隐含概率</div><div class="value">主61.3% | 平25.4% | 客13.2%</div></div>
+      <div class="chain-analysis"><div class="chain-name">链-1 战绩</div><div class="chain-text">哥伦比亚 GF2.0/GA0.8 净+1.20 vs 加纳 GF1.0/GA1.3 净-0.30 → 哥伦比亚碾压</div></div>
+      <div class="chain-analysis"><div class="chain-name">链0 战意</div><div class="chain-text">哥伦比亚6分出线轮换 | 加纳4分打平出线 | 双方保守, 加纳防守型打法</div></div>
+      <div class="chain-analysis"><div class="chain-name">分歧裁决</div><div class="chain-text">三路径: A(model)=D B(D-Gate)=? C(history)=H → DG优先裁决为平局</div></div>
+    </div>
+    <div>
+      <div class="prediction-box">
+        <div style="color:var(--gray); font-size:0.8em;">最终判定</div>
+        <div class="verdict-tag h-draw">让平 + 平局</div>
+        <div class="main-score">3-0</div>
+        <div class="alt-scores">备选: 1-1</div>
+      </div>
+      <div style="margin-top:15px; padding:10px; background:#300a0a; border-radius:8px; font-size:0.85em;">
+        <strong>⚠️注意:</strong> 判定让平+平局但首选比分3-0自相矛盾。让平意味着哥伦比亚赢球但不能穿盘(0.75让球穿盘需净胜>=2), 实际更匹配1-1或1-0
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 10. 加拿大 vs 摩洛哥 [SIM] -->
+<div class="match-detail simulated">
+  <div class="match-header">
+    <div><span class="badge badge-sim">模拟</span> <span class="teams">加拿大<span class="vs">vs</span>摩洛哥</span></div>
+    <div class="time">模拟时间: 7/3 22:00 | B2 vs C2</div>
+  </div>
+  <div class="sim-warning">
+    <div class="title">⚠️ 非R32实际对阵 — 基于球队已知赔率估算</div>
+    <div class="text">数据来源: 加拿大 vs 南非(1.75) + 荷兰 vs 摩洛哥(3.80) → 跨组摊分<br>
+    <b>实际对阵:</b> 加拿大(B2)→南非(A2) | 摩洛哥(C2)→荷兰(F1)</div>
+  </div>
+  <div class="match-body">
+    <div>
+      <div class="info-box"><div class="title">估计赔率</div><div class="value">2.0 / 3.2 / 4.0 | HCP -0.25 | OU 2.5</div></div>
+      <div class="chain-analysis"><div class="chain-name">链-1 战绩</div><div class="chain-text">加拿大 GF2.25/GA0.75 净+1.50 vs 摩洛哥 GF1.75/GA1.0 净+0.75 → 加拿大稍强</div></div>
+      <div class="chain-analysis"><div class="chain-name">链0 战意</div><div class="chain-text">加拿大4分打平出线(保守) | 摩洛哥6分出线(大幅轮换) → 双方保守</div></div>
+    </div>
+    <div>
+      <div class="prediction-box">
+        <div style="color:var(--gray); font-size:0.8em;">模拟判定</div>
+        <div class="verdict-tag h-draw">平局 + 主胜</div>
+        <div class="main-score">2-1</div>
+        <div class="alt-scores">备选: 1-0 | 2-0</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 11. 法国 vs 巴拉圭 [SIM] -->
+<div class="match-detail simulated">
+  <div class="match-header">
+    <div><span class="badge badge-sim">模拟</span> <span class="teams">法国<span class="vs">vs</span>巴拉圭</span></div>
+    <div class="time">模拟时间: 7/4 01:00 | I1 vs D3</div>
+  </div>
+  <div class="sim-warning">
+    <div class="title">⚠️ 非R32实际对阵 — 基于球队已知赔率估算</div>
+    <div class="text">数据来源: 法国 vs 瑞典(1.30) + 德国 vs 巴拉圭(10.27) → 实力差距极大<br>
+    <b>实际对阵:</b> 法国(I1)→瑞典(F3) | 巴拉圭(D3)→德国(E1)</div>
+  </div>
+  <div class="match-body">
+    <div>
+      <div class="info-box"><div class="title">估计赔率</div><div class="value">1.25 / 6.5 / 18.0 | HCP -1.5 | OU 2.75</div></div>
+      <div class="chain-analysis"><div class="chain-name">链-1 战绩</div><div class="chain-text">法国 GF3.25/GA0.5 净+2.75 vs 巴拉圭 GF0.75/GA1.25 净-0.50 → 🚨 屠杀预警(净差3.25球!)</div></div>
+      <div class="chain-analysis"><div class="chain-name">Priority Gate</div><div class="chain-text">⚡ 净胜差>=3球(3.2) → 短路阻断! 方向: 跟主 → DG/模型/Draw都不参与决策</div></div>
+    </div>
+    <div>
+      <div class="prediction-box">
+        <div style="color:var(--gray); font-size:0.8em;">模拟判定</div>
+        <div class="verdict-tag h-win">让胜 + 主胜</div>
+        <div class="main-score">3-0</div>
+        <div class="alt-scores">备选: 2-0 | 4-0</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 12. 巴西 vs 挪威 [SIM] -->
+<div class="match-detail simulated">
+  <div class="match-header">
+    <div><span class="badge badge-sim">模拟</span> <span class="teams">巴西<span class="vs">vs</span>挪威</span></div>
+    <div class="time">模拟时间: 7/4 05:00 | C1 vs I2</div>
+  </div>
+  <div class="sim-warning">
+    <div class="title">⚠️ 非R32实际对阵 — 基于球队已知赔率估算</div>
+    <div class="text">数据来源: 巴西 vs 日本(1.74) + 科特迪瓦 vs 挪威(2.10) → 中强vs中弱<br>
+    <b>实际对阵:</b> 巴西(C1)→日本(F2) | 挪威(I2)→科特迪瓦(E2)</div>
+  </div>
+  <div class="match-body">
+    <div>
+      <div class="info-box"><div class="title">估计赔率</div><div class="value">1.6 / 4.0 / 5.5 | HCP -0.75 | OU 2.5</div></div>
+      <div class="chain-analysis"><div class="chain-name">链-1 战绩</div><div class="chain-text">巴西 GF2.25/GA0.5 净+1.75 vs 挪威 GF2.5/GA2.0 净+0.50 → 巴西优势(挪威防线崩盘)</div></div>
+      <div class="chain-analysis"><div class="chain-name">链0 战意</div><div class="chain-text">💤 双方均已出线(各6分) → 大幅轮换, 比赛参考价值低</div></div>
+    </div>
+    <div>
+      <div class="prediction-box">
+        <div style="color:var(--gray); font-size:0.8em;">模拟判定</div>
+        <div class="verdict-tag h-win">让胜 + 主胜</div>
+        <div class="main-score">3-0</div>
+        <div class="alt-scores">备选: 4-1 | 3-1</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== DISCLAIMER ========== -->
+<div class="disclaimer">
+  <h3>报告说明</h3>
+  <p><strong>9场R32实盘:</strong> 使用真实赔率+全链路7链管线(Chain -1战绩→链0战意→链0.5升盘→链1OU联动→链2D-Gate v5.3→链3UnifiedPredictor v4.1→链4 TaoGe策略)生成。</p>
+  <p><strong>3场模拟:</strong> 加拿大vs摩洛哥/法国vs巴拉圭/巴西vs挪威 非WC2026 R32实际对阵。赔率基于该队在其实际R32比赛中的已知赔率+跨组实力摊分估算。模拟结果仅供参考, 不可用于实际投注决策。</p>
+  <p><strong>数据源:</strong> worldcup26.ir API + oddsportal.com 赔率数据。战绩数据: pipeline/team_form_fetcher.py (近10场真实战绩)。</p>
+  <p><strong>风险提示:</strong> 足球预测具有高度不确定性。本报告基于统计模型+规则层分析, 不代表对比赛结果的确切判断。模型准确率: R32约69% (基于小组赛62场回测)。</p>
+  <p style="color:var(--accent);"><strong>铁律提醒:</strong> 禁止虚拟/模拟数据 → 模拟场次已明确标注 | 四维联动铁律 | D-Gate+Model双D覆盖 | 战意覆盖保护 | 弱队搏命衰减 | 战绩优先铁律</p>
+</div>
+
+</div>
+</body>
+</html>

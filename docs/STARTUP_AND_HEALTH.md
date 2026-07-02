@@ -9,18 +9,17 @@
 | 项 | 要求 | 验证命令 |
 |----|------|---------|
 | Python | 3.10+ | `python --version` |
-| Ollama | 已安装并运行 | `curl http://localhost:11434/api/tags` |
-| LLM 模型 | gemma4:12b, deepseek-r1:8b, phi4:14b, qwen3:8b | `ollama list` |
+| Ollama | 可选/历史依赖 | `curl http://localhost:11434/api/tags` |
+| LLM 模型 | 历史参考：gemma4:12b, deepseek-r1:8b, phi4:14b, qwen3:8b | `ollama list` |
 | 生产模型 | `saved_models/football_v4.1_production.joblib` | `ls saved_models/` (或 `dir saved_models\`) |
 | 数据库 | `data/football_data.db` | `ls data/` |
 
-### 拉取 LLM 模型
+### 可选：历史 LLM Agent 依赖
+
+如果你要运行旧版对话/Agent 流程（如 `python main.py agent` 或 `python main.py conversation`），请在本地安装 Ollama 并下载对应模型。当前 `python main.py backend` 启动的 FastAPI 后端不依赖 Ollama。
 
 ```bash
-ollama pull gemma4:12b
-ollama pull deepseek-r1:8b
-ollama pull phi4:14b
-ollama pull qwen3:8b
+ollama pull deepseek-r1:14b
 ```
 
 ---
@@ -61,7 +60,7 @@ python main.py backend --port 9000
 | 说明 | 值 |
 |------|-----|
 | 监听地址 | `http://0.0.0.0:8000` |
-| Swagger 文档 | `http://localhost:8000/docs` |
+| Swagger 文档 | `http://localhost:8000/api/v1/docs` |
 | 开发模式 | `--dev` 启用热重载 + DEBUG 模式免 JWT 验证 |
 
 ### 其他子命令
@@ -82,7 +81,7 @@ python main.py agent                 # 交互式智能体对话
 | 端点 | 说明 | 期望 |
 |------|------|------|
 | `GET /` | 根路径 | 服务信息 (JSON) |
-| `GET /docs` | Swagger UI | API 文档页面 |
+| `GET /api/v1/docs` | Swagger UI | API 文档页面 |
 | `GET /api/v1/monitor/health` | 健康检查 | `{"status": "ok"}` |
 
 ### 快速验证
@@ -107,8 +106,8 @@ python -c "from agents.model_bridge import get_model_bridge; b = get_model_bridg
 | `ModuleNotFoundError: fastapi` | 未安装依赖 | `pip install -r requirements.txt` |
 | `ModelNotAvailableError` | `saved_models/football_v4.1_production.joblib` 缺失 | 重新训练模型或从备份恢复 |
 | `HardcodedProbabilityError` | 检测到硬编码概率 H=0.40/D=0.28/A=0.32 | 检查特征是否正确计算、模型是否正常加载 |
-| Ollama 连接失败 | Ollama 服务未启动 | 启动 Ollama: `ollama serve` |
-| LLM 模型未找到 | 未拉取对应模型 | `ollama pull <model>` |
+| Ollama 连接失败 | 仅旧版 agent/LLM 流程需要 Ollama | 若运行 legacy agent 流程，启动 Ollama: `ollama serve` |
+| LLM 模型未找到 | 仅旧版 agent/LLM 流程需要模型 | 若运行 legacy agent 流程，`ollama pull <model>` |
 | 端口被占用 | 8000 端口冲突 | `python main.py backend --port 9000` |
 | `401 Unauthorized` | 生产模式需要 JWT 认证 | 使用 `--dev` 模式或先登录获取 token |
 | `FileNotFoundError: football_kb.yaml` | DomainKB 文件缺失 | 确保 `rules/football_kb.yaml` 存在 (predict_match 已做 try-except 防护) |
@@ -142,7 +141,7 @@ API_HOST=0.0.0.0
 
 ## 八、完整启动步骤
 
-1. **确保 Ollama 运行**
+1. **可选：确保 Ollama 运行（仅旧版 agent/LLM 流程）**
    ```bash
    ollama serve
    ```
@@ -174,9 +173,9 @@ API_HOST=0.0.0.0
 | 类别 | 组件 | 是否必须 |
 |------|------|---------|
 | Python 包 | fastapi, uvicorn, joblib, numpy, scikit-learn, xgboost | ✅ 必须 |
-| Python 包 | langgraph, langchain-ollama | ✅ 必须 (Agent 工作流) |
+| Python 包 | langgraph, langchain-ollama | ❌ 非必须（仅旧版 agent/历史依赖） |
 | Python 包 | yaml, requests, pandas | ✅ 必须 |
-| 外部服务 | Ollama (http://localhost:11434) | ✅ 必须 (LLM 推理) |
+| 外部服务 | Ollama (http://localhost:11434) | ❌ 非必须（仅旧版 agent/历史依赖） |
 | 外部服务 | Celery, Redis, MLflow, Grafana, Prometheus | ❌ 不需要 (已移除) |
 | 数据库 | MySQL, PostgreSQL | ❌ 不需要 (仅 SQLite) |
 | 前端构建 | Node.js, npm, Vue CLI | ❌ 不需要 (纯静态 SPA) |

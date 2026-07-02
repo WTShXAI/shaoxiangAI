@@ -1,8 +1,6 @@
-# 哨响AI v4.0 — 全局配置中心
+# ⛔ DEPRECATED — 所有修改请改 backend/core/config.py (Pydantic)
+# 哨响AI v6.0.0 — 旧版配置 (仅保留参考)
 # ================================
-# 单人维护版: 所有硬编码参数、阈值、开关、路径统一管理。
-# 改参数不再需要动代码, 直接改这个文件即可。
-#
 # 用法:
 #   from config.settings import load_config
 #   cfg = load_config()
@@ -101,14 +99,14 @@ degradation:
 # ═══════════════════════════════════════════════════════════
 paths:
   project_root: "."
-  model_dir: "models/main"
+  model_dir: "saved_models"
   data_dir: "data"
   db_path: "data/football_data.db"
   sp_db_path: "D:/AI/SP/data/sp_data.db"
-  v41_model: "models/main/football_v4.1_production.joblib"
-  v32_model: "models/main/football_balanced_production.joblib"
-  draw_expert: "models/draw_expert/draw_expert_v1.joblib"
-  nn_model: "models/nn/football_nn_20260616_125617.pth"
+  v41_model: "saved_models/football_v4.1_production.joblib"
+  v32_model: "saved_models/football_balanced_production.joblib"
+  draw_expert: "saved_models/draw_expert_v1.joblib"
+  nn_model: "saved_models/football_nn_20260616_125617.pth"
   output_dir: "output"
   log_dir: "logs"
   sandbox_dir: "sandbox"

@@ -149,17 +149,17 @@ async def chat_endpoint(request: Request):
                 _hc_match = re.search(r'让\s*(\d+\.?\d*)', msg)
                 if _hc_match:
                     try: handicap = float(_hc_match.group(1))
-                    except (ValueError, TypeError): pass
+                    except (ValueError, TypeError) as e: logger.debug(f"chat: handicap parse failed: {e}")
             if ou_line is None:
                 ou_match = re.search(r'[大小].*?/(\d+\.\d+)', msg) or re.search(r'[大小]\D*?(\d+\.\d+)', msg)
                 if ou_match:
                     try: ou_line = float(ou_match.group(1))
-                    except (ValueError, TypeError): pass
+                    except (ValueError, TypeError) as e: logger.debug(f"chat: ou_line parse failed: {e}")
                 if ou_line is None:
                     ou_match = re.search(r'[大小]\D*?(\d+)', msg)
                     if ou_match:
                         try: ou_line = float(ou_match.group(1))
-                        except (ValueError, TypeError): pass
+                        except (ValueError, TypeError) as e: logger.debug(f"chat: ou_line(alt) parse failed: {e}")
             if odds:
                 odds['_handicap'] = handicap or 0.0
                 odds['_ou_line'] = ou_line or 2.5

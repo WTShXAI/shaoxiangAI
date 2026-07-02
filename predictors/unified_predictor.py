@@ -116,13 +116,18 @@ class UnifiedPredictor(PredictorBase):
         self.enable_dh = enable_dh
         self.use_threshold = use_threshold
 
-        # P0 优化: draw_threshold 从 0.46 → 0.32 (网格搜索最优解)
+        # P0 优化: draw_threshold 从 0.46 → 0.32 → 0.28 (降低误判门槛)
         # 回测验证: 平局F1 0→0.353, MacroF1 0.465→0.507, 准确率仅降3.8pp
-        self.draw_threshold = 0.32
+        self.draw_threshold = 0.28
         self.ha_gap = 0.0
-        self.de_mult = 0.25  # DrawExpert 衰减
+        self.de_mult = 0.45  # DrawExpert 衰减
 
         # ── 加载 v4.0 模型 ──
+        # P0修复: 确保 draw_expert 模块可被 joblib 反序列化找到
+        import sys as _sys, os as _os
+        _de_path = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), 'predictors', 'components')
+        if _de_path not in _sys.path:
+            _sys.path.insert(0, _de_path)
         self.trainer = None
         self._load_model(model_path)
 
@@ -170,9 +175,10 @@ class UnifiedPredictor(PredictorBase):
                 if v41:
                     logger.info(f"检测到 v4.1 配置: DE×{v41.get('draw_expert_mult','?')}, "
                                f"阈值={v41.get('draw_threshold','?')}")
-                    self.de_mult = v41.get('draw_expert_mult', 0.25)
-                    # P0: 不使用模型内嵌的0.46阈值, 强制使用网格搜索最优值0.32
-                    self.draw_threshold = 0.32
+                    # P0修复: 不再使用模型内嵌的0.25/0.32，强制使用 v5.2 标定值
+                    self.de_mult = 0.45  # v5.2: DrawExpert 衰减 (原 0.25 过强)
+                    # P0修复: 阈值使用 v5.2 最优值 (原0.32/0.46，v5.2为0.28)
+                    self.draw_threshold = 0.28  # v5.2: 降低Draw触发门槛
                     self.ha_gap = v41.get('ha_gap', 0.0)
                     self.use_threshold = True
                 elif 'v4.1' in model_path or 'v4.1' in os.path.basename(model_path):
@@ -407,14 +413,14 @@ class UnifiedPredictor(PredictorBase):
             try:
                 draw_signal = self._get_draw_expert_signal(home, away, odds_h, odds_d, odds_a,
                                                            asian_handicap, ou_line)
-                # v5.3: 线性ramp校准 (0.26→0.25x, 0.42→0.95x)
+                # v5.3: 线性ramp校准 (0.22→0.25x, 0.38→0.95x)
                 if draw_signal > 0:
-                    if draw_signal <= 0.26:
+                    if draw_signal <= 0.22:
                         draw_signal *= 0.25
-                    elif draw_signal >= 0.42:
+                    elif draw_signal >= 0.38:
                         draw_signal *= 0.95
                     else:
-                        t = (draw_signal - 0.26) / 0.16
+                        t = (draw_signal - 0.22) / 0.16
                         draw_signal *= 0.25 + t * 0.70
                 draw_signal = draw_signal * self.de_mult  # v4.1 衰减
             except Exception:

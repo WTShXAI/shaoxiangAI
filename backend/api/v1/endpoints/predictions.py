@@ -102,7 +102,7 @@ class ReportRequest(BaseModel):
 
 # ── 端点 ──────────────────────────────────
 
-@router.get("/next-match", response_model=MatchPrediction)
+@router.get("/next-match")
 async def predict_next_match(
     user: dict = Depends(get_current_user),
 ):

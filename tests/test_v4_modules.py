@@ -22,6 +22,10 @@ if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8')
 
 import sys, os, json, math, time, threading
+# 确保项目根目录在 sys.path 中 (修复 ModuleNotFoundError: No module named 'utils', 2026-07-01)
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
 import importlib.util, logging
 logging.basicConfig(level=logging.WARNING)  # 减少噪音

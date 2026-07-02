@@ -1,0 +1,642 @@
+{
+  "metadata": {
+    "generated_at": "2026-06-28T23:33:25.010023",
+    "total": 70,
+    "ok_original": 40,
+    "fixed_no1x2": 19,
+    "fixed_err_reocr": 7,
+    "still_fail": 4
+  },
+  "matches": [
+    {
+      "date": "6.13",
+      "home_team": "加拿大",
+      "away_team": "波黑",
+      "file": "2026WC\\6.13\\加拿大VS波黑.png",
+      "1x2_home": 2.09,
+      "1x2_draw": 3.45,
+      "1x2_away": 2.17
+    },
+    {
+      "date": "6.13",
+      "home_team": "美国",
+      "away_team": "巴拉圭",
+      "file": "2026WC\\6.13\\美国vs巴拉圭.png",
+      "1x2_home": 7.8,
+      "1x2_draw": 5.9,
+      "1x2_away": 1.6
+    },
+    {
+      "date": "6.14",
+      "home_team": "卡塔尔",
+      "away_team": "瑞士",
+      "file": "2026WC\\6.14\\卡塔尔vs瑞士.png",
+      "1x2_home": 6.7,
+      "1x2_draw": 3.05,
+      "1x2_away": 2.17
+    },
+    {
+      "date": "6.14",
+      "home_team": "巴西",
+      "away_team": "摩洛哥",
+      "file": "2026WC\\6.14\\巴西vs摩洛哥.png",
+      "1x2_home": 1.7,
+      "1x2_draw": 3.6,
+      "1x2_away": 5.3
+    },
+    {
+      "date": "6.14",
+      "home_team": "海地",
+      "away_team": "苏格兰",
+      "file": "2026WC\\6.14\\海地vs苏格兰.png",
+      "1x2_home": 5.9,
+      "1x2_draw": 4.6,
+      "1x2_away": 2.07
+    },
+    {
+      "date": "6.14",
+      "home_team": "澳大利亚",
+      "away_team": "土耳其",
+      "file": "2026WC\\6.14\\澳大利亚vs土耳其.png",
+      "1x2_home": 4.95,
+      "1x2_draw": 3.75,
+      "1x2_away": 1.71
+    },
+    {
+      "date": "6.15",
+      "home_team": "德国",
+      "away_team": "库拉索",
+      "file": "2026WC\\6.15\\德国vs库拉索.png",
+      "1x2_home": 1.91,
+      "1x2_draw": 2.03,
+      "1x2_away": 4.95
+    },
+    {
+      "date": "6.15",
+      "home_team": "瑞典",
+      "away_team": "突尼斯",
+      "file": "2026WC\\6.15\\瑞典vs突尼斯.png",
+      "1x2_home": 1.92,
+      "1x2_draw": 3.4,
+      "1x2_away": 4.1
+    },
+    {
+      "date": "6.15",
+      "home_team": "科特迪瓦",
+      "away_team": "厄瓜多尔",
+      "file": "2026WC\\6.15\\科特迪瓦vs厄瓜多尔.png",
+      "1x2_home": 3.5,
+      "1x2_draw": 2.88,
+      "1x2_away": 2.36
+    },
+    {
+      "date": "6.15",
+      "home_team": "荷兰",
+      "away_team": "日本",
+      "file": "2026WC\\6.15\\荷兰vs日本.png",
+      "1x2_home": 2.03,
+      "1x2_draw": 3.5,
+      "1x2_away": 3.6
+    },
+    {
+      "date": "6.16",
+      "home_team": "伊朗",
+      "away_team": "新西兰",
+      "file": "2026WC\\6.16\\伊朗vs新西兰.png",
+      "1x2_home": 1.85,
+      "1x2_draw": 3.35,
+      "1x2_away": 4.55
+    },
+    {
+      "date": "6.16",
+      "home_team": "比利时",
+      "away_team": "埃及",
+      "file": "2026WC\\6.16\\比利时vs埃及.png",
+      "1x2_home": 1.63,
+      "1x2_draw": 2.25,
+      "1x2_away": 5.2
+    },
+    {
+      "date": "6.16",
+      "home_team": "沙特阿拉伯",
+      "away_team": "乌拉圭",
+      "file": "2026WC\\6.16\\沙特阿拉伯vs乌拉圭.png",
+      "1x2_home": 2.17,
+      "1x2_draw": 2.25,
+      "1x2_away": 4.45
+    },
+    {
+      "date": "6.16",
+      "home_team": "西班牙",
+      "away_team": "佛得角共和国",
+      "file": "2026WC\\6.16\\西班牙vs佛得角共和国.png",
+      "1x2_home": null,
+      "1x2_draw": null,
+      "1x2_away": null
+    },
+    {
+      "date": "6.17",
+      "home_team": "伊拉克",
+      "away_team": "挪威",
+      "file": "2026WC\\6.17\\伊拉克vs挪威.png",
+      "1x2_home": 1.85,
+      "1x2_draw": 1.87,
+      "1x2_away": 6.8
+    },
+    {
+      "date": "6.17",
+      "home_team": "奥地利",
+      "away_team": "约旦",
+      "file": "2026WC\\6.17\\奥地利vs约旦.png",
+      "1x2_home": 1.74,
+      "1x2_draw": 2.59,
+      "1x2_away": 5.3
+    },
+    {
+      "date": "6.17",
+      "home_team": "法国",
+      "away_team": "塞内加尔",
+      "file": "2026WC\\6.17\\法国vs塞内加尔.png",
+      "1x2_home": 1.45,
+      "1x2_draw": 4.4,
+      "1x2_away": 7.5
+    },
+    {
+      "date": "6.17",
+      "home_team": "阿根廷",
+      "away_team": "阿尔及利亚",
+      "file": "2026WC\\6.17\\阿根廷vs阿尔及利亚.png",
+      "1x2_home": 1.93,
+      "1x2_draw": 7.9,
+      "1x2_away": 1.91
+    },
+    {
+      "date": "6.18",
+      "home_team": "乌兹别克斯坦",
+      "away_team": "哥伦比亚",
+      "file": "2026WC\\6.18\\乌兹别克斯坦vs哥伦比亚.png",
+      "1x2_home": 8.4,
+      "1x2_draw": 2.35,
+      "1x2_away": 1.38
+    },
+    {
+      "date": "6.18",
+      "home_team": "加纳",
+      "away_team": "巴拿马",
+      "file": "2026WC\\6.18\\加纳vs巴拿马.png",
+      "1x2_home": 2.19,
+      "1x2_draw": 3.3,
+      "1x2_away": 3.35
+    },
+    {
+      "date": "6.18",
+      "home_team": "英格兰",
+      "away_team": "克罗地亚",
+      "file": "2026WC\\6.18\\英格兰vs克罗地亚.png",
+      "1x2_home": 1.73,
+      "1x2_draw": 3.65,
+      "1x2_away": 4.95
+    },
+    {
+      "date": "6.18",
+      "home_team": "葡萄牙",
+      "away_team": "明主刚果",
+      "file": "2026WC\\6.18\\葡萄牙vs明主刚果.png",
+      "1x2_home": 1.28,
+      "1x2_draw": 5.6,
+      "1x2_away": 1.84
+    },
+    {
+      "date": "6.19",
+      "home_team": "加拿大",
+      "away_team": "卡特尔",
+      "file": "2026WC\\6.19\\加拿大vs卡特尔.png",
+      "1x2_home": 1.31,
+      "1x2_draw": 5.2,
+      "1x2_away": 9.8
+    },
+    {
+      "date": "6.19",
+      "home_team": "墨西哥",
+      "away_team": "韩国",
+      "file": "2026WC\\6.19\\墨西哥vs韩国.png",
+      "1x2_home": 2.76,
+      "1x2_draw": 3.25,
+      "1x2_away": 3.95
+    },
+    {
+      "date": "6.19",
+      "home_team": "捷克",
+      "away_team": "南非",
+      "file": "2026WC\\6.19\\捷克vs南非.png",
+      "1x2_home": 1.82,
+      "1x2_draw": 3.6,
+      "1x2_away": 4.35
+    },
+    {
+      "date": "6.19",
+      "home_team": "瑞士",
+      "away_team": "波黑",
+      "file": "2026WC\\6.19\\瑞士vs波黑.png",
+      "1x2_home": 1.58,
+      "1x2_draw": 4.05,
+      "1x2_away": 5.7
+    },
+    {
+      "date": "6.20",
+      "home_team": "土耳其",
+      "away_team": "巴拉圭",
+      "file": "2026WC\\6.20\\土耳其vs巴拉圭.png",
+      "1x2_home": 2.03,
+      "1x2_draw": 3.15,
+      "1x2_away": 1.79
+    },
+    {
+      "date": "6.20",
+      "home_team": "巴西",
+      "away_team": "海地",
+      "file": "2026WC\\6.20\\巴西vs海地.png",
+      "1x2_home": null,
+      "1x2_draw": null,
+      "1x2_away": null
+    },
+    {
+      "date": "6.20",
+      "home_team": "美国",
+      "away_team": "澳大利亚",
+      "file": "2026WC\\6.20\\美国vs澳大利亚.png",
+      "1x2_home": 1.55,
+      "1x2_draw": 3.95,
+      "1x2_away": 5.3
+    },
+    {
+      "date": "6.20",
+      "home_team": "苏格兰",
+      "away_team": "摩洛哥",
+      "file": "2026WC\\6.20\\苏格兰vs摩洛哥.png",
+      "1x2_home": 1.84,
+      "1x2_draw": 3.15,
+      "1x2_away": 2.0
+    },
+    {
+      "date": "6.21",
+      "home_team": "厄瓜多尔",
+      "away_team": "库拉索",
+      "file": "2026WC\\6.21\\厄瓜多尔vs库拉索.png",
+      "1x2_home": 6.1,
+      "1x2_draw": 2.41,
+      "1x2_away": 2.13
+    },
+    {
+      "date": "6.21",
+      "home_team": "德国",
+      "away_team": "科特迪瓦",
+      "file": "2026WC\\6.21\\德国vs科特迪瓦.png",
+      "1x2_home": 1.76,
+      "1x2_draw": 2.18,
+      "1x2_away": 2.06
+    },
+    {
+      "date": "6.21",
+      "home_team": "突尼斯",
+      "away_team": "日本",
+      "file": "2026WC\\6.21\\突尼斯vs日本.png",
+      "1x2_home": 4.9,
+      "1x2_draw": 3.45,
+      "1x2_away": 1.69
+    },
+    {
+      "date": "6.21",
+      "home_team": "荷兰",
+      "away_team": "瑞典",
+      "file": "2026WC\\6.21\\荷兰vs瑞典.png",
+      "1x2_home": 1.63,
+      "1x2_draw": 2.11,
+      "1x2_away": 4.7
+    },
+    {
+      "date": "6.22",
+      "home_team": "乌拉圭",
+      "away_team": "佛得角共和国",
+      "file": "2026WC\\6.22\\乌拉圭vs佛得角共和国.png",
+      "1x2_home": 1.44,
+      "1x2_draw": 4.25,
+      "1x2_away": 6.3
+    },
+    {
+      "date": "6.22",
+      "home_team": "新西兰",
+      "away_team": "埃及",
+      "file": "2026WC\\6.22\\新西兰vs埃及.png",
+      "1x2_home": 4.55,
+      "1x2_draw": 3.35,
+      "1x2_away": 1.76
+    },
+    {
+      "date": "6.22",
+      "home_team": "比利时",
+      "away_team": "伊朗",
+      "file": "2026WC\\6.22\\比利时vs伊朗.png",
+      "1x2_home": 1.84,
+      "1x2_draw": 2.18,
+      "1x2_away": 1.98
+    },
+    {
+      "date": "6.22",
+      "home_team": "西班牙",
+      "away_team": "沙特阿拉伯",
+      "file": "2026WC\\6.22\\西班牙vs沙特阿拉伯.png",
+      "1x2_home": 8.8,
+      "1x2_draw": 3.15,
+      "1x2_away": 1.78
+    },
+    {
+      "date": "6.23",
+      "home_team": "挪威",
+      "away_team": "塞内加尔",
+      "file": "2026WC\\6.23\\挪威vs塞内加尔.png",
+      "1x2_home": 2.33,
+      "1x2_draw": 2.36,
+      "1x2_away": 2.66
+    },
+    {
+      "date": "6.23",
+      "home_team": "法国",
+      "away_team": "伊拉克",
+      "file": "2026WC\\6.23\\法国vs伊拉克.png",
+      "1x2_home": 8.8,
+      "1x2_draw": 3.2,
+      "1x2_away": 1.78
+    },
+    {
+      "date": "6.23",
+      "home_team": "约旦",
+      "away_team": "阿尔及利亚",
+      "file": "2026WC\\6.23\\约旦vs阿尔及利亚.png",
+      "1x2_home": 6.2,
+      "1x2_draw": 4.15,
+      "1x2_away": 1.46
+    },
+    {
+      "date": "6.23",
+      "home_team": "阿根廷",
+      "away_team": "奥地利",
+      "file": "2026WC\\6.23\\阿根廷vs奥地利.png",
+      "1x2_home": 1.6,
+      "1x2_draw": 3.85,
+      "1x2_away": 5.0
+    },
+    {
+      "date": "6.24",
+      "home_team": "哥伦比亚",
+      "away_team": "民主刚果",
+      "file": "2026WC\\6.24\\哥伦比亚vs民主刚果.png",
+      "1x2_home": 2.01,
+      "1x2_draw": 4.05,
+      "1x2_away": 2.14
+    },
+    {
+      "date": "6.24",
+      "home_team": "巴拿马",
+      "away_team": "克罗地亚",
+      "file": "2026WC\\6.24\\巴拿马vs克罗地亚.png",
+      "1x2_home": 1.79,
+      "1x2_draw": 3.95,
+      "1x2_away": 1.52
+    },
+    {
+      "date": "6.24",
+      "home_team": "英格兰",
+      "away_team": "加纳",
+      "file": "2026WC\\6.24\\英格兰vs加纳.png",
+      "1x2_home": 1.3,
+      "1x2_draw": 5.0,
+      "1x2_away": 8.3
+    },
+    {
+      "date": "6.24",
+      "home_team": "葡萄牙",
+      "away_team": "乌兹别克斯坦",
+      "file": "2026WC\\6.24\\葡萄牙vs乌兹别克斯坦.png",
+      "1x2_home": 1.7,
+      "1x2_draw": 2.51,
+      "1x2_away": 5.9
+    },
+    {
+      "date": "6.25",
+      "home_team": "南非",
+      "away_team": "韩国",
+      "file": "2026WC\\6.25\\南非vs韩国.png",
+      "1x2_home": 4.95,
+      "1x2_draw": 2.06,
+      "1x2_away": 1.61
+    },
+    {
+      "date": "6.25",
+      "home_team": "捷克",
+      "away_team": "墨西哥",
+      "file": "2026WC\\6.25\\捷克vs墨西哥.png",
+      "1x2_home": null,
+      "1x2_draw": null,
+      "1x2_away": null
+    },
+    {
+      "date": "6.25",
+      "home_team": "摩洛哥",
+      "away_team": "海地",
+      "file": "2026WC\\6.25\\摩洛哥vs海地.png",
+      "1x2_home": 2.47,
+      "1x2_draw": 2.66,
+      "1x2_away": 2.2
+    },
+    {
+      "date": "6.25",
+      "home_team": "波黑",
+      "away_team": "卡特尔",
+      "file": "2026WC\\6.25\\波黑vs卡特尔.png",
+      "1x2_home": 1.61,
+      "1x2_draw": 3.75,
+      "1x2_away": 5.0
+    },
+    {
+      "date": "6.25",
+      "home_team": "瑞士",
+      "away_team": "加拿大",
+      "file": "2026WC\\6.25\\瑞士vs加拿大.png",
+      "1x2_home": 2.12,
+      "1x2_draw": 3.25,
+      "1x2_away": 3.25
+    },
+    {
+      "date": "6.25",
+      "home_team": "苏格兰",
+      "away_team": "巴西",
+      "file": "2026WC\\6.25\\苏格兰vs巴西.png",
+      "1x2_home": 6.9,
+      "1x2_draw": 4.5,
+      "1x2_away": 1.4
+    },
+    {
+      "date": "6.26",
+      "home_team": "厄瓜多尔",
+      "away_team": "德国",
+      "file": "2026WC\\6.26\\厄瓜多尔vs德国.png",
+      "1x2_home": 1.88,
+      "1x2_draw": 3.55,
+      "1x2_away": 1.72
+    },
+    {
+      "date": "6.26",
+      "home_team": "土耳其",
+      "away_team": "美国",
+      "file": "2026WC\\6.26\\土耳其vs美国.png",
+      "1x2_home": 2.02,
+      "1x2_draw": 3.5,
+      "1x2_away": 2.19
+    },
+    {
+      "date": "6.26",
+      "home_team": "巴拉圭",
+      "away_team": "澳大利亚",
+      "file": "2026WC\\6.26\\巴拉圭vs澳大利亚.png",
+      "1x2_home": 2.09,
+      "1x2_draw": 3.2,
+      "1x2_away": 3.4
+    },
+    {
+      "date": "6.26",
+      "home_team": "库拉索",
+      "away_team": "科特迪瓦",
+      "file": "2026WC\\6.26\\库拉索vs科特迪瓦.png",
+      "1x2_home": 5.8,
+      "1x2_draw": 2.43,
+      "1x2_away": 2.14
+    },
+    {
+      "date": "6.26",
+      "home_team": "日本",
+      "away_team": "瑞典",
+      "file": "2026WC\\6.26\\日本vs瑞典.png",
+      "1x2_home": 2.36,
+      "1x2_draw": 2.4,
+      "1x2_away": 2.47
+    },
+    {
+      "date": "6.26",
+      "home_team": "突尼斯",
+      "away_team": "荷兰",
+      "file": "2026WC\\6.26\\突尼斯vs荷兰.png",
+      "1x2_home": 1.83,
+      "1x2_draw": 2.15,
+      "1x2_away": 1.99
+    },
+    {
+      "date": "6.27",
+      "home_team": "乌拉圭",
+      "away_team": "西班牙",
+      "file": "2026WC\\6.27\\乌拉圭vs西班牙.png",
+      "1x2_home": 4.7,
+      "1x2_draw": 2.01,
+      "1x2_away": 1.9
+    },
+    {
+      "date": "6.27",
+      "home_team": "佛得角共和国",
+      "away_team": "沙特阿拉伯",
+      "file": "2026WC\\6.27\\佛得角共和国vs沙特阿拉伯.png",
+      "1x2_home": null,
+      "1x2_draw": null,
+      "1x2_away": null
+    },
+    {
+      "date": "6.27",
+      "home_team": "埃及",
+      "away_team": "伊朗",
+      "file": "2026WC\\6.27\\埃及vs伊朗.png",
+      "1x2_home": 2.16,
+      "1x2_draw": 3.0,
+      "1x2_away": 3.4
+    },
+    {
+      "date": "6.27",
+      "home_team": "塞内加尔",
+      "away_team": "伊拉克",
+      "file": "2026WC\\6.27\\塞内加尔vs伊拉克.png",
+      "1x2_home": 1.4,
+      "1x2_draw": 4.4,
+      "1x2_away": 7.0
+    },
+    {
+      "date": "6.27",
+      "home_team": "挪威",
+      "away_team": "法国",
+      "file": "2026WC\\6.27\\挪威vs法国.png",
+      "1x2_home": 4.05,
+      "1x2_draw": 2.08,
+      "1x2_away": 1.8
+    },
+    {
+      "date": "6.27",
+      "home_team": "新西兰",
+      "away_team": "比利时",
+      "file": "2026WC\\6.27\\新西兰vs比利时.png",
+      "1x2_home": 9.0,
+      "1x2_draw": 5.2,
+      "1x2_away": 1.28
+    },
+    {
+      "date": "6.28",
+      "home_team": "克罗地亚",
+      "away_team": "加纳",
+      "file": "2026WC\\6.28\\克罗地亚vs加纳.png",
+      "1x2_home": 1.62,
+      "1x2_draw": 3.75,
+      "1x2_away": 5.0
+    },
+    {
+      "date": "6.28",
+      "home_team": "哥伦比亚",
+      "away_team": "葡萄牙",
+      "file": "2026WC\\6.28\\哥伦比亚vs葡萄牙.png",
+      "1x2_home": 3.25,
+      "1x2_draw": 3.3,
+      "1x2_away": 2.11
+    },
+    {
+      "date": "6.28",
+      "home_team": "巴拿马",
+      "away_team": "英格兰",
+      "file": "2026WC\\6.28\\巴拿马vs英格兰.png",
+      "1x2_home": 9.1,
+      "1x2_draw": 5.4,
+      "1x2_away": 1.27
+    },
+    {
+      "date": "6.28",
+      "home_team": "民主刚果",
+      "away_team": "乌兹别克斯坦",
+      "file": "2026WC\\6.28\\民主刚果vs乌兹别克斯坦.png",
+      "1x2_home": 2.27,
+      "1x2_draw": 3.25,
+      "1x2_away": 2.97
+    },
+    {
+      "date": "6.28",
+      "home_team": "约旦",
+      "away_team": "阿根廷",
+      "file": "2026WC\\6.28\\约旦vs阿根廷.png",
+      "1x2_home": 1.81,
+      "1x2_draw": 2.78,
+      "1x2_away": 6.3
+    },
+    {
+      "date": "6.28",
+      "home_team": "阿尔及利亚",
+      "away_team": "奥地利",
+      "file": "2026WC\\6.28\\阿尔及利亚vs奥地利.png",
+      "1x2_home": 2.05,
+      "1x2_draw": 2.21,
+      "1x2_away": 3.7
+    }
+  ]
+}

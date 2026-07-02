@@ -299,7 +299,6 @@ async def get_matches(
         db = get_db()
         league_id = None
         if league:
-            # 尝试将联赛缩写转为ID
             league_map = {
                 'PL': 1, '英超': 1, 'BL': 2, '德甲': 2,
                 'SA': 3, '意甲': 3, 'LL': 4, '西甲': 4,
@@ -307,20 +306,41 @@ async def get_matches(
             }
             league_id = league_map.get(league)
 
-        # 如果 league_id 映射失败，尝试用 league_name 后备查询
         league_name_fallback = None
         if league and league_id is None:
             league_name_fallback = league
 
-        matches = db.get_matches(
-            league_id=league_id,
-            league_name=league_name_fallback,
-            date_from=date_from,
-            date_to=date_to,
-            status=status,
-            limit=limit,
-            offset=offset,
-        )
+        # status映射: 前端'upcoming'→DB'scheduled', 'live'→'live', 'finished'→'finished'
+        if status == 'upcoming':
+            status = 'scheduled'
+
+        try:
+            matches = db.get_matches(
+                league_id=league_id,
+                league_name=league_name_fallback,
+                date_from=date_from,
+                date_to=date_to,
+                status=status,
+                limit=limit,
+                offset=offset,
+            )
+        except Exception as je:
+            # fallback: 简化查询(无JOIN)
+            logger.warning(f"get_matches复杂JOIN失败, 使用简化查询: {je}")
+            import sqlite3
+            with db.get_connection() as conn:
+                sql = "SELECT * FROM matches WHERE 1=1"
+                params = []
+                if status:
+                    sql += " AND status=?"
+                    params.append(status)
+                if date_from:
+                    sql += " AND match_date>=?"
+                    params.append(date_from)
+                sql += " ORDER BY match_date DESC LIMIT ? OFFSET ?"
+                params.extend([limit, offset])
+                rows = conn.execute(sql, params).fetchall()
+                matches = [dict(r) for r in rows]
 
         # 规范化字段名，对齐前端期望
         normalized = []
@@ -341,28 +361,81 @@ async def get_matches(
                     odds_prediction = best[0]
                     odds_confidence = round(best[1] * 100, 1)
 
+            # 状态映射：DB 'scheduled' -> 前端 'upcoming'
+            raw_status = m.get('status') or m.get('match_status') or 'scheduled'
+            status_map = {
+                'scheduled': 'upcoming',
+                'live': 'live',
+                'finished': 'finished',
+                'postponed': 'postponed',
+                'cancelled': 'postponed',
+            }
+            mapped_status = status_map.get(raw_status, 'upcoming')
+
+            # 构建 kickoff ISO 字符串
+            match_date = m.get('match_date') or ''
+            match_time = m.get('match_time') or '00:00:00'
+            if match_time and len(match_time) == 5:  # "HH:MM"
+                match_time += ':00'
+            kickoff = f"{match_date}T{match_time}" if match_date else ''
+
+            # 联赛代码映射
+            league_id = m.get('league_id')
+            league_name = m.get('league_name') or '未知联赛'
+            league_code_map = {
+                1: 'PL', 2: 'BL', 3: 'SA', 4: 'LL', 5: 'L1', 6: 'WC',
+            }
+            league_code = league_code_map.get(league_id, 'UNKNOWN')
+
+            # 球队简称（取前3字或原名）
+            home_name = m.get('home_team_name') or '主队'
+            away_name = m.get('away_team_name') or '客队'
+            home_short = (m.get('home_team_short') or home_name)[:3]
+            away_short = (m.get('away_team_short') or away_name)[:3]
+
             item = {
-                **m,
-                'id': m.get('match_id'),
-                'date': m.get('match_date'),
-                'time': m.get('match_time'),
-                'home_team': m.get('home_team_name'),
-                'away_team': m.get('away_team_name'),
-                'home_team_zh': m.get('home_team_zh') or m.get('home_team_name'),
-                'away_team_zh': m.get('away_team_zh') or m.get('away_team_name'),
-                'league': m.get('league_name'),
-                'confidence': m.get('confidence') or odds_confidence,
-                'prediction': m.get('prediction') or odds_prediction,  # H/D/A (from JOIN or odds)
-                'status': m.get('status') or m.get('match_status'),
-                # 赔率字段透传（前端显示用）
+                'id': str(m.get('match_id', '')),
+                'homeTeam': {
+                    'id': str(m.get('home_team_id', '')),
+                    'name': home_name,
+                    'shortName': home_short,
+                    'logo': m.get('home_team_logo'),
+                    'rank': m.get('home_team_rank'),
+                    'form': m.get('home_form', []),
+                },
+                'awayTeam': {
+                    'id': str(m.get('away_team_id', '')),
+                    'name': away_name,
+                    'shortName': away_short,
+                    'logo': m.get('away_team_logo'),
+                    'rank': m.get('away_team_rank'),
+                    'form': m.get('away_form', []),
+                },
+                'league': {
+                    'code': league_code,
+                    'name': league_name,
+                    'country': m.get('league_country') or '未知',
+                    'logo': m.get('league_logo'),
+                },
+                'kickoff': kickoff,
+                'status': mapped_status,
+                'homeScore': m.get('home_score'),
+                'awayScore': m.get('away_score'),
+                'venue': m.get('venue'),
+                # 赔率 (snake_case + camelCase 双份)
                 'home_odds': m.get('home_odds'),
                 'draw_odds': m.get('draw_odds'),
                 'away_odds': m.get('away_odds'),
-                # 比分字段（终场+半场）
-                'home_score': m.get('home_score'),
-                'away_score': m.get('away_score'),
+                'homeOdds': m.get('home_odds'),
+                'drawOdds': m.get('draw_odds'),
+                'awayOdds': m.get('away_odds'),
+                # 半场比分 (snake_case + camelCase 双份)
                 'halftime_home': m.get('halftime_home'),
                 'halftime_away': m.get('halftime_away'),
+                'halftimeHome': m.get('halftime_home'),
+                'halftimeAway': m.get('halftime_away'),
+                'confidence': m.get('confidence') or odds_confidence,
+                'prediction': m.get('prediction') or odds_prediction,
             }
             # 补充推断 prediction（如果 JOIN 未带上且赔率也未推断出）
             if not item.get('prediction') and m.get('home_prob') is not None:

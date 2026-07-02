@@ -128,17 +128,29 @@ class TaoGeStrategy:
         abs_gap_val = abs(form_result.goal_diff_advantage) if form_result else 0
 
         if form_result and form_result.massacre_warning:
-            if form_result.goal_diff_advantage < 0:
-                # 客队更强 (如法国 vs 挪威)
-                primary, secondary = '让负', '客胜'
-                strategy = '屠杀预警(跟客队)'
-                rationale = f'阵容屠杀预警: 强队{form_result.away.team}全攻+全主力 vs 弱队缺阵'
-            else:
-                primary, secondary = '让胜', '主胜'
-                strategy = '屠杀预警(跟主队)'
-                rationale = f'阵容屠杀预警: 强队{form_result.home.team}全攻+全主力 vs 弱队缺阵'
-            evidence.append(f'🚨 屠杀预警: {form_result.verdict}')
-            evidence.append(f'修正{form_result.score_adjustment:+.1f}球')
+            # ═══ v5.24: 淘汰赛屠杀降级检查 ═══
+            # pipeline.py Priority Gate已做降级, 此处为双重保险
+            stage_is_knockout = getattr(match, 'stage', 'group') == 'knockout'
+            weak_ga = 999  # 默认不降级
+            if stage_is_knockout:
+                weak_ga = form_result.away.avg_ga if form_result.goal_diff_advantage > 0 else form_result.home.avg_ga
+                weak_team = form_result.away.team if form_result.goal_diff_advantage > 0 else form_result.home.team
+                if weak_ga < 1.2:
+                    evidence.append(f'🟡 v5.24双重: 淘汰赛屠杀降级 → {weak_team}防守强(GA={weak_ga:.1f}), 走默认策略')
+            
+            # 仅非降级场景执行屠杀覆盖
+            if not (stage_is_knockout and weak_ga < 1.2):
+                if form_result.goal_diff_advantage < 0:
+                    # 客队更强 (如法国 vs 挪威)
+                    primary, secondary = '让负', '客胜'
+                    strategy = '屠杀预警(跟客队)'
+                    rationale = f'阵容屠杀预警: 强队{form_result.away.team}全攻+全主力 vs 弱队缺阵'
+                else:
+                    primary, secondary = '让胜', '主胜'
+                    strategy = '屠杀预警(跟主队)'
+                    rationale = f'阵容屠杀预警: 强队{form_result.home.team}全攻+全主力 vs 弱队缺阵'
+                evidence.append(f'🚨 屠杀预警: {form_result.verdict}')
+                evidence.append(f'修正{form_result.score_adjustment:+.1f}球')
         elif context_override == 'mutual_benefit_draw':
             # 默契平局 → 平局方向强制
             primary, secondary = '平', '平局'
@@ -387,7 +399,17 @@ class TaoGeStrategy:
         # ── D-Gate修正 ──
         if dgate.metadata.get('dgate_active') and 'ignore_draw' in dgate.metadata.get('risk_tag', ''):
             if '平' in (primary, secondary):
-                primary, secondary = '主胜', '让胜'
+                # ═══ v5.24: 淘汰赛+弱队防守强 → ignore_draw信号不可靠 ═══
+                # 案例: 德国vs巴拉圭 — 淘汰赛, 巴拉圭防守强(GA 0.33) → 必发平局热是真实信号
+                stage_knockout = getattr(match, 'stage', 'group') == 'knockout'
+                if stage_knockout and form_result:
+                    weak_ga = form_result.away.avg_ga if form_result.goal_diff_advantage > 0 else form_result.home.avg_ga
+                    if weak_ga < 1.2:
+                        evidence.append(f'🛡️ v5.24: 淘汰赛+弱队防守强(GA={weak_ga:.1f}), ignore_draw诱平信号不可靠, 保留平局')
+                    else:
+                        primary, secondary = '主胜', '让胜'
+                else:
+                    primary, secondary = '主胜', '让胜'
 
         # ── 校验6: 让1球冷门律 ──
         if abs(match.hcp) >= 0.75 and abs(match.hcp) < 1.75:
@@ -442,7 +464,7 @@ class TaoGeStrategy:
                 sh, sa = map(int, s.split('-'))
                 total = sh + sa
                 ou_scored.append((abs(total - match.ou_line), s))
-            except: pass
+            except Exception as e: logger.warning(f"TaoGe v5.23: 比分解析失败 '{s}': {e}")
         ou_scored.sort(key=lambda x: x[0])
         
         top_scores = [s for _, s in ou_scored[:5]]
@@ -464,7 +486,7 @@ class TaoGeStrategy:
                         if (weak_is_home and sh > 0) or (not weak_is_home and sa > 0):
                             has_weak_score = True
                             break
-                    except: pass
+                    except Exception as e: logger.warning(f"TaoGe v5.21: 比分解析失败 '{s}': {e}")
                 if not has_weak_score:
                     # 从备选池找有弱队进球的比分替换第3个
                     for s in top_scores[3:]:
@@ -475,7 +497,7 @@ class TaoGeStrategy:
                                 alt_scores = top_scores[1:3]
                                 evidence.append(f'🎯 v5.21: 弱队GF={weak_gf:.1f}>1.0, 补充双方进球比分')
                                 break
-                        except: pass
+                        except Exception as e: logger.warning(f"TaoGe v5.21(备选): 比分解析失败 '{s}': {e}")
 
         # ═══ v5.18: hcp+OU联合约束比分精调 ═══
         # 用hcp锚定比分差 + OU锚定总球数，双维度过滤+排序
@@ -496,8 +518,15 @@ class TaoGeStrategy:
                     total = sh + sa
                     
                     # 1. hcp方向约束：让球方向必须匹配
-                    if is_home_give and diff <= 0: continue
-                    if not is_home_give and diff >= 0: continue
+                    # ═══ v5.24: 平局方向时跳过方向过滤 ═══
+                    # 案例: 荷兰vs摩洛哥 — 预测让平/让负(摩洛哥+0.5), 方向含'平'
+                    #       v5.18过滤diff≤0 → 所有平局比分被移除 → 首选1-0(矛盾!)
+                    #       实际1-1 → 平局比分应保留在候选池
+                    is_draw_verdict = ('平' in str(primary) and '让' not in str(primary)
+                                       ) or '平局' in str(primary)
+                    if not is_draw_verdict:
+                        if is_home_give and diff <= 0: continue
+                        if not is_home_give and diff >= 0: continue
                     
                     # 2. OU总球约束：偏离OU线的惩罚分
                     ou_dev = abs(total - ou_line)
@@ -508,7 +537,8 @@ class TaoGeStrategy:
                     combined = diff_score * 0.6 + total_score * 0.4
                     
                     scored.append((combined, s, diff, total))
-                except:
+                except Exception as e:
+                    logger.debug(f"[TaoGe] 评分跳过: {e}")
                     continue
             
             if scored:

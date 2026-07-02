@@ -1,8 +1,10 @@
 # 世界杯2026小组赛26场回测详细报告
 
+> ⚠️ **过时声明**: 本报告针对**已废弃的D-Gate v4.6引擎**，当前生产API走`prediction_service.py`的`spread`软融合机制，无模式A过度触发问题。本报告仅作历史参考，不可用于评估当前系统表现。
+
 **日期**: 2026-06-20  
 **数据源**: CodeBuddy标准26场 (qtx.com真实赛果+赔率)  
-**引擎**: D-Gate v4.6+ 多维度回测 (backtest_dgate_v46p_multidim.py)
+**引擎**: ~~D-Gate v4.6+~~ (已废弃) 多维度回测 (backtest_dgate_v46p_multidim.py)
 
 ---
 
