@@ -1,26 +1,17 @@
 @echo off
 chcp 65001 >nul
-title 哨响AI v4.1 服务
+title 哨响AI v6.0 服务
 
-:: ── 项目路径 ──
 set PROJECT_ROOT=D:\Architecture v4.0
 
-:: ── 从 .env 加载环境变量（若不存在则用默认值） ──
-if exist "%PROJECT_ROOT%\.env" (
-    for /f "tokens=1,2 delims==" %%a in (%PROJECT_ROOT%\.env) do (
-        if "%%a"=="SECRET_KEY" set %%a=%%b
-        if "%%a"=="DEBUG" set %%a=%%b
-        if "%%a"=="API_PORT" set %%a=%%b
-    )
-)
+:: 环境变量默认值
 if not defined SECRET_KEY set SECRET_KEY=dev-placeholder-change-me
 if not defined DEBUG set DEBUG=true
 if not defined API_PORT set API_PORT=9000
 set CUDA_VISIBLE_DEVICES=
-
 set PYTHONPATH=%PROJECT_ROOT%;%PROJECT_ROOT%\backend
 
-:: ── Python选择（仅使用项目自带虚拟环境） ──
+:: Python 选择
 if exist "%PROJECT_ROOT%\.venv\Scripts\python.exe" (
     set PYTHON=%PROJECT_ROOT%\.venv\Scripts\python.exe
 ) else (
@@ -33,7 +24,12 @@ if exist "%PROJECT_ROOT%\.venv\Scripts\python.exe" (
 cd /d "%PROJECT_ROOT%"
 
 echo.
-echo ╔══════════════════════════════════════════╗
-echo ║     哨响AI v4.1 本地部署启动              ║
-echo ║     Python: %PYTHON%                      ║
-echo
+echo ============================================
+echo   哨响AI v6.0 本地服务启动
+echo   地址: http://localhost:%API_PORT%
+echo   文档: /api/v1/docs
+echo ============================================
+echo.
+
+"%PYTHON%" serve.py --host 0.0.0.0 --port %API_PORT%
+pause
