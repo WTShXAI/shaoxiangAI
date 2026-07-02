@@ -527,7 +527,33 @@ class PredictionService:
                 # Heuristic F1_D=0.422 > OE F1_D=0.376 → 权重0.55/0.45
                 # v4.0: DrawExpert可选参与 (若可用)
                 de_pdraw = model.get_de_output()  # v4.0: DrawExpert P(Draw)
-                
+
+                # Phase 0: DrawExpert不可用→drawgate_v53 兜底 (何执策方案A)
+                if de_pdraw is None and oh > 0 and od > 0 and oa > 0:
+                    try:
+                        from rules.drawgate_v53 import apply_drawgate, detect_match_type, imp_from_odds
+                        imp_h, imp_d, imp_a = imp_from_odds(oh, od, oa)
+                        match_type = detect_match_type(league_name)
+                        dg_result = apply_drawgate(
+                            imp_h, imp_d, imp_a,
+                            odds={"home": oh, "draw": od, "away": oa},
+                            handicap=handicap_line or 0.0,
+                            ou_line=ou_line or 2.5,
+                            match_type=match_type,
+                        )
+                        # DrawGate boost (0~0.15) 转为 DrawExpert 概率估计 (0~1)
+                        draw_boost = dg_result.get("draw_boost", 0.0)
+                        dg_draw_prob = imp_d + draw_boost * 0.25
+                        de_pdraw = min(max(dg_draw_prob, 0.0), 1.0)
+                        logger.debug(
+                            f"[D-Gate v4.0] DrawExpert缺省→drawgate_v53兜底: "
+                            f"P(D)={de_pdraw:.3f} boost={draw_boost:.3f} mode={dg_result.get('dgate_mode','?')}"
+                        )
+                    except ImportError:
+                        logger.debug("[D-Gate v4.0] drawgate_v53 不可用，跳过DrawExpert兜底")
+                    except (Exception,) as e:
+                        logger.debug(f"[D-Gate v4.0] drawgate_v53 兜底异常: {e}")
+
                 if d_oe is not None and de_pdraw is not None:
                     # v4.0: 三信号源融合 (Heuristic + OE + DrawExpert)
                     d_spec = 0.40 * d_heur + 0.30 * d_oe + 0.30 * de_pdraw
