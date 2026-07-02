@@ -6,20 +6,7 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-try:
-    import numpy as np
-    _HAS_NUMPY = True
-except ImportError:
-    np = None
-    _HAS_NUMPY = False
-    class _FakeArray:
-        def __init__(self, data):
-            self.data = list(data)
-        def copy(self): return _FakeArray(self.data)
-        def __iter__(self): return iter(self.data)
-        def __getitem__(self, i): return self.data[i]
-        def __len__(self): return len(self.data)
-        def sum(self): return sum(self.data)
+from ._compat import np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from pipeline.predictors.pipeline import *  # noqa: F401, F403
