@@ -390,9 +390,9 @@ def build_report_data(match_info: Dict, odds: Dict, pred_result: Dict, intent: L
     """
     # 从 pred_result 提取概率
     probs = pred_result.get('probabilities', {})
-    p_h = probs.get('H', probs.get('home', 0.33))
-    p_d = probs.get('D', probs.get('draw', 0.33))
-    p_a = probs.get('A', probs.get('away', 0.34))
+    p_h = probs.get('home', 0.33)
+    p_d = probs.get('draw', 0.33)
+    p_a = probs.get('away', 0.34)
 
     # 比分预测
     score_pred = pred_result.get('score_prediction', {})

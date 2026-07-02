@@ -56,7 +56,7 @@ class MatchPrediction(BaseModel):
     match_date: Optional[str] = None
     prediction: str = Field(description="H=主胜, D=平局, A=客胜")
     confidence: float = Field(ge=0.0, le=1.0)
-    probabilities: dict = Field(description="{'H': 0.x, 'D': 0.y, 'A': 0.z}")
+    probabilities: dict = Field(description="{'home': 0.x, 'draw': 0.y, 'away': 0.z}")
     # 新增扩展字段（可选，兼容旧前端）
     model_comparison: Optional[dict] = Field(None, description="模型对比: v6/赔率隐含/融合概率")
     score_prediction: Optional[dict] = Field(None, description="泊松比分预测: Top-3/lambda/期望总进球")
@@ -206,9 +206,9 @@ async def get_prediction_stats(
 def _make_intent_signals(odds: dict, pred_result: dict) -> list:
     """从赔率和预测结果生成庄家意图信号列表"""
     signals = []
-    oa = odds.get('odds_away') or odds.get('A', 0)
-    oh = odds.get('odds_home') or odds.get('H', 0)
-    od = odds.get('odds_draw') or odds.get('D', 0)
+    oa = odds.get('odds_away') or odds.get('away', 0)
+    oh = odds.get('odds_home') or odds.get('home', 0)
+    od = odds.get('odds_draw') or odds.get('draw', 0)
     vig = (1/oh + 1/od + 1/oa) - 1 if all([oh, od, oa]) else 0.08
 
     # 信号1：抽水率
@@ -245,9 +245,9 @@ async def generate_prediction_report(req: ReportRequest):
         # 1. 赔率数据
         odds = {
             'full': {
-                'H': req.odds_home or 2.50,
-                'D': req.odds_draw or 3.40,
-                'A': req.odds_away or 2.50,
+                'home': req.odds_home or 2.50,
+                'draw': req.odds_draw or 3.40,
+                'away': req.odds_away or 2.50,
             },
             'ou': {'line': req.ou_line or 2.5},
         }
@@ -271,7 +271,7 @@ async def generate_prediction_report(req: ReportRequest):
             logger.warning(f"预测数据格式错误，fallback到赔率: {e}")
 
         if pred_result is None:  # fallback
-            oh, od, oa = odds['full']['H'], odds['full']['D'], odds['full']['A']
+            oh, od, oa = odds['full']['home'], odds['full']['draw'], odds['full']['away']
             total = 1/oh + 1/od + 1/oa
             import math
             lambda_h = max(0.1, (1/oh) / total * 2.5)
@@ -287,7 +287,7 @@ async def generate_prediction_report(req: ReportRequest):
             pred_result = {
                 'prediction': 'A' if oa == min(oh, od, oa) else ('H' if oh == min(oh, od, oa) else 'D'),
                 'confidence': max(1/oh, 1/od, 1/oa) / (total / 3),
-                'probabilities': {'H': (1/oh)/total, 'D': (1/od)/total, 'A': (1/oa)/total},
+                'probabilities': {'home': (1/oh)/total, 'draw': (1/od)/total, 'away': (1/oa)/total},
                 'score_prediction': {'top_scores': top[:6]},
                 'over_under': {'over_prob': 0.5, 'under_prob': 0.5},
             }

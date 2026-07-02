@@ -254,7 +254,7 @@ class PredictionService:
 
             # 确定预测方向
             labels = ["H", "D", "A"]
-            probs_list = [probs["H"], probs["D"], probs["A"]]
+            probs_list = [probs["home"], probs["draw"], probs["away"]]
             pred_idx = max(range(3), key=lambda i: probs_list[i])
             confidence = probs_list[pred_idx]
 
@@ -291,9 +291,9 @@ class PredictionService:
                 "prediction": labels[pred_idx],
                 "confidence": round(confidence, 4),
                 "probabilities": {
-                    "H": probs["H"],
-                    "D": probs["D"],
-                    "A": probs["A"],
+                    "home": probs["home"],
+                    "draw": probs["draw"],
+                    "away": probs["away"],
                 },
                 "data_quality": {
                     "is_cold_start": False,
@@ -305,7 +305,7 @@ class PredictionService:
                     "heuristic": None,
                     "odds_expert": None,
                     "odds_implied": None,
-                    "fusion": {"H": probs["H"], "D": probs["D"], "A": probs["A"]},
+                    "fusion": {"home": probs["home"], "draw": probs["draw"], "away": probs["away"]},
                 },
                 "score_prediction": score_prediction,
                 "over_under": over_under,
@@ -341,7 +341,7 @@ class PredictionService:
 
             logger.info(
                 f"[VIP-2] {home_team} vs {away_team} → "
-                f"H={probs['H']:.3f} D={probs['D']:.3f} A={probs['A']:.3f} "
+                f"H={probs['home']:.3f} D={probs['draw']:.3f} A={probs['away']:.3f} "
                 f"trap={trap['score']:.1f} view={vip_result['bookmaker_view']}"
             )
 
@@ -506,9 +506,9 @@ class PredictionService:
             #     用OE+Heuristic(D信号最强)的D概率外科式替换meta D通道
             #     spread越窄→D概率越高→D-specialist权重越大
             if h_heur is not None and odds_implied:
-                p_h_o = odds_implied.get('H', 0.33)
-                p_d_o = odds_implied.get('D', 0.34)
-                p_a_o = odds_implied.get('A', 0.33)
+                p_h_o = odds_implied.get('home', 0.33)
+                p_d_o = odds_implied.get('draw', 0.34)
+                p_a_o = odds_implied.get('away', 0.33)
                 proba_spread = abs(p_h_o - p_a_o)
 
                 # ── Step 1: 获取OE子模型独立输出 ──
@@ -653,9 +653,9 @@ class PredictionService:
                 # P0-3: 4.7 三路融合是最终结果, 跳过 5 步 odds_degraded
                 total = h_prob + d_prob + a_prob or 1.0
                 fusion = {
-                    "H": round(h_prob/total, 4),
-                    "D": round(d_prob/total, 4),
-                    "A": round(a_prob/total, 4),
+                    "home": round(h_prob/total, 4),
+                    "draw": round(d_prob/total, 4),
+                    "away": round(a_prob/total, 4),
                 }
                 prediction_mode = "d_gate_fusion"
 
@@ -684,16 +684,16 @@ class PredictionService:
                     trap_report = _trap_detector.detect({
                         "home": home_team, "away": away_team,
                         "league": league or "其他",
-                        "odds_h": custom_odds.get("home", fusion["H"]),
-                        "odds_d": custom_odds.get("draw", fusion["D"]),
-                        "odds_a": custom_odds.get("away", fusion["A"]),
+                        "odds_h": custom_odds.get("home", fusion["home"]),
+                        "odds_d": custom_odds.get("draw", fusion["draw"]),
+                        "odds_a": custom_odds.get("away", fusion["away"]),
                         "asian_handicap": custom_odds.get("asian_handicap"),
                         "water_level": custom_odds.get("water_level", 0.92),
                     })
                     if trap_report and trap_report.aggregate_score > 2.0:
                         # 陷阱信号注入：按评分强度调整概率
                         alpha = min(0.25, trap_report.aggregate_score * 0.03)
-                        for k in ["H", "D", "A"]:
+                        for k in ["home", "draw", "away"]:
                             fusion[k] = (1 - alpha) * fusion[k] + alpha * trap_report.adjusted_probs.get(k, fusion[k])
                         total = sum(fusion.values())
                         for k in fusion:
@@ -707,18 +707,18 @@ class PredictionService:
 
             # 6. 确定最终预测
             labels = ["H", "D", "A"]
-            probs_list = [fusion["H"], fusion["D"], fusion["A"]]
+            probs_list = [fusion["home"], fusion["draw"], fusion["away"]]
             pred_idx = max(range(3), key=lambda i: probs_list[i])
             confidence = probs_list[pred_idx]
 
             # 7. 泊松比分预测
             score_prediction = self._compute_score_prediction(
-                fusion["H"], fusion["D"], fusion["A"], league
+                fusion["home"], fusion["draw"], fusion["away"], league
             )
 
             # 8. 大小球分析
             over_under = self._compute_over_under(
-                fusion["H"], fusion["D"], fusion["A"], league
+                fusion["home"], fusion["draw"], fusion["away"], league
             )
 
             # 9. 收割风险扫描
@@ -819,14 +819,14 @@ class PredictionService:
                     'over25': float(custom_odds.get('over_2_5') or 0) or 0,
                     'under25': float(custom_odds.get('under_2_5') or 0) or 0,
                 }
-        if odds_implied and all(k in odds_implied for k in ('H', 'D', 'A')):
+        if odds_implied and all(k in odds_implied for k in ('home', 'draw', 'away')):
             # 隐含概率 → 赔率, 加 5% 抽水近似
             def _to_odd(p, margin=1.05):
                 return round(margin / max(p, 0.01), 3) if p > 0 else 0
             return {
-                'home': _to_odd(odds_implied['H']),
-                'draw': _to_odd(odds_implied['D']),
-                'away': _to_odd(odds_implied['A']),
+                'home': _to_odd(odds_implied['home']),
+                'draw': _to_odd(odds_implied['draw']),
+                'away': _to_odd(odds_implied['away']),
             }
         return None
 
@@ -860,9 +860,9 @@ class PredictionService:
 
         if is_cold_start and odds_implied:
             # P1: 极端强弱(spread > 0.70) → 加权融合(odds 80% + model 20%)
-            p_h_o = odds_implied.get('H', 0.33)
-            p_d_o = odds_implied.get('D', 0.34)
-            p_a_o = odds_implied.get('A', 0.33)
+            p_h_o = odds_implied.get('home', 0.33)
+            p_d_o = odds_implied.get('draw', 0.34)
+            p_a_o = odds_implied.get('away', 0.33)
             proba_spread = abs(p_h_o - p_a_o)
             if proba_spread > 0.70:
                 # P1: 不再纯 odds 覆盖, 保留 20% model 信号
@@ -870,7 +870,7 @@ class PredictionService:
                 d_f = d_prob * 0.20 + p_d_o * 0.80
                 a_f = a_prob * 0.20 + p_a_o * 0.80
                 tot = h_f + d_f + a_f or 1.0
-                fusion = {"H": round(h_f/tot, 4), "D": round(d_f/tot, 4), "A": round(a_f/tot, 4)}
+                fusion = {"home": round(h_f/tot, 4), "draw": round(d_f/tot, 4), "away": round(a_f/tot, 4)}
                 prediction_mode = f"odds_override_fusion(spread={proba_spread:.2f})"
                 logger.info(
                     f"[COLD-START-FUSION-OVERRIDE] {home_team} vs {away_team} | "
@@ -884,9 +884,9 @@ class PredictionService:
             _new_odds_w = min(0.95, self.FUSION_ODDS_WEIGHT + _odds_boost)
             _new_model_w = 1.0 - _new_odds_w
 
-            h_o = odds_implied.get("H", h_prob)
-            d_o = odds_implied.get("D", d_prob)
-            a_o = odds_implied.get("A", a_prob)
+            h_o = odds_implied.get("home", h_prob)
+            d_o = odds_implied.get("draw", d_prob)
+            a_o = odds_implied.get("away", a_prob)
 
             h_fused = h_o * _new_odds_w + h_prob * _new_model_w
             d_fused = d_o * _new_odds_w + d_prob * _new_model_w
@@ -894,9 +894,9 @@ class PredictionService:
 
             _total = h_fused + d_fused + a_fused or 1.0
             fusion = {
-                "H": round(h_fused / _total, 4),
-                "D": round(d_fused / _total, 4),
-                "A": round(a_fused / _total, 4),
+                "home": round(h_fused / _total, 4),
+                "draw": round(d_fused / _total, 4),
+                "away": round(a_fused / _total, 4),
             }
             prediction_mode = f"odds_degraded(odds={_new_odds_w:.0%},model={_new_model_w:.0%})"
 
@@ -958,7 +958,7 @@ class PredictionService:
             # 高风险时生成调整预测
             if report.hrs > 0.45:
                 adjusted = _guard.adjust_prediction(
-                    {'H': fusion['H'], 'D': fusion['D'], 'A': fusion['A']},
+                    {'home': fusion['home'], 'draw': fusion['draw'], 'away': fusion['away']},
                     report
                 )
                 risk_assessment['adjusted_probs'] = adjusted.adjusted_probs
@@ -1036,16 +1036,16 @@ class PredictionService:
 
             # ── Step 3: 先验注入 ──
             model_probs = {
-                'home': fusion.get('H', 0.33),
-                'draw': fusion.get('D', DEFAULT_DRAW_PROB),
-                'away': fusion.get('A', 0.33),
+                'home': fusion.get('home', 0.33),
+                'draw': fusion.get('draw', DEFAULT_DRAW_PROB),
+                'away': fusion.get('away', 0.33),
             }
             fused = _bayes_infer.inject_as_prior(result, model_probs, injection_strength)
 
             calibrated = {
-                'H': round(fused.get('home', model_probs['home']), 4),
-                'D': round(fused.get('draw', model_probs['draw']), 4),
-                'A': round(fused.get('away', model_probs['away']), 4),
+                'home': round(fused.get('home', model_probs['home']), 4),
+                'draw': round(fused.get('draw', model_probs['draw']), 4),
+                'away': round(fused.get('away', model_probs['away']), 4),
             }
 
             # 归一化兜底
@@ -1097,9 +1097,9 @@ class PredictionService:
                     p = float(odds_implied[key_imp])
                     return 1.0 / max(p, 1e-6)
                 return 1.0 / max(fallback_p, 1e-6)
-            oh = _pick("home", "H", h_prob)
-            od = _pick("draw", "D", d_prob)
-            oa = _pick("away", "A", a_prob)
+            oh = _pick("home", "home", h_prob)
+            od = _pick("draw", "draw", d_prob)
+            oa = _pick("away", "away", a_prob)
 
             # 进程级缓存 quick_predict 函数引用
             if type(self)._jepa_quick_predict is None:
@@ -1155,23 +1155,19 @@ class PredictionService:
             "matchId": None,  # 由调用方 fill
             "confidence": round(confidence, 4),
             "probabilities": {
-                "H": round(fusion["H"], 4),
-                "D": round(fusion["D"], 4),
-                "A": round(fusion["A"], 4),
-                # 前端兼容别名
-                "home": round(fusion["H"], 4),
-                "draw": round(fusion["D"], 4),
-                "away": round(fusion["A"], 4),
+                "home": round(fusion["home"], 4),
+                "draw": round(fusion["draw"], 4),
+                "away": round(fusion["away"], 4),
             },
             "data_quality": quality_meta,
             "prediction_mode": prediction_mode,
             "model_comparison": {
-                "v6_model": {"H": round(h_prob, 4), "D": round(d_prob, 4), "A": round(a_prob, 4)},
-                "heuristic": ({"H": round(h_h, 4), "D": round(d_h, 4), "A": round(a_h, 4)}
+                "v6_model": {"home": round(h_prob, 4), "draw": round(d_prob, 4), "away": round(a_prob, 4)},
+                "heuristic": ({"home": round(h_h, 4), "draw": round(d_h, 4), "away": round(a_h, 4)}
                               if h_h is not None else None),
                 "odds_expert": oe_probs,
                 "odds_implied": odds_implied,
-                "fusion": {"H": round(fusion["H"], 4), "D": round(fusion["D"], 4), "A": round(fusion["A"], 4)},
+                "fusion": {"home": round(fusion["home"], 4), "draw": round(fusion["draw"], 4), "away": round(fusion["away"], 4)},
             },
             "score_prediction": score_prediction,
             # 前端兼容别名
@@ -1284,9 +1280,9 @@ class PredictionService:
             # 3) 兜底: 从 odds_implied 反推(加 5% 抽水)
             if h_odd <= 1.01 or d_odd <= 1.01 or a_odd <= 1.01:
                 if odds_implied:
-                    h_imp = float(odds_implied.get('H', 0.33))
-                    d_imp = float(odds_implied.get('D', 0.34))
-                    a_imp = float(odds_implied.get('A', 0.33))
+                    h_imp = float(odds_implied.get('home', 0.33))
+                    d_imp = float(odds_implied.get('draw', 0.34))
+                    a_imp = float(odds_implied.get('away', 0.33))
                     if h_imp > 0.01 and d_imp > 0.01 and a_imp > 0.01:
                         margin = 1.05
                         h_odd = margin / h_imp
@@ -1312,20 +1308,25 @@ class PredictionService:
             if not sp_probs:
                 return None
 
-            orig_h = odds_implied.get('H', 0) if odds_implied else 0
-            orig_d = odds_implied.get('D', 0) if odds_implied else 0
-            orig_a = odds_implied.get('A', 0) if odds_implied else 0
+            # Phase 2: 规范化为 home/draw/away
+            sp_h = sp_probs.get('home', sp_probs.get('H', 0))
+            sp_d = sp_probs.get('draw', sp_probs.get('D', 0))
+            sp_a = sp_probs.get('away', sp_probs.get('A', 0))
+
+            orig_h = odds_implied.get('home', 0) if odds_implied else 0
+            orig_d = odds_implied.get('draw', 0) if odds_implied else 0
+            orig_a = odds_implied.get('away', 0) if odds_implied else 0
             logger.info(
                 f"[SP-CRACK-ENHANCE] {home_team} vs {away_team} | "
                 f"原: H={orig_h:.3f} D={orig_d:.3f} A={orig_a:.3f} | "
-                f"增强后: H={sp_probs['H']:.3f} D={sp_probs['D']:.3f} A={sp_probs['A']:.3f} | "
+                f"增强后: H={sp_h:.3f} D={sp_d:.3f} A={sp_a:.3f} | "
                 f"判定: {result.get('direction')} ({result.get('direction_confidence')}%)"
             )
 
             return {
-                'H': round(sp_probs['H'], 4),
-                'D': round(sp_probs['D'], 4),
-                'A': round(sp_probs['A'], 4),
+                'home': round(sp_h, 4),
+                'draw': round(sp_d, 4),
+                'away': round(sp_a, 4),
             }
         except Exception as e:
             logger.debug(f"SP crack 增强失败，使用原 odds_implied: {e}")
@@ -1515,9 +1516,9 @@ class PredictionService:
             raw_a = 1.0 / odds_a
             total = raw_h + raw_d + raw_a  # 包含抽水
             return {
-                "H": round(raw_h / total, 4),
-                "D": round(raw_d / total, 4),
-                "A": round(raw_a / total, 4),
+                "home": round(raw_h / total, 4),
+                "draw": round(raw_d / total, 4),
+                "away": round(raw_a / total, 4),
             }
         except (KeyError, TypeError, ZeroDivisionError) as e:
             logger.debug(f"计算赔率隐含概率失败: {e}")
@@ -1533,11 +1534,11 @@ class PredictionService:
 
         if odds_implied is None:
             # 无赔率数据时，模型概率即为融合概率
-            return {"H": h_m, "D": d_m, "A": a_m}
+            return {"home": h_m, "draw": d_m, "away": a_m}
 
-        h_o = odds_implied.get("H", h_m)
-        d_o = odds_implied.get("D", d_m)
-        a_o = odds_implied.get("A", a_m)
+        h_o = odds_implied.get("home", h_m)
+        d_o = odds_implied.get("draw", d_m)
+        a_o = odds_implied.get("away", a_m)
 
         w_o = self.FUSION_ODDS_WEIGHT
         w_m = self.FUSION_MODEL_WEIGHT
@@ -1553,7 +1554,7 @@ class PredictionService:
             d_f /= total
             a_f /= total
 
-        return {"H": h_f, "D": d_f, "A": a_f}
+        return {"home": h_f, "draw": d_f, "away": a_f}
 
     def _compute_score_prediction(
         self, h_prob: float, d_prob: float, a_prob: float, league: Optional[str]

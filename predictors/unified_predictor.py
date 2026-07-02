@@ -501,9 +501,9 @@ class UnifiedPredictor(PredictorBase):
 
         result.update({
             'probabilities': {
-                'H': round(float(final_probs[0]), 4),
-                'D': round(float(final_probs[1]), 4),
-                'A': round(float(final_probs[2]), 4),
+                'home': round(float(final_probs[0]), 4),
+                'draw': round(float(final_probs[1]), 4),
+                'away': round(float(final_probs[2]), 4),
             },
             'prediction': prediction,
             'method': method,
@@ -743,9 +743,9 @@ class UnifiedPredictor(PredictorBase):
         imp_sum = 1/oh + 1/od + 1/oa
         return {
             'probabilities': {
-                'H': round(1/(oh*imp_sum), 4),
-                'D': round(1/(od*imp_sum), 4),
-                'A': round(1/(oa*imp_sum), 4),
+                'home': round(1/(oh*imp_sum), 4),
+                'draw': round(1/(od*imp_sum), 4),
+                'away': round(1/(oa*imp_sum), 4),
             },
             'prediction': 'H',
             'confidence': 0.33,

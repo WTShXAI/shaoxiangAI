@@ -706,24 +706,24 @@ class VIPFinalPredictor(PredictorBase):
                 'risk_distribution': pnl_matrix.risk_distribution,
             }
 
-        # 修复P0-12: 同时返回 probs 和 probabilities 两种键名, 消除six_layer引擎键名不匹配
+        # Phase 2: 统一 home/draw/away 小写全称键名
         _probs = {
-            'H': round(float(final_probs[0]), 4),
-            'D': round(float(final_probs[1]), 4),
-            'A': round(float(final_probs[2]), 4),
+            'home': round(float(final_probs[0]), 4),
+            'draw': round(float(final_probs[1]), 4),
+            'away': round(float(final_probs[2]), 4),
         }
         return {
             'probs': _probs,
-            'probabilities': _probs,  # 兼容six_layer引擎查找
+            'probabilities': _probs,
             'dh_probs': {
-                'H': round(float(self._lambda_to_1x2_probs(dh_lam_h, dh_lam_a)[0]), 4),
-                'D': round(float(self._lambda_to_1x2_probs(dh_lam_h, dh_lam_a)[1]), 4),
-                'A': round(float(self._lambda_to_1x2_probs(dh_lam_h, dh_lam_a)[2]), 4),
+                'home': round(float(self._lambda_to_1x2_probs(dh_lam_h, dh_lam_a)[0]), 4),
+                'draw': round(float(self._lambda_to_1x2_probs(dh_lam_h, dh_lam_a)[1]), 4),
+                'away': round(float(self._lambda_to_1x2_probs(dh_lam_h, dh_lam_a)[2]), 4),
             },
             'math_probs': {
-                'H': round(float(math_probs[0]), 4),
-                'D': round(float(math_probs[1]), 4),
-                'A': round(float(math_probs[2]), 4),
+                'home': round(float(math_probs[0]), 4),
+                'draw': round(float(math_probs[1]), 4),
+                'away': round(float(math_probs[2]), 4),
             },
             'trap': {
                 'score': round(trap_score, 2),
@@ -878,7 +878,7 @@ class VIPFinalPredictor(PredictorBase):
         else:
             pred_code = 'D'
         return PredictionResult(
-            probabilities=probs if isinstance(probs, dict) else {'H':0.0,'D':0.0,'A':0.0},
+            probabilities=probs if isinstance(probs, dict) else {'home':0.0,'draw':0.0,'away':0.0},
             prediction=pred_code,
             confidence=float(result_dict.get('confidence', 0.0)),
             model_version=f"VIP {self.__class__.__name__}",
