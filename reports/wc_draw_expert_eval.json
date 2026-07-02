@@ -1,0 +1,33 @@
+{
+  "n_samples": 187,
+  "n_real": 35,
+  "n_narrow": 107,
+  "n_wide": 80,
+  "distribution": {
+    "H": 86,
+    "D": 50,
+    "A": 51
+  },
+  "results_full": {
+    "v1基线": {
+      "label": "v1基线",
+      "threshold": 0.3441,
+      "auc": 0.5062,
+      "d_f1": 0.069,
+      "n_pred_d": 8,
+      "n_true_d": 50,
+      "n_correct_d": 2,
+      "p_draw_mean": 0.3272
+    },
+    "v2_focal": {
+      "label": "v2_focal",
+      "threshold": 0.2632,
+      "auc": 0.4524,
+      "d_f1": 0.0,
+      "n_pred_d": 0,
+      "n_true_d": 50,
+      "n_correct_d": 0,
+      "p_draw_mean": 0.1993
+    }
+  }
+}

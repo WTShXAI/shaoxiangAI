@@ -277,8 +277,8 @@ export default function MatchAnalysis() {
             featureService.getTeamFeatures(p.home_team),
             featureService.getTeamFeatures(p.away_team),
           ])
-          setHomeFeatures(homeRes.data)
-          setAwayFeatures(awayRes.data)
+          setHomeFeatures(homeRes.data.data)
+          setAwayFeatures(awayRes.data.data)
         } catch {
           // 特征数据可选
         }
