@@ -16,18 +16,22 @@ import os as _os
 _os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
 import sys
 import os
-import asyncio as _asyncio
-import json as _json_module
-from datetime import datetime, timezone
 _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# 确保 backend/ 在 sys.path 中 (uvicorn + 直接运行双路径兼容)
 _sys_backend = os.path.dirname(os.path.abspath(__file__))
-if _sys_backend not in sys.path:
-    sys.path.insert(0, _sys_backend)
+
+# Phase 2: 确保 core/database 能从 backend/ 子目录正确导入
+for _d in (_sys_backend, _project_root):
+    if _d not in sys.path:
+        sys.path.insert(0, _d)
+
 # 确保 predictors/components/ 在 sys.path (draw_expert 模型加载依赖, v6.0.0)
 _sys_predictors = os.path.join(_project_root, 'predictors', 'components')
 if _sys_predictors not in sys.path:
     sys.path.insert(0, _sys_predictors)
+
+import asyncio as _asyncio
+import json as _json_module
+from datetime import datetime, timezone
 
 import time
 import logging

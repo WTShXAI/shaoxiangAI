@@ -9,7 +9,7 @@ if not defined SECRET_KEY set SECRET_KEY=dev-placeholder-change-me
 if not defined DEBUG set DEBUG=true
 if not defined API_PORT set API_PORT=9000
 set CUDA_VISIBLE_DEVICES=
-set PYTHONPATH=%PROJECT_ROOT%;%PROJECT_ROOT%\backend
+set PYTHONPATH=%PROJECT_ROOT%\backend;%PROJECT_ROOT%
 
 :: Python 选择
 if exist "%PROJECT_ROOT%\.venv\Scripts\python.exe" (
