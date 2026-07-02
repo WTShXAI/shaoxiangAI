@@ -400,9 +400,9 @@ async def realtime_websocket(websocket: WebSocket):
         # 首次连接，先推一次当前数据
         db = sqlite3.connect("D:/Architecture v4.0/data/football_data.db")
         cursor = db.cursor()
-        cursor.execute("SELECT COUNT(*) FROM teams")  # 举例：球队数量
+        cursor.execute("SELECT COUNT(*) FROM teams")
         team_count = cursor.fetchone()[0]
-        cursor.execute("SELECT COUNT(*) FROM matches")  # 举例：比赛数量
+        cursor.execute("SELECT COUNT(*) FROM matches")
         match_count = cursor.fetchone()[0]
         db.close()
 
@@ -413,13 +413,15 @@ async def realtime_websocket(websocket: WebSocket):
             "time": datetime.now().isoformat()
         })
 
-        # 每 5 秒推一次“心跳 + 数据变化”
+        # Phase 0: 实时赔率轮询 (免费版 API 限制 ≥ 30 秒)
+        from backend.services.odds import fetch_live_odds
         while True:
-            await asyncio.sleep(5)
+            await asyncio.sleep(30)
+            odds_data = await fetch_live_odds()
             await websocket.send_json({
-                "type": "tick",
+                "type": "odds_update",
+                "data": odds_data,
                 "time": datetime.now().isoformat(),
-                "msg": "数据已更新（模拟）"
             })
 
     except WebSocketDisconnect:

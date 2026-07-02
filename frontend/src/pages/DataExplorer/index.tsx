@@ -53,6 +53,15 @@ useEffect(() => {
         if (data.type === 'matches_list' && Array.isArray(data.matches)) {
           setMatches(data.matches)
         }
+
+        if (data.type === 'odds_update' && Array.isArray(data.data)) {
+          setMatches(prev =>
+            prev.map(m => {
+              const up = data.data.find((o: any) => o.id === m.id)
+              return up ? { ...m, ...up } : m
+            })
+          )
+        }
       } catch {
         // 非法 JSON，忽略该条消息
       }

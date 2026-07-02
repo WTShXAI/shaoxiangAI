@@ -690,15 +690,23 @@ class FootballDataCollector:
             from database.db_manager import get_db
             db = get_db()
             synced = 0
+            skipped = 0
             for m in matches:
                 try:
                     m['league_id'] = league_id
                     m['league_name'] = f'{league_code} {season}' if not m.get('league_name') else m['league_name']
+                    # 确保 NOT NULL 列有值（API 可能不返回 team_id）
+                    m.setdefault('home_team_id', 0)
+                    m.setdefault('away_team_id', 0)
+                    if m['home_team_id'] is None:
+                        m['home_team_id'] = 0
+                    if m['away_team_id'] is None:
+                        m['away_team_id'] = 0
                     db.add_match(m)
                     synced += 1
                 except (Exception, KeyError, IndexError):
-                    pass
-            logger.info(f"[sync_to_database] {league_code}: 入库 {synced}/{len(matches)} 场 (match_id去重)")
+                    skipped += 1
+            logger.info(f"[sync_to_database] {league_code}: 入库 {synced}/{len(matches)} 场 (match_id去重, 跳过{skipped})")
             return synced
         except ImportError:
             logger.error("无法导入 database.db_manager，跳过入库")
