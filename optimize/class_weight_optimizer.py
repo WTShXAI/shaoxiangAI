@@ -569,7 +569,10 @@ def get_optimal_sample_weights(
 # ════════════════════════════════════════════════════════════════
 
 def _run_synthetic_test():
-    """模拟数据测试"""
+    """⚠️ DEMO ONLY: 使用 np.random.choice 生成模拟数据。
+    仅当 DB 不可用时作为结构验证使用。真实回测请使用 optimize_class_weights() 传入真实数据。
+    """
+    print("  ⚠️ 使用模拟数据 (仅供结构验证, 标签非真实比赛结果)")
     np.random.seed(42)
 
     # 生成3年数据

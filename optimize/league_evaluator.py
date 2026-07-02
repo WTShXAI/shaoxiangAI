@@ -1403,48 +1403,90 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
     print("=" * 70)
-    print("  T18 League-Differentiated Evaluation — Synthetic Test")
+    print("  T18 League-Differentiated Evaluation — Real Data Test (Phase 0)")
     print("=" * 70)
 
-    np.random.seed(42)
+    # ── Phase 0: 从 DB 加载真实数据，不再使用 np.random.choice ──
+    try:
+        import sqlite3
+        db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'football_data.db')
+        if os.path.exists(db_path):
+            conn = sqlite3.connect(db_path)
+            query = """
+                SELECT m.match_date, m.home_score, m.away_score, m.league_name,
+                       mf.home_prob, mf.draw_prob, mf.away_prob
+                FROM matches m
+                JOIN match_features mf ON m.match_id = mf.match_id
+                WHERE m.home_score IS NOT NULL AND m.away_score IS NOT NULL
+                ORDER BY m.match_date
+            """
+            df = pd.read_sql_query(query, conn)
+            conn.close()
 
-    # 生成模拟数据 (5 大联赛, 各约 2000 场)
-    leagues_config = {
-        'Premier League': {'n': 2000, 'h': 0.46, 'd': 0.26, 'a': 0.28, 'skill': 0.15},
-        'La Liga':        {'n': 1800, 'h': 0.44, 'd': 0.28, 'a': 0.28, 'skill': 0.12},
-        'Serie A':         {'n': 1700, 'h': 0.45, 'd': 0.27, 'a': 0.28, 'skill': 0.10},
-        'Bundesliga':      {'n': 1500, 'h': 0.47, 'd': 0.24, 'a': 0.29, 'skill': 0.18},
-        'Ligue 1':         {'n': 1400, 'h': 0.44, 'd': 0.26, 'a': 0.30, 'skill': 0.08},
-    }
+            if len(df) > 0:
+                df['match_date'] = pd.to_datetime(df['match_date'])
+                df['result_label'] = df.apply(
+                    lambda r: 0 if r['home_score'] > r['away_score']
+                    else (1 if r['home_score'] == r['away_score'] else 2), axis=1
+                )
+                for col in ['home_prob', 'draw_prob', 'away_prob']:
+                    if col not in df.columns or df[col].isna().all():
+                        df[col] = 1.0 / 3.0
+                    else:
+                        df[col] = df[col].fillna(1.0 / 3.0)
+                row_sums = df[['home_prob', 'draw_prob', 'away_prob']].sum(axis=1)
+                df['home_prob'] = (df['home_prob'] / row_sums.replace(0, 1)).clip(0.001, 0.999)
+                df['draw_prob'] = (df['draw_prob'] / row_sums.replace(0, 1)).clip(0.001, 0.999)
+                df['away_prob'] = 1.0 - df['home_prob'] - df['draw_prob']
+                df['away_prob'] = df['away_prob'].clip(0.001, 0.999)
+                print(f"  DB 真实数据: {len(df)} 条样本")
+            else:
+                raise ValueError("DB 无有效数据")
+        else:
+            raise FileNotFoundError(f"数据库未找到: {db_path}")
+        use_synthetic = False
+    except (Exception, sqlite3.Error, ImportError, FileNotFoundError, KeyError, ValueError) as e:
+        print(f"  ⚠️ DB 数据加载失败 ({e})，使用 synthetic fallback (仅供结构验证)")
+        use_synthetic = True
 
-    all_dates, all_labels, all_probs, all_leagues = [], [], [], []
-    base_date = pd.Timestamp('2021-01-01')
+    if use_synthetic:
+        np.random.seed(42)
 
-    for league, cfg in leagues_config.items():
-        n = cfg['n']
-        dates = pd.date_range(base_date, periods=n, freq='D')
-        base_date = dates[-1] + pd.Timedelta(days=1)
+        leagues_config = {
+            'Premier League': {'n': 2000, 'h': 0.46, 'd': 0.26, 'a': 0.28, 'skill': 0.15},
+            'La Liga':        {'n': 1800, 'h': 0.44, 'd': 0.28, 'a': 0.28, 'skill': 0.12},
+            'Serie A':         {'n': 1700, 'h': 0.45, 'd': 0.27, 'a': 0.28, 'skill': 0.10},
+            'Bundesliga':      {'n': 1500, 'h': 0.47, 'd': 0.24, 'a': 0.29, 'skill': 0.18},
+            'Ligue 1':         {'n': 1400, 'h': 0.44, 'd': 0.26, 'a': 0.30, 'skill': 0.08},
+        }
 
-        labels = np.random.choice([0, 1, 2], size=n, p=[cfg['h'], cfg['d'], cfg['a']])
-        probs = np.random.dirichlet([3, 2, 2], size=n)
-        # 让预测略偏向真实标签 (skill 控制预测能力)
-        for i in range(n):
-            probs[i, labels[i]] += cfg['skill']
-        probs = probs / probs.sum(axis=1, keepdims=True)
+        all_dates, all_labels, all_probs, all_leagues = [], [], [], []
+        base_date = pd.Timestamp('2021-01-01')
 
-        all_dates.extend(dates)
-        all_labels.extend(labels)
-        all_probs.extend(probs)
-        all_leagues.extend([league] * n)
+        for league, cfg in leagues_config.items():
+            n = cfg['n']
+            dates = pd.date_range(base_date, periods=n, freq='D')
+            base_date = dates[-1] + pd.Timedelta(days=1)
 
-    df = pd.DataFrame({
-        'match_date': all_dates,
-        'result_label': all_labels,
-        'home_prob': [p[0] for p in all_probs],
-        'draw_prob': [p[1] for p in all_probs],
-        'away_prob': [p[2] for p in all_probs],
-        'league_name': all_leagues,
-    })
+            labels = np.random.choice([0, 1, 2], size=n, p=[cfg['h'], cfg['d'], cfg['a']])
+            probs = np.random.dirichlet([3, 2, 2], size=n)
+            for i in range(n):
+                probs[i, labels[i]] += cfg['skill']
+            probs = probs / probs.sum(axis=1, keepdims=True)
+
+            all_dates.extend(dates)
+            all_labels.extend(labels)
+            all_probs.extend(probs)
+            all_leagues.extend([league] * n)
+
+        df = pd.DataFrame({
+            'match_date': all_dates,
+            'result_label': all_labels,
+            'home_prob': [p[0] for p in all_probs],
+            'draw_prob': [p[1] for p in all_probs],
+            'away_prob': [p[2] for p in all_probs],
+            'league_name': all_leagues,
+        })
 
     # 先运行 T17 回测
     from optimize.walkforward_backtest import run_walkforward_backtest

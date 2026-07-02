@@ -1291,31 +1291,73 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
     print("=" * 70)
-    print("  T17 Walk-Forward Backtest — Synthetic Test")
+    print("  T17 Walk-Forward Backtest — Real Data Test (Phase 0)")
     print("=" * 70)
 
-    np.random.seed(42)
+    # ── Phase 0: 从 DB 加载真实标签，不再使用 np.random.choice ──
+    try:
+        import sqlite3
+        db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'football_data.db')
+        if os.path.exists(db_path):
+            conn = sqlite3.connect(db_path)
+            query = """
+                SELECT m.match_date, m.home_score, m.away_score,
+                       mf.home_prob, mf.draw_prob, mf.away_prob, m.league_name
+                FROM matches m
+                JOIN match_features mf ON m.match_id = mf.match_id
+                WHERE m.home_score IS NOT NULL AND m.away_score IS NOT NULL
+                ORDER BY m.match_date
+            """
+            df = pd.read_sql_query(query, conn)
+            conn.close()
 
-    # 生成模拟数据 (3年, 月度)
-    n = 3000
-    dates = pd.date_range('2021-01-01', periods=n, freq='D')
-    labels = np.random.choice([0, 1, 2], size=n, p=[0.46, 0.26, 0.28])
+            if len(df) > 0:
+                df['match_date'] = pd.to_datetime(df['match_date'])
+                # 从真实比分计算标签: home_score > away_score → 0, == → 1, < → 2
+                df['result_label'] = df.apply(
+                    lambda r: 0 if r['home_score'] > r['away_score']
+                    else (1 if r['home_score'] == r['away_score'] else 2), axis=1
+                )
+                print(f"  DB 真实数据: {len(df)} 条样本 (标签分布: "
+                      f"Home={(df['result_label']==0).sum()}, "
+                      f"Draw={(df['result_label']==1).sum()}, "
+                      f"Away={(df['result_label']==2).sum()})")
 
-    # 模拟预测概率 (略好于随机)
-    probs = np.random.dirichlet([3, 2, 2], size=n)
-    # 让预测略偏向真实标签
-    for i in range(n):
-        probs[i, labels[i]] += 0.15
-    probs = probs / probs.sum(axis=1, keepdims=True)
+                # 概率列：有则用 DB，无则用默认均匀
+                for col in ['home_prob', 'draw_prob', 'away_prob']:
+                    if col not in df.columns or df[col].isna().all():
+                        df[col] = 1.0 / 3.0
+                    else:
+                        df[col] = df[col].fillna(1.0 / 3.0)
 
-    df = pd.DataFrame({
-        'match_date': dates,
-        'result_label': labels,
-        'home_prob': probs[:, 0],
-        'draw_prob': probs[:, 1],
-        'away_prob': probs[:, 2],
-        'league_name': np.random.choice(['Premier League', 'La Liga', 'Serie A', 'Bundesliga'], size=n),
-    })
+                # 归一化概率
+                row_sums = df[['home_prob', 'draw_prob', 'away_prob']].sum(axis=1)
+                df['home_prob'] = (df['home_prob'] / row_sums.replace(0, 1)).clip(0.001, 0.999)
+                df['draw_prob'] = (df['draw_prob'] / row_sums.replace(0, 1)).clip(0.001, 0.999)
+                df['away_prob'] = 1.0 - df['home_prob'] - df['draw_prob']
+                df['away_prob'] = df['away_prob'].clip(0.001, 0.999)
+            else:
+                raise ValueError("DB 无有效数据")
+        else:
+            raise FileNotFoundError(f"数据库未找到: {db_path}")
+    except (Exception, sqlite3.Error, ImportError, FileNotFoundError, KeyError) as e:
+        print(f"  ⚠️ DB 数据加载失败 ({e})，使用 synthetic fallback (仅供结构验证)")
+        np.random.seed(42)
+        n = 3000
+        dates = pd.date_range('2021-01-01', periods=n, freq='D')
+        labels = np.random.choice([0, 1, 2], size=n, p=[0.46, 0.26, 0.28])
+        probs = np.random.dirichlet([3, 2, 2], size=n)
+        for i in range(n):
+            probs[i, labels[i]] += 0.15
+        probs = probs / probs.sum(axis=1, keepdims=True)
+        df = pd.DataFrame({
+            'match_date': dates,
+            'result_label': labels,
+            'home_prob': probs[:, 0],
+            'draw_prob': probs[:, 1],
+            'away_prob': probs[:, 2],
+            'league_name': np.random.choice(['Premier League', 'La Liga', 'Serie A', 'Bundesliga'], size=n),
+        })
 
     output_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)),
                                'evaluation_results', 't17_test')
