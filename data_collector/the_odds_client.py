@@ -31,6 +31,13 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 
+# 自动加载 .env (与 config/api_config.py、football_data_live.py 一致)
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+except ImportError:
+    pass  # python-dotenv 未装时降级: 依赖系统环境变量
+
 logger = logging.getLogger(__name__)
 
 # 运动映射: 哨响AI联赛名 → The Odds API sport key
