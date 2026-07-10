@@ -1,5 +1,5 @@
 """
-哨响AI v5.0 — L4 庄家风控防线识别引擎 (Risk Barrier Engine)
+哨响AI v4.0 — L4 庄家风控防线识别引擎 (Risk Barrier Engine)
 ===============================================================
 将分散在杜博弈(赔率分析)+陷阱检测器中的风控防线识别, 升级为
 执行层的独立子引擎, 与陷阱检测器并列, 强化核心差异化能力。
@@ -18,7 +18,7 @@
     - bookmaker_intent: 庄家意图推断
     - prediction_impact: 对预测的修正建议
 
-作者: Architecture · L4 Phase
+作者: Architecture v4.0 · L4 Phase
 日期: 2026-06-19
 """
 from __future__ import annotations
