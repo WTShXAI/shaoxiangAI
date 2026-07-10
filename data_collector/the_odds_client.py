@@ -1,19 +1,26 @@
 """
-哨响AI - The Odds API 客户端 v2.0
+哨响AI - The Odds API 客户端 v2.1
 =================================
 专业赔率聚合API: 跨博彩公司赔率对比、赔率走势历史、套利检测
-免费额度: 500 req/month
+免费额度: 500 req/month (odds-history 端点需付费层)
 API文档: https://the-odds-api.com/liveapi/guides/v4/
 
 核心能力:
-- /sports/{sport}/odds — 当前赔率 (含多家博彩公司)
-- /sports/{sport}/odds-history — 历史赔率走势 (时序数据!)
+- /sports/{sport}/odds — 当前赔率 (含多家博彩公司, 滚球期间持续更新)
+- /sports/{sport}/events/{id}/odds-history — 历史赔率走势 (时序数据, 需付费层)
 - /sports — 支持的运动/联赛列表
 
-v2.0 新增:
-- get_odds_history(): 获取指定日期的赔率历史 (用于构建时序)
-- extract_timeline_from_match(): 从单场比赛提取多博彩公司赔率快照
-- batch_collect_timeline(): 批量采集并写入 odds_timeline 表
+方法清单:
+  get_live_odds()              获取当前实时赔率 (多玩法 h2h/spreads/totals)
+  extract_best_odds()          提取最佳(最高)1X2赔率 [修复: 原未定义致AttributeError]
+  extract_all_markets()        提取全部玩法赔率明细
+  get_odds_history()           获取赔率历史时序 (需付费层) [修复: 原docstring虚报]
+  extract_timeline_from_match() 从当前盘口提取单时间点快照 [修复: 原docstring虚报]
+  batch_collect_timeline()     批量采集快照写入 odds_timeline 表 [修复: 原docstring虚报]
+  batch_fetch_odds()           批量获取比赛赔率
+
+环境变量: THE_ODDS_API_KEY (https://the-odds-api.com/#get-access 注册)
+未配置 key 时自动降级: 所有 API 调用返回空, 不崩溃。
 """
 import os
 import time
@@ -421,6 +428,172 @@ class TheOddsCollector:
                 })
         
         return result
+
+    def extract_best_odds(self, match_odds: Dict, bookmakers: List[str] = None) -> Dict:
+        """
+        从比赛赔率中提取最佳(最高)1X2赔率 — extract_all_markets 的薄封装。
+
+        被 batch_fetch_odds / __main__ 调用, 返回扁平的 1X2 dict:
+        {home_team, away_team, commence_time, home_odds, draw_odds, away_odds,
+         bookmaker_count, bookmakers, source}
+
+        "最佳" = 跨庄家取每个结果的最大赔率 (买方最优价), 用于 soft-line 套利分析。
+        bookmaker_count = 实际提供了完整 h2h 三项赔率的庄家数 (不含仅spreads/totals的庄家)。
+        若某结果无赔率则填 None。
+        """
+        full = self.extract_all_markets(match_odds, bookmakers)
+        h2h = full.get("markets", {}).get("h2h", {})
+        h_list = h2h.get("home_odds", [])
+        d_list = h2h.get("draw_odds", [])
+        a_list = h2h.get("away_odds", [])
+        # 三个列表应等长 (每个庄家贡献一组 h/d/a); 取最短长度防不一致
+        n_bm = min(len(h_list), len(d_list), len(a_list)) if (h_list and d_list and a_list) else 0
+        return {
+            "match_id_external": full.get("match_id_external"),
+            "home_team": full.get("home_team"),
+            "away_team": full.get("away_team"),
+            "commence_time": full.get("commence_time"),
+            "home_odds": max(h_list) if h_list else None,
+            "draw_odds": max(d_list) if d_list else None,
+            "away_odds": max(a_list) if a_list else None,
+            "bookmaker_count": n_bm,
+            "bookmakers": full.get("bookmakers_details", []),
+            "source": "the_odds_api",
+        }
+
+    # ──────────────────────────────────────────
+    # 时序采集 (odds-history → odds_timeline 表)
+    # ──────────────────────────────────────────
+    def get_odds_history(self, sport_key: str, event_id: str,
+                         bookmakers: str = None) -> Optional[List[Dict]]:
+        """
+        获取单场比赛的赔率历史时序 (The Odds API odds-history 端点)。
+
+        需要付费层 (历史端点不在免费500req内)。返回该场比赛从开盘到当前的
+        多时间点赔率快照列表, 是构建 odds_timeline / 滚球 drift 分析的核心数据。
+
+        Args:
+            sport_key: 联赛key, 如 "soccer_epl"
+            event_id: 比赛ID (从 get_live_odds 返回的 "id" 字段获取)
+            bookmakers: 逗号分隔的庄家过滤, 如 "pinnacle,bet365"; None=全部
+
+        Returns:
+            时序快照列表 [{timestamp, h2h: {home/draw/away 各庄家}, ...}], 或 None
+            每个快照含 "timestamp" + 各庄家该时刻的赔率
+        """
+        params = {"oddsFormat": "decimal", "dateFormat": "iso"}
+        if bookmakers:
+            params["bookmakers"] = bookmakers
+        data = self._api_call(f"/sports/{sport_key}/events/{event_id}/odds-history", params)
+        if not data:
+            return None
+        # API 返回 {sport_key, events: [{timestamp, bookmakers: [...]}]}
+        # 取 events 数组 (去掉外层包装)
+        return data if isinstance(data, list) else data.get("events", [])
+
+    def extract_timeline_from_match(self, match_odds: Dict,
+                                     bookmakers: List[str] = None) -> List[Dict]:
+        """
+        从单场比赛的当前赔率数据中提取一个"时序快照" (单时间点)。
+
+        用于: 当无法获取完整 odds-history 时, 至少把当前盘口作为一条快照写入
+        odds_timeline, 供后续多时间点拼接 drift 分析。
+
+        Args:
+            match_odds: get_live_odds 返回的单场比赛 dict
+            bookmakers: 优先庄家列表
+
+        Returns:
+            [{bookmaker, home_odds, draw_odds, away_odds}] — 每家庄家一条快照
+            (时间戳统一用当前时间, 由调用方填充)
+        """
+        bm_filter = set(bm.lower() for bm in (bookmakers or BOOKMAKER_PRIORITY[:4]))
+        snapshots = []
+        for bm in match_odds.get("bookmakers", []):
+            bm_key = bm.get("key", "").lower()
+            if bm_filter and bm_key not in bm_filter:
+                continue
+            bm_title = bm.get("title", bm_key)
+            h_odds = d_odds = a_odds = None
+            for market in bm.get("markets", []):
+                if market.get("key") != "h2h":
+                    continue
+                for o in market.get("outcomes", []):
+                    name = o.get("name", "")
+                    price = o.get("price")
+                    if name == match_odds.get("home_team"):
+                        h_odds = price
+                    elif name == "Draw":
+                        d_odds = price
+                    elif name == match_odds.get("away_team"):
+                        a_odds = price
+            if h_odds and d_odds and a_odds:
+                snapshots.append({
+                    "bookmaker": bm_title,
+                    "home_odds": float(h_odds), "draw_odds": float(d_odds),
+                    "away_odds": float(a_odds),
+                })
+        return snapshots
+
+    def batch_collect_timeline(self, sport_key: str, match_id_map: Dict[str, int],
+                               db_path: str = None, bookmakers: List[str] = None) -> Dict:
+        """
+        批量采集当前赔率快照并写入 odds_timeline 表。
+
+        滚球/临场定期调用此方法 (建议 Celery 每 30-60s), 持续填充 odds_timeline,
+        为 reverse_odds_engine 的 drift 分析提供时序数据。
+
+        Args:
+            sport_key: 联赛key, 如 "soccer_epl"
+            match_id_map: {API event_id 或 "home_away": 本地 match_id} 映射,
+                          用于把 API 比赛关联到 DB match_id
+            db_path: 数据库路径 (默认 data/football_data.db)
+            bookmakers: 优先庄家
+
+        Returns:
+            {collected, written, skipped, api_calls}
+        """
+        import sqlite3
+        if db_path is None:
+            db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                   "data", "football_data.db")
+
+        stats = {"collected": 0, "written": 0, "skipped": 0, "api_calls": 0}
+        live_odds = self.get_live_odds(sport_key, markets="h2h")
+        stats["api_calls"] = self.request_count
+
+        now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        conn = sqlite3.connect(db_path)
+        try:
+            for lo in live_odds:
+                ev_id = lo.get("id", "")
+                ha_key = f"{lo.get('home_team','')}|{lo.get('away_team','')}"
+                match_id = match_id_map.get(ev_id) or match_id_map.get(ha_key)
+                if not match_id:
+                    stats["skipped"] += 1
+                    continue
+                snapshots = self.extract_timeline_from_match(lo, bookmakers)
+                stats["collected"] += len(snapshots)
+                for snap in snapshots:
+                    try:
+                        conn.execute(
+                            """INSERT OR REPLACE INTO odds_timeline
+                               (match_id, snapshot_time, home_odds, draw_odds, away_odds,
+                                bookmaker, source, raw_json)
+                               VALUES (?, ?, ?, ?, ?, ?, 'the_odds_api', ?)""",
+                            (match_id, now_iso, snap["home_odds"], snap["draw_odds"],
+                             snap["away_odds"], snap["bookmaker"],
+                             json.dumps({"event_id": ev_id}, ensure_ascii=False))
+                        )
+                        stats["written"] += 1
+                    except sqlite3.IntegrityError:
+                        pass  # UNIQUE 冲突 (同一时刻同一庄家), 跳过
+            conn.commit()
+        finally:
+            conn.close()
+        logger.info(f"odds_timeline 批量采集: 采集{stats['collected']} 写入{stats['written']} "
+                    f"跳过{stats['skipped']} API调用{stats['api_calls']}")
+        return stats
 
     def batch_fetch_odds(
         self, sport_key: str, matches: List[Dict], delay: float = 1.0
