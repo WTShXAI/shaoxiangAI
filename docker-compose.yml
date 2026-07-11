@@ -1,0 +1,56 @@
+services:
+  shaoxiang-ai:
+    build: .
+    container_name: shaoxiang-ai
+    ports:
+      - "9000:9000"
+    env_file:
+      - .env
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=9000
+      # DEBUG 默认 true (Dockerfile ENV), SECRET_KEY 自动生成
+      # 生产上线前: 在 .env 中设 DEBUG=false 并手动设 SECRET_KEY
+    volumes:
+      - ./data:/app/data
+      - ./saved_models:/app/saved_models
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+      - ./config:/app/config:ro
+      - ./odds_db:/app/odds_db:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    networks:
+      - shaoxiang-net
+
+  # 可选：PostgreSQL 替代 SQLite（中期迁移）
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: shaoxiang-db
+  #   environment:
+  #     POSTGRES_USER: shaoxiang
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+  #     POSTGRES_DB: footballai
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   networks:
+  #     - shaoxiang-net
+
+networks:
+  shaoxiang-net:
+    driver: bridge
+
+# volumes:
+#   pgdata:

@@ -41,4 +41,8 @@ anyio>=4.0.0,<5.0.0
 click>=8.1.0,<9.0.0
 h11>=0.14.0,<1.0.0
 certifi>=2024.0.0
-colorama>=0.4.6,<1.0.0 
+colorama>=0.4.6,<1.0.0
+# ── 桌面端 GUI（app.py 桌面终端必需）──
+PySide6>=6.7.0,<6.12.0
+PySide6-Addons>=6.7.0,<6.12.0
+PySide6-Essentials>=6.7.0,<6.12.0
