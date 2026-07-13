@@ -426,6 +426,12 @@ def analyze_form(home: str, away: str) -> dict:
     ak = _norm_team(away)
     hf = _FORM_DB.get(hk, _FORM_DB.get(home, {"gf": 1.0, "ga": 1.0, "n": 1, "momentum": 0.5}))
     af = _FORM_DB.get(ak, _FORM_DB.get(away, {"gf": 1.0, "ga": 1.0, "n": 1, "momentum": 0.5}))
+    # E1 P1-10: 显式声明退化 — 俱乐部(非 WC2026)队不在 _FORM_DB → form 信号为中性占位.
+    # 不再静默: 记录 CRITICAL 级提示, 避免"特征退化"被误当作真实战绩.
+    if home not in _FORM_DB and hk not in _FORM_DB:
+        logger.warning("[analyze_form] 主队 '%s' 不在 _FORM_DB(WC2026 专属), form 退化为中性占位(gf=ga=1.0)", home)
+    if away not in _FORM_DB and ak not in _FORM_DB:
+        logger.warning("[analyze_form] 客队 '%s' 不在 _FORM_DB(WC2026 专属), form 退化为中性占位(gf=ga=1.0)", away)
     
     h_net = hf["gf"] - hf["ga"]
     a_net = af["gf"] - af["ga"]
@@ -748,7 +754,7 @@ def _predict_rule(match: MatchInput) -> PipelineResult:
 
 
 def _predict_optimized(match: MatchInput) -> PipelineResult:
-    """优化模式 — DrawExpert v2_focal + 17报告决策树 (5层分档)"""
+    """优化模式 — DrawExpert v3_focal + 17报告决策树 (5层分档)"""
     # Step 1-3: 复用基础函数
     odds = parse_odds(match.odds_h, match.odds_d, match.odds_a)
     form = analyze_form(match.home, match.away)

@@ -1,0 +1,226 @@
+{
+  "match_id": "argentina_vs_switzerland_20260712_semifinal",
+  "match_time": "2026-07-12T09:00:00+08:00",
+  "home": "阿根廷",
+  "away": "瑞士",
+  "competition": "世界杯2026-半决赛",
+  "captured_at": "2026-07-11T23:49:25+08:00",
+  "source": "用户截图OCR(2张) | 1X2/让球/大小球 + 全场波胆+半场波胆",
+  "source_ref": [
+    "clipboard-2026-07-11T23-49-25-719Z-fbaf1d9e.png",
+    "clipboard-2026-07-11T23-49-25-722Z-63f5ed30.png"
+  ],
+  "odds_1x2": {
+    "home": 1.7,
+    "draw": 3.45,
+    "away": 5.6
+  },
+  "odds_hcp": [
+    {
+      "line": -0.5,
+      "home": 1.94,
+      "away": 1.98
+    },
+    {
+      "line": -1,
+      "home": null,
+      "away": null
+    }
+  ],
+  "odds_ou": [
+    {
+      "line": 2.0,
+      "over": 2.07,
+      "under": 1.83
+    },
+    {
+      "line": 2.5,
+      "over": null,
+      "under": null
+    }
+  ],
+  "odcs_cs": {
+    "desc": "竞彩官方波胆+半场波胆 (完整)",
+    "captured_at": "2026-07-11T23:49:25+08:00",
+    "source": "screenshot",
+    "fulltime": {
+      "argentina_win": [
+        {
+          "score": "1-0",
+          "odds": 5.5
+        },
+        {
+          "score": "2-0",
+          "odds": 6.5
+        },
+        {
+          "score": "2-1",
+          "odds": 8.5
+        },
+        {
+          "score": "3-0",
+          "odds": 13.0
+        },
+        {
+          "score": "3-1",
+          "odds": 15.0
+        },
+        {
+          "score": "3-2",
+          "odds": 46.0
+        },
+        {
+          "score": "4-0",
+          "odds": 33.0
+        },
+        {
+          "score": "4-1",
+          "odds": 44.0
+        }
+      ],
+      "draw": [
+        {
+          "score": "0-0",
+          "odds": 8.6
+        },
+        {
+          "score": "1-1",
+          "odds": 7.2
+        },
+        {
+          "score": "2-2",
+          "odds": 25.0
+        },
+        {
+          "score": "3-3",
+          "odds": 111.0
+        },
+        {
+          "score": "4-4",
+          "odds": 351.0
+        }
+      ],
+      "switzerland_win": [
+        {
+          "score": "0-1",
+          "odds": 11.5
+        },
+        {
+          "score": "0-2",
+          "odds": 38.0
+        },
+        {
+          "score": "0-3",
+          "odds": 114.0
+        },
+        {
+          "score": "0-4",
+          "odds": 318.0
+        },
+        {
+          "score": "1-2",
+          "odds": 19.5
+        },
+        {
+          "score": "1-3",
+          "odds": 70.0
+        },
+        {
+          "score": "1-4",
+          "odds": 85.0
+        },
+        {
+          "score": "2-3",
+          "odds": 85.0
+        }
+      ]
+    },
+    "halftime": {
+      "argentina_win": [
+        {
+          "score": "1-0",
+          "odds": 3.55
+        },
+        {
+          "score": "2-0",
+          "odds": 10.5
+        },
+        {
+          "score": "2-1",
+          "odds": 37.0
+        },
+        {
+          "score": "3-0",
+          "odds": 49.0
+        },
+        {
+          "score": "3-1",
+          "odds": 137.0
+        },
+        {
+          "score": "3-2",
+          "odds": 251.0
+        }
+      ],
+      "draw": [
+        {
+          "score": "0-0",
+          "odds": 2.35
+        },
+        {
+          "score": "1-1",
+          "odds": 12.0
+        },
+        {
+          "score": "2-2",
+          "odds": 185.0
+        }
+      ],
+      "switzerland_win": [
+        {
+          "score": "0-1",
+          "odds": 7.5
+        },
+        {
+          "score": "0-2",
+          "odds": 50.0
+        },
+        {
+          "score": "0-3",
+          "odds": 251.0
+        },
+        {
+          "score": "1-2",
+          "odds": 74.0
+        },
+        {
+          "score": "1-3",
+          "odds": 251.0
+        },
+        {
+          "score": "2-3",
+          "odds": 251.0
+        }
+      ]
+    }
+  },
+  "verdict": "待推演(操盘手分析中)",
+  "notes": "305+返奖率; 半决赛; 阿根廷热门主胜1.70; 让球-0.5@1.94; 大小2/2.5 Over@2.07 Under@1.83",
+  "post_review": {
+    "status": "done",
+    "reviewed_at": "2026-07-11T21:17:00+08:00",
+    "actual_score": "1-1",
+    "actual_outcome": "draw",
+    "oip_pred": "2-0",
+    "oip_hit": false,
+    "oip_top3_hit": false,
+    "direction_hit": false,
+    "model_prob": {
+      "home": 0.557,
+      "draw": 0.274,
+      "away": 0.169
+    },
+    "calibration_note": "模型argmax=阿根廷(H), 收口比分2-0; 实际1-1平局 → 方向/比分均未中. 但赛前价值层已标平局为保险侧(平赔3.45, 波胆1-1@7.2, 瑞士被零封概率46.9%), 与结果自洽. 系统铁律: 1X2有效市场无超越赔率edge, 模型正确未逆市押注; 平局属价值层观察/保险, 非自动BET(需跨庄分歧闸门+edge). 注: 本场预测因 xgboost 未装退化为纯规则(跟随市场热门), 非ML覆盖.",
+    "notes": "用户确认赛果1-1 (2026-07-11). 半决赛, 阿根廷常规时间被瑞士逼平."
+  }
+}

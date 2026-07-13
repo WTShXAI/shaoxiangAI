@@ -1,0 +1,47 @@
+{
+  "artifact": "DrawGate / DrawTightGate 平局门控 OOS 验证",
+  "generated": "2026-07-11",
+  "owner": "E1 预测引擎与模型专家",
+  "source_of_truth": "pipeline/wc_engine.py (DRAW_GATE / DRAW_GATE_MIN_IMP_D / DRAW_TIGHT_GAP)",
+  "thresholds": {
+    "DRAW_GATE": 0.688,
+    "DRAW_GATE_MIN_IMP_D": 0.10,
+    "DRAW_TIGHT_GAP": 0.18,
+    "note": "DRAW_GATE=0.688 为 Youden J 校准阈值; 实际判别阈值取包内 _DE_PKG['threshold']=0.375. DRAW_GATE_MIN_IMP_D 由 0.18 降至 0.10 以避免误杀 2 场真平局. DRAW_TIGHT_GAP=0.18 取自 in-sample GAP 扫描平台中位 0.18."
+  },
+  "in_sample_diagnostics": {
+    "sample_size": 68,
+    "sample_type": "WC 关联场 (特征与训练重叠, 偏乐观)",
+    "DRAW_GATE_result": {
+      "overall_accuracy_pct": 71.0,
+      "market_baseline_pct": 64.7,
+      "draw_hits": "7/18",
+      "draw_precision_pct": 64.0,
+      "base_rate_pct": 26.5
+    },
+    "DRAW_TIGHT_GATE_result": {
+      "draw_recall_pct_before": 38.9,
+      "draw_recall_pct_after": 61.1,
+      "overall_accuracy_pct_before": 72.1,
+      "overall_accuracy_pct_after": 75.0,
+      "draw_precision_pct": 61.1
+    }
+  },
+  "honest_oos_status": {
+    "verdict": "IN_SAMPLE_ONLY_NOT_YET_OOS_VALIDATED",
+    "cross_edition_oos": "BLOCKED",
+    "blocker": "wc_all_matches 跨届 oh/od/oa 为 None (缺赔率), 无法重建跨届 OOS 验证集",
+    "draw_expert_family_loocv": {
+      "wc_v3_focal": 0.369,
+      "wc_v4": 0.288,
+      "note": "均 < 随机 0.5, 属纯噪声; 与铁律'1X2 有效市场无超越赔率 edge'自洽"
+    },
+    "structural_ceiling": "DrawExpert 对 de_prob≈0 的 ~11 场平局无信号 (特征分不出), 门控无法补救; 需模型/特征重训或融合'赔率隐含平局概率'方可覆盖剩余平局",
+    "conclusion": "门控阈值在当前 in-sample 诊断下有效, 但跨届 OOS 尚未验证; 生产部署依赖'护栏OFF等价市场argmax'作为安全兜底, 门控仅在分歧场激活. 禁止将 in-sample 数字当作 OOS 期望."
+  },
+  "required_to_upgrade_oos": [
+    "补全 wc_all_matches 跨届 oh/od/oa 赔率 (取 WC2026 真实 88 场 + 历史跨届)",
+    "用 LOOCV / 跨届留出法重算 DrawGate/DrawTightGate 命中与精度",
+    "若跨届 OOS 命中显著低于 in-sample, 回退 DRAW_GATE 或加入'赔率隐含平局概率'特征"
+  ]
+}

@@ -23,6 +23,44 @@ from typing import Dict, Any, List, Optional
 # ── 硬约束: 单注上限 10% 本金（与 bet_core.MAX_STAKE_FRAC 保持一致）──
 _MAX_STAKE_FRAC = 0.10
 
+# ── E2 P0-5/P0-6 + P2-16: 注码/凯利统一走 bet_core (SSoT, 含10%封顶+分歧闸门+审计) ──
+try:
+    from scripts.bet_core import safe_stake as _bet_core_safe_stake, kelly_fraction
+    _HAS_BET_CORE = True
+except Exception:  # pragma: no cover - 兜底降级, 不依赖 bet_core
+    _bet_core_safe_stake = None
+    _HAS_BET_CORE = False
+
+    def kelly_fraction(p: float, odds: float) -> float:  # type: ignore
+        """降级副本 (仅 bet_core 不可用时); 与 bet_core.kelly_fraction 保持一致."""
+        if odds <= 1.0:
+            return 0.0
+        b = odds - 1.0
+        f = (p * odds - 1.0) / b
+        return max(0.0, f)
+
+
+def _capped_stake(p: float, odds: float, bankroll: float,
+                  frac_kelly: float = 0.5, gate: bool = True,
+                  source: str = "deep_report") -> float:
+    """统一封顶注码 (E2 P0-5 修复 kelly>1 全押坑).
+
+    优先走 bet_core.safe_stake (SSoT: 10%封顶 + PROD NO-GO + 分歧闸门 + 审计);
+    不可用时降级为本地 MAX_STAKE_FRAC 封顶。gate=False 一律返回 0 (P0-6 强制守卫)。
+    """
+    if _HAS_BET_CORE and _bet_core_safe_stake is not None:
+        stake, _ = _bet_core_safe_stake(
+            p, odds, bankroll, frac_kelly=frac_kelly, gate=gate, source=source)
+        return float(stake)
+    # 降级路径: 仅本地封顶
+    if not gate:
+        return 0.0
+    k = kelly_fraction(p, odds)
+    frac = frac_kelly * k
+    if frac > _MAX_STAKE_FRAC:
+        frac = _MAX_STAKE_FRAC
+    return frac * bankroll
+
 
 def poisson_hda(lam_h: float, lam_a: float, max_goals: int = 12) -> tuple:
     """由双方期望进球 λ 推导 1X2 概率 (P主胜, P平, P客胜)。"""
@@ -39,15 +77,6 @@ def poisson_hda(lam_h: float, lam_a: float, max_goals: int = 12) -> tuple:
             else:
                 pa += p
     return ph, pd, pa
-
-
-def kelly_fraction(p: float, odds: float) -> float:
-    """满凯利注码比（占本金比例）。p=估计胜率, odds=十进制赔率。负值截为0。"""
-    if odds <= 1.0:
-        return 0.0
-    b = odds - 1.0
-    f = (p * odds - 1.0) / b
-    return max(0.0, f)
 
 
 def market_implied(odds: List[float]) -> List[float]:
@@ -69,6 +98,7 @@ def compute_value_layer(
     bankroll: float = 10000.0,
     frac_kelly: float = 0.5,
     overround: Optional[float] = None,
+    gate: bool = True,
 ) -> Dict[str, Any]:
     """
     价值层主函数。
@@ -121,7 +151,7 @@ def compute_value_layer(
 
     best = max(rows, key=lambda r: r["edge"])
     # 只有正期望价值(EV>0 → 凯利>0)才下注; 仅 edge>0 但被抽水吃掉仍 PASS
-    positive_ev = best["ev"] > 0
+    positive_ev = best["ev"] > 0 and gate  # E2 P0-6: 分歧闸门未过→强制 PASS
 
     if positive_ev:
         stake = best["stake_unit"]
@@ -164,6 +194,7 @@ def compute_submarket_value(
     legs: List[Dict[str, Any]],
     bankroll: float = 10000.0,
     frac_kelly: float = 0.5,
+    gate: bool = True,
 ) -> Dict[str, Any]:
     """
     子市场价值层（与 compute_value_layer 同契约，但对任意子市场腿通用）。
@@ -202,9 +233,10 @@ def compute_submarket_value(
             "stake_unit": round(bankroll * k * frac_kelly, 2),
         })
     best = max(rows, key=lambda r: r["edge"])
-    positive_ev = best["ev"] > 0
+    positive_ev = best["ev"] > 0 and gate  # E2 P0-6: 分歧闸门未过→强制 PASS
     if positive_ev:
-        stake = best["stake_unit"]
+        stake = _capped_stake(best["model_prob"], best["best_odds"], bankroll,
+                              frac_kelly=frac_kelly, gate=gate, source="deep_report_submarket_legs")
         win_pnl = stake * (best["best_odds"] - 1)
         lose_pnl = -stake
         exp_pnl = best["model_prob"] * win_pnl + (1 - best["model_prob"]) * lose_pnl
@@ -338,8 +370,22 @@ def ou_value(oh, od, oa, ou_line, over_odds, under_odds,
 
     if cands:
         side, p, odds, ev = max(cands, key=lambda c: c[3])
-        k = kelly_fraction(p, odds)
-        stake = bankroll * k * frac_kelly
+        stake = _capped_stake(p, odds, bankroll, frac_kelly=frac_kelly,
+                              gate=gate, source="deep_report_submarket")
+        if stake <= 0:
+            # E2 P0-6: 分歧闸门未过 / kelly<=0 → 不下注
+            decision = "PASS"
+            decision_text = "PASS · 分歧闸门未过(gate=False) 或负凯利, 不下注"
+            scenario = {"note": "gate closed or non-positive kelly"}
+            return {
+                "ou_line": ou_line,
+                "over_odds": over_odds, "under_odds": under_odds,
+                "model_p_over": round(model_p_over, 4), "model_p_under": round(model_p_under, 4),
+                "market_p_over": round(mkt_p_over, 4), "market_p_under": round(mkt_p_under, 4),
+                "gap_pp": round(gap * 100, 2), "ev_over_pct": round(ev_over * 100, 2),
+                "ev_under_pct": round(ev_under * 100, 2),
+                "decision": decision, "decision_text": decision_text, "scenario": scenario,
+            }
         win = stake * (odds - 1)
         lose = -stake
         exp = p * win + (1 - p) * lose
@@ -371,7 +417,8 @@ def ou_value(oh, od, oa, ou_line, over_odds, under_odds,
 def draw_consensus_value(primary_oh, primary_od, primary_oa,
                          consensus_pd, strong: bool = False,
                          best_draw_odds=None, bankroll: float = 10000.0,
-                         frac_kelly: float = 0.5) -> Dict[str, Any]:
+                         frac_kelly: float = 0.5,
+                         gate: bool = True) -> Dict[str, Any]:
     """
     平局共识价值层 (跨庄溢价): ≥2家独立庄家(或WH×IW)共识P(平) vs 主盘隐含P(平)。
     共识P(平)来自独立定价源(非主盘同源) → 可证伪的真实 edge。
@@ -385,8 +432,9 @@ def draw_consensus_value(primary_oh, primary_od, primary_oa,
     odds = best_draw_odds if best_draw_odds else primary_od
     ev = consensus_pd * (odds - 1) - (1 - consensus_pd)
     k = kelly_fraction(consensus_pd, odds)
-    stake = bankroll * k * frac_kelly
-    if ev > 0:
+    stake = _capped_stake(consensus_pd, odds, bankroll, frac_kelly=frac_kelly,
+                          gate=gate, source="deep_report_draw_consensus")
+    if ev > 0 and stake > 0:  # E2 P0-6: gate=False→stake=0→落入 PASS 分支
         win = stake * (odds - 1)
         lose = -stake
         exp = consensus_pd * win + (1 - consensus_pd) * lose
@@ -412,7 +460,8 @@ def draw_consensus_value(primary_oh, primary_od, primary_oa,
 def correct_score_value(model_m, score_odds: Optional[Dict] = None, top_n: int = 3,
                         bankroll: float = 10000.0, frac_kelly: float = 0.5,
                         overconf: Optional[float] = None,
-                        cs_ev_threshold: float = 0.0) -> Dict[str, Any]:
+                        cs_ev_threshold: float = 0.0,
+                        gate: bool = True) -> Dict[str, Any]:
     """
     波胆 TOP-N 视图 / 价值层 (统一入口, 取代原 correct_score_scan)。
 
@@ -451,11 +500,14 @@ def correct_score_value(model_m, score_odds: Optional[Dict] = None, top_n: int =
             rows.append({"score": f"{i}-{j}", "prob": round(p, 4),
                          "prob_eff": round(p_eff, 4), "odds": odds,
                          "ev_pct": round(ev * 100, 2), "kelly_half": round(k * frac_kelly, 4),
-                         "stake": round(bankroll * k * frac_kelly, 2), "edge": True})
+                         "stake": round(_capped_stake(p_eff, odds, bankroll,
+                                                     frac_kelly=frac_kelly, gate=gate,
+                                                     source="deep_report_cs"), 2),
+                         "edge": True})
         rows.sort(key=lambda r: r["ev_pct"], reverse=True)
         # 仅过自信收缩后EV仍超过阈值才下注(默认阈值0.0=仅收缩门); 仅取top1
         best = rows[0] if rows and rows[0]["ev_pct"] > cs_ev_threshold else None
-        if best:
+        if best and gate:  # E2 P0-6: 分歧闸门未过→强制 PASS
             stake = best["stake"]
             win = stake * (best["odds"] - 1)
             lose = -stake

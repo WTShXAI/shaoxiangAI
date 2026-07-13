@@ -67,14 +67,70 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio pytest-cov
+          pip install pytest pytest-asyncio pytest-cov fastapi
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: py_compile 全量语法检查 (pre-merge guard)
+        run: |
+          echo "=== py_compile 全量扫描 ==="
+          find . -name "*.py" -not -path "./.venv/*" -not -path "./__pycache__/*" \
+            -not -path "./.venv_314_backup/*" -not -path "./frontend/*" \
+            -not -path "./awesome-design-md/*" \
+            -print0 | xargs -0 -I {} python -m py_compile {} \
+            || (echo "❌ py_compile 失败 — 阻断 merge" && exit 1)
+          echo "✅ py_compile 全量通过"
+
+      - name: import guard (核心模块导入完整性)
+        run: |
+          python -m pytest tests/test_import_guard.py tests/test_oos_guard.py -v --tb=short \
+            || (echo "❌ import/oos guard 失败 — 阻断 merge" && exit 1)
+          echo "✅ import guard 通过"
 
       - name: Run pytest
         run: |
           python -m pytest tests/ -v --cov=. --cov-report=term-missing \
             --ignore=tests/test_heavy \
             -x --timeout=120
+
+      - name: P0-1 soft-line 决策闭环回归 (独立守护)
+        run: |
+          python scripts/test_softline_decision_closure.py
+
+      - name: P0-3 分歧闸门 + 规范凯利回归 (独立守护)
+        run: |
+          python scripts/test_p0_3_divergence_gate.py
+
+      - name: bet_core 单一事实源回归 (独立守护)
+        run: |
+          python -m pytest tests/test_bet_core.py -v
+
+      - name: G6 live 初盘 drift 补完回归 (独立守护)
+        run: |
+          python scripts/test_g6_drift_open.py
+
+      - name: G10 soft-line 进 predict() 衔接回归 (独立守护)
+        run: |
+          python scripts/test_g10_softline_predict.py
+
+      - name: G4 RLM 真 bet-split 源接入回归 (独立守护)
+        run: |
+          python scripts/test_g4_rlm_real.py
+
+      - name: G9 WC2026 缺 6 场赔率幂等回填回归 (独立守护)
+        run: |
+          python scripts/test_g9_fill_wc6.py
+
+      - name: G3 live 累积幂等守护回归 (独立守护)
+        run: |
+          python scripts/test_live_accumulator.py
+
+      - name: E4+E5 P2-18 数据质量门禁 (DB 存在时阻断致命项)
+        run: |
+          if [ -f data/football_data.db ]; then
+            python scripts/data_quality_checks.py --db data/football_data.db --fail-on critical
+          else
+            echo "ℹ️ data/football_data.db 不在 CI checkout (*.db gitignored) → 跳过数据质量门禁 (数据管线作业挂载 DB 时自动启用)"
+          fi
 
   # ═══════════════════════════════════════════════
   # Build (Docker 镜像)
@@ -100,7 +156,8 @@ jobs:
 
       - name: Test Docker image (smoke test)
         run: |
-          docker run -d --name footballai-test -p 8000:8000 footballai-backend:ci-${{ github.sha }}
+          docker run -d --name footballai-test -p 9000:9000 footballai-backend:ci-${{ github.sha }}
           sleep 10
+          curl -sf http://localhost:9000/health || (echo "❌ health 探针失败" && docker logs footballai-test && exit 1)
           docker stop footballai-test
           docker rm footballai-test

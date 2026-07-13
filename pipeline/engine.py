@@ -13,6 +13,7 @@
 """
 
 import os
+import logging
 import dataclasses
 from abc import ABC, abstractmethod
 from typing import Optional
@@ -200,4 +201,16 @@ def create_engine(name: Optional[str] = None) -> PredictionEngine:
     engine = _ENGINE_REGISTRY[name]()
     if not engine.loaded:
         raise RuntimeError(f"引擎 '{name}' 加载失败")
+
+    # E1 P1-10: feature_cols ↔ match_features 启动一致性断言.
+    # 默认仅 CRITICAL 日志(保留 graceful degradation); FOOTBALL_STRICT_FEATURES=1 时缺失即抛错.
+    try:
+        from pipeline.feature_consistency import verify_feature_cols
+        verify_feature_cols(strict=os.getenv("FOOTBALL_STRICT_FEATURES") == "1")
+    except ValueError:
+        raise  # 严格模式: 启动失败
+    except Exception as e:
+        logger = logging.getLogger("engine")
+        logger.warning("[engine] feature_cols 一致性校验跳过(异常): %s", e)
+
     return engine

@@ -1,0 +1,578 @@
+[
+  {
+    "match_id": "spain_vs_austria_20260703",
+    "match_time": "2026-07-03T03:00:00+08:00",
+    "home": "西班牙",
+    "away": "奥地利",
+    "snapshot_count": 3,
+    "latest_1x2": {
+      "home": 1.28,
+      "draw": 5.7,
+      "away": 10.0
+    },
+    "latest_hcp": "-1.5 @1.85/2.07",
+    "latest_ou": "2.5/3 @1.82/2.08",
+    "verdict": "让胜(-1.5)",
+    "first_score": "2-0",
+    "file": "spain_vs_austria_20260703.json",
+    "timeline_file": "timeline/spain_vs_austria_20260703.json"
+  },
+  {
+    "match_id": "portugal_vs_croatia_20260703",
+    "match_time": "2026-07-03T07:00:00+08:00",
+    "home": "葡萄牙",
+    "away": "克罗地亚",
+    "snapshot_count": 1,
+    "latest_1x2": {
+      "home": 1.65,
+      "draw": 4.05,
+      "away": 4.85
+    },
+    "latest_hcp": "-0.5/1 @1.83/2.09",
+    "latest_ou": "2.5/3 @1.97/1.93",
+    "verdict": "让胜(-0.5/1)",
+    "first_score": "2-1 @7.40",
+    "file": "portugal_vs_croatia_20260703.json",
+    "timeline_file": "timeline/portugal_vs_croatia_20260703.json"
+  },
+  {
+    "match_id": "switzerland_vs_italy_20260703",
+    "match_time": "2026-07-03T??:00:00+08:00",
+    "home": "瑞士",
+    "away": "意大利",
+    "snapshot_count": 1,
+    "latest_1x2": null,
+    "latest_hcp": "待补全",
+    "latest_ou": "待补全",
+    "verdict": "平局优先",
+    "first_score": "1-1 @6.50",
+    "file": "switzerland_vs_italy_20260703.json",
+    "timeline_file": "timeline/switzerland_vs_italy_20260703.json"
+  },
+  {
+    "match_id": "australia_vs_egypt_20260704",
+    "match_time": "2026-07-04T02:00:00+08:00",
+    "home": "澳大利亚",
+    "away": "埃及",
+    "snapshot_count": 2,
+    "latest_1x2": {
+      "home": 3.25,
+      "draw": 2.95,
+      "away": 2.42
+    },
+    "latest_hcp": "+0/0.5 @1.86/2.06 (平手盘)",
+    "latest_ou": "大2 @2.03 / 小2 @1.87",
+    "verdict": "客胜/让客(+0.5)",
+    "first_score": "0-2",
+    "file": "australia_vs_egypt_20260704.json",
+    "timeline_file": "timeline/australia_vs_egypt_20260704.json"
+  },
+  {
+    "match_id": "switzerland_vs_algeria_20260704",
+    "match_time": "2026-07-04T??:00:00+08:00",
+    "home": "瑞士",
+    "away": "阿尔及利亚",
+    "snapshot_count": 1,
+    "latest_1x2": null,
+    "latest_hcp": null,
+    "latest_ou": null,
+    "verdict": null,
+    "first_score": null,
+    "file": "switzerland_vs_algeria_20260704.json",
+    "timeline_file": null
+  },
+  {
+    "match_id": "argentina_vs_cape_verde_20260704",
+    "match_time": "2026-07-04T??:00:00+08:00",
+    "home": "阿根廷",
+    "away": "佛得角共和国",
+    "snapshot_count": 1,
+    "latest_1x2": null,
+    "latest_hcp": "-1深让(部分)",
+    "latest_ou": null,
+    "verdict": null,
+    "first_score": null,
+    "file": "argentina_vs_cape_verde_20260704.json",
+    "timeline_file": null
+  },
+  {
+    "match_id": "colombia_vs_ghana_20260704",
+    "match_time": "2026-07-04T09:30:00+08:00",
+    "home": "哥伦比亚",
+    "away": "加纳",
+    "snapshot_count": 2,
+    "latest_1x2": {
+      "home": 1.1,
+      "draw": 8.3,
+      "away": 38.0
+    },
+    "latest_hcp": "-0.5 @1.89/2.01",
+    "latest_ou": "大1.75 @2.04 / 小1.75 @1.84",
+    "verdict": "主胜",
+    "first_score": "3-0",
+    "file": "colombia_vs_ghana_2026-07-04.json",
+    "timeline_file": null
+  },
+  {
+    "match_id": "canada_vs_morocco_20260705",
+    "match_time": "2026-07-05T01:00:00+08:00",
+    "home": "加拿大",
+    "away": "摩洛哥",
+    "snapshot_count": 1,
+    "latest_1x2": {
+      "home": 4.75,
+      "draw": 3.45,
+      "away": 1.78
+    },
+    "latest_hcp": "+0.5/1 @1.86/2.06 (受让)",
+    "latest_ou": "大2 @2.03 / 小2 @1.87",
+    "verdict": "平局优先(低进球格局)",
+    "first_score": "0-1 @5.90",
+    "file": "canada_vs_morocco_20260705.json",
+    "timeline_file": "timeline/canada_vs_morocco_20260705.json"
+  },
+  {
+    "match_id": "paraguay_vs_france_20260705",
+    "match_time": "2026-07-05T05:00:00+08:00",
+    "home": "巴拉圭",
+    "away": "法国",
+    "snapshot_count": 2,
+    "latest_1x2": {
+      "home": 14.0,
+      "draw": 6.4,
+      "away": 1.21
+    },
+    "latest_hcp": "+1.5/2 @2.03/1.89 (主盘降盘)",
+    "latest_ou": "大2.5/3 @1.90/2.00 (OU主盘降)",
+    "verdict": null,
+    "first_score": null,
+    "file": "paraguay_vs_france_20260705.json",
+    "timeline_file": "timeline/paraguay_vs_france_20260705.json"
+  },
+  {
+    "match_id": "brazil_vs_norway_20260706",
+    "match_time": "2026-07-06T04:00:00+08:00",
+    "home": "巴西",
+    "away": "挪威",
+    "snapshot_count": 2,
+    "latest_1x2": {
+      "home": 1.85,
+      "draw": 3.85,
+      "away": 3.9
+    },
+    "latest_hcp": "-0.5/0 @1.85/1.63 (浅中让)",
+    "latest_ou": "大2.5/3 @1.98/1.90",
+    "verdict": "v7.0=D | 实际=Norway 2-1",
+    "first_score": "1-1",
+    "file": "brazil_vs_norway_20260706.json",
+    "timeline_file": null
+  },
+  {
+    "match_id": "mexico_vs_england_20260706",
+    "match_time": "2026-07-06T08:00:00+08:00",
+    "home": "墨西哥",
+    "away": "英格兰",
+    "snapshot_count": 2,
+    "latest_1x2": {
+      "home": 3.15,
+      "draw": 3.2,
+      "away": 2.35
+    },
+    "latest_hcp": "+0/0.5 @1.85/1.62 (平手/浅受)",
+    "latest_ou": "大2.5 @1.83 / 小2.5 @2.05",
+    "verdict": "v7.0=A",
+    "first_score": "0-2",
+    "file": "mexico_vs_england_20260706.json",
+    "timeline_file": null,
+    "ht_score": "1-2"
+  },
+  {
+    "match_id": "portugal_vs_spain_20260707",
+    "match_time": "2026-07-07T03:00:00+08:00",
+    "home": "葡萄牙",
+    "away": "西班牙",
+    "snapshot_count": 1,
+    "latest_1x2": {
+      "home": 3.8,
+      "draw": 3.6,
+      "away": 1.92
+    },
+    "latest_hcp": "+0.5 @1.98/1.92 (受让)",
+    "latest_ou": "大3 @1.93 / 大3.5 @1.72",
+    "verdict": null,
+    "first_score": null,
+    "file": "portugal_vs_spain_20260707.json",
+    "timeline_file": null
+  },
+  {
+    "match_id": "usa_vs_belgium_20260707",
+    "match_time": "2026-07-07T08:00:00+08:00",
+    "home": "美国",
+    "away": "比利时",
+    "snapshot_count": 1,
+    "latest_1x2": {
+      "home": 2.55,
+      "draw": 3.45,
+      "away": 2.64
+    },
+    "latest_hcp": "0 @1.91/1.99 (完全平手)",
+    "latest_ou": "大3 @1.99 / 小3 @1.89",
+    "verdict": "v7.0_newmodel=H (主胜)",
+    "first_score": "2-0",
+    "file": "usa_vs_belgium_20260707.json",
+    "timeline_file": null,
+    "ht_score": "1-2",
+    "live_score": "1-3"
+  },
+  {
+    "match_id": "argentina_vs_egypt_20260707",
+    "match_time": "2026-07-08T00:00:00+08:00",
+    "home": "阿根廷",
+    "away": "埃及",
+    "snapshot_count": 1,
+    "latest_1x2": {
+      "home": 1.32,
+      "draw": 5.0,
+      "away": 10.0
+    },
+    "latest_hcp": "-1.5 @2.03/1.89 (主深让)",
+    "latest_ou": ">2.5 @2.03 / <2.5 @1.87",
+    "verdict": "H (主胜, 置信0.8)",
+    "first_score": "2-0",
+    "file": "argentina_vs_egypt_20260707.json",
+    "timeline_file": null,
+    "lineups": {
+      "home_formation": "4-4-2",
+      "away_formation": "4-2-3-1"
+    },
+    "source_note": "用户截图OCR(304+) | 26分钟后开球"
+  },
+  {
+    "file": "switzerland_vs_colombia_20260708.json",
+    "match": "瑞士 vs 哥伦比亚",
+    "date": "2026-07-08",
+    "tournament": "世界杯2026",
+    "verdict": "待推演"
+  },
+  {
+    "match_id": "france_vs_morocco_20260709",
+    "match_time": "2026-07-09T02:00:00+08:00",
+    "home": "法国",
+    "away": "摩洛哥",
+    "competition": "世界杯2026",
+    "snapshot_count": 1,
+    "latest_1x2": {
+      "home": 1.62,
+      "draw": 4.1,
+      "away": 7.2
+    },
+    "source": "用户截图(4张) | 多庄家指数+Betfair必发 | 17庄家实时盘口",
+    "verdict": "H (主胜, 17/17庄家一致, P平=24.2%无预警)",
+    "consensus_summary": {
+      "bookmaker_count": 17,
+      "mean_pdraw_pct": 24.18,
+      "std_dev": 0.0054,
+      "range_pp": 1.94,
+      "direction_unanimous": true,
+      "strong_signal": false,
+      "betfair_volume_yuan": 5331400
+    },
+    "file": "france_vs_morocco_20260709.json",
+    "game_theorist_verdict": "诚实热端(免费局型); 必发主85.87%极端一边倒但真庄WH1.55认同+小球低水0.8防; 强队碾压局非陷阱; 过热溢价, 跟方向不追深盘",
+    "game_theorist": "渡庄生",
+    "gt_at": "2026-07-11T11:04+08:00"
+  },
+  {
+    "match_id": "spain_vs_belgium_20260710",
+    "match_time": "2026-07-11T03:00:00+08:00",
+    "home": "西班牙",
+    "away": "比利时",
+    "competition": "世界杯2026-1/4决赛",
+    "fifa_rank": {
+      "home": 3,
+      "away": 8
+    },
+    "snapshot_count": 2,
+    "latest_1x2": {
+      "home": 1.63,
+      "draw": 3.92,
+      "away": 5.37
+    },
+    "latest_hcp": "-1 (西班牙让1球/16家一致, 立主让胜水0.57极低)",
+    "latest_ou": "2.5→2.75升盘(多数庄家), Under受防范",
+    "source": "竞彩官方让球盘+亚洲庄家16家+Betfair必发 | v2完整快照(10张截图含让球盘+大小球)",
+    "verdict": "H(主胜) · 让-1深信 · 必发主74% ¥459万",
+    "consensus_summary": {
+      "bookmaker_count": 16,
+      "mean_pdraw_pct": 22.99,
+      "std_dev": 0.007,
+      "range_pp": 1.67,
+      "direction_unanimous": true,
+      "strong_signal": false,
+      "draw_alert": false,
+      "betfair_volume_yuan": 6202000,
+      "wh_iw_consensus_pct": 22.99,
+      "wh_iw_agreement_pp": 0.67
+    },
+    "oip_summary": {
+      "lambda_home": 1.659,
+      "lambda_away": 0.788,
+      "attack_ratio": 2.11,
+      "expected_goals": 2.45,
+      "top_score": "1-0 (14.4%)",
+      "ou_over25_pct": 44.25
+    },
+    "file": "spain_vs_belgium_20260710.json",
+    "game_theorist_verdict": "诚实热端(强队深盘型); 西班牙-1低水0.73-0.83+真庄防大球over0.75-0.8+必发主74.1%; R5强队深盘穿盘高非陷阱; 让盘溢价无EV, 大球可跟真庄低水",
+    "game_theorist": "渡庄生",
+    "gt_at": "2026-07-11T11:04+08:00"
+  },
+  {
+    "match_id": "argentina_vs_switzerland_20260712",
+    "match_time": "2026-07-12T09:00:00+08:00",
+    "home": "阿根廷",
+    "away": "瑞士",
+    "competition": "世界杯2026-1/4决赛",
+    "snapshot_count": 2,
+    "latest_1x2": {
+      "home": 1.54,
+      "draw": 3.35,
+      "away": 5.5
+    },
+    "latest_hcp": "-1 @2.95/3.08/2.15 (竞彩官方让1球)",
+    "latest_hcp_alt": "-0.5 @1.85/2.05 (前端OCR)",
+    "latest_ou": null,
+    "source": "竞彩官方让球盘+前端截图OCR(v2完整)",
+    "verdict": "H(主胜) · ⚠R2防平预警 P平=26.9%",
+    "first_score": "1-0 (OIP首选17.8%)",
+    "file": "argentina_vs_switzerland_20260712.json",
+    "timeline_file": null,
+    "game_theorist_verdict": "诚实热端但带平局预警; 竞彩-1高水2.95(难穿)+⚠R2防平P=26.9%; 阿根廷胜方向认同但最不稳热门; 回避-1深盘, 配平局/瑞士+1",
+    "game_theorist": "渡庄生",
+    "gt_at": "2026-07-11T11:04+08:00"
+  },
+  {
+    "match_id": "argentina_vs_switzerland_20260712",
+    "match_time": "2026-07-12T09:00:00+08:00",
+    "home": "阿根廷",
+    "away": "瑞士",
+    "competition": "世界杯2026-半决赛",
+    "snapshot_count": 3,
+    "latest_1x2": {
+      "home": 1.7,
+      "draw": 3.45,
+      "away": 5.6
+    },
+    "latest_hcp": "-0.5/1 @1.94/1.98 (阿根廷让半球)",
+    "latest_ou": "大2/2.5 @2.07 / 小 @1.83 (Under低水)",
+    "source": "用户截图(2张) | 1X2+让球+大小+全场波胆+半场波胆 | 305+返奖率",
+    "verdict": "H(主胜) → ❌实际1-1平局; 赛前价值层已标平局保险侧(平3.45/波胆1-1@7.2)与结果自洽",
+    "first_score": "1-1 (终场平局, 常规时间被瑞士逼平)",
+    "file": "argentina_vs_switzerland_20260712_semifinal.json",
+    "timeline_file": null,
+    "post_review": {
+      "status": "done",
+      "actual_score": "1-1",
+      "actual_outcome": "draw",
+      "direction_hit": false,
+      "oip_pred": "2-0",
+      "oip_hit": false
+    }
+  },
+  {
+    "match_id": "norway_vs_england_20260711",
+    "match_time": "2026-07-12T05:00:00+08:00",
+    "home": "挪威",
+    "away": "英格兰",
+    "competition": "世界杯2026-1/4决赛",
+    "fifa_rank": {
+      "home": 19,
+      "away": 4
+    },
+    "snapshot_count": 1,
+    "latest_1x2": {
+      "home": 3.65,
+      "draw": 3.55,
+      "away": 1.9
+    },
+    "latest_hcp": "-0.5 (英格兰让0.5/14家一致)",
+    "latest_ou": "2.5/2.75 (多数升盘至2.75)",
+    "source": "竞彩官方+亚洲庄家14家+Betfair必发 | 10张截图完整快照",
+    "verdict": "A(客胜英格兰) · 必发客74.63% ¥594万压倒性",
+    "first_score": "1-1 (blend OIP 11.3%, 收口)",
+    "file": "norway_vs_england_20260711.json",
+    "timeline_file": "timeline/norway_vs_england_20260711.json",
+    "modeling_verdict": "英格兰=诚实热端(非陷阱); 市场有效定价, 全部线Kelly<0; 回避-0.5溢价线(隐含53-56% vs 模型50.2%); 真庄护大球微弱倾向大2.5; 波胆单源收口OIP=1-1@11.3%(置信中)",
+    "model_blend_prob": {
+      "norway": 0.233,
+      "draw": 0.265,
+      "england": 0.502
+    },
+    "modeled_by": "毕正验/reverse_odds_engine",
+    "modeled_at": "2026-07-11T05:39+08:00",
+    "game_theorist_verdict": "渡庄生复核: 诚实热端(非陷阱)=honest_hedge; 庄家选降水不选升水=真怕英格兰赢; 低水线(英格兰/大球)与最顺人线重合, 严禁反判诱多; 全部线Kelly<0无正EV; 机构唯一裂缝=竞彩防挪威拿分(主胜3.92->3.63/+1挪威1.88->1.85); 注码: 英格兰客胜小注认同方向+挪威+1/平局反人性保险",
+    "game_theorist_at": "2026-07-11T10:53+08:00",
+    "cs_analysis": {
+      "source": "未识别波胆截图",
+      "captured_at": "2026-07-11T05:46:48+08:00",
+      "top3": [
+        {
+          "score": "1-1",
+          "fair_pct": 10.78
+        },
+        {
+          "score": "0-1",
+          "fair_pct": 9.43
+        },
+        {
+          "score": "1-2",
+          "fair_pct": 9.33
+        }
+      ],
+      "other_pct": 3.77,
+      "margin_pct": 20.48,
+      "note": "仅单源波胆, 无Betfair成交量交叉验证; 原index 0-1@13.5% 与本次 0-1 11.3% 接近但不同源",
+      "blend_oip": "1-1",
+      "blend_oip_pct": 11.34,
+      "blend_weights": {
+        "cs": 0.4,
+        "model": 0.6
+      },
+      "blend_top3": [
+        {
+          "score": "1-1",
+          "pct": 11.34
+        },
+        {
+          "score": "0-1",
+          "pct": 9.55
+        },
+        {
+          "score": "1-2",
+          "pct": 9.44
+        }
+      ],
+      "single_source_note": "仅1张未识别庄家波胆; 加权1X2模型后OIP仍为1-1, 鲁棒"
+    },
+    "status": "finalized",
+    "finalized_at": "2026-07-11T10:46+08:00",
+    "finalized_by": "毕正验/reverse_odds_engine",
+    "timeline_count": 1,
+    "post_review_status": "pending"
+  },
+  {
+    "match_id": "kabuscorp_vs_interdeluanda_20260710",
+    "match_time": "2026-07-10T14:15:00+08:00",
+    "home": "万博英雄(Kabuscorp)",
+    "away": "因邦多罗竞技(Inter de Luanda)",
+    "competition": "安哥拉围棋联赛(甲)",
+    "snapshot_count": 1,
+    "latest_1x2": {
+      "home": 2.49,
+      "draw": 2.3,
+      "away": 2.62
+    },
+    "latest_hcp": "平手/±0.5 (主1.89/客1.79, 客略低水)",
+    "latest_ou": "1.5 (Under@1.62极低水)",
+    "source": "用户截图OCR | Live 0-1 | 用户终场2-1(web 0-2已撤回)",
+    "verdict": "❌web 0-2已撤回. 用户终场2-1主胜逆转! 赛前判平/客皆错; 仅比分2-1在赛前备选(冷安慰); Under1.5@1.62信号也错(3球)",
+    "first_score": "2-1 (主队逆转, 终场)",
+    "file": "kabuscorp_vs_interdeluanda_20260710.json",
+    "timeline_file": null
+  },
+  {
+    "match_id": "ashdod_vs_modiin_20260710",
+    "match_time": "2026-07-10T16:03:00+08:00",
+    "home": "阿什杜德(Ashdod)",
+    "away": "莫迪因(Modi'in)",
+    "competition": "以色列超级联赛",
+    "snapshot_count": 1,
+    "latest_1x2": {
+      "home": 4.0,
+      "draw": 3.0,
+      "away": 1.82
+    },
+    "latest_hcp": "-0.5/+0.5 (主让@1.99/客受让@1.83)",
+    "latest_ou": "2.5 (Over@1.72低水)",
+    "source": "用户截图OCR | 终场1-3 | web 0-2已撤回",
+    "verdict": "✅终场1-3客胜(莫迪因). 方向客胜命中✅; 80'时1-2=首选比分吻合, 终场1-3(差1客球); Over2.5✅. 公开市场错看主胜(1.55)引擎反向命中",
+    "first_score": "1-3 (终场客胜)",
+    "file": "ashdod_vs_modiin_20260710.json",
+    "timeline_file": null
+  },
+  {
+    "match_id": "valletta_vs_ardal_20260710",
+    "match_time": "2026-07-10T16:16:00+08:00",
+    "home": "华拉特莎(Valletta)",
+    "away": "阿尔达(Ardal)",
+    "competition": "马耳他超级联赛(推测)",
+    "snapshot_count": 1,
+    "latest_1x2": {
+      "home": 3.05,
+      "draw": 2.22,
+      "away": 2.89
+    },
+    "latest_hcp": "平手(0): 主@2.02/客@1.80(客略低水)",
+    "latest_ou": "1.5 (Under@1.77低水)",
+    "source": "用户截图OCR | Live上半场41:35 | 0-0",
+    "verdict": "D(平局) league引擎draw_prob=40.1%(极高) conf=0.34 首选1-1/备选0-0 · 平赔2.22全场最低=市场也看好平",
+    "first_score": "1-1 (引擎首选)",
+    "file": "valletta_vs_ardal_20260710.json",
+    "timeline_file": null
+  },
+  {
+    "match_id": "dongdihan_w_vs_yinni_w_20260710",
+    "match_time": "2026-07-10T16:46:00+08:00",
+    "home": "东帝汉(女)",
+    "away": "印尼(女)",
+    "competition": "女足(亚洲杯/友谊赛?)",
+    "snapshot_count": 1,
+    "latest_1x2": {
+      "home": 19.5,
+      "draw": 10.5,
+      "away": 1.03
+    },
+    "latest_hcp": "-3.5/-1.5双线(客让, 均水1.91)",
+    "latest_ou": "4.5(Over@1.85) / 2.0(无差)",
+    "source": "用户截图OCR | 女足 | Live上半场06:41 | 0-1(印尼进球)",
+    "verdict": "A(客胜) conf=0.85 draw_prob8.5% 首选1-2 · 6分钟0-1印证屠杀预判; 滚球让球缩至-3@1.82/大小升5.5 Under低水",
+    "first_score": "1-2 (引擎首选)",
+    "file": "dongdihan_w_vs_yinni_w_20260710.json",
+    "timeline_file": null
+  },
+  {
+    "match_id": "trenzin_vs_thessaliniki_20260710",
+    "match_time": "2026-07-10T17:37:00+08:00",
+    "home": "特尔纳瓦斯巴达",
+    "away": "萨塞林",
+    "competition": "obscure联赛(待确认)",
+    "snapshot_count": 1,
+    "latest_1x2": {
+      "home": 9.6,
+      "draw": 3.35,
+      "away": 1.39
+    },
+    "latest_hcp": "客让+0/-0.5 @1.77低水(主受-0/+0.5@2.09)",
+    "latest_ou": "3.5 (Over@1.82低水陷阱线 / Under@1.98)",
+    "source": "用户截图OCR | Live下半场76:40 | 1-2客领先",
+    "verdict": "❌终场2-2打脸: 方向判客胜→实际平; Over3.5判陷阱→实际第4球Over命中. 根因=自相矛盾(框架低水=聪明边,却把低水Over当陷阱)+obscure联赛领后收缩假设不成立",
+    "first_score": "2-2 (终场平局)",
+    "file": "trenzin_vs_thessaliniki_20260710.json",
+    "timeline_file": null
+  },
+  {
+    "match_id": "unidentified_vs_unidentified_20260711",
+    "match_time": null,
+    "home": "未识别主队",
+    "away": "未识别客队",
+    "snapshot_count": 1,
+    "latest_1x2": null,
+    "latest_hcp": null,
+    "latest_ou": null,
+    "verdict": "盘口波胆长尾溢价=liability管理，非陷阱; 静态截图无drift，不下硬判定",
+    "first_score": "1-1 (双源接近; 竞彩7.70 vs 盘口7.80)",
+    "file": "unidentified_vs_unidentified_20260711.json",
+    "timeline_file": null,
+    "source": "用户截图OCR | 竞彩官方波胆 + 欧洲盘口波胆 | 无队名/开球时间/1X2/让球/大小球"
+  }
+]

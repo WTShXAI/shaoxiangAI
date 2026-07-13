@@ -18,6 +18,9 @@ frontend/.vite/
 *.h5
 *.onnx
 
+# ── SSoT 模型例外 (E1/E6 P0-1: 现役 draw_expert 必须入库可溯源) ──
+!saved_models/draw_expert_v3_focal.joblib
+
 # 数据和报告
 *.db
 *.sqlite
@@ -64,3 +67,7 @@ archive_backup/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# 桌面端截图 (开发临时文件)
+desktop_app/ScreenShot_*.png
+desktop_app/__pycache__/
