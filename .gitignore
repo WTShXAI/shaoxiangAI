@@ -85,7 +85,7 @@ data/wc_xlsx/
 # 交付物/报告产物
 deliverables/
 reports/
-odds_db/*.json
+odds_db/**/*.json
 !odds_db/schema.json
 odds_db/screenshots/
 
@@ -96,6 +96,9 @@ logs/
 *.npy
 *.pt
 *.zip
+
+# 本地配置(可能含密钥, 不入库)
+*.ini
 
 # 前端/测试缓存
 .vite/
