@@ -71,3 +71,50 @@ htmlcov/
 # 桌面端截图 (开发临时文件)
 desktop_app/ScreenShot_*.png
 desktop_app/__pycache__/
+
+# ── 仓库清理补充 (2026-07-14): 排除产物/数据/垃圾, 仅保留源码 ──
+
+# 数据目录 (保留处理脚本 *.py, 排除数据本身)
+data/**/*.json
+data/**/*.xlsx
+data/**/*.parquet
+data/cache/
+data/quality_audit/
+data/wc_xlsx/
+
+# 交付物/报告产物
+deliverables/
+reports/
+odds_db/*.json
+!odds_db/schema.json
+odds_db/screenshots/
+
+# 日志
+logs/
+
+# 大二进制/模型中间产物
+*.npy
+*.pt
+*.zip
+
+# 前端/测试缓存
+.vite/
+test-results/
+playwright-report/
+
+# 工具状态/垃圾
+.codebuddy/
+.zcode/
+nul
+*.log
+
+# 散落垃圾/临时
+resp.json
+file.png
+overview.md
+PENDING
+awesome-design-md/
+
+# 启动脚本(非源码)
+哨响AI.bat
+start_g3_daemon.bat
