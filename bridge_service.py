@@ -20,9 +20,18 @@ from __future__ import annotations
 import os
 import sys
 import json
+import time
 import logging
+import threading
 from typing import Any, Dict, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+
+# ── 加载 .env (使 THEODDS_API_KEY 等环境变量可用) ──
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
 
 # ── 项目根入 sys.path，确保 pipeline 包可导入 ──
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -32,7 +41,8 @@ if PROJECT_ROOT not in sys.path:
 from fastapi import FastAPI, HTTPException, Request
 from starlette.websockets import WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, ValidationError
 
 logger = logging.getLogger("football_bridge")
 logging.basicConfig(
@@ -73,6 +83,20 @@ def _get_engine(competition: str = "wc"):
         _ENGINE_CACHE[comp] = create_engine(comp)
         logger.info(f"引擎加载: {_ENGINE_CACHE[comp].description}")
     return _ENGINE_CACHE[comp]
+
+
+# ── ReverseOddsEngine 单例 (P2-3: 收敛 3 处独立实例化) ──
+_REVERSE_ENGINE = None
+
+
+def _get_reverse_engine():
+    """懒加载 ReverseOddsEngine 单例。"""
+    global _REVERSE_ENGINE
+    if _REVERSE_ENGINE is None:
+        from pipeline.reverse_odds_engine import ReverseOddsEngine
+        _REVERSE_ENGINE = ReverseOddsEngine()
+        logger.info("ReverseOddsEngine 单例初始化完成")
+    return _REVERSE_ENGINE
 
 
 # ═══ Pydantic 输入模型 ═══
@@ -183,10 +207,64 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ═══ 速率限制中间件 (ECC security-review: 所有端点限流) ═══
+# 进程内固定窗口: 按 (客户端IP, 路径前缀) 计数, 默认 120 次/分钟
+# 仅作用于 /api/* 与 /predict/*; /health /ws 等健康与长连接豁免
+_rate_lock = threading.Lock()
+_rate_buckets: Dict[str, Any] = {}
+
+
+def _rate_check(path: str, client_ip: str, limit_per_min: int) -> bool:
+    """True=放行, False=限流"""
+    if not (path.startswith("/api") or path.startswith("/predict")):
+        return True
+    now = time.time()
+    key = f"{client_ip}|{path.split('/')[1]}"
+    with _rate_lock:
+        bucket = _rate_buckets.get(key)
+        if bucket is None or now - bucket[0] >= 60:
+            _rate_buckets[key] = [now, 1]
+            return True
+        if bucket[1] >= limit_per_min:
+            return False
+        bucket[1] += 1
+        return True
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    path = request.url.path
+    if path.startswith("/api") or path.startswith("/predict"):
+        client_ip = request.client.host if request.client else "unknown"
+        limit = int(os.getenv("RATE_LIMIT_PER_MIN", "120"))
+        if not _rate_check(path, client_ip, limit):
+            return JSONResponse(
+                status_code=429,
+                content={"success": False, "error": {"code": "rate_limit_exceeded", "message": "请求过于频繁, 请稍后再试"}},
+            )
+    return await call_next(request)
+
+
 # ═══ API兼容中间件 — 拦截 /api/v1/* 返回空数据防前端崩溃 ═══
 #  注意: 使用纯 ASGI 中间件, 避免 BaseHTTPMiddleware 破坏 WebSocket 连接
 from starlette.responses import JSONResponse
 from datetime import datetime, timezone as tz
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.exceptions import RequestValidationError
+
+# ── 全局异常处理器：统一返回 JSON 信封, 杜绝后端任何异常→前端白屏 ──
+@app.exception_handler(Exception)
+async def _unhandled_exc_handler(request: Request, exc: Exception):
+    logger.error(f"未捕获异常 [{request.url.path}]: {exc}", exc_info=True)
+    return JSONResponse(status_code=500, content={"success": False, "data": None, "error": f"服务器内部错误: {type(exc).__name__}: {exc}"})
+
+@app.exception_handler(StarletteHTTPException)
+async def _http_exc_handler(request: Request, exc: StarletteHTTPException):
+    return JSONResponse(status_code=exc.status_code, content={"success": False, "data": None, "error": exc.detail})
+
+@app.exception_handler(RequestValidationError)
+async def _validation_exc_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(status_code=422, content={"success": False, "data": None, "error": "参数校验失败", "detail": exc.errors()})
 
 
 def _wrap_data(data) -> dict:
@@ -194,22 +272,119 @@ def _wrap_data(data) -> dict:
     return {
         "success": True,
         "data": data,
-        "timestamp": datetime.now(tz.utc).isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
-# ── 从 QF 预测数据加载真实赛程 ──
-def _load_qf_fixtures():
-    """加载8强赛程数据, 转为前端 Fixture/Match 格式"""
+def _wrap_error(code: str, message: str, details=None, status: int = 400) -> JSONResponse:
+    """统一错误信封 (ECC api-design: 语义化状态码 + 结构化错误体)"""
+    return JSONResponse(
+        status_code=status,
+        content={"success": False, "error": {"code": code, "message": message, "details": details}},
+    )
+
+
+# ── 从实时赔率库加载赛程数据（优先） ──
+def _load_real_match_data(db_path: Optional[str] = None, days: int = 7):
+    """优先读取 live_odds_raw 的最新赛事, 失败时回退 QF JSON。"""
+    fixtures = []
+    matches = []
+    leagues = [{"code": "WC26", "name": "世界杯 2026", "country": "国际"}]
+
+    db_path = db_path or os.path.join(PROJECT_ROOT, "data", "football_data.db")
+    if os.path.exists(db_path):
+        try:
+            import sqlite3
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT id, sport_key, home_team, away_team, home_team_en, away_team_en,
+                       commence_time, best_h2h, bookmakers_detail, captured_at
+                FROM live_odds_raw
+                WHERE commence_time IS NOT NULL
+                ORDER BY commence_time ASC
+                """
+            )
+            rows = cur.fetchall()
+            conn.close()
+        except Exception as e:
+            logger.warning(f"读取 live_odds_raw 失败: {e}")
+            rows = []
+    else:
+        rows = []
+
+    now = datetime.now(timezone.utc)
+    window_end = now + timedelta(days=days)
+    for row in rows:
+        try:
+            commence_dt = datetime.fromisoformat((row["commence_time"] or "").replace("Z", "+00:00"))
+        except Exception:
+            continue
+        if commence_dt < now - timedelta(days=1):
+            continue
+        if commence_dt > window_end:
+            continue
+
+        h2h = {}
+        try:
+            h2h = json.loads(row["best_h2h"] or "{}")
+        except Exception:
+            h2h = {}
+        home = row["home_team"] or row["home_team_en"] or ""
+        away = row["away_team"] or row["away_team_en"] or ""
+        fixture_id = row["id"]
+        odds_h = h2h.get("home")
+        odds_d = h2h.get("draw")
+        odds_a = h2h.get("away")
+
+        fixtures.append({
+            "id": fixture_id,
+            "home": home,
+            "away": away,
+            "time": row["commence_time"],
+            "time_local": commence_dt.strftime("%H:%M"),
+            "date_local": commence_dt.strftime("%m-%d"),
+            "day_of_week": ["一", "二", "三", "四", "五", "六", "日"][commence_dt.weekday()],
+            "group": "",
+            "stage": row["sport_key"] or "world_cup",
+            "status": "FINISHED" if commence_dt < now else "TIMED",
+            "score_home": None,
+            "score_away": None,
+            "is_finished": commence_dt < now,
+            "prediction": None,
+            "odds_h": odds_h,
+            "odds_d": odds_d,
+            "odds_a": odds_a,
+            "bookmakers_count": len(json.loads(row["bookmakers_detail"] or "[]")) if row["bookmakers_detail"] else 0,
+        })
+
+        matches.append({
+            "id": str(fixture_id),
+            "homeTeam": {"id": str(fixture_id), "name": home, "shortName": home[:3]},
+            "awayTeam": {"id": str(fixture_id), "name": away, "shortName": away[:3]},
+            "league": {"code": "WC26", "name": "世界杯 2026", "country": "国际"},
+            "kickoff": row["commence_time"],
+            "status": "finished" if commence_dt < now else "upcoming",
+            "homeOdds": odds_h,
+            "drawOdds": odds_d,
+            "awayOdds": odds_a,
+            "prediction": "",
+            "confidence": 0,
+        })
+
+    if fixtures or matches:
+        return fixtures, matches, leagues
+
+    # 回退: QF 预测数据
     qf_path = os.path.join(PROJECT_ROOT, "data", "qf_predictions_repredict.json")
     try:
         with open(qf_path, encoding='utf-8') as f:
             qf_data = json.load(f)
     except Exception:
-        return [], []
+        return [], [], leagues
 
-    fixtures = []
-    matches = []
     for m in qf_data:
         if m.get("error"):
             continue
@@ -221,28 +396,13 @@ def _load_qf_fixtures():
         odds_h = float(odds_parts[0]) if len(odds_parts) > 0 else 0
         odds_d = float(odds_parts[1]) if len(odds_parts) > 1 else 0
         odds_a = float(odds_parts[2]) if len(odds_parts) > 2 else 0
-
-        # 计算隐含概率 (去 overround)
-        implied_sum = 1/odds_h + 1/odds_d + 1/odds_a
-        imp_h = (1/odds_h) / implied_sum if implied_sum > 0 else 0.33
-        imp_d = (1/odds_d) / implied_sum if implied_sum > 0 else 0.33
-        imp_a = (1/odds_a) / implied_sum if implied_sum > 0 else 0.33
-
-        # 构建 top_scores 格式
-        best_score = m.get("best_score", "")
-        alt_scores = m.get("alt_scores", [])
-        top_scores = [{"score": best_score, "prob": 0.30}] if best_score else []
-        for s in alt_scores[:2]:
-            top_scores.append({"score": s, "prob": 0.15})
-
-        # Fixture 格式
         fixtures.append({
             "id": idx,
             "home": home,
             "away": away,
-            "time": f"2026-07-{5+idx:02d}T00:00:00Z",
-            "time_local": f"{5+idx:02d}:00",
-            "date_local": f"07-{5+idx:02d}",
+            "time": f"2026-07-{5 + idx:02d}T00:00:00Z",
+            "time_local": f"{5 + idx:02d}:00",
+            "date_local": f"07-{5 + idx:02d}",
             "day_of_week": "一",
             "group": "",
             "stage": "quarterfinal",
@@ -250,23 +410,18 @@ def _load_qf_fixtures():
             "score_home": None,
             "score_away": None,
             "is_finished": False,
-            "prediction": {
-                "verdict": m.get("verdict", ""),
-                "best_score": best_score,
-                "top_scores": top_scores,
-                "confidence": m.get("confidence", 0),
-                "rec_type": m.get("rec_type", ""),
-                "probabilities": {"H": round(imp_h, 3), "D": round(imp_d, 3), "A": round(imp_a, 3)},
-            } if m.get("verdict") else None,
+            "prediction": None,
+            "odds_h": odds_h,
+            "odds_d": odds_d,
+            "odds_a": odds_a,
+            "bookmakers_count": 0,
         })
-
-        # Match 格式
         matches.append({
             "id": str(idx),
             "homeTeam": {"id": str(idx), "name": home, "shortName": home[:3]},
             "awayTeam": {"id": str(idx), "name": away, "shortName": away[:3]},
             "league": {"code": "WC26", "name": "世界杯 2026", "country": "国际"},
-            "kickoff": f"2026-07-{5+idx:02d}T00:00:00Z",
+            "kickoff": f"2026-07-{5 + idx:02d}T00:00:00Z",
             "status": "upcoming",
             "homeOdds": odds_h,
             "drawOdds": odds_d,
@@ -275,52 +430,70 @@ def _load_qf_fixtures():
             "confidence": m.get("confidence", 0),
         })
 
-    return fixtures, matches
+    return fixtures, matches, leagues
 
 
-_QF_FIXTURES, _QF_MATCHES = _load_qf_fixtures()
-
-_API_V1_STUBS = {
-    "monitor/health": _wrap_data({
-        "status": "healthy",
-        "uptime": 0,
-        "apiLatency": 0,
-        "predictionLatency": 0,
-        "modelHealth": "healthy",
-        "databaseHealth": "healthy",
-        "memoryUsage": 0,
-        "cpuUsage": 0,
-    }),
-    "monitor/metrics/summary": _wrap_data({
-        "apiRequestsPerMin": 0,
-        "avgResponseTime": 0,
-        "predictionRequestsPerMin": 0,
-        "errorRate": 0,
-        "activeUsers": 0,
-    }),
-    "alerts/alerts": _wrap_data([]),
-    "fixtures/upcoming": _wrap_data({
-        "matches": _QF_FIXTURES,
-        "days": 7,
-        "upcoming_count": len(_QF_FIXTURES),
-        "finished_count": 0,
-        "cutoff": "2026-07-15",
-        "today": _QF_FIXTURES[:3],
-        "tomorrow": _QF_FIXTURES[3:],
-    }),
-    "matches/list": _wrap_data({"matches": _QF_MATCHES, "total": len(_QF_MATCHES)}),
-    "predict/stats": _wrap_data({
-        "total": len(_QF_MATCHES),
-        "todayAccuracy": 0,
-        "overallAccuracy": 0,
-        "totalPredictions": len(_QF_MATCHES),
-        "hotLeagues": [{"league": "世界杯 2026", "count": len(_QF_MATCHES)}],
-    }),
-    "predict/history": _wrap_data([]),
-    "models/versions": _wrap_data([]),
-    "historical/leagues": _wrap_data([{"code": "WC26", "name": "世界杯 2026", "country": "国际"}]),
-    "data-quality/reports": _wrap_data([]),
-}
+def _build_api_v1_stub(sub: str):
+    """为 /api/v1/* 端点生成动态内容，优先用实时数据库数据。"""
+    if sub in {"fixtures/upcoming", "fixtures/upcoming/"}:
+        fixtures, matches, _ = _load_real_match_data(days=7)
+        today = [f for f in fixtures if f.get("date_local") == datetime.now(timezone.utc).strftime("%m-%d")]
+        tomorrow = [f for f in fixtures if f.get("date_local") != datetime.now(timezone.utc).strftime("%m-%d")][:4]
+        return _wrap_data({
+            "matches": fixtures,
+            "days": 7,
+            "upcoming_count": len(fixtures),
+            "finished_count": sum(1 for f in fixtures if f.get("is_finished")),
+            "cutoff": (datetime.now(timezone.utc) + timedelta(days=7)).strftime("%Y-%m-%d"),
+            "today": today or fixtures[:3],
+            "tomorrow": tomorrow or fixtures[3:6],
+        })
+    if sub in {"matches/list", "matches/list/"}:
+        _, matches, _ = _load_real_match_data(days=7)
+        return _wrap_data({"matches": matches, "total": len(matches)})
+    if sub in {"matches/scores", "matches/scores/"}:
+        _, matches, _ = _load_real_match_data(days=7)
+        return _wrap_data(matches)
+    if sub in {"historical/leagues", "historical/leagues/"}:
+        _, _, leagues = _load_real_match_data(days=7)
+        return _wrap_data(leagues)
+    if sub in {"predict/stats", "predict/stats/"}:
+        _, matches, _ = _load_real_match_data(days=7)
+        return _wrap_data({
+            "total": len(matches),
+            "todayAccuracy": 0,
+            "overallAccuracy": 0,
+            "totalPredictions": len(matches),
+            "hotLeagues": [{"league": "世界杯 2026", "count": len(matches)}],
+        })
+    if sub in {"predict/history", "predict/history/"}:
+        return _wrap_data([])
+    if sub in {"models/versions", "models/versions/"}:
+        return _wrap_data([])
+    if sub in {"data-quality/reports", "data-quality/reports/"}:
+        return _wrap_data([])
+    if sub in {"monitor/health", "monitor/health/"}:
+        return _wrap_data({
+            "status": "healthy",
+            "uptime": 0,
+            "apiLatency": 0,
+            "predictionLatency": 0,
+            "modelHealth": "healthy",
+            "databaseHealth": "healthy",
+            "memoryUsage": 0,
+            "cpuUsage": 0,
+        })
+    if sub in {"monitor/metrics/summary", "monitor/metrics/summary/"}:
+        return _wrap_data({
+            "apiRequestsPerMin": 0,
+            "avgResponseTime": 0,
+            "predictionRequestsPerMin": 0,
+            "errorRate": 0,
+            "activeUsers": 0,
+        })
+    if sub in {"alerts/alerts", "alerts/alerts/"}:
+        return _wrap_data([])
+    return None
 
 class APIV1CompatMiddleware:
     """纯 ASGI 中间件 — 不破坏 WebSocket 连接"""
@@ -330,19 +503,19 @@ class APIV1CompatMiddleware:
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http" and scope["path"].startswith("/api/v1/"):
             sub = scope["path"][len("/api/v1/"):]
-            for key, stub in _API_V1_STUBS.items():
-                if sub == key or sub.startswith(key):
-                    body = json.dumps(stub, ensure_ascii=False).encode("utf-8")
-                    await send({
-                        "type": "http.response.start",
-                        "status": 200,
-                        "headers": [
-                            (b"content-type", b"application/json; charset=utf-8"),
-                            (b"content-length", str(len(body)).encode()),
-                        ],
-                    })
-                    await send({"type": "http.response.body", "body": body})
-                    return
+            stub = _build_api_v1_stub(sub)
+            if stub is not None:
+                body = json.dumps(stub, ensure_ascii=False).encode("utf-8")
+                await send({
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [
+                        (b"content-type", b"application/json; charset=utf-8"),
+                        (b"content-length", str(len(body)).encode()),
+                    ],
+                })
+                await send({"type": "http.response.body", "body": body})
+                return
             # 未匹配: 去掉 /api/v1 前缀, 放行到真实端点
             scope["path"] = "/" + sub
         await self.app(scope, receive, send)
@@ -358,6 +531,161 @@ ASSETS_DIR = os.path.join(FRONTEND_DIR, "assets")
 if os.path.exists(FRONTEND_DIR) and os.path.isdir(ASSETS_DIR):
     app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
     logger.info(f"[Bridge] 前端静态文件: {FRONTEND_DIR}")
+
+
+# ═══════════════════════════════════════════════════════
+# WebSocket ConnectionManager (实时推送管理)
+# ═══════════════════════════════════════════════════════
+import asyncio as _asyncio
+
+class ConnectionManager:
+    """管理所有 WebSocket 连接, 支持 broadcast 到所有终端客户端"""
+    def __init__(self):
+        self._connections: list = []
+
+    async def connect(self, ws: WebSocket):
+        await ws.accept()
+        self._connections.append(ws)
+        logger.info(f"[WS] 新连接, 当前 {len(self._connections)} 个")
+
+    def disconnect(self, ws: WebSocket):
+        if ws in self._connections:
+            self._connections.remove(ws)
+            logger.info(f"[WS] 断开, 剩余 {len(self._connections)} 个")
+
+    async def broadcast(self, msg: dict):
+        """向所有已连接客户端广播消息"""
+        payload = json.dumps(msg, ensure_ascii=False)
+        gone = []
+        for ws in self._connections:
+            try:
+                await ws.send_text(payload)
+            except Exception:
+                gone.append(ws)
+        for ws in gone:
+            self.disconnect(ws)
+
+ws_manager = ConnectionManager()
+
+# ── 实时赔率摄入缓存: {match_key: [book_data]} ──
+_ODDS_INGEST_CACHE: Dict[str, list] = {}
+
+
+# ═══════════════════════════════════════════════════════
+# 后台数据飞轮 (按方案第3章)
+# ═══════════════════════════════════════════════════════
+async def _daily_odds_loop():
+    """每日00:05 + 启动时立即执行: 智能拉取活跃联赛赔率"""
+    import asyncio
+    while True:
+        try:
+            # 预算前置检查: 今日配额耗尽则跳过本次拉取
+            from pipeline.collectors.api_budget import get_guard
+            guard = get_guard()
+            if not guard.can_spend(1):
+                logger.warning(f"[飞轮] 日配额耗尽({guard.daily_used()}/{guard.daily_cap}), "
+                               f"跳过本次赔率拉取")
+            else:
+                from pipeline.collectors.daily_collector import DailyCollector
+                dc = DailyCollector()
+                # to_thread 包裹同步阻塞采集, 不卡事件循环(否则 health 一直连不上)
+                stats = await _asyncio.to_thread(dc.collect_daily_odds)
+                logger.info(f"[飞轮] 每日赔率拉取: 采集{stats.get('collected',0)}场 "
+                            f"活跃{len(stats.get('active_leagues',[]))}联赛 "
+                            f"剩余配额{stats.get('remaining_quota','?')}")
+                if stats.get("remaining_quota", 999) < 50:
+                    logger.warning(f"[飞轮] ⚠️ API配额低: {stats['remaining_quota']}")
+        except Exception as e:
+            logger.error(f"[飞轮] 每日赔率拉取失败(非致命): {e}")
+        # 等到明天凌晨00:05
+        now = datetime.now()
+        target = now.replace(hour=0, minute=5, second=0, microsecond=0)
+        if target <= now:
+            target = target.replace(day=now.day + 1)
+        wait_sec = (target - now).total_seconds()
+        logger.info(f"[飞轮] 下次赔率拉取: {target.isoformat()} (~{wait_sec//3600:.0f}h)")
+        await asyncio.sleep(wait_sec)
+
+
+async def _result_backfill_loop():
+    """每6小时扫描回填赛果"""
+    import asyncio
+    while True:
+        try:
+            from pipeline.collectors.daily_collector import DailyCollector
+            dc = DailyCollector()
+            stats = await _asyncio.to_thread(dc.backfill_results)
+            logger.info(f"[飞轮] 赛果回填: 扫描{stats.get('scanned',0)} "
+                        f"回填{stats.get('backfilled',0)} 待手动{stats.get('pending',0)}")
+        except Exception as e:
+            logger.error(f"[飞轮] 赛果回填失败(非致命): {e}")
+        await asyncio.sleep(6 * 3600)  # 6小时
+
+
+async def _odds_features_sync_loop():
+    """每24小时同步 odds_features 训练数据"""
+    import asyncio
+    while True:
+        try:
+            from pipeline.collectors.daily_collector import DailyCollector
+            dc = DailyCollector()
+            stats = await _asyncio.to_thread(dc.sync_to_odds_features)
+            logger.info(f"[飞轮] odds_features同步: {stats.get('synced',0)}条 "
+                        f"总行数{stats.get('total_odds_features',0)}")
+        except Exception as e:
+            logger.error(f"[飞轮] odds_features同步失败(非致命): {e}")
+        await asyncio.sleep(24 * 3600)  # 24小时
+
+
+async def _startup_probe():
+    """首次启动探测活跃联赛 — 真正非阻塞(后台线程跑, 不卡 startup, health 立即可用)"""
+    try:
+        from pipeline.collectors.daily_collector import DailyCollector
+        dc = DailyCollector()
+        # 丢到后台线程执行, startup 不 await, health 立即响应
+        stats = await _asyncio.to_thread(dc.collect_daily_odds, True)
+        logger.info(f"[飞轮] 启动探测完成: 采集{stats.get('collected',0)}场 "
+                    f"活跃{len(stats.get('active_leagues',[]))}联赛")
+    except Exception as e:
+        logger.warning(f"[飞轮] 启动探测失败(后台继续): {e}")
+
+
+@app.on_event("startup")
+async def _start_background_loops():
+    """启动3个后台飞轮循环 + 恢复活跃联赛探测"""
+    logger.info("[飞轮] 启动后台数据飞轮 (3后台循环)...")
+    # 首次探测丢到后台任务, 不阻塞 startup 完成(否则 force_full 探测33联赛
+    # 会卡住 uvicorn, health 一直连不上)
+    _asyncio.create_task(_startup_probe())
+    # 启动后台异步循环
+    _asyncio.create_task(_daily_odds_loop())
+    _asyncio.create_task(_result_backfill_loop())
+    _asyncio.create_task(_odds_features_sync_loop())
+    # 每10分钟采集一次 live_odds_raw (轻度循环, 与赔率主循环互补)
+    _asyncio.create_task(_live_odds_mini_loop())
+
+
+async def _live_odds_mini_loop():
+    """每30分钟轻度拉取活跃联赛 (补充 daily_odds_loop, 捕捉临场变盘).
+
+    原 10 分钟过于频繁, 在 2万/月套餐下一天可烧 ~144+ 次调用.
+    改为 30 分钟 + 预算前置检查(护栏硬闸兜底), 彻底止血.
+    """
+    import asyncio
+    while True:
+        try:
+            from pipeline.collectors.api_budget import get_guard
+            guard = get_guard()
+            if not guard.can_spend(1):
+                logger.warning(f"[飞轮] 日配额耗尽({guard.daily_used()}/{guard.daily_cap}), "
+                               f"跳过 mini 拉取")
+            else:
+                from pipeline.collectors.daily_collector import DailyCollector
+                dc = DailyCollector()
+                await _asyncio.to_thread(dc.collect_daily_odds)  # 非 force_full, 只拉活跃联赛
+        except Exception:
+            pass
+        await asyncio.sleep(1800)  # 30分钟
 
 
 def _run_predict(match: MatchInput, competition: str = "wc") -> Dict[str, Any]:
@@ -447,37 +775,204 @@ async def root():
 
 @app.get("/health")
 async def health():
+    """健康检查 + 依赖就绪度 (ECC mle-workflow 监控: 引擎/DB/量化/预算)"""
     ok = ENGINE is not None
+    checks: Dict[str, Any] = {}
+
+    # DB 连通性 (实际查询, 不只看文件存在)
+    db_path = os.path.join(PROJECT_ROOT, "data", "football_data.db")
+    if os.path.exists(db_path):
+        try:
+            import sqlite3
+            c = sqlite3.connect(db_path, timeout=5)
+            c.execute("SELECT 1")
+            c.close()
+            checks["db"] = "connected"
+        except Exception as e:
+            checks["db"] = f"error: {e}"
+            ok = False
+    else:
+        checks["db"] = "missing"
+
+    # 量化引擎
+    checks["quant_engine"] = bool(globals().get("_QUANT_OK", False))
+
+    # API 预算剩余
+    try:
+        from pipeline.collectors.api_budget import get_guard
+        checks["api_budget_remaining"] = get_guard().budget_status().get("month_estimate_remaining")
+    except Exception:
+        checks["api_budget_remaining"] = None
+
     return {
         "ok": ok,
         "status": "healthy" if ok else "degraded",
         "engine": ENGINE.description if ENGINE else "未加载",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "checks": checks,
     }
 
 
 @app.get("/ready")
 async def ready():
     """K8s readiness probe: 引擎+DB+赔率库全部就绪才200"""
+    checks = {"engine": False, "db": False, "odds_db": False}
+
+    # 引擎
     if ENGINE is None:
         raise HTTPException(status_code=503, detail="引擎未加载")
-    return {"ok": True, "engine": ENGINE.description}
+    checks["engine"] = True
+
+    # DB 就绪 (football_data.db 存在且可读)
+    db_path = os.path.join(PROJECT_ROOT, "data", "football_data.db")
+    if os.path.exists(db_path) and os.access(db_path, os.R_OK):
+        checks["db"] = True
+
+    # 赔率库就绪 (odds_db/index.json 存在)
+    odds_index = os.path.join(PROJECT_ROOT, "odds_db", "index.json")
+    if os.path.exists(odds_index):
+        checks["odds_db"] = True
+
+    all_ready = all(checks.values())
+    status = "ready" if all_ready else "degraded"
+    if not all_ready:
+        missing = [k for k, v in checks.items() if not v]
+        raise HTTPException(status_code=503, detail=f"未就绪: {missing}")
+
+    return {"ok": True, "status": status, "checks": checks, "engine": ENGINE.description}
 
 # ── WebSocket 实时更新 ──
 @app.websocket("/ws/realtime")
 async def ws_realtime(ws):
-    """WebSocket 实时推送 — 心跳保持连接"""
+    """WebSocket 实时推送 — 心跳保持连接, 接收终端订阅"""
+    await ws_manager.connect(ws)
     try:
-        await ws.accept()
-        logger.info("[WS] 客户端已连接")
         while True:
             data = await ws.receive_text()
-            if data == "ping":
+            msg = json.loads(data)
+            if msg.get("type") == "ping":
                 await ws.send_text(json.dumps({
                     "type": "pong",
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 }))
+            elif msg.get("type") == "subscribe":
+                # 终端订阅特定比赛实时更新
+                logger.info(f"[WS] 客户端订阅: {msg.get('match_key','?')}")
     except Exception as e:
         logger.warning(f"[WS] 连接异常: {e}")
+    finally:
+        ws_manager.disconnect(ws)
+
+
+@app.websocket("/ws/odds_ingest")
+async def ws_odds_ingest(ws: WebSocket):
+    """浏览器插件赔率摄入端点 — 接收博彩网站DOM抓取赔率, >=2家触发实时分析
+    消息格式: {"home": "球队A", "away": "球队B", "source": "williamhill",
+              "h": 2.80, "d": 3.40, "a": 2.55, "score": "1-0", "minute": 65}"""
+    await ws.accept()
+    logger.info("[WS-Ingest] 赔率摄入客户端已连接")
+    try:
+        while True:
+            raw = await ws.receive_text()
+            try:
+                msg = json.loads(raw)
+            except json.JSONDecodeError:
+                await ws.send_text(json.dumps({"error": "invalid json"}))
+                continue
+
+            home = msg.get("home", "").strip()
+            away = msg.get("away", "").strip()
+            source = msg.get("source", "unknown")
+            h = msg.get("h")
+            d = msg.get("d")
+            a = msg.get("a")
+            score = msg.get("score", "")
+            minute = msg.get("minute")
+
+            if not home or not away or None in (h, d, a):
+                await ws.send_text(json.dumps({"error": "missing fields: home/away/h/d/a"}))
+                continue
+
+            # 确认收到
+            await ws.send_text(json.dumps({
+                "status": "received",
+                "match": f"{home} vs {away}",
+                "source": source,
+                "book_count": 0,
+            }))
+
+            # 累积到缓存
+            match_key = f"{home.lower()}|{away.lower()}"
+            book_entry = {"source": source, "h": h, "d": d, "a": a,
+                          "score": score, "minute": minute,
+                          "captured_at": datetime.now(timezone.utc).isoformat()}
+            accum = _ODDS_INGEST_CACHE.setdefault(match_key, [])
+            # 同来源去重 (保留最新)
+            accum = [b for b in accum if b["source"] != source]
+            accum.append(book_entry)
+            _ODDS_INGEST_CACHE[match_key] = accum
+
+            # >=2庄触发实时分析
+            if len(accum) >= 2:
+                try:
+                    # 取最优价
+                    best_h = min(b["h"] for b in accum)
+                    best_d = min(b["d"] for b in accum)  # 取最低赔=最看好
+                    best_a = min(b["a"] for b in accum)
+                    extra = [[b["source"], b["h"], b["d"], b["a"]] for b in accum]
+
+                    result = _live_predict(home, away, best_h, best_d, best_a,
+                                           extra_bookmakers=extra,
+                                           date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                                           league=None)
+                    result["ingest_source"] = "browser_extension"
+                    result["books_sources"] = [b["source"] for b in accum]
+                    result["live_score"] = score or None
+                    result["live_minute"] = minute
+
+                    # Broadcast到所有终端
+                    await ws_manager.broadcast({
+                        "type": "live_decision",
+                        "data": result,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+
+                    # 落库保存
+                    try:
+                        from pipeline.collectors.sp_odds_api import SPOddsAPI
+                        api = SPOddsAPI()
+                        for b in accum:
+                            api.save_to_db({
+                                "home_team": home, "away_team": away,
+                                "best_h2h": {"home": b["h"], "draw": b["d"], "away": b["a"]},
+                                "bookmakers_detail": [{"name": b["source"], "h": b["h"],
+                                                       "d": b["d"], "a": b["a"]}],
+                                "commence_time": datetime.now(timezone.utc).isoformat(),
+                                "sport_key": "soccer_unknown",
+                                "captured_at": b["captured_at"],
+                            })
+                    except Exception:
+                        pass
+
+                    # 发送结果给插件
+                    await ws.send_text(json.dumps({
+                        "status": "analyzed",
+                        "match": f"{home} vs {away}",
+                        "books": len(accum),
+                        "direction": result.get("direction", ""),
+                        "decision": result.get("value_layer", {}).get("decision", "PASS"),
+                    }))
+                except Exception as e:
+                    logger.error(f"[WS-Ingest] 实时分析失败: {e}")
+                    await ws.send_text(json.dumps({"status": "error", "detail": str(e)}))
+    except Exception as e:
+        logger.warning(f"[WS-Ingest] 连接关闭: {e}")
+    finally:
+        # 清理过期缓存 (保留最近100场)
+        if len(_ODDS_INGEST_CACHE) > 100:
+            keys = list(_ODDS_INGEST_CACHE.keys())
+            for k in keys[:-100]:
+                del _ODDS_INGEST_CACHE[k]
 
 
 @app.post("/predict")
@@ -589,6 +1084,14 @@ async def predict_single(req: SinglePredictRequest):
     else:  # 未知: 使用赔率隐含概率
         pH, pD, pA = imp_h, imp_d, imp_a
 
+    # 安全解析 best_score (格式 "2-0", 容错无横杠/非数字/缺字段)
+    _sc = fv.get("best_score") or "0-0"
+    try:
+        _sh, _sa = _sc.split("-", 1)
+        _score = {"home": int(_sh), "away": int(_sa)}
+    except (ValueError, TypeError):
+        _score = {"home": 0, "away": 0}
+
     return {
         "prediction": pred_code,
         "result": pred_code,
@@ -607,10 +1110,7 @@ async def predict_single(req: SinglePredictRequest):
             "A": round(imp_a, 4),
             "prediction": "H" if imp_h > imp_d and imp_h > imp_a else ("D" if imp_d > imp_h and imp_d > imp_a else "A"),
         },
-        "score": {
-            "home": int(fv.get("best_score", "0-0").split("-")[0]) if fv.get("best_score") else 0,
-            "away": int(fv.get("best_score", "0-0").split("-")[1]) if fv.get("best_score") else 0,
-        },
+        "score": _score,
         "score_prediction": {
             "primary": fv.get("best_score", "0-0"),
             "top_scores": [{"score": fv.get("best_score", "0-0"), "prob": 0.3, "outcome": pred_code}] +
@@ -666,7 +1166,7 @@ def _compute_softline(match: MatchInput, match_id: Optional[str] = None) -> Opti
     """
     try:
         from pipeline.reverse_odds_engine import ReverseOddsEngine
-        engine = ReverseOddsEngine()
+        engine = _get_reverse_engine()
         books = engine.query_odds_multi(match.home, match.away)
         if len(books) >= 2:
             rlm_real = _resolve_rlm_real(match_id)
@@ -691,7 +1191,7 @@ def _odds_intel(match: MatchInput, raw: dict, match_id: Optional[str] = None) ->
     """
     try:
         from pipeline.reverse_odds_engine import ReverseOddsEngine, OddsInput
-        engine = ReverseOddsEngine()
+        engine = _get_reverse_engine()
 
         # 多机构优先: 跨机构同步判定(真信号) + CLV(soft line edge)
         books = []
@@ -1670,37 +2170,6 @@ async def league_fixtures_api(sport_key: str):
                        "fixtures": fixtures, "cached": False})
 
 
-# ═══ 赔率 Widget URL (服务端注入 API Key, 前端只拿 URL 嵌 iframe) ═══
-@app.get("/api/widget-url")
-async def widget_url_api(
-    sport_key: str,
-    bookmaker_keys: str = "pinnacle",
-    odds_format: str = "decimal",
-    markets: str = "h2h,spreads,totals",
-):
-    """返回 The Odds API 赔率 widget URL。
-    API key 由服务端注入, 不暴露给前端 bundle。
-    query params 提供默认值, 前端可按需覆盖。
-    """
-    # 优先用 widget 专用 key, 回退到通用 THE_ODDS_API_KEY
-    access_key = os.getenv("WIDGET_ACCESS_KEY") or os.getenv("THE_ODDS_API_KEY")
-    if not access_key:
-        return _wrap_data({"error": "未配置 THE_ODDS_API_KEY 或 WIDGET_ACCESS_KEY 环境变量"})
-
-    widget_url = (
-        f"https://widget.the-odds-api.com/v1/sports/{sport_key}/events/"
-        f"?accessKey={access_key}"
-        f"&bookmakerKeys={bookmaker_keys}"
-        f"&oddsFormat={odds_format}"
-        f"&markets={markets}"
-    )
-    return _wrap_data({
-        "widget_url": widget_url,
-        "sport_key": sport_key,
-        "bookmaker_keys": bookmaker_keys,
-        "odds_format": odds_format,
-        "markets": markets,
-    })
 
 
 # ═══ 赔率实时匹配 (单场预测用, 非历史回测) ═══
@@ -1806,6 +2275,18 @@ async def bets_list_api(limit: int = 100, offset: int = 0, status: str = ""):
         return _wrap_data({"error": f"查询失败: {e}", "bets": [], "total": 0})
 
 
+class PlaceBetRequest(BaseModel):
+    home_team: str = Field(..., min_length=1)
+    away_team: str = Field(..., min_length=1)
+    league: str = ""
+    home_odds: float = Field(..., gt=1.0)
+    draw_odds: float = Field(..., gt=1.0)
+    away_odds: float = Field(..., gt=1.0)
+    bet_side: str
+    stake_amount: float = 0.0
+    confidence: float = 0.0
+
+
 @app.post("/api/bets")
 async def bets_place_api(request: Request):
     """手动模拟下注 (赛程页内嵌触发)。
@@ -1815,23 +2296,22 @@ async def bets_place_api(request: Request):
     """
     import sqlite3
     try:
-        req = await request.json()
+        body = await request.json()
     except Exception:
-        req = {}
-    home = req.get("home_team", "")
-    away = req.get("away_team", "")
-    league = req.get("league", "")
-    oh = float(req.get("home_odds", 0) or 0)
-    od = float(req.get("draw_odds", 0) or 0)
-    oa = float(req.get("away_odds", 0) or 0)
-    side = req.get("bet_side", "")
-    stake = float(req.get("stake_amount", 0) or 0)
-    confidence = float(req.get("confidence", 0) or 0)
+        return _wrap_error("invalid_json", "请求体不是合法 JSON", status=400)
+    try:
+        req = PlaceBetRequest(**body)
+    except ValidationError as e:
+        return _wrap_error("validation_error", "参数校验失败", details=e.errors(), status=422)
 
-    if not home or not away or side not in ("H", "D", "A"):
-        return _wrap_data({"error": "参数缺失: 需 home_team, away_team, bet_side(H/D/A)"})
-    if oh <= 1 or od <= 1 or oa <= 1:
-        return _wrap_data({"error": "赔率无效: 须 > 1.0"})
+    home, away, league = req.home_team, req.away_team, req.league
+    oh, od, oa = req.home_odds, req.draw_odds, req.away_odds
+    side = req.bet_side
+    stake = req.stake_amount
+    confidence = req.confidence
+
+    if side not in ("H", "D", "A"):
+        return _wrap_error("invalid_bet_side", "bet_side 必须为 H/D/A")
 
     # 隐含概率 (去 overround)
     inv = 1/oh + 1/od + 1/oa
@@ -1877,11 +2357,565 @@ async def bets_place_api(request: Request):
         return _wrap_data({"error": f"下注失败: {e}"})
 
 
+# ═══════════════════════════════════════════════
+# 操盘终端 API (按方案第4章: 4个新接口 + 1个WebSocket)
+# ═══════════════════════════════════════════════
+
+class TerminalAnalyzeRequest(BaseModel):
+    """终端分析请求 — 指定比赛实时拉取多庄赔率并决策"""
+    home: str
+    away: str
+    sport_key: str = "soccer_fifa_world_cup"
+
+
+class TerminalIngestRequest(BaseModel):
+    """插件赔率摄入 (HTTP降级版, WebSocket优先)"""
+    home: str
+    away: str
+    source: str = "browser_ext"
+
+
+class StrategyToggleRequest(BaseModel):
+    """量化模拟: 策略启用/停用"""
+    strategy_id: str
+    enabled: bool
+    h: float
+    d: float
+    a: float
+    score: Optional[str] = None
+    minute: Optional[int] = None
+
+
+@app.get("/api/terminal/matches")
+async def terminal_matches_api():
+    """当天可决策比赛列表 — 从 live_odds_raw 筛选有多庄赔率的比赛"""
+    import sqlite3
+    try:
+        db_path = os.path.join(PROJECT_ROOT, "data", "football_data.db")
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+        rows = conn.execute(
+            """SELECT home_team, away_team, sport_key, commence_time,
+                      best_h2h, bookmakers_detail, captured_at
+               FROM live_odds_raw
+               WHERE captured_at LIKE ? AND bookmakers_detail IS NOT NULL
+               ORDER BY commence_time ASC""",
+            (f"{today}%",)
+        ).fetchall()
+        conn.close()
+
+        matches = []
+        for r in rows:
+            try:
+                bm = json.loads(r['bookmakers_detail'] or '[]')
+            except Exception:
+                bm = []
+            if len(bm) < 2:
+                continue  # 必须多庄
+            h2h = json.loads(r['best_h2h'] or '{}')
+            league_name = LEAGUE_CATALOG.get(r['sport_key'], {}).get('name', r['sport_key'])
+            matches.append({
+                "home": r['home_team'], "away": r['away_team'],
+                "league": league_name,
+                "sport_key": r['sport_key'],
+                "commence_time": r['commence_time'],
+                "odds_h": h2h.get("home"), "odds_d": h2h.get("draw"), "odds_a": h2h.get("away"),
+                "bookmakers_count": len(bm),
+                "bookmakers": [b.get("name", "?") for b in bm[:5]],
+            })
+
+        return _wrap_data({
+            "date": today,
+            "matches": matches,
+            "total": len(matches),
+            "note": f"仅返回 >=2 庄的当日比赛 (共{len(matches)}场)",
+        })
+    except Exception as e:
+        return _wrap_data({"error": f"获取失败: {e}", "matches": [], "total": 0})
+
+
+# ═══════════════════════════════════════════════
+# 量化模拟系统 (演示, 不依赖 DB/模型)
+# ═══════════════════════════════════════════════
+class QuantDemoStepRequest(BaseModel):
+    mode: str = "sim"          # sim=模拟盘自动结算; live=仅生成待确认订单
+
+
+class QuantDemoConfirmRequest(BaseModel):
+    oid: str
+
+
+@app.get("/api/quant-demo/status")
+async def quant_demo_status():
+    """演示系统全量状态快照 (账户/曲线/策略/待确认/持仓)."""
+    from quant_demo.engine import get_engine
+    return _wrap_data(get_engine().snapshot())
+
+
+@app.post("/api/quant-demo/step")
+async def quant_demo_step(req: QuantDemoStepRequest):
+    """跑下一场比赛: 生成多策略信号 + pending 订单."""
+    from quant_demo.engine import get_engine
+    return _wrap_data(get_engine().step(mode=req.mode))
+
+
+@app.post("/api/quant-demo/auto-sim")
+async def quant_demo_auto_sim():
+    """自动模拟整批 (演示自动操作闭环)."""
+    from quant_demo.engine import get_engine
+    return _wrap_data(get_engine().auto_sim())
+
+
+@app.post("/api/quant-demo/confirm-all")
+async def quant_demo_confirm_all():
+    """一键确认全部 pending 订单 (模拟盘结算)."""
+    from quant_demo.engine import get_engine
+    return _wrap_data(get_engine().confirm_all())
+
+
+@app.post("/api/quant-demo/confirm-one")
+async def quant_demo_confirm_one(req: QuantDemoConfirmRequest):
+    """确认单笔 pending 订单."""
+    from quant_demo.engine import get_engine
+    return _wrap_data(get_engine().confirm_one(req.oid))
+
+
+@app.post("/api/quant-demo/toggle")
+async def quant_demo_toggle(req: StrategyToggleRequest):
+    """启用/停用策略."""
+    from quant_demo.engine import get_engine
+    return _wrap_data(get_engine().toggle_strategy(req.strategy_id, req.enabled))
+
+
+@app.post("/api/quant-demo/reset")
+async def quant_demo_reset():
+    """重置演示账户."""
+    from quant_demo.engine import get_engine
+    return _wrap_data(get_engine().reset())
+
+
+@app.post("/api/terminal/analyze")
+async def terminal_analyze_api(req: TerminalAnalyzeRequest):
+    """指定比赛实时拉取多庄赔率 → _live_predict → 决策卡片"""
+    try:
+        from pipeline.collectors.sp_odds_api import SPOddsAPI
+        api = SPOddsAPI()
+        if api.get_remaining_requests() <= 0:
+            return _wrap_data({"error": "API配额耗尽", "decision": None})
+
+        matches = api.get_odds(req.sport_key)
+        target = None
+        for m in matches:
+            h = m.get("home_team", "")
+            a = m.get("away_team", "")
+            if (req.home.lower() in h.lower() or h.lower() in req.home.lower()) and \
+               (req.away.lower() in a.lower() or a.lower() in req.away.lower()):
+                target = m
+                break
+
+        if not target:
+            return _wrap_data({"error": f"未找到匹配比赛: {req.home} vs {req.away}", "decision": None})
+
+        h2h = target.get("best_h2h", {})
+        bm = target.get("bookmakers_detail", [])
+        extra = [[b["name"], b["h"], b["d"], b["a"]] for b in bm
+                 if all(k in b for k in ("name", "h", "d", "a"))]
+
+        result = _live_predict(
+            target.get("home_team"), target.get("away_team"),
+            h2h.get("home"), h2h.get("draw"), h2h.get("away"),
+            home_norm=target.get("home_team"), away_norm=target.get("away_team"),
+            date=target.get("commence_time"), league=None,
+            extra_bookmakers=extra if len(extra) >= 2 else None,
+        )
+
+        # 落库保存
+        try:
+            api.save_to_db(target)
+        except Exception:
+            pass
+
+        # 构建决策卡片
+        vl = result.get("value_layer", {})
+        card = {
+            "fixture": {"home": target.get("home_team"), "away": target.get("away_team"),
+                        "commence_time": target.get("commence_time"),
+                        "sport_key": target.get("sport_key")},
+            "odds": result.get("odds"),
+            "market_prob": result.get("market_prob"),
+            "direction": result.get("direction"),
+            "decision": vl.get("decision", "PASS"),
+            "decision_text": vl.get("decision_text", ""),
+            "best_direction": vl.get("best_direction"),
+            "best_edge_pct": vl.get("best_edge_pct"),
+            "rows": vl.get("rows", []),
+            "softline": vl.get("softline"),
+            "books_count": vl.get("books_count", 0),
+            "draw_alert": result.get("draw_signal", {}).get("draw_alert"),
+            "operator_view": result.get("operator_view"),
+            "sub_markets": result.get("sub_markets"),
+        }
+        return _wrap_data(card)
+    except Exception as e:
+        logger.error(f"终端分析失败: {e}", exc_info=True)
+        return _wrap_data({"error": f"分析失败: {e}", "decision": None})
+
+
+@app.post("/api/terminal/ingest")
+async def terminal_ingest_api(req: TerminalIngestRequest):
+    """HTTP降级版赔率摄入 (WebSocket /ws/odds_ingest 优先, 此接口为降级方案)"""
+    home = req.home.strip()
+    away = req.away.strip()
+    match_key = f"{home.lower()}|{away.lower()}"
+
+    book_entry = {"source": req.source, "h": req.h, "d": req.d, "a": req.a,
+                  "score": req.score, "minute": req.minute,
+                  "captured_at": datetime.now(timezone.utc).isoformat()}
+    accum = _ODDS_INGEST_CACHE.setdefault(match_key, [])
+    accum = [b for b in accum if b["source"] != req.source]
+    accum.append(book_entry)
+    _ODDS_INGEST_CACHE[match_key] = accum
+
+    if len(accum) < 2:
+        return _wrap_data({
+            "status": "accumulating",
+            "match": f"{home} vs {away}",
+            "books": len(accum),
+            "sources": [b["source"] for b in accum],
+            "note": f"需要 >=2 家 (当前{len(accum)}家)",
+        })
+
+    try:
+        best_h = min(b["h"] for b in accum)
+        best_d = min(b["d"] for b in accum)
+        best_a = min(b["a"] for b in accum)
+        extra = [[b["source"], b["h"], b["d"], b["a"]] for b in accum]
+
+        result = _live_predict(home, away, best_h, best_d, best_a,
+                               extra_bookmakers=extra,
+                               date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                               league=None)
+        vl = result.get("value_layer", {})
+        return _wrap_data({
+            "status": "analyzed",
+            "match": f"{home} vs {away}",
+            "books": len(accum),
+            "direction": result.get("direction"),
+            "decision": vl.get("decision", "PASS"),
+            "decision_text": vl.get("decision_text", ""),
+            "softline": vl.get("softline"),
+        })
+    except Exception as e:
+        logger.error(f"终端摄入分析失败: {e}")
+        return _wrap_data({"status": "error", "detail": str(e)})
+
+
+@app.get("/api/data-growth/stats")
+async def data_growth_stats_api():
+    """数据增长统计 — 行数/配额/活跃联赛/比赛覆盖"""
+    try:
+        from pipeline.collectors.daily_collector import DailyCollector
+        dc = DailyCollector()
+        stats = dc.get_growth_stats()
+        return _wrap_data(stats)
+    except Exception as e:
+        return _wrap_data({
+            "quota_remaining": None,
+            "today_collected": 0,
+            "active_leagues": 0,
+            "odds_features_total": 0,
+            "live_odds_raw_with_result": 0,
+            "error": f"获取失败: {e}",
+        })
+
+
+@app.get("/api/quota")
+async def api_quota_api():
+    """The Odds API 配额与预算护栏状态 — 供操盘终端实时显示"""
+    try:
+        from pipeline.collectors.api_budget import get_guard
+        guard = get_guard()
+        status = guard.budget_status()
+        # 合并两个客户端的实时 remaining (若有近期调用)
+        try:
+            from pipeline.collectors.sp_odds_api import SPOddsAPI
+            live_rem = SPOddsAPI().get_remaining_requests()
+            if live_rem and live_rem > 0:
+                status["live_remaining"] = live_rem
+        except Exception:
+            pass
+        return _wrap_data(status)
+    except Exception as e:
+        return _wrap_data({"error": f"配额查询失败: {e}"})
+
+
+# ═══ 风控 + 报表 ═══
+@app.post("/api/bet/record")
+async def bet_record_api(payload: dict):
+    """记录一笔下注结果"""
+    try:
+        from database import db
+        bid = db.add_bet(
+            match=payload.get("match", ""),
+            outcome=payload.get("outcome", ""),
+            odds=float(payload.get("odds", 0)),
+            stake=float(payload.get("stake", 0)),
+            result=payload.get("result", ""),
+            pnl=float(payload.get("pnl", 0)),
+            kelly=float(payload.get("kelly", 0)),
+            ev=float(payload.get("ev", 0)),
+        )
+        return _wrap_data({"ok": True, "bet_id": bid})
+    except Exception as e:
+        return _wrap_data({"error": str(e)})
+
+
+@app.get("/api/risk/status")
+async def risk_status_api():
+    try:
+        from database import db
+        eq = db.equity()
+        dd = db.max_drawdown()
+        ls = db.lost_streak()
+        allow = dd < 0.15 and ls < 3
+        reason = "OK"
+        if dd >= 0.15:
+            reason = f"回撤 {dd:.1%}, 停止下注"
+        elif ls >= 3:
+            reason = f"连黑 {ls} 场, 强制停手"
+        return {
+            "allow": allow, "reason": reason,
+            "equity": eq, "drawdown": dd, "lost_streak": ls,
+        }
+    except Exception as e:
+        return {"allow": True, "reason": str(e), "equity": 0, "drawdown": 0, "lost_streak": 0}
+
+
+@app.get("/api/report/stats")
+async def report_stats_api():
+    try:
+        from database import db
+        return db.get_stats()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/api/report/equity")
+async def report_equity_api():
+    try:
+        from database import db
+        return db.get_equity_curve()
+    except Exception as e:
+        return []
+
+
+@app.get("/api/report/bets")
+async def report_bets_api(limit: int = 100, offset: int = 0):
+    try:
+        from database import db
+        return db.get_bets(limit=limit, offset=offset)
+    except Exception as e:
+        return []
+
+
+@app.get("/api/report/export")
+async def export_csv_api():
+    try:
+        import tempfile
+        from database import db
+        path = os.path.join(tempfile.gettempdir(), "shaoxiang_report.csv")
+        db.export_csv(path)
+        from fastapi.responses import FileResponse
+        return FileResponse(path, filename="哨响AI_操盘报表.csv", media_type="text/csv")
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ── 历史快照 ──
+HISTORY_DIR = os.path.join(PROJECT_ROOT, "history")
+os.makedirs(HISTORY_DIR, exist_ok=True)
+
+@app.get("/api/history/list")
+async def history_list_api():
+    try:
+        files = sorted(os.listdir(HISTORY_DIR), reverse=True)
+        return files[:50]
+    except Exception:
+        return []
+
+
+@app.post("/api/history/snapshot")
+async def history_snapshot_api(payload: dict):
+    try:
+        match = f"{payload.get('home','?')}_{payload.get('away','?')}".replace(" ","_")
+        ts = time.strftime("%Y%m%d_%H%M%S")
+        path = os.path.join(HISTORY_DIR, f"{match}_{ts}.json")
+        with open(path, "w", encoding="utf-8") as f:
+            import json as _json
+            _json.dump(payload, f, ensure_ascii=False, indent=2)
+        return {"ok": True, "path": path}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 # ═══ SPA fallback — 必须注册在所有显式路由之后 ═══
+
+
+# ════════════════════════════════════════════════════════════════════
+# 量化自动投注模拟系统 — /api/quant/*
+# 委托给 quant_engine.get_engine() 单例 (内存态, 不落 DB)
+# ════════════════════════════════════════════════════════════════════
+try:
+    from quant_engine import get_engine as _get_quant_engine
+    from quant_engine.market_feeder import parse_single_match as _parse_single
+    _QUANT_OK = True
+except Exception as _qe:
+    _QUANT_OK = False
+    logger.warning(f"quant_engine 未就绪: {_qe}")
+
+
+@app.get("/api/quant/snapshot")
+async def quant_snapshot_api():
+    """账户 + 资金曲线 + 持仓 + 待确认 + 信号流 + 策略 (前端主数据源)."""
+    if not _QUANT_OK:
+        raise HTTPException(500, "quant_engine 未就绪")
+    return _wrap_data(_get_quant_engine().get_snapshot())
+
+
+@app.post("/api/quant/scan/auto")
+async def quant_scan_auto_api(req: Request):
+    """启动/停止自动扫描, 或手动跑一个周期. action: cycle/on/off."""
+    if not _QUANT_OK:
+        raise HTTPException(500, "quant_engine 未就绪")
+    body = await req.json() if req.headers.get("content-type", "").startswith("application/json") else {}
+    action = body.get("action", "cycle")
+    eng = _get_quant_engine()
+    if action == "on":
+        eng.auto_mode = True
+        return _wrap_data({"ok": True, "auto_mode": True})
+    if action == "off":
+        eng.auto_mode = False
+        return _wrap_data({"ok": True, "auto_mode": False})
+    limit = int(body.get("limit", 20))
+    mode = body.get("mode", "sim")
+    return _wrap_data(eng.run_scan_cycle(limit=limit, mode=mode))
+
+
+@app.post("/api/quant/scan/step")
+async def quant_scan_step_api(req: Request):
+    """手动跑一个扫描周期."""
+    if not _QUANT_OK:
+        raise HTTPException(500, "quant_engine 未就绪")
+    body = await req.json() if req.headers.get("content-type", "").startswith("application/json") else {}
+    limit = int(body.get("limit", 20))
+    return _wrap_data(_get_quant_engine().run_scan_cycle(limit=limit))
+
+
+@app.post("/api/quant/scan/single")
+async def quant_scan_single_api(req: Request):
+    """手动输入单场赔率 → 全市场价值扫描 (对应图片场景).
+
+    Body: {home, away, h, d, a, league?, score_odds?, total_goals_odds?,
+            handicap_odds?, ou_odds?}
+    """
+    if not _QUANT_OK:
+        raise HTTPException(500, "quant_engine 未就绪")
+    body = await req.json()
+    try:
+        m = _parse_single(
+            home=body["home"], away=body["away"],
+            h=float(body["h"]), d=float(body["d"]), a=float(body["a"]),
+            league=body.get("league", ""),
+            score_odds=body.get("score_odds"),
+            total_goals_odds=body.get("total_goals_odds"),
+            handicap_odds=body.get("handicap_odds"),
+            ou_odds=body.get("ou_odds"),
+        )
+    except (KeyError, ValueError, TypeError) as ex:
+        raise HTTPException(400, f"参数错误: {ex}")
+    return _wrap_data(_get_quant_engine().analyze_single(m))
+
+
+@app.post("/api/quant/history/replay")
+async def quant_history_replay_api(req: Request):
+    """历史回放 — 用真实可结算数据重放 → 资金曲线."""
+    if not _QUANT_OK:
+        raise HTTPException(500, "quant_engine 未就绪")
+    body = await req.json() if req.headers.get("content-type", "").startswith("application/json") else {}
+    n = int(body.get("n_matches", 100))
+    return _wrap_data(_get_quant_engine().simulate_history(n_matches=n))
+
+
+@app.post("/api/quant/order/confirm-all")
+async def quant_order_confirm_all_api():
+    """一键确认全部待结算订单."""
+    if not _QUANT_OK:
+        raise HTTPException(500, "quant_engine 未就绪")
+    eng = _get_quant_engine()
+    settled = []
+    for o in list(eng.pending):
+        r = eng.confirm_order(o.oid)
+        if r.get("ok"):
+            settled.append(r["order"])
+    return _wrap_data({"ok": True, "settled": settled, "account": eng.pf.stats()})
+
+
+class QuantConfirmRequest(BaseModel):
+    oid: str = Field(..., min_length=1)
+    actual: str = "D"
+
+
+@app.post("/api/quant/order/confirm")
+async def quant_order_confirm_api(request: Request):
+    """确认单笔订单 (live 模式人工闸). body: {oid, actual?}."""
+    if not _QUANT_OK:
+        raise HTTPException(500, "quant_engine 未就绪")
+    try:
+        body = await request.json()
+    except Exception:
+        return _wrap_error("invalid_json", "请求体不是合法 JSON", status=400)
+    try:
+        req = QuantConfirmRequest(**body)
+    except ValidationError as e:
+        return _wrap_error("validation_error", "参数校验失败", details=e.errors(), status=422)
+    return _wrap_data(_get_quant_engine().confirm_order(req.oid, req.actual))
+
+
+@app.post("/api/quant/strategy/toggle")
+async def quant_strategy_toggle_api(req: Request):
+    """切换策略开关. body: {strategy_id, enabled}."""
+    if not _QUANT_OK:
+        raise HTTPException(500, "quant_engine 未就绪")
+    body = await req.json() if req.headers.get("content-type", "").startswith("application/json") else {}
+    sid = body.get("strategy_id", "")
+    enabled = bool(body.get("enabled", True))
+    return _wrap_data(_get_quant_engine().toggle_strategy(sid, enabled))
+
+
+@app.post("/api/quant/reset")
+async def quant_reset_api(req: Request):
+    """重置账户."""
+    if not _QUANT_OK:
+        raise HTTPException(500, "quant_engine 未就绪")
+    body = await req.json() if req.headers.get("content-type", "").startswith("application/json") else {}
+    bankroll = float(body.get("bankroll", 0)) if body.get("bankroll") else None
+    _get_quant_engine().reset(init_bankroll=bankroll)
+    return _wrap_data({"ok": True, "snapshot": _get_quant_engine().get_snapshot()})
+
+
 if os.path.exists(FRONTEND_DIR):
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str = ""):
-        """SPA fallback — 捕获所有未匹配路径, 返回 index.html"""
+        """SPA fallback — 仅对前端路由返回 index.html; API/WS 未匹配返回 404 JSON 防前端白屏"""
+        if full_path.startswith(("api/", "ws/", "docs", "openapi.json", "redoc")):
+            raise HTTPException(status_code=404, detail=f"未找到 API 路径: /{full_path}")
+        # 量化终端独立页面
+        if full_path == "quant_terminal.html" or full_path == "quant":
+            from fastapi.responses import FileResponse
+            qt = os.path.join(FRONTEND_DIR, "quant_terminal.html")
+            if os.path.exists(qt):
+                return FileResponse(qt)
         index_path = os.path.join(FRONTEND_DIR, "index.html")
         if os.path.exists(index_path):
             from fastapi.responses import FileResponse

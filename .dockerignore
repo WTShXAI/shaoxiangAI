@@ -1,16 +1,68 @@
-.venv
-.venv_314_backup
-__pycache__
-*.pyc
-.git
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.venv/
+.venv_*/
+venv/
+venv_*/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── Node ──
+node_modules/
+frontend/node_modules/
+frontend/dist/        # 由多阶段构建生成, 不复制
+
+# ── Git ──
+.git/
 .gitignore
-logs/*.log
-data/backups
-archive_backup
-nul
-node_modules
+.gitattributes
+.github/
+
+# ── IDE / Editor ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── WorkBuddy ──
+.workbuddy/
+.codebuddy/
+.experts/
+.$$$$$$/
+
+# ── Environment ──
 .env
-.vscode
-.idea
+.env.*
+!.env.example
+
+# ── Data (mounted at runtime) ──
+data/
+saved_models/
+logs/
+
+# ── Output ──
+output/
+deliverables/
+reports/
+分析报告/
+$$$$$$/
+
+# ── Docs & Misc ──
 *.md
-test*
+!requirements.txt
+nul
+*.bak
+*.backup
+archive_backup/
+instructions/
+专家团模板/
+
+# ── Tests ──
+tests/
+tests/test*.py
+tests/test*.bat

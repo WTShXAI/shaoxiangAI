@@ -45,7 +45,7 @@ class BetfairClient:
     """
 
     def __init__(self, db_path: str = "data/football_data.db",
-                 api_key: str = None, session_token: str = None,
+                 api_key: Optional[str] = None, session_token: Optional[str] = None,
                  mode: str = "hybrid"):
         """
         Args:
@@ -88,6 +88,7 @@ class BetfairClient:
 
     def _upsert_market(self, data: Dict[str, Any]) -> int:
         """插入或更新 betfair_market 记录"""
+        assert self._conn is not None  # 由 _connect() 保证已连接
         cur = self._conn.cursor()
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -115,6 +116,7 @@ class BetfairClient:
                        list(data.values()))
             market_id = cur.lastrowid
 
+        assert self._conn is not None  # 由 _connect() 保证已连接
         self._conn.commit()
         return market_id
 
@@ -147,7 +149,7 @@ class BetfairClient:
         }
 
         # 1. 获取市场列表（按比赛ID查找）
-        payload = {
+        payload: Dict[str, Any] = {
             "filter": {
                 "eventTypeIds": ["1"],  # Soccer
                 "marketTypeCodes": ["MATCH_ODDS"],
@@ -173,7 +175,7 @@ class BetfairClient:
 
             # 2. 获取市场详情（含交易量）
             market_id = catalogues[0].get("marketId")
-            detail_payload = {
+            detail_payload: Dict[str, Any] = {
                 "marketIds": [market_id],
                 "priceProjection": {
                     "priceData": ["EX_ALL_OFFERS", "EX_TRADED"],
@@ -258,6 +260,7 @@ class BetfairClient:
         3. 买卖价差: 从 return_rate 推导
         4. 交易量偏斜: 基于 implied probability 分布
         """
+        assert self._conn is not None  # 由 _connect() 保证已连接
         cur = self._conn.cursor()
 
         # 获取当前赔率
@@ -359,7 +362,7 @@ class BetfairClient:
             if recent_moves:
                 avg_move = np.mean(recent_moves)
                 # 归一化: 0.1 = 小波动, 0.5+ = 大急变
-                steam_move_score = round(min(1.0, avg_move / 0.5), 3)
+                steam_move_score = round(min(1.0, float(avg_move) / 0.5), 3)
 
         # 大额交易标记: steam_move > 0.3 且方向一致
         large_bet_flag = 1 if steam_move_score > 0.3 else 0
@@ -441,6 +444,7 @@ class BetfairClient:
             self._connect()
 
             # 优先查缓存
+            assert self._conn is not None  # 由 _connect() 保证已连接
             cur = self._conn.cursor()
             cur.execute("""
                 SELECT * FROM betfair_market
@@ -504,6 +508,7 @@ class BetfairClient:
         """获取所有有赔率但缺少必发数据的比赛"""
         try:
             self._connect()
+            assert self._conn is not None  # 由 _connect() 保证已连接
             cur = self._conn.cursor()
 
             # 找出有赔率但缺少必发数据的比赛
@@ -527,6 +532,7 @@ class BetfairClient:
         """快速查询: 从数据库读取已有必发数据（不触发新请求）"""
         try:
             self._connect()
+            assert self._conn is not None  # 由 _connect() 保证已连接
             cur = self._conn.cursor()
             cur.execute("""
                 SELECT * FROM betfair_market
