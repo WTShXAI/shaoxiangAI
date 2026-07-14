@@ -1,184 +1,123 @@
 {
-  "active": "4.1",
-  "production": "saved_models/football_v4.1_production.joblib",
-  "models": {
-    "v4.1_20260618": {
-      "name": "v4.1 Production",
-      "version": "4.1",
-      "path": "saved_models/football_v4.1_production.joblib",
-      "accuracy": 0.6243,
-      "draw_f1": 0.52,
-      "auc": 0.815,
-      "model_type": "ensemble",
-      "trained_at": "2026-06-18",
-      "registered_at": "2026-07-01T05:55:00",
-      "status": "active"
+  "active": "wc_v1",
+  "note": "WC模型重训(双管齐下): 主模型wc_main_v1 + DrawExpert_v3_focal, 基于116场真实WC比赛",
+  "current": {
+    "version": "wc_v1",
+    "timestamp": "2026-07-06T23:44:28.159220+08:00",
+    "engine": "WC Dual ML: wc_main_v1(Stacking LGB+XGB) + DrawExpert_v3_focal",
+    "n_features": 77,
+    "wc_samples": 115,
+    "metrics": {
+      "main_acc": 0.7565,
+      "main_macro_f1": 0.7487,
+      "draw_f1": 0.6301,
+      "baseline_acc": 0.5769,
+      "acc_uplift": 0.1796
     },
-    "ensemble_20260618": {
-      "name": "Ensemble v20260618",
-      "version": "4.1",
-      "path": "saved_models/football_ensemble_20260618_160404.joblib",
-      "accuracy": null,
-      "draw_f1": null,
-      "auc": null,
-      "model_type": "ensemble",
-      "trained_at": "2026-06-18",
-      "registered_at": "2026-07-01T06:20:00",
-      "status": "standby"
-    },
-    "nn_20260616": {
-      "name": "Neural Network v20260616",
-      "version": "4.1",
-      "path": "saved_models/football_nn_20260616_125617.pth",
-      "accuracy": null,
-      "draw_f1": null,
-      "auc": null,
-      "model_type": "neural_network",
-      "trained_at": "2026-06-16",
-      "registered_at": "2026-07-01T06:20:00",
-      "status": "standby"
-    },
-    "jepa_v5_lite": {
-      "name": "JEPA v5 Lite",
-      "version": "5.0",
-      "path": "models/jepa/checkpoints/best_model_lite.pt",
-      "accuracy": 0.5648,
-      "draw_f1": 0.4561,
-      "auc": null,
-      "model_type": "transformer",
-      "trained_at": "2026-06-21",
-      "registered_at": "2026-07-01T05:55:00",
-      "status": "active_blend",
-      "blend_role": "post-stacking 平局专精后融合 (env JEPA_BLEND_WEIGHT, 默认0.08)",
-      "f1_home": 0.6445,
-      "f1_away": 0.5204
-    }
+    "models": [
+      "wc_main_v1",
+      "draw_expert_v3_focal"
+    ]
   },
   "versions": [
     {
-      "version": "4.1",
-      "timestamp": "2026-07-02T16:57:55.354909+00:00",
-      "accuracy": 0.609,
-      "auc": 0.806,
-      "mcc": 0,
-      "draw_f1": 0.4897,
-      "n_features": 72,
+      "version": "6.0-rule",
+      "timestamp": "2026-07-06T00:50:00+08:00",
+      "engine": "Rule-only pipeline",
       "models": [
-        "lightgbm",
-        "xgboost",
-        "odds_expert",
-        "heuristic",
-        "neural_net",
-        "draw_expert"
-      ],
-      "stacking": true,
-      "v41_config": {
-        "draw_expert_mult": 0.25,
-        "draw_cw_mult": 1.1,
-        "home_cw_mult": 0.9,
-        "draw_threshold": 0.46,
-        "ha_gap": 0.0
-      }
+        "draw_expert_v2_focal",
+        "mispricing_detector"
+      ]
     },
     {
-      "version": "4.1",
-      "timestamp": "2026-07-02T16:58:12.919957+00:00",
-      "accuracy": 0.609,
-      "auc": 0.806,
-      "mcc": 0,
-      "draw_f1": 0.4897,
-      "n_features": 72,
+      "version": "wc_v1",
+      "timestamp": "2026-07-06T15:58:25.849798+08:00",
+      "engine": "WC Dual ML: wc_main_v1(Stacking LGB+XGB) + DrawExpert_v3_focal",
+      "n_features": 81,
+      "wc_samples": 112,
+      "metrics": {
+        "main_acc": 0.7411,
+        "main_macro_f1": 0.745,
+        "draw_f1": 0.6182,
+        "baseline_acc": 0.5769,
+        "acc_uplift": 0.1642
+      },
       "models": [
-        "lightgbm",
-        "xgboost",
-        "odds_expert",
-        "heuristic",
-        "neural_net",
-        "draw_expert"
-      ],
-      "stacking": true,
-      "v41_config": {
-        "draw_expert_mult": 0.25,
-        "draw_cw_mult": 1.1,
-        "home_cw_mult": 0.9,
-        "draw_threshold": 0.46,
-        "ha_gap": 0.0
-      }
+        "wc_main_v1",
+        "draw_expert_v3_focal"
+      ]
     },
     {
-      "version": "4.1",
-      "timestamp": "2026-07-02T16:58:28.158610+00:00",
-      "accuracy": 0.609,
-      "auc": 0.806,
-      "mcc": 0,
-      "draw_f1": 0.4897,
-      "n_features": 72,
+      "version": "wc_v1",
+      "timestamp": "2026-07-06T16:08:35.963176+08:00",
+      "engine": "WC Dual ML: wc_main_v1(Stacking LGB+XGB) + DrawExpert_v3_focal",
+      "n_features": 81,
+      "wc_samples": 112,
+      "metrics": {
+        "main_acc": 0.7411,
+        "main_macro_f1": 0.745,
+        "draw_f1": 0.6182,
+        "baseline_acc": 0.5769,
+        "acc_uplift": 0.1642
+      },
       "models": [
-        "lightgbm",
-        "xgboost",
-        "odds_expert",
-        "heuristic",
-        "neural_net",
-        "draw_expert"
-      ],
-      "stacking": true,
-      "v41_config": {
-        "draw_expert_mult": 0.25,
-        "draw_cw_mult": 1.1,
-        "home_cw_mult": 0.9,
-        "draw_threshold": 0.46,
-        "ha_gap": 0.0
-      }
+        "wc_main_v1",
+        "draw_expert_v3_focal"
+      ]
     },
     {
-      "version": "4.1",
-      "timestamp": "2026-07-02T16:58:44.292041+00:00",
-      "accuracy": 0.609,
-      "auc": 0.806,
-      "mcc": 0,
-      "draw_f1": 0.4897,
-      "n_features": 72,
+      "version": "wc_v1",
+      "timestamp": "2026-07-06T19:46:18.525364+08:00",
+      "engine": "WC Dual ML: wc_main_v1(Stacking LGB+XGB) + DrawExpert_v3_focal",
+      "n_features": 77,
+      "wc_samples": 112,
+      "metrics": {
+        "main_acc": 0.7411,
+        "main_macro_f1": 0.745,
+        "draw_f1": 0.6182,
+        "baseline_acc": 0.5769,
+        "acc_uplift": 0.1642
+      },
       "models": [
-        "lightgbm",
-        "xgboost",
-        "odds_expert",
-        "heuristic",
-        "neural_net",
-        "draw_expert"
-      ],
-      "stacking": true,
-      "v41_config": {
-        "draw_expert_mult": 0.25,
-        "draw_cw_mult": 1.1,
-        "home_cw_mult": 0.9,
-        "draw_threshold": 0.46,
-        "ha_gap": 0.0
-      }
+        "wc_main_v1",
+        "draw_expert_v3_focal"
+      ]
+    },
+    {
+      "version": "wc_v1",
+      "timestamp": "2026-07-06T22:13:49.782197+08:00",
+      "engine": "WC Dual ML: wc_main_v1(Stacking LGB+XGB) + DrawExpert_v3_focal",
+      "n_features": 77,
+      "wc_samples": 115,
+      "metrics": {
+        "main_acc": 0.7565,
+        "main_macro_f1": 0.7487,
+        "draw_f1": 0.6301,
+        "baseline_acc": 0.5769,
+        "acc_uplift": 0.1796
+      },
+      "models": [
+        "wc_main_v1",
+        "draw_expert_v3_focal"
+      ]
+    },
+    {
+      "version": "wc_v1",
+      "timestamp": "2026-07-06T23:44:28.159220+08:00",
+      "engine": "WC Dual ML: wc_main_v1(Stacking LGB+XGB) + DrawExpert_v3_focal",
+      "n_features": 77,
+      "wc_samples": 115,
+      "metrics": {
+        "main_acc": 0.7565,
+        "main_macro_f1": 0.7487,
+        "draw_f1": 0.6301,
+        "baseline_acc": 0.5769,
+        "acc_uplift": 0.1796
+      },
+      "models": [
+        "wc_main_v1",
+        "draw_expert_v3_focal"
+      ]
     }
-  ],
-  "current": {
-    "version": "4.1",
-    "timestamp": "2026-07-02T16:58:44.292041+00:00",
-    "accuracy": 0.609,
-    "auc": 0.806,
-    "mcc": 0,
-    "draw_f1": 0.4897,
-    "n_features": 72,
-    "models": [
-      "lightgbm",
-      "xgboost",
-      "odds_expert",
-      "heuristic",
-      "neural_net",
-      "draw_expert"
-    ],
-    "stacking": true,
-    "v41_config": {
-      "draw_expert_mult": 0.25,
-      "draw_cw_mult": 1.1,
-      "home_cw_mult": 0.9,
-      "draw_threshold": 0.46,
-      "ha_gap": 0.0
-    }
-  }
+  ]
 }

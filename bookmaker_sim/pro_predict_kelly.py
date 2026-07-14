@@ -8,12 +8,6 @@ import numpy as np
 from pathlib import Path
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
-# 优先环境变量, fallback 到已知路径
-_fai = os.environ.get('FOOTBALLAI_ROOT', '')
-if _fai and os.path.isdir(_fai):
-
-else:
-
 import joblib
 
 # ============================================================
@@ -56,10 +50,10 @@ MODEL_PATH = None
 for candidate in [
     os.path.join(ROOT, "models", "main", "football_v4.1_production.joblib"),
     os.path.join(ROOT, "saved_models", "football_v4.1_production.joblib"),
-    r"D:\AI\footballAI\saved_models\football_v4.1_production.joblib",
+    r"D:/Architecture\saved_models\football_v4.1_production.joblib",
     os.path.join(ROOT, "models", "main", "football_v4.0_production.joblib"),
-    r"D:\AI\footballAI\saved_models\football_v4.0_production.joblib",
-    r"D:\AI\footballAI\saved_models\football_balanced_production.joblib",
+    r"D:/Architecture\saved_models\football_v4.0_production.joblib",
+    r"D:/Architecture\saved_models\football_balanced_production.joblib",
 ]:
     if os.path.exists(candidate):
         MODEL_PATH = candidate

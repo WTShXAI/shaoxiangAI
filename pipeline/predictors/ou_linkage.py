@@ -277,6 +277,24 @@ class OULinkageEngine:
         else:
             hcp_override_note = None
 
+        # ═══ P0-4: 让2球分裂线特殊处理 ═══
+        # 规则: 让2球(>=1.75) 时, 常规LINKAGE_MATRIX偏向强队穿盘/走水
+        # 非屠杀队场景下, 应首选不穿/小负/走水比分, 将大比分屠杀后排
+        # 案例: 法国vs巴拉圭(客让2球→0-1), 德国vs巴拉圭(1-1点球)
+        if hcp_class == 'very_deep':
+            home_give = match.hcp < 0
+            if home_give:
+                # 主让2球: 0-2走水, 1-0/2-1/0-0/1-1/0-1 为不穿/小负
+                preferred_order = ['1-0', '0-0', '2-1', '0-1', '1-1', '0-2', '2-0', '3-1', '3-0', '4-0', '4-1', '5-0']
+            else:
+                # 客让2球: 2-0走水, 0-1/1-2/0-0/1-1/1-0 为不穿/小负
+                preferred_order = ['0-1', '0-0', '1-2', '1-0', '1-1', '2-0', '0-2', '1-3', '0-3', '0-4', '1-4', '0-5']
+            # 按preferred_order排序, 未列出的保持原序放最后
+            order_map = {s: i for i, s in enumerate(preferred_order)}
+            original_index = {s: i for i, s in enumerate(scores)}
+            scores = sorted(scores, key=lambda s: (order_map.get(s, 100), original_index.get(s, 100)))
+            hcp_override_note = (hcp_override_note or '') + ' | P0-4: 让2球分裂线, 非屠杀队首选不穿/走水比分'
+
         # ═══ v5.10: 分裂线陷阱降权 (替代硬排除) ═══
         if 'trap' in honesty_grade and honesty_mult < 0.95:
             conf = min(conf, 0.70)

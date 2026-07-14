@@ -1,7 +1,7 @@
 """
 2026WC Screenshot OU Extractor v1.0
 ====================================
-固定路径: D:\Architecture\2026WC\{date}/*.png
+固定路径: D:/Architecture/2026WC/{date}/*.png
 用途: 从赛前截图提取外围OU大小球盘口, 用于OU约束层
 
 原理: 庄家Poisson模型算出的OU线是市场共识, 精度远高于我们自己的λ估计。
@@ -109,14 +109,27 @@ def parse_screenshots(date_str: str = '6.28', use_ocr: bool = True) -> Dict[str,
     
     results = {}
     png_files = sorted(scan_dir.glob('*.png'))
-    
+
+    # 复用同一个 OCR reader (避免每张图重复加载模型, 极其耗时)
+    reader = None
+    if use_ocr:
+        try:
+            import easyocr
+            reader = easyocr.Reader(['ch_sim', 'en'], gpu=False, verbose=False)
+        except ImportError:
+            print(f'[OU Extractor] easyocr未安装, 跳过OCR')
+            use_ocr = False
+        except Exception as e:
+            print(f'[OU Extractor] OCR引擎初始化失败: {e}')
+            use_ocr = False
+
     for fp in png_files:
         fname = fp.stem  # 文件名不含扩展名
         match_info = None
         
         # 从文件名匹配
         for key, (home, away) in MATCH_FROM_FILENAME.items():
-            if key in fname or key.replace('vs', 'vs') in fname:
+            if key in fname:
                 match_info = {'home': home, 'away': away, 'match': f'{home}vs{away}'}
                 break
         
@@ -132,16 +145,11 @@ def parse_screenshots(date_str: str = '6.28', use_ocr: bool = True) -> Dict[str,
         
         ou_data = None
         
-        if use_ocr:
+        if use_ocr and reader is not None:
             try:
-                import easyocr
-                reader = easyocr.Reader(['ch_sim', 'en'], gpu=False, verbose=False)
                 ocr_result = reader.readtext(str(fp), detail=0)
                 text = '\n'.join(ocr_result)
                 ou_data = extract_ou_from_text(text)
-            except ImportError:
-                print(f'[OU Extractor] easyocr未安装, 跳过OCR')
-                use_ocr = False
             except Exception as e:
                 print(f'[OU Extractor] OCR失败 {fname}: {e}')
         

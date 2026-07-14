@@ -13,7 +13,7 @@ import math
 warnings.filterwarnings('ignore')
 
 ARCH_ROOT = Path(r"D:/Architecture")
-FAI_ROOT = Path(r"D:/AI/footballAI")
+FAI_ROOT = Path(r"D:/Architecture")
 
 MATCHES = [
     ['加拿大','波黑',1.84,3.45,4.60,-0.5,2.5,'D','1-1','6.13'],

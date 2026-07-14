@@ -7,6 +7,7 @@ import time
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
+import requests
 from database.db_manager import DatabaseManager
 
 logger = logging.getLogger(__name__)

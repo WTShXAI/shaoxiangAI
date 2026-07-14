@@ -21,6 +21,7 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import URLError
 import re
+from typing import Optional
 
 CACHE_DIR = Path(__file__).parent.parent / 'data' / 'odds_cache'
 CACHE_TTL = 3600  # 1 hour
@@ -192,8 +193,8 @@ def get_all_odds(matches):
         results.append((home, away, oh, od, oa, hcp, ou))
     return results
 
-def save_odds_to_db(match_id: int, home: str, away: str, date: str = None,
-                     db_path: str = None) -> bool:
+def save_odds_to_db(match_id: int, home: str, away: str, date: Optional[str] = None,
+                     db_path: Optional[str] = None) -> bool:
     """
     将赔率快照写入数据库 odds_snapshots 表。
 

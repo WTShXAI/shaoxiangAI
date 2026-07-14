@@ -184,7 +184,13 @@ def league_zone_decision(odds: dict, form: dict, mot: dict, home_adv: dict) -> d
 # ═══════════════════════════════════════════════════════════
 
 def predict(match: MatchInput) -> PipelineResult:
-    """联赛预测流水线"""
+    """联赛预测流水线
+
+    ⚠️ 已知退化: analyze_form 复用 wc_engine._FORM_DB, 该表仅含 WC2026 队名.
+    联赛(俱乐部)球队在此表中无记录 → form 分析始终回退默认值 (gf=1.0/ga=1.0/n=1).
+    联赛预测实际上依赖赔率解析 + 动机分析 + 主场加权, form 信号为中性占位.
+    待补充: 接入真实联赛 form 数据源后, 此退化自动解除.
+    """
     # Step 1: 赔率解析 (与世界杯通用)
     odds = parse_odds(match.odds_h, match.odds_d, match.odds_a)
     

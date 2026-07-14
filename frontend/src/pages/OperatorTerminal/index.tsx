@@ -71,10 +71,10 @@ export default function OperatorTerminal() {
         >
           {[
             { label: 'API配额', val: growth.quota_remaining ?? '?', unit: '次', warn: (growth.quota_remaining ?? 999) < 50 },
-            { label: '今日采集', val: growth.today_collected, unit: '场' },
-            { label: '活跃联赛', val: growth.active_leagues, unit: '个' },
-            { label: '训练数据', val: `${(growth.odds_features_total / 10000).toFixed(1)}万`, unit: '行' },
-            { label: '有赛果', val: growth.live_odds_raw_with_result, unit: '场' },
+            { label: '今日采集', val: growth.today_collected ?? 0, unit: '场' },
+            { label: '活跃联赛', val: growth.active_leagues ?? 0, unit: '个' },
+            { label: '训练数据', val: `${((growth.odds_features_total || 0) / 10000).toFixed(1)}万`, unit: '行' },
+            { label: '有赛果', val: growth.live_odds_raw_with_result ?? 0, unit: '场' },
           ].map((s) => (
             <div key={s.label} className={`px-3 py-1.5 rounded-lg border text-xs font-medium ${
               s.warn ? 'border-amber-500/30 bg-amber-500/8 text-amber-400' : 'border-white/[0.08] bg-white/[0.03] text-white/60'
@@ -120,7 +120,7 @@ export default function OperatorTerminal() {
           <AnimatePresence>
             {matches.map((m, i) => (
               <motion.div
-                key={`${m.home}-${m.away}`}
+                key={`${m.sport_key}-${m.home}-${m.away}-${m.commence_time}-${i}`}
                 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.03 }}
                 onClick={() => analyze(m)}
@@ -178,24 +178,33 @@ export default function OperatorTerminal() {
             </div>
           )}
 
-          {card && !analyzing && (
+          {card?.error && (
+            <div className="p-4 rounded-lg border border-red-500/20 bg-red-500/10 text-red-300 text-sm">
+              ⚠ 实时分析未完成：{card.error}
+              <div className="text-[10px] text-white/40 mt-1">
+                可能原因：比赛不在 The Odds API 当前盘口 / API 额度耗尽 / 网络异常。可稍后重试或用手动赔率输入。
+              </div>
+            </div>
+          )}
+
+          {card && !analyzing && !card.error && (
             <div className="space-y-4">
               {/* 决策标签 */}
               <div className="flex items-center gap-3">
-                <h2 className="text-lg font-bold text-white">
-                  {card.fixture.home} vs {card.fixture.away}
+                <h2 className="text-2xl font-bold text-white">
+                  {card.fixture?.home} vs {card.fixture?.away}
                 </h2>
-                <span className={`text-xs px-2.5 py-1 rounded-full border font-bold ${decisionColor(card.decision)}`}>
+                <span className={`text-sm px-3 py-1.5 rounded-full border font-bold ${decisionColor(card.decision)}`}>
                   {card.decision === 'BET' ? '建仓' : card.decision === 'SCAN' ? '观察' : '观望'}
                 </span>
                 {card.books_count > 0 && (
-                  <span className="text-[11px] text-white/30">{card.books_count}庄</span>
+                  <span className="text-sm text-white/40">{card.books_count}庄</span>
                 )}
               </div>
 
               {/* 决策文本 */}
               {card.decision_text && (
-                <p className="text-xs text-white/40 bg-white/[0.03] rounded-lg px-3 py-2 border border-white/[0.06]">
+                <p className="text-sm text-white/50 bg-white/[0.03] rounded-lg px-3 py-2 border border-white/[0.06] leading-relaxed">
                   {card.decision_text}
                 </p>
               )}
@@ -207,16 +216,16 @@ export default function OperatorTerminal() {
                   { label: '平局', key: 'd', odds: card.odds?.od, prob: card.market_prob?.d },
                   { label: '客胜', key: 'a', odds: card.odds?.oa, prob: card.market_prob?.a },
                 ].map((x) => (
-                  <div key={x.key} className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02] text-center">
-                    <div className="text-[11px] text-white/30">{x.label}</div>
-                    <div className="text-lg font-bold text-white">{x.odds?.toFixed(2) || '-'}</div>
-                    <div className="mt-1.5 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                  <div key={x.key} className="p-4 rounded-lg border border-white/[0.06] bg-white/[0.02] text-center">
+                    <div className="text-sm text-white/40">{x.label}</div>
+                    <div className="text-3xl font-bold text-white">{x.odds?.toFixed(2) || '-'}</div>
+                    <div className="mt-2 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
                       <div
                         className="h-full rounded-full bg-field-500/60 transition-all duration-500"
                         style={{ width: `${(x.prob || 0) * 100}%` }}
                       />
                     </div>
-                    <div className="text-[10px] text-white/25 mt-0.5">{((x.prob || 0) * 100).toFixed(1)}%</div>
+                    <div className="text-sm text-white/40 mt-1">{((x.prob || 0) * 100).toFixed(1)}%</div>
                   </div>
                 ))}
               </div>
@@ -224,21 +233,21 @@ export default function OperatorTerminal() {
               {/* EV/凯利 行 */}
               {card.rows && card.rows.length > 0 && (
                 <div>
-                  <h3 className="text-xs font-semibold text-white/40 mb-2">EV / 凯利 分析</h3>
-                  <div className="space-y-1">
+                  <h3 className="text-sm font-semibold text-white/50 mb-2">EV / 凯利 分析</h3>
+                  <div className="space-y-1.5">
                     {card.rows.map((r, i) => (
-                      <div key={i} className={`flex items-center justify-between px-3 py-1.5 rounded text-xs ${
-                        card.best_direction === r.outcome ? 'bg-field-500/8 border border-field-500/15' : ''
+                      <div key={i} className={`flex items-center justify-between px-4 py-2.5 rounded text-sm ${
+                        card.best_direction === r.outcome ? 'bg-field-500/8 border border-field-500/15' : 'bg-white/[0.02]'
                       }`}>
-                        <span className="text-white/60 w-10">{r.outcome}</span>
-                        <span className="text-white/40 w-16 text-right">@{r.odds?.toFixed(2)}</span>
-                        <span className="text-white/40 w-20 text-right">
+                        <span className="text-white/70 w-12 font-medium">{r.outcome}</span>
+                        <span className="text-white/50 w-20 text-right">@{r.odds?.toFixed(2)}</span>
+                        <span className="text-white/50 w-24 text-right">
                           edge {r.edge_pct?.toFixed(1)}%
                         </span>
-                        <span className={`w-16 text-right font-medium ${(r.ev || 0) > 0 ? 'text-emerald-400' : 'text-white/30'}`}>
+                        <span className={`w-24 text-right font-semibold ${(r.ev || 0) > 0 ? 'text-emerald-400' : 'text-white/40'}`}>
                           EV {r.ev?.toFixed(1)}%
                         </span>
-                        <span className="w-20 text-right text-white/30">
+                        <span className="w-24 text-right text-white/50">
                           凯利 {(r.kelly_half || 0).toFixed(3)}
                         </span>
                       </div>
@@ -249,21 +258,21 @@ export default function OperatorTerminal() {
 
               {/* 跨庄信号 */}
               {card.softline && (
-                <div className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-                  <h3 className="text-xs font-semibold text-white/40 mb-1.5">跨庄信号</h3>
-                  <div className="flex flex-wrap gap-2 text-[11px]">
+                <div className="p-4 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+                  <h3 className="text-sm font-semibold text-white/50 mb-2">跨庄信号</h3>
+                  <div className="flex flex-wrap gap-2 text-xs">
                     {card.softline.disagreement_detected && (
-                      <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                      <span className="px-2.5 py-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
                         庄家分歧
                       </span>
                     )}
                     {card.softline.softline_fade_applied && (
-                      <span className="px-2 py-0.5 rounded bg-field-500/10 text-field-400 border border-field-500/20">
+                      <span className="px-2.5 py-1 rounded bg-field-500/10 text-field-400 border border-field-500/20">
                         热门淡化 (0.41)
                       </span>
                     )}
                     {card.softline.softline_adjusted_probs && (
-                      <span className="text-white/25">
+                      <span className="text-white/35">
                         adj: [{card.softline.softline_adjusted_probs.map((p: number) => (p * 100).toFixed(1) + '%').join(', ')}]
                       </span>
                     )}
@@ -273,22 +282,22 @@ export default function OperatorTerminal() {
 
               {/* 操盘手视图 */}
               {card.operator_view && (
-                <div className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xs font-semibold text-white/40">操盘手规则触发</h3>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                <div className="p-4 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <h3 className="text-sm font-semibold text-white/50">操盘手规则触发</h3>
+                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${
                       card.operator_view.stake_hint === '重仓' ? 'bg-emerald-500/15 text-emerald-400' :
                       card.operator_view.stake_hint === '回避' ? 'bg-red-500/15 text-red-400' :
-                      'bg-white/[0.04] text-white/30'
+                      'bg-white/[0.04] text-white/40'
                     }`}>
                       {card.operator_view.stake_hint}
                     </span>
                   </div>
-                  <p className="text-xs text-white/50 mb-1.5">{card.operator_view.verdict}</p>
-                  <div className="space-y-1">
-                    {card.operator_view.rules_fired.map((r) => (
-                      <div key={r.id} className="flex items-start gap-2 text-[11px]">
-                        <span className={`flex-shrink-0 w-4 h-4 rounded flex items-center justify-center text-[9px] font-bold ${
+                  <p className="text-sm text-white/60 mb-2 leading-relaxed">{card.operator_view.verdict}</p>
+                  <div className="space-y-1.5">
+                    {(card.operator_view.rules_fired || []).map((r) => (
+                      <div key={r.id} className="flex items-start gap-2.5 text-sm">
+                        <span className={`flex-shrink-0 w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold ${
                           r.color === 'red' ? 'bg-red-500/15 text-red-400' :
                           r.color === 'amber' ? 'bg-amber-500/15 text-amber-400' :
                           r.color === 'green' ? 'bg-emerald-500/15 text-emerald-400' :
@@ -297,13 +306,13 @@ export default function OperatorTerminal() {
                           {r.id.replace('R', '')}
                         </span>
                         <div>
-                          <span className="text-white/60">{r.label}:</span>
-                          <span className="text-white/35 ml-1">{r.detail}</span>
+                          <span className="text-white/70">{r.label}:</span>
+                          <span className="text-white/45 ml-1">{r.detail}</span>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <p className="text-[10px] text-white/20 mt-2">
+                  <p className="text-xs text-white/30 mt-2.5">
                     主信号 {card.operator_view.primary_signal} · 置信 {card.operator_view.confidence_pct}%
                   </p>
                 </div>
@@ -311,18 +320,18 @@ export default function OperatorTerminal() {
 
               {/* 平局预警 */}
               {card.draw_alert && (
-                <div className="px-3 py-2 rounded-lg border border-amber-500/20 bg-amber-500/5 text-amber-400 text-xs">
+                <div className="px-3 py-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 text-amber-400 text-sm">
                   ⚠️ 平局预警 (P平≥26%) — 考虑防平策略
                 </div>
               )}
 
               {/* 子市场概览 */}
               {card.sub_markets && Object.keys(card.sub_markets).length > 0 && (
-                <div className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-                  <h3 className="text-xs font-semibold text-white/40 mb-1.5">子市场信号</h3>
-                  <div className="flex flex-wrap gap-1.5 text-[10px]">
+                <div className="p-4 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+                  <h3 className="text-sm font-semibold text-white/50 mb-2">子市场信号</h3>
+                  <div className="flex flex-wrap gap-1.5 text-xs">
                     {Object.entries(card.sub_markets).map(([k, v]: [string, any]) => (
-                      <span key={k} className="px-2 py-0.5 rounded bg-white/[0.04] text-white/40 border border-white/[0.06]">
+                      <span key={k} className="px-2 py-0.5 rounded bg-white/[0.04] text-white/50 border border-white/[0.06]">
                         {k}: {v?.decision || 'SCAN'}
                       </span>
                     ))}

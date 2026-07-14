@@ -24,21 +24,13 @@ class LiveMovementSignal:
     - △≥0.75 或 从平手直接到受让 = 高概率诱盘
 
     数据来源:
-    - 外围: 2026WC/6.27/ 截图 (原始赔率)
-    - 竞彩: sporttery.cn 实时赔率
+    - 外围: MatchInput.hcp (从实时 API/DB 获取)
+    - 竞彩: MatchInput.sporttery_hcp (从 sporttery.cn 实时获取)
+    
+    v6.0 数据清理: SPORTTERY_HCP_627 硬编码竞彩数据已移除
+    - 竞彩让球数据现在从 MatchInput.sporttery_hcp 动态获取
+    - get_movement_summary_table() 改为接受 matches 参数
     """
-
-    # 竞彩让球数据 (从sporttery.cn获取, 相对于主队视角)
-    # 符号约定: 负=主队让球, 正值=主队受让 (与MatchInput.hcp一致)
-    # 竞彩[+N]=主队受让N球 →正值,  竞彩[-N]=主队让N球→负值
-    SPORTTERY_HCP_627 = {
-        ('挪威', '法国'):       +1.0,   # 竞彩[+1]: 挪威受让1球(法国让1球)
-        ('塞内加尔', '伊拉克'): -2.0,   # 竞彩[-2]: 塞内加尔让2球
-        ('佛得角共和国', '沙特阿拉伯'): -1.0,  # 竞彩[-1]: 佛得角让1球(沙特受让1球)
-        ('乌拉圭', '西班牙'):   +1.0,   # 竞彩[+1]: 乌拉圭受让1球(西班牙让1球)
-        ('埃及', '伊朗'):       -1.0,   # 竞彩[-1]: 埃及让1球
-        ('新西兰', '比利时'):   +2.0,   # 竞彩[+2]: 新西兰受让2球(比利时让2球)
-    }
 
     # 信号等级阈值
     THRESHOLDS = {
@@ -51,13 +43,10 @@ class LiveMovementSignal:
     @classmethod
     def analyze(cls, match: MatchInput) -> Dict[str, Any]:
         """分析临场升盘信号"""
-        key = (match.home, match.away)
-
-        # 竞彩让球数据来源优先级: 硬编码字典 → match.sporttery_hcp → 无数据
+        # v6.0: 竞彩让球数据从 MatchInput.sporttery_hcp 动态获取
+        # 不再使用硬编码 SPORTTERY_HCP_627 字典
         sporttery_hcp = None
-        if key in cls.SPORTTERY_HCP_627:
-            sporttery_hcp = cls.SPORTTERY_HCP_627[key]
-        elif match.sporttery_hcp and abs(match.sporttery_hcp) > 0.01:
+        if match.sporttery_hcp is not None and abs(match.sporttery_hcp) > 0.01:
             sporttery_hcp = match.sporttery_hcp
 
         if sporttery_hcp is None:
@@ -156,28 +145,26 @@ class LiveMovementSignal:
         }
 
     @classmethod
-    def get_movement_summary_table(cls) -> List[Dict]:
-        """生成六场汇总表"""
+    def get_movement_summary_table(cls, matches: List[MatchInput]) -> List[Dict]:
+        """生成临场升盘汇总表
+        
+        Args:
+            matches: 比赛列表 (MatchInput), 需包含 sporttery_hcp 字段
+            
+        v6.0 数据清理: 不再使用硬编码 MATCHES_6_27 / SPORTTERY_HCP_627
+        竞彩数据须通过 MatchInput.sporttery_hcp 传入
+        """
         rows = []
-        for (home, away), st_hcp in cls.SPORTTERY_HCP_627.items():
-            # 找对应的外围让球
-            match_data = None
-            for m in MATCHES_6_27:
-                if m.home == home and m.away == away:
-                    match_data = m
-                    break
-            if match_data is None:
-                continue
-
+        for match_data in matches:
             analysis = cls.analyze(match_data)
             rows.append({
-                'match': f'{home} vs {away}',
-                'offshore': f'{analysis["offshore_display"]}',
-                'sporttery': f'{analysis["sporttery_display"]}',
+                'match': f'{match_data.home} vs {match_data.away}',
+                'offshore': f'{analysis.get("offshore_display", "-")}',
+                'sporttery': f'{analysis.get("sporttery_display", "-")}',
                 'diff': analysis['depth_diff'],
                 'grade': analysis['grade'],
                 'trap_risk': analysis['trap_risk'],
-                'interpretation': analysis['interpretation'][:30],
+                'interpretation': analysis['interpretation'][:30] if analysis.get('interpretation') else '',
             })
         return rows
 

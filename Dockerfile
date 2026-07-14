@@ -1,7 +1,7 @@
 # 哨响AI v7.1 — 多阶段构建 Docker 镜像
 # =============================================
 # Stage 1: 前端构建 (Node 22 Slim)
-# Stage 2: 后端运行 (Python 3.13 Slim)
+# Stage 2: 后端运行 (Python 3.11 Slim) — 与 CI PYTHON_VERSION 对齐 (E6 P0-3)
 
 # ── Stage 1: 前端构建 ──────────────────────
 FROM node:22-slim AS frontend-build
@@ -16,7 +16,7 @@ RUN npm run build 2>&1
 RUN test -f dist/index.html || (echo "❌ 前端构建失败: dist/index.html 不存在" && exit 1)
 
 # ── Stage 2: 后端运行 ──────────────────────
-FROM python:3.13-slim
+FROM python:3.11-slim
 
 LABEL org.opencontainers.image.title="哨响AI"
 LABEL org.opencontainers.image.version="7.1"

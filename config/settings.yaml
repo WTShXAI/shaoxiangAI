@@ -73,7 +73,7 @@ paths:
   data_dir: "data"
   db_path: "data/football_data.db"
   sp_db_path: "D:/AI/SP/data/sp_data.db"
-  v41_model: "saved_models/football_v4.1_production.joblib"
+  v41_model: "saved_models/football_balanced_production.joblib"  # 原 football_v4.1_production 已隔离(加载失败: 依赖已删模块)
   v32_model: "saved_models/football_balanced_production.joblib"
   draw_expert: "saved_models/draw_expert_v1.joblib"
   nn_model: "saved_models/football_nn_20260616_125617.pth"

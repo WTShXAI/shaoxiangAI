@@ -1,5 +1,6 @@
 {
-  "_meta": "D-Gate v5.1 赛事规则 — 多信号分层判型",
+  "_meta": "⚠️ DEPRECATED (2026-07-05): dgate 节已被 drawgate_v53_rules.json 取代, 本文件仅保留向后兼容",
+  "_deprecated_note": "实际引擎 drawgate_v53.py 使用 config/drawgate_v53_rules.json, 本文件 dgate 节为死代码",
   "_version": "2.0.0",
   "_updated": "2026-06-21T20:30:00+08:00",
   "_note": "v5.1升级: Mode C反转(spread大=翻车×2.2), S7+S1过滤, Mode C-away",

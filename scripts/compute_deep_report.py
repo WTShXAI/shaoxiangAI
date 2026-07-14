@@ -6,7 +6,6 @@ compute_deep_report.py
 纯标准库实现，可复现。
 """
 import json
-import math
 import os
 import sys
 
@@ -15,34 +14,19 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from scripts.bet_core import kelly_fraction, safe_stake, FRAC_KELLY, MAX_STAKE_FRAC  # noqa: E402
-
-
-def poisson_pmf(lam, k):
-    return math.exp(-lam) * (lam ** k) / math.factorial(k)
-
-
-def poisson_hda(lam_h, lam_a, max_goals=12):
-    """返回 (P_home, P_draw, P_away) 的 Poisson 推导"""
-    Ph = Pd = Pa = 0.0
-    for i in range(max_goals + 1):
-        for j in range(max_goals + 1):
-            p = poisson_pmf(lam_h, i) * poisson_pmf(lam_a, j)
-            if i > j:
-                Ph += p
-            elif i == j:
-                Pd += p
-            else:
-                Pa += p
-    return Ph, Pd, Pa
+from pipeline.deep_report import poisson_hda, market_implied as _dr_market_implied  # noqa: E402
 
 
 def market_implied(odds, margin_method="proportional"):
-    """由 1X2 赔率推导隐含概率（proportional 法剔除抽水）"""
+    """由 1X2 赔率推导隐含概率 + 抽水.
+
+    委托 pipeline.deep_report.market_implied (价值层 SSoT, proportional 去抽水);
+    保持本脚本 (probs, margin) 返回契约, 供 build_match 解包使用.
+    """
+    probs = _dr_market_implied(odds)
     inv = [1.0 / o for o in odds]
-    s = sum(inv)
-    if margin_method == "proportional":
-        return [x / s for x in inv], (s - 1.0)
-    return inv, (s - 1.0)
+    margin = sum(inv) - 1.0
+    return probs, margin
 
 def build_match(name, odds, lam_h, lam_a, oip_top_score, oip_ou_over25,
                 consensus, operator_flags, bankroll=10000.0, frac_kelly=FRAC_KELLY):

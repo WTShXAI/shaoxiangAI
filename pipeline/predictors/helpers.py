@@ -26,7 +26,7 @@ def _load_score_freq():
         p = _Path(__file__).parent.parent.parent / 'data' / 'score_freq_wc2026.json'
         if p.exists():
             return json.load(open(p, encoding='utf-8'))
-    except:
+    except Exception:
         pass
     # 兜底: 内嵌频率表
     return {

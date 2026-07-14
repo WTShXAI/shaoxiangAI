@@ -170,7 +170,7 @@ def _translate_match(match: Dict) -> Dict:
 class FootballDataLive:
     """football-data.org 实时数据接入"""
 
-    def __init__(self, api_key: str = None):
+    def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or API_KEY
         self.headers = {"X-Auth-Token": self.api_key}
 
@@ -257,20 +257,21 @@ class FootballDataLive:
         """获取单场比赛详情"""
         return self._request(f"/matches/{match_id}", cache_ttl=300)
 
-    def get_team_matches(self, team_id: int, limit: int = 10, season: int = None) -> List[Dict]:
+    def get_team_matches(self, team_id: int, limit: int = 10, season: Optional[int] = None) -> List[Dict]:
         """获取球队近期比赛 (含跨赛事)"""
         params = [f"limit={limit}"]
         if season:
             params.append(f"season={season}")
         endpoint = f"/teams/{team_id}/matches?" + "&".join(params)
         data = self._request(endpoint, cache_ttl=3600)
-        return data.get('matches', [])
+        result: List[Dict] = data.get('matches', [])
+        return result
 
     # ════════════════════════════════════════════════
     # Advanced Trend/Form — 球队真实战绩 + λ推导
     # ════════════════════════════════════════════════
 
-    def get_team_form(self, team_id: int, limit: int = 20, season: int = None) -> Dict:
+    def get_team_form(self, team_id: int, limit: int = 20, season: Optional[int] = None) -> Dict:
         """获取球队近期战绩 + 泊松λ参数
 
         Returns:
@@ -288,7 +289,7 @@ class FootballDataLive:
             }
         """
         # 跨赛季拉取: 不指定season时, 尝试多个赛季直到凑够limit场
-        all_matches = []
+        all_matches: List[Dict] = []
         if season:
             all_matches = self.get_team_matches(team_id, limit=limit, season=season)
         else:
@@ -297,16 +298,20 @@ class FootballDataLive:
             current_year = datetime.now(timezone.utc).year
             for s in [current_year, current_year - 1, current_year - 2]:
                 try:
-                    m = self.get_team_matches(team_id, limit=limit, season=s)
-                    all_matches.extend(m)
+                    season_matches = self.get_team_matches(team_id, limit=limit, season=s)
+                    all_matches.extend(season_matches)
                     if len(all_matches) >= limit:
                         break
                 except Exception as e:
                     logger.warning("获取赛季 %s 球队数据失败: %s", s, e)
         
-        matches = all_matches[:limit]
-        finished = [m for m in matches if m.get('status') == 'FINISHED'
-                    and m.get('score', {}).get('fullTime', {}).get('home') is not None]
+        matches: List[Dict] = all_matches[:limit]
+
+        finished: List[Dict] = []
+        for m in matches:
+            if (m.get('status') == 'FINISHED'
+                    and m.get('score', {}).get('fullTime', {}).get('home') is not None):
+                finished.append(m)
 
         W = D = L = 0
         gf_total = ga_total = 0
@@ -383,7 +388,7 @@ class FootballDataLive:
         return result
 
     def get_match_form_analysis(self, home_team: str, away_team: str,
-                                  season: int = None) -> Dict:
+                                  season: Optional[int] = None) -> Dict:
         """获取对阵双方的真实战绩+λ参数 (用于比赛分析)
 
         Args:
@@ -469,7 +474,7 @@ class FootballDataLive:
 
         return self._team_id_cache.get(team_name.lower())
 
-    def format_form_report(self, home_team: str, away_team: str, season: int = None) -> str:
+    def format_form_report(self, home_team: str, away_team: str, season: Optional[int] = None) -> str:
         """生成可读的战绩+λ分析报告 (用于chat端点)"""
         analysis = self.get_match_form_analysis(home_team, away_team, season)
 
@@ -523,8 +528,8 @@ class FootballDataLive:
 
         return '\n'.join(lines)
 
-    def get_competition_matches(self, competition_code: str, season: int = None,
-                                 matchday: int = None, status: str = None) -> List[Dict]:
+    def get_competition_matches(self, competition_code: str, season: Optional[int] = None,
+                                 matchday: Optional[int] = None, status: Optional[str] = None) -> List[Dict]:
         """获取赛事比赛 (通用)"""
         params = []
         if season:
@@ -558,8 +563,8 @@ class FootballDataLive:
             return {}
         return odds
 
-    def get_competition_odds(self, competition_code: str, season: int = None,
-                              matchday: int = None) -> List[Dict]:
+    def get_competition_odds(self, competition_code: str, season: Optional[int] = None,
+                              matchday: Optional[int] = None) -> List[Dict]:
         """获取赛事全部比赛赔率 (需Odds Add-On)
         
         Args:
@@ -636,8 +641,8 @@ class FootballDataLive:
         d_odds = odds['draw']
         return round(2.0 + (1/d_odds - 0.28) * 4, 2)
 
-    def get_odds_for_prediction(self, competition_code: str, season: int = None,
-                                  team_name: str = None) -> List[Dict]:
+    def get_odds_for_prediction(self, competition_code: str, season: Optional[int] = None,
+                                  team_name: Optional[str] = None) -> List[Dict]:
         """获取可用于预测的赔率数据 (批量)
         
         Returns:
@@ -692,7 +697,7 @@ class FootballDataLive:
         'BSA': '巴西甲级联赛',
     }
 
-    def sync_to_database(self, db_path: str = None) -> Dict:
+    def sync_to_database(self, db_path: Optional[str] = None) -> Dict:
         """同步世界杯数据到数据库"""
         import sqlite3
         if db_path is None:

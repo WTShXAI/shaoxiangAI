@@ -11,7 +11,7 @@ from pathlib import Path
 warnings.filterwarnings('ignore')
 
 ARCH_ROOT = Path(r"D:/Architecture")
-FAI_ROOT = Path(r"D:/AI/footballAI")
+FAI_ROOT = Path(r"D:/Architecture")
 
 # 12个v5.1误判 (来自生产引擎回测)
 # ═══════════════════════════════════════════════════

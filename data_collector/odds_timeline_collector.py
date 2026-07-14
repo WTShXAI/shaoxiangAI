@@ -124,7 +124,7 @@ class OddsTimelineCollector:
             ''', (match_id,)).fetchone()
             return dict(row) if row else None
     
-    def detect_change(self, old: Dict, new: Dict) -> Tuple[bool, float]:
+    def detect_change(self, old: Optional[Dict], new: Dict) -> Tuple[bool, float]:
         """
         检测赔率是否发生显著变化
         
@@ -150,7 +150,7 @@ class OddsTimelineCollector:
         
         return max_change >= self.change_threshold, max_change
     
-    def collect_snapshot(self, match: Dict, snapshot_time: str = None) -> bool:
+    def collect_snapshot(self, match: Dict, snapshot_time: Optional[str] = None) -> bool:
         """
         为单场比赛采集一次时序快照
         
@@ -241,7 +241,7 @@ class OddsTimelineCollector:
                     f"无变化 {self.stats['no_change']}")
         return self.stats
     
-    def run_daemon(self, interval_minutes: int = 30, max_iterations: int = None):
+    def run_daemon(self, interval_minutes: int = 30, max_iterations: Optional[int] = None):
         """
         以 Daemon 模式运行，定时采集
         

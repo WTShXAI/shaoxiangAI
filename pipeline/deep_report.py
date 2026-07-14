@@ -18,26 +18,22 @@ pipeline/deep_report.py
 """
 from __future__ import annotations
 import math
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 
 # ── 硬约束: 单注上限 10% 本金（与 bet_core.MAX_STAKE_FRAC 保持一致）──
 _MAX_STAKE_FRAC = 0.10
 
 # ── E2 P0-5/P0-6 + P2-16: 注码/凯利统一走 bet_core (SSoT, 含10%封顶+分歧闸门+审计) ──
+# bet_core 是注码/凯利的唯一事实源; 不再保留本地降级副本, 杜绝公式漂移.
+# 若 bet_core 不可用 (缺 PyYAML 等), 直接报错而非静默用过期副本.
 try:
     from scripts.bet_core import safe_stake as _bet_core_safe_stake, kelly_fraction
     _HAS_BET_CORE = True
-except Exception:  # pragma: no cover - 兜底降级, 不依赖 bet_core
-    _bet_core_safe_stake = None
-    _HAS_BET_CORE = False
-
-    def kelly_fraction(p: float, odds: float) -> float:  # type: ignore
-        """降级副本 (仅 bet_core 不可用时); 与 bet_core.kelly_fraction 保持一致."""
-        if odds <= 1.0:
-            return 0.0
-        b = odds - 1.0
-        f = (p * odds - 1.0) / b
-        return max(0.0, f)
+except Exception as _bet_core_err:  # pragma: no cover
+    raise ImportError(
+        "deep_report 依赖 scripts.bet_core (注码/凯利单一事实源); "
+        "请先安装 PyYAML (requirements.txt: PyYAML>=6.0)."
+    ) from _bet_core_err
 
 
 def _capped_stake(p: float, odds: float, bankroll: float,
@@ -45,26 +41,17 @@ def _capped_stake(p: float, odds: float, bankroll: float,
                   source: str = "deep_report") -> float:
     """统一封顶注码 (E2 P0-5 修复 kelly>1 全押坑).
 
-    优先走 bet_core.safe_stake (SSoT: 10%封顶 + PROD NO-GO + 分歧闸门 + 审计);
-    不可用时降级为本地 MAX_STAKE_FRAC 封顶。gate=False 一律返回 0 (P0-6 强制守卫)。
+    始终走 bet_core.safe_stake (SSoT: 10%封顶 + PROD NO-GO + 分歧闸门 + 审计);
+    gate 透传给 safe_stake (gate=False = 裸下注不闸门对照语义, 与 bet_core 一致)。
     """
-    if _HAS_BET_CORE and _bet_core_safe_stake is not None:
-        stake, _ = _bet_core_safe_stake(
-            p, odds, bankroll, frac_kelly=frac_kelly, gate=gate, source=source)
-        return float(stake)
-    # 降级路径: 仅本地封顶
-    if not gate:
-        return 0.0
-    k = kelly_fraction(p, odds)
-    frac = frac_kelly * k
-    if frac > _MAX_STAKE_FRAC:
-        frac = _MAX_STAKE_FRAC
-    return frac * bankroll
+    stake, _ = _bet_core_safe_stake(
+        p, odds, bankroll, frac_kelly=frac_kelly, gate=gate, source=source)
+    return float(stake)
 
 
 def poisson_hda(lam_h: float, lam_a: float, max_goals: int = 12) -> tuple:
     """由双方期望进球 λ 推导 1X2 概率 (P主胜, P平, P客胜)。"""
-    def pmf(lam, k):
+    def pmf(lam: float, k: int) -> float:
         return math.exp(-lam) * (lam ** k) / math.factorial(k)
     ph = pd = pa = 0.0
     for i in range(max_goals + 1):
@@ -86,7 +73,7 @@ def market_implied(odds: List[float]) -> List[float]:
     return [x / s for x in inv]
 
 
-def deoverround(oh: float, od: float, oa: float):
+def deoverround(oh: float, od: float, oa: float) -> Tuple[float, float, float]:
     """1X2 去抽水 → 隐含 P(H),P(D),P(A)。本地纯标准库版(避免依赖 scipy 版 score_model)。"""
     o = 1.0 / oh + 1.0 / od + 1.0 / oa
     return (1.0 / oh) / o, (1.0 / od) / o, (1.0 / oa) / o
@@ -265,7 +252,7 @@ def compute_submarket_value(
     }
 
 
-def model_probs_from_matrix(M) -> List[float]:
+def model_probs_from_matrix(M: Any) -> List[float]:
     """由 OIP 比分概率矩阵 M (numpy 2D) 推导 1X2 边缘概率 [P主, P平, P客]。"""
     import numpy as np
     M = np.asarray(M, dtype=float)
@@ -305,7 +292,7 @@ def _poisson_pmf(lam: float, k: int) -> float:
     return math.exp(-lam) * (lam ** k) / math.factorial(k)
 
 
-def _solve_oip_simple(ph: float, pd_: float, pa: float, maxg: int = 8):
+def _solve_oip_simple(ph: float, pd_: float, pa: float, maxg: int = 8) -> Tuple[float, float]:
     """纯标准库 OIP λ 求解 (粗网格), 仅 fallback 用; 正常由 bridge_service 传 M。"""
     best, bestr = (1.3, 1.1), 1e9
     for li in range(3, 45):
@@ -321,13 +308,13 @@ def _solve_oip_simple(ph: float, pd_: float, pa: float, maxg: int = 8):
     return best
 
 
-def _score_matrix_py(lh: float, la: float, maxg: int = 8):
+def _score_matrix_py(lh: float, la: float, maxg: int = 8) -> List[List[float]]:
     col = [_poisson_pmf(lh, i) for i in range(maxg + 1)]
     row = [_poisson_pmf(la, j) for j in range(maxg + 1)]
     return [[col[i] * row[j] for j in range(maxg + 1)] for i in range(maxg + 1)]
 
 
-def poisson_p_over(M, line: float) -> float:
+def poisson_p_over(M: Any, line: float) -> float:
     """P(总进球 > line) from 比分概率矩阵 M (numpy 或 list-of-lists, 0-indexed)。"""
     n = len(M)
     p = 0.0
@@ -338,9 +325,9 @@ def poisson_p_over(M, line: float) -> float:
     return float(p)
 
 
-def ou_value(oh, od, oa, ou_line, over_odds, under_odds,
-             model_m=None, bankroll: float = 10000.0, frac_kelly: float = 0.5,
-             gap_threshold: float = 0.05) -> Dict[str, Any]:
+def ou_value(oh: float, od: float, oa: float, ou_line: float, over_odds: float, under_odds: float,
+             model_m: Optional[Any] = None, bankroll: float = 10000.0, frac_kelly: float = 0.5,
+             gap_threshold: float = 0.05, gate: bool = True) -> Dict[str, Any]:
     """
     大小球价值层 (跨市场不一致): 主盘1X2隐含期望进球 vs 大小球盘隐含总进球。
 
@@ -376,7 +363,7 @@ def ou_value(oh, od, oa, ou_line, over_odds, under_odds,
             # E2 P0-6: 分歧闸门未过 / kelly<=0 → 不下注
             decision = "PASS"
             decision_text = "PASS · 分歧闸门未过(gate=False) 或负凯利, 不下注"
-            scenario = {"note": "gate closed or non-positive kelly"}
+            scenario: Dict[str, Any] = {"note": "gate closed or non-positive kelly"}
             return {
                 "ou_line": ou_line,
                 "over_odds": over_odds, "under_odds": under_odds,
@@ -414,9 +401,9 @@ def ou_value(oh, od, oa, ou_line, over_odds, under_odds,
     }
 
 
-def draw_consensus_value(primary_oh, primary_od, primary_oa,
-                         consensus_pd, strong: bool = False,
-                         best_draw_odds=None, bankroll: float = 10000.0,
+def draw_consensus_value(primary_oh: float, primary_od: float, primary_oa: float,
+                         consensus_pd: float, strong: bool = False,
+                         best_draw_odds: Optional[float] = None, bankroll: float = 10000.0,
                          frac_kelly: float = 0.5,
                          gate: bool = True) -> Dict[str, Any]:
     """
@@ -457,7 +444,7 @@ def draw_consensus_value(primary_oh, primary_od, primary_oa,
             "scenario": scenario}
 
 
-def correct_score_value(model_m, score_odds: Optional[Dict] = None, top_n: int = 3,
+def correct_score_value(model_m: Any, score_odds: Optional[Dict] = None, top_n: int = 3,
                         bankroll: float = 10000.0, frac_kelly: float = 0.5,
                         overconf: Optional[float] = None,
                         cs_ev_threshold: float = 0.0,

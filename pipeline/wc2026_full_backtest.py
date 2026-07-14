@@ -17,7 +17,7 @@ from collections import Counter
 warnings.filterwarnings('ignore')
 
 ARCH_ROOT = Path(r"D:/Architecture")
-FAI_ROOT = Path(r"D:/AI/footballAI")
+FAI_ROOT = Path(r"D:/Architecture")
 
 # 2026世界杯全量数据 (70场, 6.13-6.28)
 # ═══════════════════════════════════════════════════════════

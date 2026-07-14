@@ -6,8 +6,7 @@ import { APP_VERSION } from '@/config/version'
 const navItems = [
   { to: '/', label: '预测大厅', icon: PredictionIcon },
   { to: '/match-analysis', label: '比赛分析', icon: AnalysisIcon },
-  { to: '/operator-terminal', label: '操盘终端', icon: TerminalIcon },
-  { to: '/league-schedule', label: '联赛赛程', icon: ScheduleIcon },
+  { to: '/trading-hub', label: '操盘中心', icon: HubIcon },
   { to: '/model-management', label: '模型管理', icon: ModelIcon },
   { to: '/system-monitor', label: '系统监控', icon: MonitorIcon },
   { to: '/data-explorer', label: '数据探索', icon: DataIcon },
@@ -152,6 +151,14 @@ function TerminalIcon() {
   return (
     <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 002.25-2.25V6.75a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 6.75v10.5a2.25 2.25 0 002.25 2.25zm.75-12h9v9h-9v-9z" />
+    </svg>
+  )
+}
+
+function HubIcon() {
+  return (
+    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25A2.25 2.25 0 018.25 10.5H6A2.25 2.25 0 013.75 8.25V6zm10.5 0A2.25 2.25 0 0116.5 3.75H18.75A2.25 2.25 0 0121 6v2.25A2.25 2.25 0 0118.75 10.5H16.5A2.25 2.25 0 0114.25 8.25V6zM3.75 16.5A2.25 2.25 0 016 14.25h2.25A2.25 2.25 0 0110.5 16.5V18.75A2.25 2.25 0 018.25 21H6A2.25 2.25 0 013.75 18.75V16.5zm10.5 0A2.25 2.25 0 0116.5 14.25H18.75A2.25 2.25 0 0121 16.5V18.75A2.25 2.25 0 0118.75 21H16.5A2.25 2.25 0 0114.25 18.75V16.5z" />
     </svg>
   )
 }

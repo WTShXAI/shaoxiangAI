@@ -91,12 +91,12 @@ def learn_from_backtest(json_path: str):
         # 只分析错误场次
         is_correct = ev.get('score_exact') or ev.get('hcp_result_match')
         score_gap = None
-            try:
-                ah, aa = map(int, actual.split('-'))
-                ph, pa = map(int, ev.get('pred_score', '0-0').split('-'))
-                score_gap = abs((ah + aa) - (ph + pa))
-            except (ValueError, TypeError):
-                pass
+        try:
+            ah, aa = map(int, actual.split('-'))
+            ph, pa = map(int, ev.get('pred_score', '0-0').split('-'))
+            score_gap = abs((ah + aa) - (ph + pa))
+        except (ValueError, TypeError):
+            pass
         
         # 差值≤1球视为OK
         if score_gap is not None and score_gap <= 1 and is_correct:

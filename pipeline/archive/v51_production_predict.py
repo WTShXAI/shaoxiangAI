@@ -14,7 +14,7 @@ from collections import defaultdict
 warnings.filterwarnings('ignore')
 
 ARCH_ROOT = Path(r"D:/Architecture")
-FAI_ROOT = Path(r"D:/AI/footballAI")
+FAI_ROOT = Path(r"D:/Architecture")
 
 # 70场完整数据
 # ═══════════════════════════════════════════════════

@@ -101,6 +101,7 @@ class HandicapLabeler:
         logger.info(f"获取 {len(df)} 场已完赛比赛 (含欧赔)")
 
         labels: List[HandicapLabel] = []
+        assert self.conn is not None  # 由 initialize() 保证已连接
         cur = self.conn.cursor()
 
         # 如果不用强制刷新, 跳过已有的
@@ -176,6 +177,7 @@ class HandicapLabeler:
 
     def get_stats(self) -> Dict:
         """获取标签统计"""
+        assert self.conn is not None  # 由 initialize() 保证已连接
         cur = self.conn.cursor()
         cur.execute("SELECT COUNT(*) FROM handicap_labels")
         total = cur.fetchone()[0]

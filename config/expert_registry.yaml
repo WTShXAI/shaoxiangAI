@@ -72,3 +72,13 @@ experts:
     phase: 3
     display_name: "进球时序"
     tags: ["goal", "timing"]
+
+# ═══════════════════════════════════════════
+# 投注核心配置 (bet_core SSoT 消费)
+# ═══════════════════════════════════════════
+betting:
+  bankroll: 3000.0           # 本金基准 (单位)
+  frac_kelly: 0.5            # 凯利比例 (0.5 = 半凯利)
+  max_stake_frac: 0.10       # 单注封顶(占本金比例)
+  min_disagreement_bets: 300 # 生产环境分歧子集最低容量 (低于此值→全局NO-GO)
+  env: "DEV"                 # DEV/PROD — PROD 启用 NO-GO 护栏

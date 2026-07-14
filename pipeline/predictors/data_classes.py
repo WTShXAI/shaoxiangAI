@@ -33,6 +33,7 @@ class MatchInput:
     home_missing_stars: str = ''     # 主队缺阵球星 (如 '哈兰德,厄德高')
     away_missing_stars: str = ''     # 客队缺阵球星
     sporttery_hcp: float = 0.0       # 竞彩让球 (0=无竞彩数据, 非零=竞彩实盘)
+    match_id: Optional[str] = None   # 内部 match_id(=The Odds API event id); G4 用于拉真 bet-split
 
     @property
     def hcp_depth(self) -> float:

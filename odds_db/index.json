@@ -574,5 +574,23 @@
     "file": "unidentified_vs_unidentified_20260711.json",
     "timeline_file": null,
     "source": "用户截图OCR | 竞彩官方波胆 + 欧洲盘口波胆 | 无队名/开球时间/1X2/让球/大小球"
+  },
+  {
+    "match_id": "france_vs_spain_20260715",
+    "match_time": "2026-07-15T03:00:00+08:00",
+    "home": "法国",
+    "away": "西班牙",
+    "competition": "竞彩标准四层(模板)",
+    "snapshot_count": 1,
+    "latest_1x2": {"home": 2.26, "draw": 3.1, "away": 2.75},
+    "latest_hcp": "-1 (西班牙让1球) @5.05/3.85/1.49",
+    "latest_ou": "总进球: 0@11.5 / 1@5.0 / 2@3.5 / 3@3.5 / 4@5.2 / 5@9.5 / 6@17.0 / 7+@25.0",
+    "source": "用户截图OCR | 竞彩官方完整四层赔率单(标准格式模板) | 1X2+AH(-1)+CS(全量30项波胆)+总进球(8档)",
+    "verdict": null,
+    "first_score": null,
+    "file": "france_vs_spain_20260715.json",
+    "timeline_file": null,
+    "format_standard": true,
+    "standard_note": "⚡ 此场为赔率输入格式标准模板。以后所有赛事截图以此图四层排列为基准：①1X2胜平负(0) ②让球胜平负(AH主让线) ③比分CS(全量波胆网格,含胜其他/平其他/负其他) ④总进球O/U(0~7+档)"
   }
 ]

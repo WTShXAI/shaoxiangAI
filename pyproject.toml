@@ -31,7 +31,7 @@ ignore_missing_imports = true
 warn_unused_ignores = false
 warn_redundant_casts = true
 warn_unused_configs = true
-files = ["pipeline", "scripts/bet_core.py", "data_collector"]
+files = ["pipeline", "scripts/bet_core.py", "data_collector", "bookmaker_sim"]
 
 # 边缘历史债务: 暂豁免 (渐进式类型化 — ignore_errors 对 files 直接列出的文件无效,
 # 但对包遍历/import 跟随分析的模块生效; 后续逐文件摘帽即从下方豁免移除并补注解,
@@ -39,7 +39,6 @@ files = ["pipeline", "scripts/bet_core.py", "data_collector"]
 [[tool.mypy.overrides]]
 module = [
     "pipeline.*",
-    "bookmaker_sim.*",
     "data.worldcup26_enricher.*",
 ]
 ignore_errors = true

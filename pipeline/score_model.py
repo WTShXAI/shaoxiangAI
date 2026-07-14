@@ -17,15 +17,16 @@
 import math
 import numpy as np
 from scipy.optimize import root
+from typing import Any, Dict, List, Tuple
 
 MAX_GOAL_DEFAULT = 8
 
-def deoverround(oh, od, oa):
+def deoverround(oh: float, od: float, oa: float) -> Tuple[float, float, float]:
     """1X2 去抽水 → 隐含 P(H),P(D),P(A)"""
     o = 1.0/oh + 1.0/od + 1.0/oa
     return (1.0/oh)/o, (1.0/od)/o, (1.0/oa)/o
 
-def _poisson_marginal(lh, la, maxg):
+def _poisson_marginal(lh: float, la: float, maxg: int) -> Tuple[float, float, float]:
     ph = pd_ = pa = 0.0
     for i in range(maxg+1):
         pi = math.exp(-lh)*lh**i/math.factorial(i)
@@ -37,12 +38,12 @@ def _poisson_marginal(lh, la, maxg):
             else: pa += p
     return ph, pd_, pa
 
-def score_matrix(lh, la, maxg=MAX_GOAL_DEFAULT):
+def score_matrix(lh: float, la: float, maxg: int = MAX_GOAL_DEFAULT) -> np.ndarray:
     col = [math.exp(-lh)*lh**i/math.factorial(i) for i in range(maxg+1)]
     row = [math.exp(-la)*la**j/math.factorial(j) for j in range(maxg+1)]
     return np.outer(col, row)
 
-def _dc_correct(M, rho, maxg):
+def _dc_correct(M: np.ndarray, rho: float, maxg: int) -> np.ndarray:
     """
     Dixon-Coles 低比分依赖修正 (仅调整比分矩阵 M, 不影响 1X2:
     1X2 由 deoverround 直接得出, 与 M 无关)。
@@ -57,9 +58,9 @@ def _dc_correct(M, rho, maxg):
     s = M.sum()
     return M / s if s > 0 else M
 
-def solve_oip(ph, pd, pa, maxg=MAX_GOAL_DEFAULT):
+def solve_oip(ph: float, pd: float, pa: float, maxg: int = MAX_GOAL_DEFAULT) -> Tuple[float, float]:
     """数值解 λ_h,λ_a 使独立Poisson边缘匹配P(H/D/A)"""
-    def eq(x):
+    def eq(x: Any) -> List[float]:
         lh, la = x
         if lh <= 0 or la <= 0:
             return [1e6, 1e6]
@@ -77,7 +78,7 @@ def solve_oip(ph, pd, pa, maxg=MAX_GOAL_DEFAULT):
                 bestr, best = r, (lh, la)
     return best
 
-def predict_score(home, away, oh, od, oa, max_goal=MAX_GOAL_DEFAULT, rho=0.0, goal_scale: float = 1.0):
+def predict_score(home: str, away: str, oh: float, od: float, oa: float, max_goal: int = MAX_GOAL_DEFAULT, rho: float = 0.0, goal_scale: float = 1.0) -> Dict[str, Any]:
     """
     赔率隐含 Poisson 比分预测.
     返回 dict: lh, la(期望进球), p_h/p_d/p_a(胜平负), matrix(比分概率矩阵),

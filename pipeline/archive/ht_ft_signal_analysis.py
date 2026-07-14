@@ -12,7 +12,7 @@ from pathlib import Path
 warnings.filterwarnings('ignore')
 
 ARCH_ROOT = Path(r"D:/Architecture")
-FAI_ROOT = Path(r"D:/AI/footballAI")
+FAI_ROOT = Path(r"D:/Architecture")
 
 # 手动OCR提取的半场赔率数据 (从图片下半部分)
 # 格式: [match_date, HT_ah_hcp, HT_ah_home, HT_ah_away, HT_ou, HT_ou_over, HT_ou_under, HT_h, HT_d, HT_a]

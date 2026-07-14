@@ -8,7 +8,7 @@ v2.1: 移除模拟数据，全部走真实API
 import requests
 import logging
 import time as time_module
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone, timedelta
 
 # ⛔ 死命令 — 禁止模拟数据
@@ -34,7 +34,7 @@ class APICache:
             return None
         return data
 
-    def set(self, key: str, data, ttl: int = None):
+    def set(self, key: str, data, ttl: Optional[int] = None):
         """设置缓存"""
         ttl = ttl if ttl is not None else self.default_ttl
         self._cache[key] = (data, time_module.time() + ttl)
@@ -102,8 +102,8 @@ class FootballDataCollector:
         self.request_count += 1
         self.last_request_time = datetime.now(timezone.utc)
 
-    def _api_call(self, endpoint: str, params: dict = None, use_cache: bool = False,
-                  cache_ttl: int = None, max_retries: int = 3) -> Optional[dict]:
+    def _api_call(self, endpoint: str, params: Optional[Dict] = None, use_cache: bool = False,
+                  cache_ttl: Optional[int] = None, max_retries: int = 3) -> Optional[dict]:
         """统一 API 调用封装（带缓存支持和 429 指数退避重试）"""
         if not self.api_key:
             logger.warning("未配置API Key，无法调用API")
@@ -221,15 +221,15 @@ class FootballDataCollector:
         logger.info(f"获取到 {len(competitions)} 个联赛/竞赛")
         return competitions
 
-    def get_matches(self, league_id: int, date_from: str = None,
-                    date_to: str = None, use_cache: bool = False) -> List[Dict]:
+    def get_matches(self, league_id: int, date_from: Optional[str] = None,
+                    date_to: Optional[str] = None, use_cache: bool = False) -> List[Dict]:
         """获取比赛数据"""
         if not self.api_key:
             logger.warning("未配置API Key，无法获取比赛数据")
             return []
 
         try:
-            params = {"competitions": league_id}
+            params: Dict[str, Any] = {"competitions": league_id}
             if date_from:
                 params["dateFrom"] = date_from
             if date_to:
@@ -316,7 +316,7 @@ class FootballDataCollector:
 
     # ===================== 新增: 积分榜 =====================
 
-    def get_standings(self, league_id: int, season: int = None) -> List[Dict]:
+    def get_standings(self, league_id: int, season: Optional[int] = None) -> List[Dict]:
         """
         获取联赛积分榜数据
 
@@ -405,13 +405,13 @@ class FootballDataCollector:
 
     # ===================== 新增: 实时比分 =====================
 
-    def get_live_scores(self, league_id: int = None) -> List[Dict]:
+    def get_live_scores(self, league_id: Optional[int] = None) -> List[Dict]:
         """
         获取实时比分 / 进行中的比赛
 
         API: GET /matches?status=LIVE (可选 filtered by competitions)
         """
-        params = {"status": "LIVE"}
+        params: Dict[str, Any] = {"status": "LIVE"}
         if league_id:
             params["competitions"] = league_id
         data = self._api_call("/matches", params)
@@ -467,7 +467,7 @@ class FootballDataCollector:
         since_dt = datetime.strptime(since_date, '%Y-%m-%d')
         today_dt = datetime.strptime(today, '%Y-%m-%d')
 
-        all_matches = []
+        all_matches: List[Dict] = []
         chunk_start = since_dt
 
         # 每次最多拉取 10 天（免费版上限）
@@ -533,7 +533,7 @@ class FootballDataCollector:
         return all_matches
 
     def fetch_current_season_matches(self, league_id: int, league_code: str,
-                                     season: int = None) -> List[Dict]:
+                                     season: Optional[int] = None) -> List[Dict]:
         """
         拉取当前赛季的所有比赛（用于初次增量初始化）。
 
@@ -646,7 +646,7 @@ class FootballDataCollector:
     # ===================== 采集→数据库同步 =====================
 
     def sync_to_database(self, league_code: str = 'WC', season: int = 2026,
-                         date_from: str = None, date_to: str = None) -> int:
+                         date_from: Optional[str] = None, date_to: Optional[str] = None) -> int:
         """
         采集→入库一键同步。
 
@@ -716,7 +716,7 @@ class FootballDataCollector:
             return 0
 
     def sync_odds_to_database(self, league_code: str = 'WC', season: int = 2026,
-                               date_from: str = None, date_to: str = None) -> int:
+                               date_from: Optional[str] = None, date_to: Optional[str] = None) -> int:
         """
         采集赔率→入库同步。
 

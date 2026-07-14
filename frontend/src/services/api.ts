@@ -275,16 +275,6 @@ export const betService = {
     bridgeApi.post<ApiResponse<PlaceBetResponse>>('/api/bets', data),
 }
 // ============================================
-// 赔率 Widget 服务 — bridge_service:9000
-// API key 由后端注入, 前端只拿拼好的 URL 嵌 iframe
-// ============================================
-export const widgetService = {
-  getWidgetUrl: (sportKey: string, params?: { bookmakerKeys?: string; oddsFormat?: string; markets?: string }) =>
-    bridgeApi.get<ApiResponse<{ widget_url?: string; sport_key?: string; error?: string }>>('/api/widget-url', {
-      params: { sport_key: sportKey, ...params },
-    }),
-}
-// ============================================
 // 操盘终端服务 (OperatorTerminal) — bridge_service:9000
 // ============================================
 export const terminalService = {
@@ -304,5 +294,47 @@ export const terminalService = {
   // 插件赔率摄入 (HTTP降级版)
   ingest: (data: TerminalIngestRequest) =>
     bridgeApi.post<ApiResponse<{ status: string; match: string; books: number; direction?: string; decision?: string }>>('/api/terminal/ingest', data),
+}
+// ============================================
+// 量化模拟系统 (演示) — bridge_service:9000  /api/quant-demo/*
+// ============================================
+export const quantDemoService = {
+  status: () => bridgeApi.get<ApiResponse<any>>('/api/quant-demo/status'),
+  step: (mode: string = 'sim') => bridgeApi.post<ApiResponse<any>>('/api/quant-demo/step', { mode }),
+  autoSim: () => bridgeApi.post<ApiResponse<any>>('/api/quant-demo/auto-sim'),
+  confirmAll: () => bridgeApi.post<ApiResponse<any>>('/api/quant-demo/confirm-all'),
+  confirmOne: (oid: string) => bridgeApi.post<ApiResponse<any>>('/api/quant-demo/confirm-one', { oid }),
+  toggle: (strategyId: string, enabled: boolean) =>
+    bridgeApi.post<ApiResponse<any>>('/api/quant-demo/toggle', { strategy_id: strategyId, enabled }),
+  reset: () => bridgeApi.post<ApiResponse<any>>('/api/quant-demo/reset'),
+}
+// ============================================
+// 量化投注系统 (真实数据) — bridge_service:9000  /api/quant/*
+// 真实行情(live_odds_raw/odds_features) + 全市场扫描 + 历史回放 + 策略层
+// ============================================
+export interface ScanSingleRequest {
+  home: string; away: string; h: number; d: number; a: number; league?: string
+  score_odds?: Record<string, number>
+  total_goals_odds?: Record<string, number>
+  handicap_odds?: { line: number; home: number; draw: number; away: number }
+  ou_odds?: { line: number; over: number; under: number }
+}
+export const quantService = {
+  snapshot: () => bridgeApi.get<ApiResponse<any>>('/api/quant/snapshot'),
+  scanCycle: (mode: string = 'sim', limit: number = 20) =>
+    bridgeApi.post<ApiResponse<any>>('/api/quant/scan/auto', { action: 'cycle', mode, limit }),
+  autoMode: (on: boolean) =>
+    bridgeApi.post<ApiResponse<any>>('/api/quant/scan/auto', { action: on ? 'on' : 'off' }),
+  scanSingle: (data: ScanSingleRequest) =>
+    bridgeApi.post<ApiResponse<any>>('/api/quant/scan/single', data),
+  historyReplay: (nMatches: number = 100) =>
+    bridgeApi.post<ApiResponse<any>>('/api/quant/history/replay', { n_matches: nMatches }),
+  confirmAll: () => bridgeApi.post<ApiResponse<any>>('/api/quant/order/confirm-all'),
+  confirmOne: (oid: string, actual: string = 'D') =>
+    bridgeApi.post<ApiResponse<any>>('/api/quant/order/confirm', { oid, actual }),
+  toggleStrategy: (strategyId: string, enabled: boolean) =>
+    bridgeApi.post<ApiResponse<any>>('/api/quant/strategy/toggle', { strategy_id: strategyId, enabled }),
+  reset: (bankroll?: number) =>
+    bridgeApi.post<ApiResponse<any>>('/api/quant/reset', bankroll ? { bankroll } : {}),
 }
 export default api

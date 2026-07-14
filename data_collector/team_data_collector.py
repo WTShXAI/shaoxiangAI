@@ -12,6 +12,7 @@ team_data_collector.py — 球队数据采集器
 
 import json, os, time
 from pathlib import Path
+from typing import Optional
 
 CACHE_DIR = Path(__file__).parent / ".temp" / "team_data"
 CACHE_TTL = 86400  # 24小时过期
@@ -31,7 +32,7 @@ class TeamDataCollector:
     }
     
     # ━━━ 读取缓存 ━━━
-    def get_team_data(self, team: str, opponent: str = None) -> dict:
+    def get_team_data(self, team: str, opponent: Optional[str] = None) -> dict:
         """读取球队数据，标记是否过期"""
         cache_file = CACHE_DIR / f"{team}.json"
         
@@ -52,7 +53,7 @@ class TeamDataCollector:
             'coach_news': [],
         }
     
-    def _build_search_queries(self, team: str, opponent: str = None) -> list:
+    def _build_search_queries(self, team: str, opponent: Optional[str] = None) -> list:
         queries = [
             self.SEARCH_TEMPLATES["recent_form"].format(team=team),
             self.SEARCH_TEMPLATES["news"].format(team=team),

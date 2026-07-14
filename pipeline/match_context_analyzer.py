@@ -303,29 +303,87 @@ class MatchContextAnalyzer:
         return ctx
     
     @classmethod
-    def get_adjustment(cls, home: str, away: str, matchday: int = 3, stage: str = 'group') -> Dict:
+    def get_adjustment(cls, home: str, away: str, matchday: int = 3, stage: str = 'group',
+                       odds_h: float = 2.0, odds_a: float = 2.0) -> Dict:
         """
         返回可直接用于全链路管道的调整系数
         
         Args:
             stage: 'group' | 'knockout' | 'final'
+            odds_h/odds_a: 用于淘汰赛评估实力差距
         """
         # 淘汰赛特殊处理
         if stage == 'knockout':
-            return {
-                'motivation_mult': 0.95,
-                'rotation_penalty': 0.0,
-                'offensive_bias': -0.10,  # 淘汰赛偏保守
-                'mutual_benefit_draw': False,
-                'survival_clash': True,    # 淘汰赛=生死战
-                'must_win_team': None,
-                'qualified_team': None,
-                'eliminated_team': None,
-                'home_motivation': 'knockout',
-                'away_motivation': 'knockout',
-                'notes': [f'⚔️ 淘汰赛: {home} vs {away} — 单场生死战, 可加时+点球',
-                          '双方战意拉满, 但淘汰赛节奏偏保守(先保证不丢球)']
-            }
+            # 淘汰赛基础：无轮换，全员死战
+            # 但实力差距影响比赛形态：碾压局→屠杀可能，势均→胶着
+            
+            # 计算赔率隐含的实力差距
+            odds_gap = 0.0
+            if odds_a > 0 and odds_h > 0:
+                # 用客场赔率判断：客赔越高=主队优势越大
+                if odds_h < odds_a:
+                    odds_gap = (odds_a - odds_h) / odds_h  # 主队优势比率
+                else:
+                    odds_gap = (odds_h - odds_a) / odds_a  # 客队优势比率
+            
+            # 分组:
+            # 高碾压(odds_gap>1.5): 法国vs巴拉圭级 → 屠杀链主导
+            # 中优势(0.5<odds_gap<1.5): 巴西vs挪威级 → 实力+淘汰赛保守
+            # 势均(odds_gap<0.5): 西葡/英墨级 → 胶着+平局概率升
+            
+            notes = [f'⚔️ 淘汰赛: {home} vs {away} — 单场生死战']
+            
+            if odds_gap > 1.5:
+                # 碾压局: 淘汰赛不改变屠杀方向
+                notes.append(f'实力悬殊(赔率差{odds_gap:.1f}), 碾压局屠杀可能更大')
+                return {
+                    'motivation_mult': 1.05,     # 淘汰赛全主力反而加强
+                    'rotation_penalty': 0.0,
+                    'offensive_bias': 0.15,      # 强队淘汰赛更积极(力争早日锁定)
+                    'mutual_benefit_draw': False,
+                    'survival_clash': False,      # 不给pipeline加双求生信号(屠杀已覆盖)
+                    'must_win_team': None,
+                    'qualified_team': None,
+                    'eliminated_team': None,
+                    'home_motivation': 'knockout_massacre',
+                    'away_motivation': 'knockout_underdog',
+                    'odds_gap': odds_gap,
+                    'notes': notes,
+                }
+            elif odds_gap > 0.5:
+                # 中优势局: 实力占优但可能有冷门
+                notes.append(f'实力有优势(赔率差{odds_gap:.1f}), 但淘汰赛爆冷概率升')
+                return {
+                    'motivation_mult': 0.95,
+                    'rotation_penalty': 0.0,
+                    'offensive_bias': -0.05,     # 略保守
+                    'mutual_benefit_draw': False,
+                    'survival_clash': True,       # 淘汰赛=生死战
+                    'must_win_team': None,
+                    'qualified_team': None,
+                    'eliminated_team': None,
+                    'home_motivation': 'knockout',
+                    'away_motivation': 'knockout',
+                    'odds_gap': odds_gap,
+                    'notes': notes,
+                }
+            else:
+                # 势均力敌局: 最胶着的淘汰赛
+                notes.append(f'实力接近(赔率差{odds_gap:.1f}), 淘汰赛最易爆冷/进加时')
+                return {
+                    'motivation_mult': 0.85,     # 势均淘汰赛降置信
+                    'rotation_penalty': 0.0,
+                    'offensive_bias': -0.15,     # 双方保守, 等对手犯错
+                    'mutual_benefit_draw': False,
+                    'survival_clash': True,
+                    'must_win_team': None,
+                    'qualified_team': None,
+                    'eliminated_team': None,
+                    'home_motivation': 'knockout_even',
+                    'away_motivation': 'knockout_even',
+                    'odds_gap': odds_gap,
+                    'notes': notes,
+                }
         
         ctx = cls.analyze(home, away, matchday)
         return {

@@ -112,14 +112,14 @@ class WeatherCollector:
 
     def fetch_batch(self, coords_dates: List[Tuple[float, float, str]]) -> List[Dict]:
         """批量获取天气 (顺序请求，避免速率问题)"""
-        results = []
+        results: List[Dict] = []
         for lat, lon, date in coords_dates:
             w = self.fetch_weather(lat, lon, date)
             if w:
                 w['_lat'] = lat
                 w['_lon'] = lon
                 w['_date'] = date
-            results.append(w)
+                results.append(w)
         return results
 
     # ──────────── 特征注入 ────────────
@@ -224,7 +224,7 @@ def get_weather_for_match(match_id: int, lat: float, lon: float,
         collector.save_weather(match_id, weather)
     return weather
 
-def get_stadium_coords(db_path: str = None) -> Dict[int, Tuple[float, float]]:
+def get_stadium_coords(db_path: Optional[str] = None) -> Dict[int, Tuple[float, float]]:
     """从数据库读取球队→球场坐标映射"""
     path = db_path or DB_PATH
     conn = sqlite3.connect(path)

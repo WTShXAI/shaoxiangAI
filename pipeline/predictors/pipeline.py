@@ -11,23 +11,101 @@ from ._compat import np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from pipeline.predictors.data_classes import *  # noqa: F401, F403
 from pipeline.predictors.ou_linkage import *  # noqa: F401, F403
-from pipeline.predictors.dgate_layer import *  # noqa: F401, F403
-from pipeline.predictors.model_layer import *  # noqa: F401, F403
-from pipeline.predictors.helpers import (  # noqa: F401, F403
-    _constrain_ou_to_line, _vote_three_paths, _half_time_adjust,
-)
-from pipeline.predictors.ou_linkage import OULinkageEngine
-from pipeline.predictors.dgate_layer import DGateLayer
+# dgate_layer removed 2026-07-06 — D-Gate退化为中性层
+class DGateLayerStub:
+    def assess(self, match, form_result=None):
+        return ChainResult(
+            chain_name='D-Gate [已移除]',
+            verdict='?',
+            draw_prob=0.30,
+            confidence=0.0,
+            signals=['D-Gate已移除: 中性评估'],
+            metadata={'dgate_active': False}
+        )
+DGateLayer = DGateLayerStub
 from pipeline.predictors.model_layer import ModelLayer
 from pipeline.predictors.taoge_strategy import TaoGeStrategy
 from pipeline.predictors.data_classes import MatchInput, ChainResult
 from pipeline.predictors.live_movement import LiveMovementSignal
+from pipeline.predictors.consistent_validator import run_consistency_checks
+from pipeline.predictors.helpers import _constrain_ou_to_line, _vote_three_paths, _half_time_adjust
+
+# ═══ P0-6: 数据不可用优雅降级 (v6.0 数据清理) ═══
+# 当 TeamFormFetcher API 失败时, 不再用 FIFA 排名+赔率反推伪造战绩数据
+# form_result 返回 None, 下游用 data_quality='unavailable' 标记
+# 系统优雅降级: 跳过依赖战绩的链 (Priority Gate / 屠杀λ), 仅用赔率+模型推理
+
 
 class FullLinkagePipeline:
     """
     全链路联动预测管道
     串联: D-Gate → UnifiedPredictor → OU联动 → TaoGe策略
     """
+
+    @staticmethod
+    def _apply_hcp2_law(match: MatchInput, ou_link: Dict, form_result=None) -> Dict:
+        """P0-1: 让2球不穿律前置到管道
+
+        铁律: 竞彩让2球(>=1.75) → 0%穿盘(WC2026 4场验证)
+               仅屠杀队(巴西/德国/荷兰/美国/加拿大) + 非R3 可穿
+        行为: 将 ou_link['scores'] 中强队净胜>=3球的屠杀比分移除,
+              补充走水/小胜/小负比分, 使比分锚回归不穿区间
+        """
+        hcp_depth = abs(match.hcp)
+        if hcp_depth < 1.75:
+            return ou_link
+
+        # 屠杀队穿盘例外
+        is_massacre_team = (match.home in OULinkageEngine.MASSACRE_TEAMS or
+                            match.away in OULinkageEngine.MASSACRE_TEAMS)
+        r3_rotation = getattr(match, 'r3_rotation', False)
+        if is_massacre_team and not r3_rotation:
+            return ou_link
+
+        # 确定强队侧
+        if form_result and form_result.is_valid:
+            strong_is_home = form_result.goal_diff_advantage > 0
+        else:
+            strong_is_home = match.odds_h < match.odds_a  # 低赔率方为强
+
+        scores = ou_link.get('scores', [])
+        if not scores:
+            return ou_link
+
+        # 过滤: 移除强队净胜>=3球的大比分
+        filtered = []
+        for s in scores:
+            try:
+                h, a = map(int, s.split('-'))
+                if strong_is_home:
+                    diff = h - a
+                else:
+                    diff = a - h
+                if diff >= 3:
+                    continue
+                filtered.append(s)
+            except Exception:
+                continue
+
+        # 补充走水/小胜/小负比分(让2球不穿常见结果)
+        if match.hcp < 0:  # 主让2球
+            water_scores = ['1-0', '2-0', '0-0', '2-1', '1-1', '0-1']
+        else:  # 客让2球
+            water_scores = ['0-1', '0-2', '0-0', '1-2', '1-1', '1-0']
+
+        final = list(dict.fromkeys(filtered))
+        for s in water_scores:
+            if s not in final:
+                final.append(s)
+            if len(final) >= 5:
+                break
+
+        if len(final) >= 3:
+            ou_link['scores'] = final[:5]
+            ou_link['hcp2_law_applied'] = True
+            print(f"\n  🟡 P0-1: 让2球不穿律 — hcp={match.hcp:+.2f}, 非屠杀队/或R3")
+            print(f"      屠杀比分降级 → {ou_link['scores']}")
+        return ou_link
 
     def __init__(self):
         self.dgate_layer = DGateLayer()
@@ -36,6 +114,7 @@ class FullLinkagePipeline:
         self.strategy_layer = TaoGeStrategy()
         self.context_analyzer = None  # 惰性加载
         self.form_fetcher = None      # Chain -1: 惰性加载
+        self._ou_constrained = False  # v6.0 初始值: OU约束尚未执行
 
     def predict(self, match: MatchInput) -> Dict[str, Any]:
         """主预测入口: 全链路联动 (7层: Chain -1,0,0.5,1,2,3,4)"""
@@ -80,7 +159,8 @@ class FullLinkagePipeline:
             if form_result.verdict and not form_result.massacre_warning:
                 print(f"    → {form_result.verdict}")
         except Exception as e:
-            print(f"\n  [链-1] 战绩数据暂不可用: {e}")
+            print(f"\n  [链-1] 战绩API失败: {e}")
+            print(f"    → ⚠️ 数据不可用，跳过战绩依赖链 (不生成假数据)")
             form_result = None
 
         # ═══ P0-1: Priority Gate 短路机制 (费深谋+何执策) ═══
@@ -88,7 +168,7 @@ class FullLinkagePipeline:
         short_circuit = False
         short_circuit_level = 4
         short_circuit_reason = ''
-        if form_result and form_result.is_valid:
+        if form_result and form_result.is_valid and form_result.data_quality == 'full':
             abs_gap = abs(form_result.goal_diff_advantage)
             min_samples = min(form_result.home.matches, form_result.away.matches)
             small_sample = min_samples <= 5  # WC小组赛仅3场数据
@@ -165,6 +245,37 @@ class FullLinkagePipeline:
                     print(f"\n  🟡 v5.24: 淘汰赛屠杀部分降级 — {weak_team}GA={weak_ga:.1f}+gap={abs_gap:.1f}")
                     print(f"      差距不极端, 降级为常规分析")
 
+                # ═══ P0-3: 让2球淘汰赛屠杀降级 ═══
+                # 规则: 淘汰赛+让2球(>=1.75) 穿盘率极低, 除非屠杀队+非R3
+                # 案例: 巴拉圭vs法国(1/8决赛) — 法国让2球, 实际0-1点球(不穿)
+                # 与v5.24弱队GA降级是并列条件, 只要满足其一就降级
+                hcp_depth = abs(match.hcp)
+                is_massacre_team = (match.home in OULinkageEngine.MASSACRE_TEAMS or
+                                    match.away in OULinkageEngine.MASSACRE_TEAMS)
+                r3_rotation = getattr(match, 'r3_rotation', False)
+                massacre_can_wear = is_massacre_team and not r3_rotation
+                if hcp_depth >= 1.75 and not massacre_can_wear:
+                    short_circuit = False
+                    short_circuit_level = 4
+                    short_circuit_reason = ''
+                    if form_result.massacre_warning:
+                        form_result.massacre_warning = False
+                    print(f"\n  🟡 P0-3: 让2球淘汰赛屠杀降级 — hcp={match.hcp:+.2f}, 非屠杀队/或R3, 不强制方向")
+                    print(f"      让2球不穿律: 淘汰赛穿盘率极低, 允许D-Gate/模型重新参与")
+
+                # P0-3补充: 淘汰赛屠杀降级兜底
+                # 即使弱队GA≥1.5/非让2球, 只要淘汰赛+屠杀预警+非屠杀队/或R3, 仍降级
+                # 案例: 巴拉圭vs法国(客让1.5, GA=1.2) 实际0-1点球, 屠杀预警失效
+                if (stage_val == 'knockout' and short_circuit and short_circuit_level == -1
+                        and not massacre_can_wear):
+                    short_circuit = False
+                    short_circuit_level = 4
+                    short_circuit_reason = ''
+                    if form_result.massacre_warning:
+                        form_result.massacre_warning = False
+                    print(f"\n  🟡 P0-3: 淘汰赛屠杀兜底降级 — {weak_team}(GA={weak_ga:.1f}), 非屠杀队/或R3")
+                    print(f"      淘汰赛弱队摆大巴, 小组赛屠杀数据不强制方向")
+
         # ── 链0: 战意/情境分析 (动机层) ──
         context_adj = {}
         try:
@@ -174,7 +285,8 @@ class FullLinkagePipeline:
             context_adj = self.context_analyzer.get_adjustment(
                 match.home, match.away, 
                 matchday=getattr(match, 'matchday', 3),
-                stage=getattr(match, 'stage', 'group')
+                stage=getattr(match, 'stage', 'group'),
+                odds_h=match.odds_h, odds_a=match.odds_a
             )
             print(f"\n  [链0] 战意/情境分析...")
             for note in context_adj.get('notes', [])[:4]:
@@ -252,6 +364,17 @@ class FullLinkagePipeline:
 
         # ═══ P0-2: 屠杀λ重标定 ═══
         # 不论是否短路, 屠杀场景都用真实GF/GA覆写λ (方向由短路决定, λ影响比分精度)
+        # P0-3: 先检查淘汰赛屠杀降级
+        if form_result and form_result.massacre_warning:
+            stage_val = getattr(match, 'stage', 'group')
+            is_massacre_team = (match.home in OULinkageEngine.MASSACRE_TEAMS or
+                                match.away in OULinkageEngine.MASSACRE_TEAMS)
+            r3_rotation = getattr(match, 'r3_rotation', False)
+            massacre_can_wear = is_massacre_team and not r3_rotation
+            if stage_val == 'knockout' and not massacre_can_wear:
+                form_result.massacre_warning = False
+                print(f"\n  🟡 P0-3: 淘汰赛屠杀λ降级 — 非屠杀队/或R3, 关闭屠杀λ重标定")
+
         if form_result and form_result.massacre_warning:
             print(f"\n  [链3.5] 屠杀λ重标定...")
             # 获取真实场均数据
@@ -334,7 +457,7 @@ class FullLinkagePipeline:
                     total = sh + sa
                     if abs(total - ou_line) <= ou_tolerance:
                         filtered.append((prob, s))
-                except:
+                except Exception:
                     filtered.append((prob, s))
             
             if len(filtered) >= 3:
@@ -350,6 +473,69 @@ class FullLinkagePipeline:
             model_result.metadata['lambda_strong'] = round(lam_strong, 2)
             model_result.metadata['lambda_weak'] = round(lam_weak, 2)
 
+        else:
+            # ═══ P0-2.5: 标准 Dixon-Coles λ (v6.0 无屠杀场景, 确保C3.5不缺失) ═══
+            # 用赔率反推λ: 从1X2隐含概率 + OU线估算双方期望进球
+            # 确保每场比赛都有 C3.5 输出, 不再因数据不足而跳过
+            if form_result and form_result.is_valid:
+                print(f"\n  [链3.5] Dixon-Coles λ (标准模式)...")
+                try:
+                    # 1. 隐含概率归一化
+                    imp_h = 1.0 / match.odds_h
+                    imp_d = 1.0 / match.odds_d
+                    imp_a = 1.0 / match.odds_a
+                    total_imp = imp_h + imp_d + imp_a
+                    prob_h = imp_h / total_imp
+                    prob_d = imp_d / total_imp
+                    prob_a = imp_a / total_imp
+
+                    # 2. 从 OU 线估算总 λ
+                    ou_line = match.ou_line
+                    # 总进球期望 ≈ OU线 (市场共识)
+                    total_lambda = max(0.5, ou_line)
+
+                    # 3. λ分配: 按隐含胜率比例 + 主场bonus
+                    if prob_h + prob_a > 0:
+                        share_h = prob_h / (prob_h + prob_a)
+                    else:
+                        share_h = 0.55
+                    # 主场进攻加成5%
+                    lam_home = total_lambda * share_h * 1.05
+                    lam_away = total_lambda * (1 - share_h)
+
+                    # 约束范围
+                    lam_home = max(0.4, min(5.0, lam_home))
+                    lam_away = max(0.3, min(5.0, lam_away))
+
+                    print(f"    → λ(赔率反推): home={lam_home:.2f} away={lam_away:.2f} "
+                          f"| 隐含 H={prob_h:.1%} D={prob_d:.1%} A={prob_a:.1%}")
+
+                    # 4. Poisson Top-5 比分
+                    standard_scores = []
+                    max_s = 6
+                    sp_list = []
+                    for h in range(max_s + 1):
+                        for a in range(max_s + 1):
+                            try:
+                                ph = (lam_home ** h) * math.exp(-lam_home) / max(math.factorial(h), 1)
+                                pa = (lam_away ** a) * math.exp(-lam_away) / max(math.factorial(a), 1)
+                                sp_list.append((ph * pa, f"{h}-{a}"))
+                            except (OverflowError, ValueError):
+                                continue
+                    sp_list.sort(reverse=True, key=lambda x: x[0])
+                    standard_scores = [s for _, s in sp_list[:5]]
+
+                    print(f"    → DC λ 标准比分: {standard_scores}")
+
+                    # 存储到 ou_link (但不覆写已有比分, 仅作参考)
+                    ou_link['dc_standard_scores'] = standard_scores
+                    ou_link['dc_lambda_computed'] = True
+                    model_result.metadata['lambda_home'] = round(lam_home, 2)
+                    model_result.metadata['lambda_away'] = round(lam_away, 2)
+                    model_result.metadata['dc_standard'] = True
+                except Exception as e:
+                    print(f"    → ⚠️ DC λ 计算异常: {e}")
+
         # ═══ P0-5: OU盘口约束总进球 (何执策 · 解决5场OU误判) ═══
         # 原理: 外围OU盘口反映市场对总进球的共识, 偏差>1.5球时应修正
         ou_constrained = _constrain_ou_to_line(ou_link, match, form_result, hasattr(self, '_ou_constrained') and self._ou_constrained)
@@ -357,8 +543,11 @@ class FullLinkagePipeline:
             ou_link['scores'] = ou_constrained['scores']
             ou_link['ou_constrained'] = True
             model_result.metadata['ou_constrained'] = True
+            self._ou_constrained = True  # v6.0 fix: 标记已约束, 避免重复打印
 
-        # ═══ P0: 三路径对比投票 (v5.7 Agent思维设计) ═══
+        # ═══ P0-1: 让2球不穿律前置 ═══
+        # 在OU约束后, 三路径投票前, 强制修正让2球深让的比分锚
+        ou_link = self._apply_hcp2_law(match, ou_link, form_result)
         if not short_circuit:
             vote_result = _vote_three_paths(
                 model_result.verdict, dgate_result.verdict, form_result,
@@ -379,10 +568,36 @@ class FullLinkagePipeline:
             form_result=form_result,  # Chain -1 战绩数据
             context_adj=context_adj    # 链0战意/积分形势
         )
+        # ── v6.0 Fix B: 数据不可用标记 (无降级数据折让) ──
+        if form_result is None:
+            strategy['downgrade_note'] = '[数据不可用] 战绩API不可用, 未生成假数据。预测仅基于赔率+模型推理。'
+            strategy['data_quality'] = 'unavailable'
+        elif getattr(form_result, 'data_quality', None) == 'partial':
+            downgrade_factor = 0.7
+            orig_conf = strategy['confidence']
+            strategy['confidence'] = round(orig_conf * downgrade_factor, 3)
+            strategy['downgrade_note'] = f'[降级折让] 战绩API不可用→FIFA排名+赔率反推, 置信度×{downgrade_factor}: {orig_conf:.3f}→{strategy["confidence"]:.3f}'
+            strategy['data_quality'] = 'partial'
+            print(f"    → ⚠️ 降级折让: 置信度 {orig_conf:.3f}→{strategy['confidence']:.3f} (×{downgrade_factor})")
+        else:
+            strategy['downgrade_note'] = ''
+            strategy['data_quality'] = 'full'
         print(f"    → 策略: {strategy['strategy']}")
         print(f"    → 选择: {strategy['primary']}+{strategy['secondary']}")
         print(f"    → 最佳比分: {strategy['best_score']}")
         print(f"    → 备选比分: {strategy['alt_scores']}")
+
+        # ═══ P0-2: 7条一致性校验自动化 ═══
+        consistency_report = run_consistency_checks(
+            match, strategy, ou_link, dgate_result, model_result, form_result
+        )
+        if not consistency_report['overall_pass']:
+            print(f"\n  ⚠️ [一致性校验] 未通过: {consistency_report['failures']}")
+            for check in consistency_report['checks']:
+                if not check['pass']:
+                    print(f"      ❌ {check['name']}: {check['note']}")
+        else:
+            print(f"\n  ✅ [一致性校验] 全部通过")
 
         # ── 组装最终报告 ──
         return {
@@ -403,6 +618,21 @@ class FullLinkagePipeline:
                     'strength_gap': form_result.strength_gap if form_result else 'unknown',
                     'massacre_warning': form_result.massacre_warning if form_result else False,
                     'verdict': form_result.verdict if form_result else '',
+                    'data_quality': form_result.data_quality if form_result else 'missing',
+                    'confidence': form_result.confidence if form_result else 0.0,
+                },
+                'Context': {  # v6.0: 链0战意/情境分析, CLI 直接读取
+                    'home_motivation': context_adj.get('home_motivation', ''),
+                    'away_motivation': context_adj.get('away_motivation', ''),
+                    'home_rotation': context_adj.get('home_rotation', ''),
+                    'away_rotation': context_adj.get('away_rotation', ''),
+                    'survival_clash': context_adj.get('survival_clash', False),
+                    'mutual_benefit_draw': context_adj.get('mutual_benefit_draw', False),
+                    'dead_rubber': context_adj.get('dead_rubber', False),
+                    'motivation_mult': context_adj.get('motivation_mult', 1.0),
+                    'offensive_bias': context_adj.get('offensive_bias', 0.0),
+                    'notes': context_adj.get('notes', [])[:4],
+                    'context_override': strategy.get('context_override'),
                 },
                 'OU_linkage': {
                     'law': ou_link['law'],
@@ -449,6 +679,8 @@ class FullLinkagePipeline:
                 'short_circuit_reason': f'净胜差≥3' if short_circuit and form_result and abs(form_result.goal_diff_advantage) >= 3.0 else ('屠杀预警' if short_circuit else ''),
                 'lambda_rescaled': ou_link.get('massacre_rescaled', False),
                 'trap_suppressed': dgate_result.metadata.get('trap_suppressed', False),
+                # P0-2: 一致性校验报告
+                'consistency': consistency_report,
                 # v5.7: 三路径投票
                 'vote': vote_result,
                 # v5.7: 链0战意覆盖
@@ -463,30 +695,8 @@ class FullLinkagePipeline:
         }
 
 # ════════════════════════════════════════════════════
-# 批量管道: 6/27 六场全链路分析
+# v6.0 数据清理: MATCHES_6_27 硬编码测试数据已移除
+# 实际赛程数据应从 FootballDataLive API / 数据库 / 配置文件读取
+# 参见: pipeline/auto_pipeline.py 中的 _load_fixtures_from_api()
 # ════════════════════════════════════════════════════
 
-MATCHES_6_27 = [
-    # 格式: MatchInput(主队, 客队, 独赢H/D/A, 让球(外围), OU, r3,
-    #                   home_formation=主队阵型, away_formation=客队阵型,
-    #                   home_full_strength=主力, away_full_strength=主力,
-    #                   home_missing_stars=缺阵, away_missing_stars=缺阵,
-    #                   sporttery_hcp=竞彩让球)
-    # 让球: 负值=主队让球, 正值=主队受让 (来自外围截图原始赔率)
-    # 竞彩让球数据来源: sporttery.cn 实时赔率 (6/27截图)
-    MatchInput('挪威', '法国',       4.05, 3.55, 1.80, +0.5,   2.5,   r3_rotation=True,
-               home_formation='4-1-2-3', away_formation='4-2-3-1',
-               home_full_strength=False, away_full_strength=True,
-               home_missing_stars='哈兰德,厄德高',
-               sporttery_hcp=+1.0),    # 竞彩[+1]: 挪威受让1球(法国让1球)
-    MatchInput('塞内加尔', '伊拉克',  1.40, 4.40, 7.00, -1.25, 2.5,   r3_rotation=True,
-               sporttery_hcp=-2.0),    # 竞彩[-2]: 塞内加尔让2球
-    MatchInput('佛得角共和国', '沙特阿拉伯', 2.47, 3.35, 2.62, 0.0,   2.25,
-               sporttery_hcp=-1.0),    # 竞彩[-1]: 佛得角让1球
-    MatchInput('乌拉圭', '西班牙',   4.70, 3.90, 1.63, +0.75, 2.5,   r3_rotation=True,
-               sporttery_hcp=+1.0),    # 竞彩[+1]: 乌拉圭受让1球(西班牙让1球)
-    MatchInput('埃及', '伊朗',       2.16, 3.00, 3.40, -0.25, 2.0,
-               sporttery_hcp=-1.0),    # 竞彩[-1]: 埃及让1球
-    MatchInput('新西兰', '比利时',   9.00, 5.20, 1.28, +1.5,  2.5,   r3_rotation=True,
-               sporttery_hcp=+2.0),    # 竞彩[+2]: 新西兰受让2球(比利时让2球)
-]

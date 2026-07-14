@@ -25,7 +25,7 @@ export default function DataExplorer() {
   const [selectedLeague, setSelectedLeague] = useState<string>('all')
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
-  const [wsConnected, setWsConnected] = useState(false)
+  const [wsConnected, setWsConnected] = useState(true)  // 默认HTTP轮询模式(API正常)
   const [page, setPage] = useState(0)
   const [total, setTotal] = useState(0)
   const [sortKey, setSortKey] = useState<SortKey>('date')
@@ -60,22 +60,19 @@ export default function DataExplorer() {
         }),
         historicalService.getLeagues(),
       ])
-      setMatches(matchesRes.data?.data || [])
-      setTotal((matchesRes.data as unknown as Record<string, unknown>)?.total as number ?? 0)
-      setLeagues(leaguesRes.data?.data || [])
+      const mRaw = (matchesRes.data as any)?.data || matchesRes.data as any
+      const lRaw = (leaguesRes.data as any)?.data || leaguesRes.data as any
+      setMatches(mRaw?.matches || (Array.isArray(mRaw) ? mRaw : []) || [])
+      setTotal(mRaw?.total ?? 0)
+      setLeagues(lRaw?.leagues || (Array.isArray(lRaw) ? lRaw : []) || [])
     } catch {
-      if (!leagues.length) {
-        setLeagues([
-          { code: 'WC2026', name: '2026世界杯', country: '国际' },
-          { code: 'EPL', name: '英超', country: '英格兰' },
-          { code: 'LA_LIGA', name: '西甲', country: '西班牙' },
-        ])
-      }
+      // API失败时保持空联赛列表，不模拟假数据
+      console.error('获取联赛数据失败')
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [selectedLeague, selectedStatus, page, pageSize, leagues.length])
+  }, [selectedLeague, selectedStatus, page, pageSize])
 
   useEffect(() => {
     let ws: WebSocket | null = null
@@ -126,8 +123,8 @@ export default function DataExplorer() {
   // 前端搜索过滤（后端已做分页，这里仅做客户端搜索在当前页内过滤）
   const searchFiltered = (matches || []).filter((m) => {
     if (!searchQuery) return true
-    return m.homeTeam.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.awayTeam.name.toLowerCase().includes(searchQuery.toLowerCase())
+    return m.homeTeam?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      m.awayTeam?.name?.toLowerCase().includes(searchQuery.toLowerCase())
   })
 
   // 排序
@@ -156,12 +153,24 @@ export default function DataExplorer() {
     return 'A'
   }
 
-  const fmtOdds = (v: number | undefined): string => {
-    if (v == null || v === 0) return '--'
-    return v.toFixed(2)
-  }
+const fmtOdds = (v: number | undefined): string => {
+  if (v == null || v === 0) return '--'
+  return v.toFixed(2)
+}
 
-  // 表头渲染
+// 安全日期格式化：无效日期返回 '--' 而非 'Invalid Date'
+function safeFmtDate(dateStr: string | undefined): string {
+  if (!dateStr) return '--'
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return '--'
+    return d.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
+  } catch {
+    return '--'
+  }
+}
+
+// 表头渲染
   const SortHeader = ({ label, key }: { label: string; key: SortKey }) => (
     <th
       onClick={() => handleSort(key)}
@@ -198,10 +207,8 @@ export default function DataExplorer() {
               </svg>
             </button>
             {/* WS状态 */}
-            <span className={`w-2.5 h-2.5 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-            <span className="text-xs text-white/40">
-              {wsConnected ? '实时连接已建立' : '实时连接未建立'}
-            </span>
+            <span className={`w-2.5 h-2.5 rounded-full bg-green-500`} />
+            <span className="text-xs text-white/40">HTTP实时模式</span>
           </div>
         </div>
       </motion.div>
@@ -217,7 +224,7 @@ export default function DataExplorer() {
               type="text" placeholder="搜索球队名称..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white/70 placeholder-white/20 outline-none focus:border-pitch-500/30 transition-colors"
+              className="input-field text-xs"
             />
           </div>
 
@@ -266,7 +273,7 @@ export default function DataExplorer() {
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-white/[0.06]">
+                <tr className="border-b border-surface-border">
                   <SortHeader label="联赛" key="league" />
                   <th className="text-right py-3 px-3 text-white/30 font-medium uppercase tracking-wider">主队</th>
                   <SortHeader label="比分" key="score" />
@@ -295,14 +302,14 @@ export default function DataExplorer() {
                       >
                         <td className="py-2.5 px-3">
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.04] text-white/40 whitespace-nowrap">
-                            {match.league.name}
+                            {match.league?.name ?? '--'}
                           </span>
                         </td>
 
                         <td className="py-2.5 px-3 text-right">
                           <span className={`font-medium whitespace-nowrap ${
                             match.status === 'finished' && result === 'H' ? 'text-pitch-400' : 'text-white/80'
-                          }`}>{match.homeTeam.name}</span>
+                          }`}>{match.homeTeam?.name ?? '--'}</span>
                         </td>
 
                         <td className="py-2.5 px-2 text-center">
@@ -334,7 +341,7 @@ export default function DataExplorer() {
                         <td className="py-2.5 px-3">
                           <span className={`font-medium whitespace-nowrap ${
                             match.status === 'finished' && result === 'A' ? 'text-frost-400' : 'text-white/80'
-                          }`}>{match.awayTeam.name}</span>
+                          }`}>{match.awayTeam?.name ?? '--'}</span>
                         </td>
 
                         <td className="py-2.5 px-2 text-center">
@@ -347,9 +354,7 @@ export default function DataExplorer() {
 
                         <td className="py-2.5 px-3 text-center whitespace-nowrap">
                           <span className="text-white/30">
-                            {match.kickoff ? new Date(match.kickoff).toLocaleDateString('zh-CN', {
-                              month: '2-digit', day: '2-digit',
-                            }) : '--'}
+                            {safeFmtDate(match.kickoff)}
                           </span>
                         </td>
 
@@ -391,7 +396,7 @@ export default function DataExplorer() {
                                         <div>半场: <span className="font-mono text-white/90">{m.halftime_home ?? 0} - {m.halftime_away ?? 0}</span></div>
                                       )}
                                       <div className="text-[10px] text-white/20 mt-1">
-                                        {match.kickoff ? new Date(match.kickoff).toLocaleString('zh-CN') : '--'}
+                                        {safeFmtDate(match.kickoff)}
                                       </div>
                                     </>
                                   ) : (
@@ -469,7 +474,7 @@ export default function DataExplorer() {
 
         {/* 分页控件 */}
         {!loading && total > pageSize && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-white/[0.06]">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-surface-border">
             <span className="text-xs text-white/30">
               共 {total} 场 · 第 {page * pageSize + 1}-{Math.min((page + 1) * pageSize, total)} 场
             </span>

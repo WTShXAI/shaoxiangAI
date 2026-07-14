@@ -7,6 +7,12 @@ import sys, os, math, json
 import numpy as np
 import joblib
 
+# 仓库根 — 收敛凯利至 SSoT bet_core
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+from scripts.bet_core import kelly_fraction as kelly  # 向后兼容别名
+
 # 原始欧赔数据
 # ============================================================
 ODDS = {
@@ -22,9 +28,7 @@ def implied(h, d, a):
 def fair(probs):
     return {k: 1/v if v>0 else 99 for k,v in probs.items() if k!='margin'}
 
-def kelly(p, odds):
-    b = odds - 1
-    return max(0, (p*b - (1-p))/b) if b>0 else 0
+# kelly(p, odds) 已收敛至 scripts.bet_core.kelly_fraction (SSoT) — 见文件头 import
 
 def ev(p, odds):
     return p*odds - 1

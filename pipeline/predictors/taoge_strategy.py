@@ -11,10 +11,270 @@ from ._compat import np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from pipeline.predictors.data_classes import *  # noqa: F401, F403
 from pipeline.predictors.ou_linkage import *  # noqa: F401, F403
-from pipeline.predictors.dgate_layer import *  # noqa: F401, F403
+# dgate_layer removed 2026-07-06
 
 class TaoGeStrategy:
     """涛哥策略: 永远从主队视角, 深让双选让胜+让平, 永不让负"""
+
+    # ════════════════════════════════════════════════════
+    # v6.0: 将 decide() 拆分为 Phase 1-4 子方法
+    # ════════════════════════════════════════════════════
+
+    @staticmethod
+    def _generate_candidate_scores(match: MatchInput, ou_link: Dict,
+                                    form_result: Any, evidence: List[str],
+                                    primary: str = '') -> Dict[str, Any]:
+        """Phase 3: 比分生成 + hcp/OU 约束精调
+        
+        Args:
+            primary: 策略决策的 primary 标签, 用于 v5.18 平局方向检测
+        
+        Returns:
+            {best_score, alt_scores, top_scores, massacre_adjusted}
+        """
+        hcp_abs = abs(match.hcp)
+        home_give = match.hcp < 0  # 主让球
+        massacre_adjusted = ou_link.get('massacre_rescaled', False)
+        
+        # 比分模板：按让球深度分级 (v5.23: +赔率深度修正)
+        odds_gap = max(match.odds_h, match.odds_a) / max(min(match.odds_h, match.odds_a), 0.01)
+        if odds_gap > 3:   hcp_abs = max(hcp_abs, 2.5)
+        elif odds_gap > 2: hcp_abs = max(hcp_abs, 1.5)
+        
+        if hcp_abs < 0.75:
+            template = ['1-0','2-1','2-0','1-1','0-0']
+        elif hcp_abs < 1.5:
+            template = ['2-0','3-1','1-0','2-1','3-0']
+        elif hcp_abs < 2.5:
+            template = ['3-0','4-1','2-0','3-1','4-0','0-3','1-4']
+        else:
+            template = ['4-0','5-1','3-0','5-0','4-1','0-4','1-5']
+        
+        # ═══ P0-1: 让2球不穿律硬约束 (TaoGe层双重保险) ═══
+        # 即使pipeline.py已过滤ou_link['scores'], TaoGe模板可能重新引入屠杀比分
+        # 当 hcp>=1.75 且非屠杀队/或R3时, 强制移除净胜差>=3的屠杀比分
+        if hcp_abs >= 1.75:
+            is_massacre_team = (match.home in OULinkageEngine.MASSACRE_TEAMS or
+                                match.away in OULinkageEngine.MASSACRE_TEAMS)
+            r3_rotation = getattr(match, 'r3_rotation', False)
+            massacre_can_wear = is_massacre_team and not r3_rotation
+            if not massacre_can_wear:
+                filtered_template = []
+                for s in template:
+                    try:
+                        sh, sa = map(int, s.split('-'))
+                        if abs(sh - sa) < 3:
+                            filtered_template.append(s)
+                    except Exception:
+                        continue
+                if filtered_template:
+                    template = filtered_template
+                    evidence.append(f'🟡 P0-1: 让2球不穿律硬约束，hpc={match.hcp:+.2f}，非屠杀队/R3，移除屠杀比分')
+                else:
+                    # 兜底走水/小胜比分
+                    template = ['1-0','2-0','0-0','2-1','1-1']
+                    evidence.append(f'🟡 P0-1: 让2球不穿律兜底，hpc={match.hcp:+.2f}，模板全部屠杀，启用走水比分')
+
+        candidates = []
+        for s in template:
+            sh, sa = map(int, s.split('-'))
+            if home_give:
+                candidates.append(f'{sh}-{sa}')
+            else:
+                candidates.append(f'{sa}-{sh}')
+        
+        all_candidates = list(dict.fromkeys(candidates[:5]))
+        if ou_link.get('massacre_rescaled'):
+            for s in ou_link['scores'][:3]:
+                if s not in all_candidates:
+                    all_candidates.append(s)
+        
+        ou_scored = []
+        for s in all_candidates:
+            try:
+                sh, sa = map(int, s.split('-'))
+                total = sh + sa
+                ou_scored.append((abs(total - match.ou_line), s))
+            except Exception as e: logger.warning(f"TaoGe v5.23: 比分解析失败 '{s}': {e}")
+        ou_scored.sort(key=lambda x: x[0])
+        
+        top_scores = [s for _, s in ou_scored[:5]]
+        best_score = top_scores[0]
+        alt_scores = top_scores[1:3]
+        evidence.append(f'🎯 v5.23: hcp={match.hcp:+.2f}模板化比分→{best_score}')
+
+        # ═══ v5.21: 双方进球多样性 ═══
+        if form_result:
+            weak_is_home = form_result.goal_diff_advantage < 0
+            weak_gf = form_result.home.avg_gf if weak_is_home else form_result.away.avg_gf
+            if weak_gf > 1.0:
+                has_weak_score = False
+                for s in top_scores[:3]:
+                    try:
+                        sh, sa = map(int, s.split('-'))
+                        if (weak_is_home and sh > 0) or (not weak_is_home and sa > 0):
+                            has_weak_score = True
+                            break
+                    except Exception as e: logger.warning(f"TaoGe v5.21: 比分解析失败 '{s}': {e}")
+                if not has_weak_score:
+                    for s in top_scores[3:]:
+                        try:
+                            sh, sa = map(int, s.split('-'))
+                            if (weak_is_home and sh > 0) or (not weak_is_home and sa > 0):
+                                top_scores[2] = s
+                                alt_scores = top_scores[1:3]
+                                evidence.append(f'🎯 v5.21: 弱队GF={weak_gf:.1f}>1.0, 补充双方进球比分')
+                                break
+                        except Exception as e: logger.warning(f"TaoGe v5.21(备选): 比分解析失败 '{s}': {e}")
+
+        # ═══ v5.18: hcp+OU联合约束比分精调 ═══
+        hcp_depth = abs(match.hcp)
+        ou_line = match.ou_line
+        should_refine = (hcp_depth >= 0.25 and not massacre_adjusted 
+                         and not (form_result and form_result.massacre_warning))
+        
+        if should_refine:
+            target_diff = round(hcp_depth)
+            is_home_give = match.hcp < 0
+            
+            scored = []
+            for s in top_scores[:5]:
+                try:
+                    sh, sa = map(int, s.split('-'))
+                    diff = sh - sa
+                    total = sh + sa
+                    
+                    is_draw_verdict = ('平' in str(primary) and '让' not in str(primary)
+                                       ) or '平局' in str(primary)
+                    if not is_draw_verdict:
+                        if is_home_give and diff <= 0: continue
+                        if not is_home_give and diff >= 0: continue
+                    
+                    ou_dev = abs(total - ou_line)
+                    diff_score = abs(abs(diff) - target_diff)
+                    total_score = ou_dev
+                    combined = diff_score * 0.6 + total_score * 0.4
+                    
+                    scored.append((combined, s, diff, total))
+                except Exception as e:
+                    logger.debug(f"[TaoGe] 评分跳过: {e}")
+                    continue
+            
+            if scored:
+                scored.sort(key=lambda x: x[0])
+                top_scores = [s for _, s, _, _ in scored[:3]]
+                best_score = top_scores[0]
+                alt_scores = top_scores[1:3]
+                
+                best_diff = scored[0][2]
+                best_total = scored[0][3]
+                evidence.append(f'🎯 v5.18: hcp={match.hcp:+.2f}+OU={ou_line}约束→diff≈{target_diff}球 total≈{ou_line}球')
+
+        return {
+            'best_score': best_score, 'alt_scores': alt_scores,
+            'top_scores': top_scores, 'massacre_adjusted': massacre_adjusted,
+        }
+
+    @staticmethod
+    def _determine_recommendation_type(match: MatchInput, best_score: str,
+                                        primary: str, secondary: str,
+                                        context_override: Any, form_result: Any,
+                                        model: ChainResult, evidence: List[str]
+                                        ) -> Tuple[str, List[str], str, str]:
+        """Phase 4: 根据比分形态决定推荐类型和市场
+        
+        Returns:
+            (rec_type, rec_markets, primary, secondary)
+        """
+        try:
+            bs_h, bs_a = map(int, best_score.split('-'))
+            bs_total = bs_h + bs_a
+            bs_diff = abs(bs_h - bs_a)
+        except (ValueError, TypeError):
+            bs_total, bs_diff = 2, 1
+
+        is_small_ou = match.ou_line <= 2.0
+        is_draw_score = bs_h == bs_a
+        is_tight_score = bs_total <= 2
+        is_blowout = bs_diff >= 2 and bs_total >= 3
+        hcp_is_deep = abs(match.hcp) >= 0.75
+        
+        rec_type = 'balanced'
+        rec_markets = ['1X2']
+        
+        if is_draw_score or (is_tight_score and is_small_ou):
+            if any('让' in x for x in (primary, secondary)) and hcp_is_deep:
+                rec_type = '双推(深让小比分:让球+1X2)'
+                rec_markets = ['AH', '1X2']
+                if primary == '让胜':
+                    secondary = '主胜'
+                elif primary == '让负':
+                    secondary = '客胜'
+                elif primary == '让平':
+                    secondary = '平局'
+                evidence.append(f'🔄 智慧推荐: 深让+小比分, 双推让球+1X2')
+            elif any('让' in x for x in (primary, secondary)):
+                is_context_locked = (
+                    context_override is not None
+                    and ('搏命' in str(context_override) 
+                         or 'survival' in str(context_override)
+                         or '默契' in str(context_override))
+                ) or (form_result and form_result.massacre_warning)
+                
+                if is_context_locked:
+                    rec_type = '战意覆盖(保留让球)'
+                    rec_markets = ['AH', '1X2']
+                    if primary == '让胜':
+                        secondary = '主胜'
+                    elif primary == '让负':
+                        secondary = '客胜'
+                    else:
+                        secondary = '平局'
+                    evidence.append(f'🛡️ 战意覆盖: OU比分{best_score}但战意决策优先, 保留{primary}')
+                else:
+                    model_v = model.verdict if model and model.verdict != '?' else 'H'
+                    if model_v == 'H':
+                        primary, secondary = '主胜', '平局'
+                    elif model_v == 'A':
+                        primary, secondary = '客胜', '平局'
+                    else:
+                        primary, secondary = '平局', '主胜'
+                    rec_type = '1X2优先(小比分)'
+                    rec_markets = ['1X2']
+                    evidence.append(f'🔄 智慧推荐: 比分{best_score}为小比分, 切换为1X2推荐')
+            else:
+                rec_type = '1X2优先(小比分)'
+                rec_markets = ['1X2']
+        elif is_blowout and is_small_ou:
+            rec_type = '1X2优先(大比分但OU小)'
+            rec_markets = ['1X2']
+        elif is_blowout and not is_small_ou:
+            rec_type = '双推(大比分:让球+1X2)'
+            rec_markets = ['AH', '1X2']
+            if not any('让' in x for x in (primary,)):
+                if '主胜' in primary or primary == '胜':
+                    primary, secondary = '让胜', '主胜'
+                elif '客胜' in primary or primary == '负':
+                    primary, secondary = '让负', '客胜'
+                else:
+                    primary, secondary = '让平', '平局'
+            evidence.append(f'🔥 智慧推荐: 比分{best_score}为大比分, 双推让球+1X2')
+        elif hcp_is_deep and not is_tight_score and not is_draw_score:
+            rec_type = '双推(深让:让球+1X2)'
+            rec_markets = ['AH', '1X2']
+            if not any('让' in x for x in (primary,)):
+                if '主胜' in str(primary) or primary == '胜':
+                    primary, secondary = '让胜', '主胜'
+                elif '客胜' in str(primary) or primary == '负':
+                    primary, secondary = '让负', '客胜'
+                else:
+                    primary, secondary = '让平', '平局'
+            evidence.append(f'🔄 智慧推荐: 深让盘{abs(match.hcp):.2f}球, 双推让球+1X2')
+        else:
+            rec_type = '双推(均衡)'
+            rec_markets = ['AH', '1X2']
+        
+        return rec_type, rec_markets, primary, secondary
 
     @staticmethod
     def decide(match: MatchInput, ou_link: Dict, dgate: ChainResult,
@@ -361,10 +621,27 @@ class TaoGeStrategy:
                     rationale = '模型和D-Gate一致指向平局, 战意无明确方向'
                     evidence.append(f'🤝 模型+D-Gate一致: 模型={model_v}, D-Gate=draw_alert → 平局')
             else:
-                primary = '主胜'
-                secondary = '平'
+                # ═══ v5.14: 默认方向根据让球深度+模型/赔率决定 ═══
+                # 修复: 原先固定主胜/平, 在客队深让时导致方向错误
+                # 案例: 巴拉圭vs法国(客让1.5) → 应让负+客胜, 非让胜+主胜
+                model_v = model.verdict if model and model.verdict != '?' else ''
+                if model_v in ('H', 'A'):
+                    direction = model_v
+                else:
+                    direction = 'H' if match.odds_h < match.odds_a else 'A'
+                hcp_abs = abs(match.hcp)
+                if hcp_abs >= 0.75:
+                    if direction == 'H':
+                        primary, secondary = '让胜', '主胜'
+                    else:
+                        primary, secondary = '让负', '客胜'
+                else:
+                    if direction == 'H':
+                        primary, secondary = '主胜', '平'
+                    else:
+                        primary, secondary = '客胜', '平'
                 strategy = '联动策略'
-                rationale = '基于OU联动和D-Gate综合决策'
+                rationale = '基于OU联动、D-Gate和赔率方向综合决策'
 
         # ═══ v5.10: 已出线队后置检查 ═══
         # 只要场上有6分已出线队 → 保守轮换, 1X2优于让球
@@ -406,248 +683,18 @@ class TaoGeStrategy:
                 if match.ou_line <= 2.25 and weak_team_avg_gf > 0.5:
                     evidence.append('⚡ 让1球冷门律: OU≤2.25+弱队场均进球>0.5→冷门风险，建议双选')
 
-        # ── 最终比分 ── v5.23 hcp深度模板化 ──
-        # 用让球深度直接生成结构化比分候选，不再仅依赖ou_link Top-3
-        hcp_abs = abs(match.hcp)
-        home_give = match.hcp < 0  # 主让球
-        massacre_adjusted = ou_link.get('massacre_rescaled', False)
-        
-        # 比分模板：按让球深度分级 (v5.23: +赔率深度修正)
-        # 赔率不对称→深度升级: 主/客超2倍差距→至少medium; >3倍→至少deep
-        odds_gap = max(match.odds_h, match.odds_a) / max(min(match.odds_h, match.odds_a), 0.01)
-        if odds_gap > 3:   hcp_abs = max(hcp_abs, 2.5)
-        elif odds_gap > 2: hcp_abs = max(hcp_abs, 1.5)
-        
-        if hcp_abs < 0.75:
-            template = ['1-0','2-1','2-0','1-1','0-0']  # 浅让: 1球差
-        elif hcp_abs < 1.5:
-            template = ['2-0','3-1','1-0','2-1','3-0']  # 中让: 1-2球差
-        elif hcp_abs < 2.5:
-            template = ['3-0','4-1','2-0','3-1','4-0','0-3','1-4']  # 深让: 2-3球差
-        else:
-            template = ['4-0','5-1','3-0','5-0','4-1','0-4','1-5']  # 极深: 3+球差
-        
-        # 方向填充: 根据让球方向展开模板
-        candidates = []
-        for s in template:
-            sh, sa = map(int, s.split('-'))
-            if home_give:
-                candidates.append(f'{sh}-{sa}')    # 主让→主胜方向
-            else:
-                candidates.append(f'{sa}-{sh}')    # 主受→客胜方向
-        
-        # OU总球排序：hcp模板为主，λ补充(如有)
-        all_candidates = list(dict.fromkeys(candidates[:5]))
-        if ou_link.get('massacre_rescaled'):
-            # 补充λ重标定结果但不覆盖模板
-            for s in ou_link['scores'][:3]:
-                if s not in all_candidates:
-                    all_candidates.append(s)
-        
-        # 用OU线排序
-        ou_scored = []
-        for s in all_candidates:
-            try:
-                sh, sa = map(int, s.split('-'))
-                total = sh + sa
-                ou_scored.append((abs(total - match.ou_line), s))
-            except Exception as e: logger.warning(f"TaoGe v5.23: 比分解析失败 '{s}': {e}")
-        ou_scored.sort(key=lambda x: x[0])
-        
-        top_scores = [s for _, s in ou_scored[:5]]
-        best_score = top_scores[0]
-        alt_scores = top_scores[1:3]
-        evidence.append(f'🎯 v5.23: hcp={match.hcp:+.2f}模板化比分→{best_score}')
 
-        # ═══ v5.21: 双方进球多样性 ═══
-        # 弱队GF>1.0时, 确保至少1个"弱队进球>0"的比分在Top3中
-        # 案例: 挪威GF=2.67 vs 法国→实际1-4, 预测0-3缺弱队进球
-        if form_result:
-            weak_is_home = form_result.goal_diff_advantage < 0
-            weak_gf = form_result.home.avg_gf if weak_is_home else form_result.away.avg_gf
-            if weak_gf > 1.0:
-                has_weak_score = False
-                for s in top_scores[:3]:
-                    try:
-                        sh, sa = map(int, s.split('-'))
-                        if (weak_is_home and sh > 0) or (not weak_is_home and sa > 0):
-                            has_weak_score = True
-                            break
-                    except Exception as e: logger.warning(f"TaoGe v5.21: 比分解析失败 '{s}': {e}")
-                if not has_weak_score:
-                    # 从备选池找有弱队进球的比分替换第3个
-                    for s in top_scores[3:]:
-                        try:
-                            sh, sa = map(int, s.split('-'))
-                            if (weak_is_home and sh > 0) or (not weak_is_home and sa > 0):
-                                top_scores[2] = s
-                                alt_scores = top_scores[1:3]
-                                evidence.append(f'🎯 v5.21: 弱队GF={weak_gf:.1f}>1.0, 补充双方进球比分')
-                                break
-                        except Exception as e: logger.warning(f"TaoGe v5.21(备选): 比分解析失败 '{s}': {e}")
-
-        # ═══ v5.18: hcp+OU联合约束比分精调 ═══
-        # 用hcp锚定比分差 + OU锚定总球数，双维度过滤+排序
-        hcp_depth = abs(match.hcp)
-        ou_line = match.ou_line
-        should_refine = (hcp_depth >= 0.25 and not massacre_adjusted 
-                         and not (form_result and form_result.massacre_warning))
-        
-        if should_refine:
-            target_diff = round(hcp_depth)
-            is_home_give = match.hcp < 0
-            
-            scored = []
-            for s in top_scores[:5]:
-                try:
-                    sh, sa = map(int, s.split('-'))
-                    diff = sh - sa
-                    total = sh + sa
-                    
-                    # 1. hcp方向约束：让球方向必须匹配
-                    # ═══ v5.24: 平局方向时跳过方向过滤 ═══
-                    # 案例: 荷兰vs摩洛哥 — 预测让平/让负(摩洛哥+0.5), 方向含'平'
-                    #       v5.18过滤diff≤0 → 所有平局比分被移除 → 首选1-0(矛盾!)
-                    #       实际1-1 → 平局比分应保留在候选池
-                    is_draw_verdict = ('平' in str(primary) and '让' not in str(primary)
-                                       ) or '平局' in str(primary)
-                    if not is_draw_verdict:
-                        if is_home_give and diff <= 0: continue
-                        if not is_home_give and diff >= 0: continue
-                    
-                    # 2. OU总球约束：偏离OU线的惩罚分
-                    ou_dev = abs(total - ou_line)
-                    
-                    # 3. 综合评分：分差偏离(权重0.6) + 总球偏离(权重0.4)
-                    diff_score = abs(abs(diff) - target_diff)
-                    total_score = ou_dev
-                    combined = diff_score * 0.6 + total_score * 0.4
-                    
-                    scored.append((combined, s, diff, total))
-                except Exception as e:
-                    logger.debug(f"[TaoGe] 评分跳过: {e}")
-                    continue
-            
-            if scored:
-                scored.sort(key=lambda x: x[0])
-                top_scores = [s for _, s, _, _ in scored[:3]]
-                best_score = top_scores[0]
-                alt_scores = top_scores[1:3]
-                
-                # 诊断信息
-                best_diff = scored[0][2]
-                best_total = scored[0][3]
-                evidence.append(f'🎯 v5.18: hcp={match.hcp:+.2f}+OU={ou_line}约束→diff≈{target_diff}球 total≈{ou_line}球')
+        # ── 最终比分 ── v5.23 hcp深度模板化 / v5.21 双方进球多样性 / v5.18 hcp+OU联合约束 ──
+        scores = TaoGeStrategy._generate_candidate_scores(match, ou_link, form_result, evidence, primary)
+        best_score = scores['best_score']
+        alt_scores = scores['alt_scores']
+        top_scores = scores['top_scores']
+        massacre_adjusted = scores['massacre_adjusted']
 
         # ═══ v6.0: 智慧推荐类型选择 — 双市场推荐 ═══
-        # 根据预测比分形态 + 赔率结构 + OU 动态决定推荐方式
-        # 修复(v5.7→v6.0): 删除机械转让球逻辑, 深让盘/大比分改为双推模式
-        try:
-            bs_h, bs_a = map(int, best_score.split('-'))
-            bs_total = bs_h + bs_a
-            bs_diff = abs(bs_h - bs_a)
-        except (ValueError, TypeError):
-            bs_total, bs_diff = 2, 1
-
-        # 条件判断
-        is_small_ou = match.ou_line <= 2.0           # 小球线
-        is_draw_score = bs_h == bs_a                 # 平局比分
-        is_tight_score = bs_total <= 2                # 小比分(0-0/1-0/0-1/1-1/2-0/0-2)
-        is_blowout = bs_diff >= 2 and bs_total >= 3   # 大比分(3-0+/0-3+)
-        hcp_is_deep = abs(match.hcp) >= 0.75          # 深让盘
-        
-        rec_type = 'balanced'
-        rec_markets = ['1X2']  # 默认推荐1X2市场
-        
-        if is_draw_score or (is_tight_score and is_small_ou):
-            # 平局/小比分+小球线 → 1X2推荐更安全
-            # v5.10: hcp>=1时保留让球标签, 不机械转1X2
-            if any('让' in x for x in (primary, secondary)) and hcp_is_deep:
-                # 深让盘+小比分: 双推(让球+1X2)
-                rec_type = '双推(深让小比分:让球+1X2)'
-                rec_markets = ['AH', '1X2']
-                # 保留让球标签作为primary, 增加1X2作为secondary
-                if primary == '让胜':
-                    secondary = '主胜'
-                elif primary == '让负':
-                    secondary = '客胜'
-                elif primary == '让平':
-                    secondary = '平局'
-                evidence.append(f'🔄 智慧推荐: 深让+小比分, 双推让球+1X2')
-            elif any('让' in x for x in (primary, secondary)):
-                # ═══ v5.11: 战意覆盖保护 ═══
-                # 当TaoGe已基于chain 0战意(搏命/屠杀/默契平局)做决策
-                # OU平局比分不应覆盖方向决策
-                # 案例: 英格兰(4pts)vs克罗地亚(3pts搏命) — TaoGe决定客胜+让负
-                #       OU锚比分1-1 → 不应转为平局推荐
-                is_context_locked = (
-                    context_override is not None
-                    and ('搏命' in str(context_override) 
-                         or 'survival' in str(context_override)
-                         or '默契' in str(context_override))
-                ) or (form_result and form_result.massacre_warning)
-                
-                if is_context_locked:
-                    # 保持让球推荐, 不切换为1X2
-                    rec_type = '战意覆盖(保留让球)'
-                    rec_markets = ['AH', '1X2']
-                    if primary == '让胜':
-                        secondary = '主胜'
-                    elif primary == '让负':
-                        secondary = '客胜'
-                    else:
-                        secondary = '平局'
-                    evidence.append(f'🛡️ 战意覆盖: OU比分{best_score}但战意决策优先, 保留{primary}')
-                else:
-                    # 浅让+小比分 → 切换为1X2推荐
-                    model_v = model.verdict if model and model.verdict != '?' else 'H'
-                    if model_v == 'H':
-                        primary, secondary = '主胜', '平局'
-                    elif model_v == 'A':
-                        primary, secondary = '客胜', '平局'
-                    else:
-                        primary, secondary = '平局', '主胜'
-                    rec_type = '1X2优先(小比分)'
-                    rec_markets = ['1X2']
-                    evidence.append(f'🔄 智慧推荐: 比分{best_score}为小比分, 切换为1X2推荐')
-            else:
-                # 已经是1X2标签, 保持
-                rec_type = '1X2优先(小比分)'
-                rec_markets = ['1X2']
-        elif is_blowout and is_small_ou:
-            # 大比分+小球线 → 异常组合(理论上矛盾), 还是1X2安全
-            rec_type = '1X2优先(大比分但OU小)'
-            rec_markets = ['1X2']
-        elif is_blowout and not is_small_ou:
-            # 大比分+大球线 → 让球有价值, 但同时推荐1X2
-            rec_type = '双推(大比分:让球+1X2)'
-            rec_markets = ['AH', '1X2']
-            # 让球作为primary, 1X2作为secondary
-            if not any('让' in x for x in (primary,)):
-                # 当前是1X2标签, 增加让球选项
-                if '主胜' in primary or primary == '胜':
-                    primary, secondary = '让胜', '主胜'
-                elif '客胜' in primary or primary == '负':
-                    primary, secondary = '让负', '客胜'
-                else:
-                    primary, secondary = '让平', '平局'
-            evidence.append(f'🔥 智慧推荐: 比分{best_score}为大比分, 双推让球+1X2')
-        elif hcp_is_deep and not is_tight_score and not is_draw_score:
-            # 深让盘+非小比分 → 双推(让球+1X2)
-            rec_type = '双推(深让:让球+1X2)'
-            rec_markets = ['AH', '1X2']
-            if not any('让' in x for x in (primary,)):
-                # 增加让球选项
-                if '主胜' in str(primary) or primary == '胜':
-                    primary, secondary = '让胜', '主胜'
-                elif '客胜' in str(primary) or primary == '负':
-                    primary, secondary = '让负', '客胜'
-                else:
-                    primary, secondary = '让平', '平局'
-            evidence.append(f'🔄 智慧推荐: 深让盘{abs(match.hcp):.2f}球, 双推让球+1X2')
-        else:
-            rec_type = '双推(均衡)'
-            rec_markets = ['AH', '1X2']
+        rec_type, rec_markets, primary, secondary = TaoGeStrategy._determine_recommendation_type(
+            match, best_score, primary, secondary, context_override, form_result, model, evidence
+        )
 
         # 统一标签格式: 确保primary/secondary使用明确的标签
         # 1X2: '主胜'/'平局'/'客胜'   让球: '让胜'/'让平'/'让负'

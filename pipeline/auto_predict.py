@@ -321,7 +321,7 @@ if __name__ == '__main__':
     
     if date_str == 'today':
         import datetime
-        now = datetime.datetime.now(timezone.utc)
+        now = datetime.datetime.now(datetime.timezone.utc)
         date_str = f'{now.month}.{now.day}'
     
     if '-' in date_str:

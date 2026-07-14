@@ -23,12 +23,13 @@ API文档: https://the-odds-api.com/liveapi/guides/v4/
 未配置 key 时自动降级: 所有 API 调用返回空, 不崩溃。
 """
 import os
+import sys
 import time
 import json
 import logging
 import requests
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 from pathlib import Path
 
 # 自动加载 .env (与 config/api_config.py、football_data_live.py 一致)
@@ -39,6 +40,17 @@ except ImportError:
     pass  # python-dotenv 未装时降级: 依赖系统环境变量
 
 logger = logging.getLogger(__name__)
+
+# ── 接入中央 API 预算护栏 (带防御性降级) ──
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+try:
+    from pipeline.collectors.api_budget import ApiBudgetGuard, get_guard
+    _HAS_GUARD = True
+except Exception as _guard_err:  # pragma: no cover
+    logger.warning(f"API 预算护栏不可用, 降级为裸请求: {_guard_err}")
+    _HAS_GUARD = False
 
 # 运动映射: 哨响AI联赛名 → The Odds API sport key
 SPORT_KEY_MAP = {
@@ -78,20 +90,22 @@ REGIONS = "uk,eu"
 class TheOddsCollector:
     """The Odds API 赔率数据采集器"""
 
-    def __init__(self, api_key: str = None, base_url: str = "https://api.the-odds-api.com/v4"):
+    def __init__(self, api_key: Optional[str] = None, base_url: str = "https://api.the-odds-api.com/v4"):
         self.api_key = api_key or os.environ.get("THE_ODDS_API_KEY", "")
         self.base_url = base_url
         self.request_count = 0
-        self.max_requests = 500  # 免费层月配额
+        self.max_requests = 20000  # 付费套餐月配额 (原 500 免费层假设已修正)
         self.last_response_header: Dict = {}  # x-requests-used, x-requests-remaining
+        # 中央预算护栏 (单例, 跨进程共享磁盘状态)
+        self.guard = get_guard() if _HAS_GUARD else None
 
     @property
     def is_configured(self) -> bool:
         return bool(self.api_key)
 
-    def _api_call(self, endpoint: str, params: dict = None) -> Optional[dict]:
+    def _api_call(self, endpoint: str, params: Optional[Dict] = None) -> Optional[dict]:
         """
-        统一 API 调用封装
+        统一 API 调用封装 (走中央预算护栏: 日配额硬闸 + 缓存)
 
         Args:
             endpoint: API 端点路径，如 "/sports/soccer_epl/odds"
@@ -108,46 +122,58 @@ class TheOddsCollector:
         query = params or {}
         query["apiKey"] = self.api_key
 
-        try:
-            resp = requests.get(url, params=query, timeout=15)
-            self.request_count += 1
-
-            # 追踪配额使用
-            self.last_response_header = {
-                "x-requests-used": resp.headers.get("x-requests-used", "?"),
-                "x-requests-remaining": resp.headers.get("x-requests-remaining", "?"),
-            }
-
-            if resp.status_code == 200:
-                return resp.json()
-            elif resp.status_code == 401:
-                logger.error(f"The Odds API 401: API Key 无效")
+        # 走预算护栏 (缓存命中 / 预算耗尽都在此处理)
+        if self.guard is not None:
+            resp = self.guard.guarded_get(url, query, cache_group="odds", timeout=15)
+        else:
+            try:
+                r = requests.get(url, params=query, timeout=15)
+                resp = type("R", (), {
+                    "status_code": r.status_code, "text": r.text,
+                    "headers": dict(r.headers), "json": r.json,
+                })()
+            except requests.exceptions.Timeout:
+                logger.error(f"The Odds API 请求超时: {endpoint}")
                 return None
-            elif resp.status_code == 429:
-                logger.warning(f"The Odds API 429: 超出配额，本月剩余请求: ?")
-                return None
-            elif resp.status_code == 422:
-                logger.warning(f"The Odds API 422: 参数错误 {params}")
-                return None
-            else:
-                logger.warning(f"The Odds API {resp.status_code}: {endpoint}")
+            except (Exception, requests.exceptions.RequestException) as e:
+                logger.error(f"The Odds API 请求异常: {e}")
                 return None
 
-        except requests.exceptions.Timeout:
-            logger.error(f"The Odds API 请求超时: {endpoint}")
+        # 同步配额追踪
+        self.request_count = self.guard.daily_used() if self.guard else self.request_count + 1
+        self.last_response_header = {
+            "x-requests-used": resp.headers.get("x-requests-used", "?"),
+            "x-requests-remaining": resp.headers.get("x-requests-remaining", "?"),
+        }
+
+        if resp.status_code == 200:
+            return resp.json()
+        elif resp.status_code == 401:
+            logger.error(f"The Odds API 401: API Key 无效")
             return None
-        except (Exception, requests.exceptions.RequestException) as e:
-            logger.error(f"The Odds API 请求异常: {e}")
+        elif resp.status_code == 429:
+            logger.warning(f"The Odds API 429: 预算耗尽 (API 日配额上限)")
+            return None
+        elif resp.status_code == 422:
+            logger.warning(f"The Odds API 422: 参数错误 {params}")
+            return None
+        else:
+            logger.warning(f"The Odds API {resp.status_code}: {endpoint}")
             return None
 
     def get_quota_info(self) -> Dict:
-        """获取API配额信息"""
+        """获取API配额信息 (优先用护栏真实 remaining)"""
+        real_remaining = self.guard.peek_remaining() if self.guard else None
         return {
             "requests_used": self.request_count,
             "api_configured": self.is_configured,
             "last_response_header": self.last_response_header,
             "monthly_limit": self.max_requests,
-            "remaining_estimate": max(0, self.max_requests - self.request_count),
+            "remaining_estimate": real_remaining if real_remaining is not None
+            else max(0, self.max_requests - self.request_count),
+            "daily_cap": self.guard.daily_cap if self.guard else None,
+            "daily_used": self.guard.daily_used() if self.guard else None,
+            "can_spend_today": self.guard.can_spend() if self.guard else None,
         }
 
     def get_supported_sports(self) -> List[Dict]:
@@ -213,7 +239,7 @@ class TheOddsCollector:
             return []
 
         logger.info(f"获取 {sport_key} 赔率 ({markets}): {len(data)} 场比赛")
-        return data
+        return cast(List[Dict], data)
 
     def get_odds_by_match_date(
         self, sport_key: str, match_date: str, home_team: str, away_team: str,
@@ -264,7 +290,7 @@ class TheOddsCollector:
 
         return None
 
-    def extract_all_markets(self, match_odds: Dict, bookmakers: List[str] = None) -> Dict:
+    def extract_all_markets(self, match_odds: Dict, bookmakers: Optional[List[str]] = None) -> Dict:
         """
         从比赛赔率数据中提取所有玩法的最佳赔率
         
@@ -285,7 +311,7 @@ class TheOddsCollector:
         """
         bookmakers = bookmakers or BOOKMAKER_PRIORITY[:4]
         
-        result = {
+        result: Dict[str, Any] = {
             "match_id_external": match_odds.get("id"),
             "home_team": match_odds.get("home_team"),
             "away_team": match_odds.get("away_team"),
@@ -400,7 +426,7 @@ class TheOddsCollector:
         
         # Spreads 平均 (按 line 分组)
         if "spreads" in markets:
-            spread_groups = {}
+            spread_groups: Dict[Any, Any] = {}
             for s in markets["spreads"]:
                 line = s["line"]
                 if line not in spread_groups:
@@ -418,7 +444,7 @@ class TheOddsCollector:
         
         # Totals 平均 (按线分组)
         if "totals" in markets:
-            totals_groups = {}
+            totals_groups: Dict[Any, Any] = {}
             for t in markets["totals"]:
                 line = t["over_under_line"]
                 if line not in totals_groups:
@@ -436,7 +462,7 @@ class TheOddsCollector:
         
         return result
 
-    def extract_best_odds(self, match_odds: Dict, bookmakers: List[str] = None) -> Dict:
+    def extract_best_odds(self, match_odds: Dict, bookmakers: Optional[List[str]] = None) -> Dict:
         """
         从比赛赔率中提取最佳(最高)1X2赔率 — extract_all_markets 的薄封装。
 
@@ -472,7 +498,7 @@ class TheOddsCollector:
     # 时序采集 (odds-history → odds_timeline 表)
     # ──────────────────────────────────────────
     def get_odds_history(self, sport_key: str, event_id: str,
-                         bookmakers: str = None) -> Optional[List[Dict]]:
+                         bookmakers: Optional[str] = None) -> Optional[List[Dict]]:
         """
         获取单场比赛的赔率历史时序 (The Odds API odds-history 端点)。
 
@@ -499,7 +525,7 @@ class TheOddsCollector:
         return data if isinstance(data, list) else data.get("events", [])
 
     def extract_timeline_from_match(self, match_odds: Dict,
-                                     bookmakers: List[str] = None) -> List[Dict]:
+                                     bookmakers: Optional[List[str]] = None) -> List[Dict]:
         """
         从单场比赛的当前赔率数据中提取一个"时序快照" (单时间点)。
 
@@ -543,7 +569,7 @@ class TheOddsCollector:
         return snapshots
 
     def batch_collect_timeline(self, sport_key: str, match_id_map: Dict[str, int],
-                               db_path: str = None, bookmakers: List[str] = None) -> Dict:
+                               db_path: Optional[str] = None, bookmakers: Optional[List[str]] = None) -> Dict:
         """
         批量采集当前赔率快照并写入 odds_timeline 表。
 
@@ -623,19 +649,19 @@ class TheOddsCollector:
         live_odds = self.get_live_odds(sport_key)
 
         # 构建 {home_away: match} 索引，O(n) 构建 → O(1) 查询
-        _live_idx: Dict[str, dict] = {}
+        _live_idx: Dict[str, Any] = {}
         # 额外模糊索引: 归一化球队名
-        _live_fuzzy_idx: Dict[str, dict] = {}
-        for lo in live_odds:
-            lo_home = lo.get("home_team", "")
-            lo_away = lo.get("away_team", "")
+        _live_fuzzy_idx: Dict[str, Any] = {}
+        for live_match in live_odds:
+            lo_home = live_match.get("home_team", "")
+            lo_away = live_match.get("away_team", "")
             if lo_home and lo_away:
-                _live_idx[f"{lo_home}|{lo_away}"] = lo
+                _live_idx[f"{lo_home}|{lo_away}"] = live_match
                 # 归一化键（用于模糊匹配）
                 _nh = _normalize_team_name(lo_home)
                 _na = _normalize_team_name(lo_away)
                 if _nh and _na:
-                    _live_fuzzy_idx[f"{_nh}|{_na}"] = lo
+                    _live_fuzzy_idx[f"{_nh}|{_na}"] = live_match
 
         for i, match in enumerate(matches):
             # 从索引中查找匹配（O(1) 查询，避免 O(n*m) 双层循环）

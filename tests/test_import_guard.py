@@ -33,3 +33,13 @@ def test_import_wc_engine():
 def test_import_league_engine():
     """联赛引擎."""
     _assert_importable("pipeline.league_engine")
+
+
+def test_import_bet_core():
+    """价值层/注码单一事实源 (SSoT) — E6 P0-2 白名单 + E2 SSoT 收敛."""
+    _assert_importable("scripts.bet_core")
+
+
+def test_import_score_model():
+    """OIP 比分 SSoT (draw_expert 现役模型配套)."""
+    _assert_importable("pipeline.score_model")

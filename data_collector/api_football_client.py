@@ -19,7 +19,7 @@ import json
 import logging
 import requests
 from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ LEAGUE_NAME_TO_ID = {v: k for k, v in LEAGUE_ID_MAP.items()}
 class ApiFootballCollector:
     """API-Football (RapidAPI) 数据采集器"""
 
-    def __init__(self, api_key: str = None):
+    def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.environ.get("RAPIDAPI_KEY", "")
         self.request_count = 0
         self.max_daily = 100  # 免费层日配额
@@ -77,7 +77,7 @@ class ApiFootballCollector:
             time.sleep(2.0 - elapsed)
         self._last_request_time = time.time()
 
-    def _api_call(self, endpoint: str, params: dict = None) -> Optional[dict]:
+    def _api_call(self, endpoint: str, params: Optional[Dict] = None) -> Optional[dict]:
         """
         统一 API 调用封装
 
@@ -133,7 +133,7 @@ class ApiFootballCollector:
 
     # ─── 伤病/禁赛信息 ───
 
-    def get_injuries_by_team(self, team_id: int, season: int = None) -> List[Dict]:
+    def get_injuries_by_team(self, team_id: int, season: Optional[int] = None) -> List[Dict]:
         """
         获取球队伤病/禁赛球员列表
 
@@ -169,7 +169,7 @@ class ApiFootballCollector:
         self._injuries_cache[cache_key] = injuries
         return injuries
 
-    def get_injuries_by_league(self, league_id: int, season: int = None) -> List[Dict]:
+    def get_injuries_by_league(self, league_id: int, season: Optional[int] = None) -> List[Dict]:
         """
         获取整个联赛的伤病/禁赛情况
 
@@ -195,7 +195,7 @@ class ApiFootballCollector:
             })
 
         # 按球队汇总
-        by_team = defaultdict(lambda: {"injured": 0, "suspended": 0, "players": []})
+        by_team: Dict[str, Dict[str, Any]] = defaultdict(lambda: {"injured": 0, "suspended": 0, "players": []})
         for inj in injuries:
             tn = inj["team_name"]
             if inj["type"] == "Injury":
@@ -211,7 +211,7 @@ class ApiFootballCollector:
     # ─── 球队统计数据 ───
 
     def get_team_statistics(self, team_id: int, league_id: int,
-                            season: int = None) -> Optional[Dict]:
+                            season: Optional[int] = None) -> Optional[Dict]:
         """
         获取球队赛季综合统计数据
 
@@ -316,7 +316,7 @@ class ApiFootballCollector:
 
         return lineups
 
-    def get_team_season_players(self, team_id: int, season: int = None) -> List[Dict]:
+    def get_team_season_players(self, team_id: int, season: Optional[int] = None) -> List[Dict]:
         """
         获取球队本赛季球员列表（含出场统计）
 
@@ -406,7 +406,7 @@ class ApiFootballCollector:
         if not data:
             return {"goals": [], "cards": [], "substitutions": []}
 
-        events = {"goals": [], "cards": [], "substitutions": []}
+        events: Dict[str, List[Any]] = {"goals": [], "cards": [], "substitutions": []}
         for ev in data.get("response", []):
             ev_type = ev.get("type", "")
             detail = ev.get("detail", "")
@@ -438,7 +438,7 @@ class ApiFootballCollector:
     # ─── 批量预计算: 球队实力评分 ───
 
     def compute_team_strength_ratings(
-        self, league_id: int, season: int = None
+        self, league_id: int, season: Optional[int] = None
     ) -> Dict[str, Dict]:
         """
         基于 API-Football 统计数据计算球队实力评分

@@ -30,6 +30,17 @@ API_CONFIG = {
     },
 }
 
+EXTERNAL_SERVICES = {
+    "betfair": {
+        "api_base": os.getenv("BETFAIR_API_BASE", "https://api.betfair.com/exchange/betting/rest/v1.0"),
+        "login_url": os.getenv("BETFAIR_LOGIN_URL", "https://identitysso.betfair.com/api/login"),
+        "keepalive_url": os.getenv("BETFAIR_KEEPALIVE_URL", "https://identitysso.betfair.com/api/keepAlive"),
+    },
+    "the_odds": {
+        "api_base": os.getenv("THE_ODDS_API_BASE", "https://api.the-odds-api.com/v4"),
+    },
+}
+
 LEAGUES = {
     "premier_league":    {"id": 2021, "name": "Premier League",       "name_cn": "英超", "country": "England", "season": "2025/2026"},
     "la_liga":           {"id": 2014, "name": "La Liga",              "name_cn": "西甲", "country": "Spain", "season": "2025/2026"},

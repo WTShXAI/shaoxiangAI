@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { leagueScheduleService, betService, widgetService } from '@/services/api'
+import { leagueScheduleService, betService } from '@/services/api'
 import type { LeagueCategory, LeagueCatalogEntry, LeagueFixturesResponse, FixtureEntry, BetSide } from '@/types'
 
 // ── 分类图标 ──
@@ -323,107 +323,6 @@ function FixtureTable({ data, loading, onPlaceBet, betBusy }: {
   )
 }
 
-// ── 赔率 Widget 面板 (服务端注入 API Key, 前端只嵌 iframe) ──
-// 安全说明:
-//   - widget key (wk_ 前缀) 经后端拼接后出现在 iframe src URL 中, 浏览器 devtools 可见。
-//     这是 The Odds API widget SPA 固有设计 (需从 URL 读取 accessKey), 无法规避。
-//     但该 key 与数据 API key 完全隔离 (仅能展示赔率 widget, 数据端点返回 401),
-//     blast radius 仅限 widget 展示配额。若发现异常流量, 可在控制台 Regenerate 后更新 .env。
-//   - allow-same-origin 保留原因: widget SPA 需要同源存储/API 调用才能正常渲染。
-//     因 iframe 源 (widget.the-odds-api.com) 与父页跨域, 经典沙箱逃逸 (访问父页 DOM/cookie)
-//     被浏览器同源策略阻断, 实际风险低。
-function WidgetPanel({ sportKey, visible, onToggle }: {
-  sportKey: string
-  visible: boolean
-  onToggle: () => void
-}) {
-  const [widgetUrl, setWidgetUrl] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  // 按 sportKey 缓存已获取的 widget URL, 避免重复请求
-  const urlCache = useRef<Record<string, string>>({})
-
-  useEffect(() => {
-    if (!visible || !sportKey) return
-
-    // 缓存命中: 直接复用, 跳过网络请求
-    if (urlCache.current[sportKey]) {
-      setWidgetUrl(urlCache.current[sportKey])
-      setLoading(false)
-      setError(null)
-      return
-    }
-
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    widgetService.getWidgetUrl(sportKey)
-      .then(res => {
-        if (cancelled) return
-        const data = res.data?.data
-        if (data?.widget_url) {
-          urlCache.current[sportKey] = data.widget_url
-          setWidgetUrl(data.widget_url)
-        } else {
-          setError(data?.error || '未获取到 widget URL')
-        }
-      })
-      .catch(e => {
-        if (cancelled) return
-        setError(e?.message || '获取 widget URL 失败')
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => { cancelled = true }
-  }, [visible, sportKey])
-
-  return (
-    <div className="card p-0 overflow-hidden mt-4">
-      <button
-        onClick={onToggle}
-        className="flex items-center justify-between w-full px-5 py-3 hover:bg-white/[0.02] transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-white/90 font-display">📊 实时赔率 Widget</span>
-          <span className="text-[10px] text-white/25">The Odds API</span>
-        </div>
-        <svg className={`w-3.5 h-3.5 text-white/30 transition-transform duration-200 ${visible ? 'rotate-180' : ''}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {visible && (
-        <div className="border-t border-white/[0.06]" style={{ minHeight: '600px' }}>
-          {loading && (
-            <div className="flex items-center justify-center py-12 gap-3 text-white/40">
-              <span className="w-4 h-4 border-2 border-field-400 border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm">加载 Widget...</span>
-            </div>
-          )}
-          {error && (
-            <div className="py-8 text-center text-danger-400 text-sm">
-              ⚠ {error}
-              <div className="text-[10px] text-white/25 mt-1">
-                请确认后端已配置 WIDGET_ACCESS_KEY 或 THE_ODDS_API_KEY 环境变量
-              </div>
-            </div>
-          )}
-          {widgetUrl && (
-            <iframe
-              src={widgetUrl}
-              title="Odds Widget"
-              className="w-full border-0"
-              style={{ height: '600px' }}
-              sandbox="allow-scripts allow-same-origin allow-popups"
-              loading="lazy"
-            />
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
 
 // ── 主页面 ──
 export default function LeagueSchedule() {
@@ -440,15 +339,13 @@ export default function LeagueSchedule() {
   const [betBusy, setBetBusy] = useState<number | null>(null)
   const [betMsg, setBetMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
-  // Widget 控制
-  const [showWidget, setShowWidget] = useState(false)
 
   // 加载联赛目录
   const loadLeagues = useCallback(async () => {
     setLoadingLeagues(true)
     try {
       const res = await leagueScheduleService.getLeagues()
-      setCategories(res.data.data.categories || [])
+      setCategories(res.data?.data?.categories || [])
       setError(null)
     } catch (e: any) {
       setError(e?.message || '联赛目录加载失败')
@@ -462,7 +359,6 @@ export default function LeagueSchedule() {
   // 选中联赛时加载赛程
   const loadFixtures = useCallback(async (sk: string) => {
     setSelectedKey(sk)
-    setShowWidget(false)  // 切换联赛时收起 widget
     setLoadingFixture(true)
     setFixtureError(null)
     try {
@@ -598,14 +494,6 @@ export default function LeagueSchedule() {
                   onPlaceBet={handlePlaceBet}
                   betBusy={betBusy}
                 />
-                {/* 赔率 Widget: 选中联赛且有赛程时可用 */}
-                {selectedKey && fixtureData && !fixtureData.error && (
-                  <WidgetPanel
-                    sportKey={selectedKey}
-                    visible={showWidget}
-                    onToggle={() => setShowWidget(v => !v)}
-                  />
-                )}
               </motion.div>
             </AnimatePresence>
           )}

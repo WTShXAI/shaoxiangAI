@@ -26,6 +26,9 @@ interface AppState {
   // 主题
   theme: 'dark' | 'light'
   setTheme: (theme: 'dark' | 'light') => void
+  // 赛事引擎 (全局切换)
+  competition: 'wc' | 'league'
+  setCompetition: (competition: 'wc' | 'league') => void
 }
 export const useAppStore = create<AppState>((set, get) => ({
   sidebarCollapsed: false,
@@ -47,6 +50,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setPredictionStats: (predictionStats) => set({ predictionStats }),
   theme: 'dark',
   setTheme: (theme) => set({ theme }),
+  competition: 'wc',
+  setCompetition: (competition) => set({ competition }),
 }))
 // ============================================
 // 预测大厅状态

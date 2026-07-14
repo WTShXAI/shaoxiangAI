@@ -18,6 +18,12 @@ import sys, os, json, math
 import numpy as np
 from collections import defaultdict
 
+# 仓库根 — 收敛凯利至 SSoT bet_core
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+from scripts.bet_core import kelly_fraction, safe_stake
+
 MATCH = {
     'home_team': '澳大利亚',
     'away_team': '土耳其',
@@ -68,12 +74,11 @@ def implied_probs_2outcome(odds_dict):
     total = sum(raw.values())
     return {k: v/total for k, v in raw.items()}, total - 1.0
 
+# kelly_stake(prob, odds, bankroll=100) 已收敛至 scripts.bet_core.safe_stake (SSoT)
+# 薄包装 — safe_stake 返回 (stake, kelly_frac) 元组, 本地期望标量额度
 def kelly_stake(prob, odds, bankroll=100):
-    """凯利公式: 投注比例"""
-    b = odds - 1.0  # 净赔率
-    p = prob
-    f = (p * b - (1 - p)) / b if b > 0 else 0
-    return max(0, round(f * bankroll, 1))
+    stake, _ = safe_stake(prob, odds, bankroll, frac_kelly=1.0)  # 全量凯利 (非半凯利)
+    return max(0, round(stake, 1))
 
 def ev_bet(prob, odds):
     """期望值"""

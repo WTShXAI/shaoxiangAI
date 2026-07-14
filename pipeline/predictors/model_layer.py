@@ -14,13 +14,22 @@ from pipeline.predictors.data_classes import *  # noqa: F401, F403
 class ModelLayer:
     """UnifiedPredictor v4.1 模型推理适配器"""
 
-    @staticmethod
-    def assess(match: MatchInput) -> ChainResult:
+    _predictor_cache = None  # 类级缓存: 复用 UnifiedPredictor 实例 (v6.0)
+
+    @classmethod
+    def _get_predictor(cls):
+        """延迟加载+缓存 UnifiedPredictor, 避免每次 assess() 重建"""
+        if cls._predictor_cache is None:
+            from predictors.unified_predictor import UnifiedPredictor
+            cls._predictor_cache = UnifiedPredictor()
+        return cls._predictor_cache
+
+    @classmethod
+    def assess(cls, match: MatchInput) -> ChainResult:
         """运行 v4.1 Stacking 模型推理"""
         signals = []
         try:
-            from predictors.unified_predictor import UnifiedPredictor
-            up = UnifiedPredictor()
+            up = cls._get_predictor()
             result = up.predict(
                 home=match.home, away=match.away,
                 odds_h=match.odds_h, odds_d=match.odds_d, odds_a=match.odds_a,

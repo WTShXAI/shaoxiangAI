@@ -13,7 +13,7 @@ from pathlib import Path
 from collections import defaultdict
 
 ARCH_ROOT = Path(r"D:/Architecture")
-FAI_ROOT = Path(r"D:/AI/footballAI")
+FAI_ROOT = Path(r"D:/Architecture")
 
 # ═══════════════════════════════════════════════════════════════
 # Plan C: 半场-全场错配信号 (基于可用数据)

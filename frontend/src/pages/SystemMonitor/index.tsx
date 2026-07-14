@@ -28,30 +28,28 @@ export default function SystemMonitor() {
     const fetchData = async () => {
       try {
         setLoading(true)
-        const [healthRes, alertsRes, metricsRes] = await Promise.all([
-          monitorService.getHealth(),
-          alertService.getAlerts(),
-          monitorService.getMetricsSummary(),
-        ])
-        setHealth(healthRes.data?.data)
-        setAlerts(alertsRes.data?.data || [])
-        setMetrics(metricsRes.data?.data)
-      } catch {
-        // 使用模拟数据
-        setHealth({
-          status: 'healthy', uptime: 345600, apiLatency: 45,
-          predictionLatency: 120, modelHealth: 'healthy',
-          databaseHealth: 'healthy', memoryUsage: 62, cpuUsage: 38,
-        })
-        setAlerts([
-          { id: '1', severity: 'warning', title: '模型推理延迟升高', message: '平均推理延迟超过150ms阈值', timestamp: '2026-06-30 14:23', acknowledged: false },
-          { id: '2', severity: 'info', title: '训练任务完成', message: 'v4.1.0模型训练完成，准确率74.2%', timestamp: '2026-06-30 12:00', acknowledged: false },
-          { id: '3', severity: 'critical', title: '数据库连接池告警', message: '连接数超过阈值的80%', timestamp: '2026-06-29 23:15', acknowledged: true },
-        ])
-        setMetrics({
-          apiRequestsPerMin: 128, avgResponseTime: 45,
-          predictionRequestsPerMin: 32, errorRate: 0.8, activeUsers: 6,
-        })
+
+        // 各 API 独立调用，一个失败不影响其他
+        try {
+          const healthRes = await monitorService.getHealth()
+          setHealth((healthRes.data as any)?.data || healthRes.data as any)
+        } catch {
+          setHealth(null)
+        }
+
+        try {
+          const alertsRes = await alertService.getAlerts()
+          setAlerts((alertsRes.data as any)?.data || (alertsRes.data as any)?.alerts || [])
+        } catch {
+          setAlerts([])
+        }
+
+        try {
+          const metricsRes = await monitorService.getMetricsSummary()
+          setMetrics((metricsRes.data as any)?.data || metricsRes.data as any)
+        } catch {
+          setMetrics(null)
+        }
       } finally {
         setLoading(false)
       }

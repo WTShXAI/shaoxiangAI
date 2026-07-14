@@ -10,6 +10,8 @@ const SystemMonitor = lazy(() => import('@/pages/SystemMonitor'))
 const DataExplorer = lazy(() => import('@/pages/DataExplorer'))
 const LeagueSchedule = lazy(() => import('@/pages/LeagueSchedule'))
 const OperatorTerminal = lazy(() => import('@/pages/OperatorTerminal'))
+const QuantDemo = lazy(() => import('@/pages/QuantDemo'))
+const TradingHub = lazy(() => import('@/pages/TradingHub'))
 
 const PageFallback = () => (
   <div className="flex items-center justify-center h-full min-h-[40vh] text-ink-secondary text-sm">
@@ -27,6 +29,8 @@ const router = createBrowserRouter([
       { index: true, element: withSuspense(<PredictionHall />) },
       { path: 'match-analysis', element: withSuspense(<MatchAnalysis />) },
       { path: 'operator-terminal', element: withSuspense(<OperatorTerminal />) },
+      { path: 'quant-demo', element: withSuspense(<QuantDemo />) },
+      { path: 'trading-hub', element: withSuspense(<TradingHub />) },
       { path: 'model-management', element: withSuspense(<ModelManagement />) },
       { path: 'system-monitor', element: withSuspense(<SystemMonitor />) },
       { path: 'data-explorer', element: withSuspense(<DataExplorer />) },

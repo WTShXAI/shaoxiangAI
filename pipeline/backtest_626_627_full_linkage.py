@@ -14,7 +14,7 @@ from pathlib import Path
 
 ARCH_ROOT = Path(__file__).resolve().parent.parent
 
-from full_linkage_predictor import FullLinkagePipeline, MatchInput
+from pipeline.full_linkage_predictor import FullLinkagePipeline, MatchInput
 
 # ═══════════════════════════════════════════════════════════
 # 6/26 + 6/27 已知赛果的11场比赛 (来自截图 + 方案D中奖票 + WC26 API)
