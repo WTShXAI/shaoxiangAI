@@ -449,7 +449,7 @@ class OddsTemporalStateMachine:
 
     # ── 实时时序推断 (v2.0 生产级信号源) ──────────────────────
 
-    def infer_realtime(self, match_id: int, db_path: str = None) -> Optional[StateMachineResult]:
+    def infer_realtime(self, match_id: int, db_path: Optional[str] = None) -> Optional[StateMachineResult]:
         """
         从 odds_timeline 表读取时序数据，实时推断庄家状态。
         
@@ -523,7 +523,7 @@ class OddsTemporalStateMachine:
             state_probabilities={**probs, "n_snapshots": n_snapshots, "entropy_rate": entropy_rate},
         )
 
-    def batch_infer_realtime(self, db_path: str = None, limit: int = 1000) -> List[StateMachineResult]:
+    def batch_infer_realtime(self, db_path: Optional[str] = None, limit: int = 1000) -> List[StateMachineResult]:
         """
         批量实时推断: 对所有有待时序数据的比赛进行状态推断
         
@@ -553,7 +553,7 @@ class OddsTemporalStateMachine:
 
         return results
 
-    def get_realtime_signal(self, match_id: int, db_path: str = None) -> Dict:
+    def get_realtime_signal(self, match_id: int, db_path: Optional[str] = None) -> Dict:
         """
         获取单场比赛的实时 OTSM 信号 (供前端/模型消费)
         

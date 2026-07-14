@@ -1,0 +1,41 @@
+{
+  "ah": {
+    "metrics": {
+      "accuracy": 0.6182972203983366,
+      "f1_macro": 0.5679945847762721,
+      "f1_weighted": 0.638223053280336,
+      "auc": 0.8145738455944121,
+      "n_train": 13437,
+      "n_test": 4569,
+      "n_classes": 3,
+      "n_features": 72
+    },
+    "path": "D:\\AI\\footballAI\\saved_models\\multi_ah_handicap_20260618_171503.joblib"
+  },
+  "ou": {
+    "metrics": {
+      "accuracy": 0.5965705016799907,
+      "f1_macro": 0.562452877607439,
+      "f1_weighted": 0.562452877607439,
+      "auc": 0.6344222836042056,
+      "n_train": 24729,
+      "n_test": 8631,
+      "n_classes": 2,
+      "n_features": 72
+    },
+    "path": "D:\\AI\\footballAI\\saved_models\\multi_ou_totals_20260618_171503.joblib"
+  },
+  "goals": {
+    "metrics": {
+      "accuracy": 0.27551847989804196,
+      "f1_macro": 0.24931483436385715,
+      "f1_weighted": 0.2846633397731821,
+      "auc": 0.5952610197523808,
+      "n_train": 24729,
+      "n_test": 8631,
+      "n_classes": 5,
+      "n_features": 72
+    },
+    "path": "D:\\AI\\footballAI\\saved_models\\multi_goals_total_20260618_171503.joblib"
+  }
+}

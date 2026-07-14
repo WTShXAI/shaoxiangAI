@@ -1,0 +1,11 @@
+# ═══ API 预算护栏配置 ═══
+# The Odds API 2万/月套餐: 实测半天烧掉一半 → 必须严格限流
+# 本文件为中央护栏(api_budget.py)的配置源, 环境变量 API_DAILY_CAP / API_HARD_FLOOR 可覆盖
+
+daily_cap: 300              # 每日最多调用次数 (硬闸, 烧满即返回 429 → 调用方 no-op)
+hard_floor_remaining: 500   # 真实月剩余 < 500 时拒绝新调用, 强制留缓冲
+
+cache_ttl:
+  sports: 86400    # 联赛列表: 24h (几乎不变)
+  odds: 7200       # 比赛盘口: 2h (平衡新鲜度与配额; mini loop 30min 大多命中缓存)
+  quota: 300       # remaining 探测: 5min (免为"查剩余"重复烧)

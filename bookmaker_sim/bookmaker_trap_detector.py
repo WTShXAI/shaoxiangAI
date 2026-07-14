@@ -1073,8 +1073,8 @@ class BookmakerTrapDetector:
 # ════════════════════════════════════════════════════════════════
 
 def quick_diagnose(home: str, away: str, odds_h: float, odds_d: float, odds_a: float,
-                   asian_handicap: float = None, league: str = "其他",
-                   water_level: float = 0.92, score_odds: dict = None) -> TrapReport:
+                   asian_handicap: Optional[float] = None, league: str = "其他",
+                   water_level: float = 0.92, score_odds: Optional[dict] = None) -> TrapReport:
     """
     快速诊断 — 仅需 1X2 赔率即可运行
     所有高级特征从赔率结构自主推导

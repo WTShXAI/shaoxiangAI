@@ -130,7 +130,7 @@ class HarvestingGuard:
       L3: 尾端风险调整 → 扩大预测分布尾部
     """
     
-    def __init__(self, db_path: str = None):
+    def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path or os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             'data', 'football_data.db'
@@ -413,7 +413,7 @@ class HarvestingGuard:
     
     def _scan_ah(self, odds: Dict[str, float], 
                   odds_1x2: Optional[Dict] = None,
-                  baseline: Dict = None) -> Tuple[float, List[OddsAnomaly]]:
+                  baseline: Optional[Dict] = None) -> Tuple[float, List[OddsAnomaly]]:
         """亚盘赔率扫描"""
         anomalies = []
         line = odds.get('line', 0)
@@ -1077,7 +1077,7 @@ class HarvestingGuard:
 # 便捷函数
 # ══════════════════════════════════════════════════
 
-def create_guard(db_path: str = None) -> HarvestingGuard:
+def create_guard(db_path: Optional[str] = None) -> HarvestingGuard:
     return HarvestingGuard(db_path)
 
 if __name__ == "__main__":

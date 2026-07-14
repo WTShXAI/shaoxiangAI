@@ -1,0 +1,94 @@
+{
+  "db_name": "WC2026_odds_database",
+  "version": "2.0",
+  "created": "2026-07-03T02:00:00+08:00",
+  "updated": "2026-07-03T05:38:00+08:00",
+  "change_log": "v2.0: 新增 timeline/ 时间线快照目录，支持 realtime/manual/screenshot 三种来源; v2.1: 新增 standard_format 竞彩四层标准模板(2026-07-13 用户指定)",
+  "structure": {
+    "index.json": "全量比赛索引(摘要+快照数)",
+    "{match_id}.json": "单场最新快照+预测结论",
+    "timeline/{match_id}.json": "该场比赛全部赔率快照数组(按时间排序)"
+  },
+  "source_types": {
+    "screenshot": { "desc": "截图OCR提取", "field": "screenshot_path存储截图路径" },
+    "manual": { "desc": "人工录入", "field": "notes存储录入备注" },
+    "realtime": { "desc": "实时API/Feed抓取", "field": "api_source存储来源标识" }
+  },
+  "snapshot_schema": {
+    "snapshot_id": "match_id_src_nnn (e.g. spain_vs_austria_20260703_scr_001)",
+    "captured_at": "ISO 8601 快照时间",
+    "source": "screenshot | manual | realtime",
+    "source_ref": "截图路径 或 API来源 或 null",
+    "notes": "人工备注 或 null",
+    "odds_1x2": { "home": "float", "draw": "float", "away": "float" },
+    "odds_hcp": [ { "line": "float", "home": "float", "away": "float" } ],
+    "odds_ou": [ { "line": "float", "over": "float", "under": "float" } ],
+    "odds_correct_score": [ { "score": "string", "odds": "float", "type": "home/away/draw" } ],
+    "odds_cs": {
+      "desc": "扩展波胆(多源): 用于v2单场文件的 odds_cs 字段, 支撑比分概率反推 + OIP(最优投资比分) + 必发交叉验证",
+      "captured_at": "ISO8601 | null",
+      "source": "screenshot | manual | null",
+      "source_ref": "string | null (截图路径/API来源)",
+      "official_lottery": { "provider": "竞彩官方", "scores": [ { "score": "string (H-A, e.g. 0-1)", "odds": "float" } ] },
+      "betfair": { "provider": "Betfair", "scores": [ { "score": "string", "odds": "float", "volume_yuan": "float" } ] },
+      "asian_books": [ { "bookmaker": "string", "scores": [ { "score": "string", "odds": "float" } ] } ]
+    },
+    "odds_half": {
+      "1x2": { "home": "float|null", "draw": "float|null", "away": "float|null" },
+      "hcp": [ { "line": "float", "home": "float", "away": "float" } ],
+      "ou": [ { "line": "float", "over": "float", "under": "float" } ]
+    }
+  },
+  "timeline_schema": {
+    "desc": "timeline/{match_id}.json 内部数组, 每个元素为一个时点快照, 支撑多时点 drift 陷阱判定(对齐 index.timeline_file)",
+    "t_label": "T0|T1|T2|T3 (T0=baseline/init, 取首个快照的live值作基线)",
+    "hours_before_kickoff": "float (距开球小时, 如 39/24/12/2)",
+    "captured_at": "ISO8601",
+    "source": "screenshot | manual | realtime",
+    "source_ref": "string | null",
+    "odds_1x2_multi": [ { "bookmaker": "string", "home": "float", "draw": "float", "away": "float" } ],
+    "odds_hcp": [ { "line": "float", "home": "float", "away": "float" } ],
+    "odds_ou": [ { "line": "float", "over": "float", "under": "float" } ],
+    "odds_cs_ref": "string | null (引用单场json.odds_cs 或本时点独立波胆快照)"
+  },
+  "post_review_schema": {
+    "desc": "单场json顶层 post_review 字段, 赛后回检闭环(实际vs预测校准, 系统上线硬指标)",
+    "status": "pending | done",
+    "reviewed_at": "ISO8601 | null",
+    "actual_score": "string H-A | null (实际比分, 如 1-2)",
+    "actual_outcome": "home | draw | away | null",
+    "oip_pred": "string | null (收口OIP, 如 1-1)",
+    "oip_hit": "bool | null (实际比分 == oip_pred)",
+    "oip_top3_hit": "bool | null (实际比分 ∈ blend_top3)",
+    "direction_hit": "bool | null (实际outcome == 模型首选)",
+    "model_prob": { "home": "float", "draw": "float", "away": "float" },
+    "calibration_note": "string | null",
+    "notes": "string | null"
+  },
+  "index_schema": {
+    "match_id": "string",
+    "match_time": "ISO 8601",
+    "home": "string",
+    "away": "string",
+    "snapshot_count": "int",
+    "latest_1x2": { "home": "float|null", "draw": "float|null", "away": "float|null" },
+    "latest_hcp": "string (主盘口描述)",
+    "latest_ou": "string (主大小描述)",
+    "verdict": "string (最新预测判定)",
+    "first_score": "string (首推比分)",
+    "file": "string (单场摘要文件)",
+    "timeline_file": "string (时间线文件)"
+  },
+  "standard_format": {
+    "desc": "竞彩官方完整四层赔率单 — 以后所有赛事以此格式为基准输入(2026-07-13 用户指定标准)",
+    "template_image": "france_vs_spain_20260715 截图参考",
+    "layers": [
+      {"name": "1X2 胜平负", "label": "0", "fields": ["home(胜)", "draw(平)", "away(负)"], "example": "2.26 / 3.10 / 2.75"},
+      {"name": "让球胜平负 AH", "label": "-1(主让线)", "fields": ["home(胜)", "draw(平)", "away(负)"], "example": "5.05 / 3.85 / 1.49"},
+      {"name": "比分 CS 波胆", "label": "比分", "structure": "网格: 主胜行(7+6+其他1) + 平局行(4+其他1) + 客胜行(6+6+其他1) = 全量30项", "sub_groups": ["主胜: 1-0~5-2,4-0~5-2,胜其他", "平局: 0-0~3-3,平其他", "客胜: 0-1~2-5,0-4~2-5,负其他"]},
+      {"name": "总进球 O/U", "label": "总进球", "fields": ["0","1","2","3","4","5","6","7+"], "example": "11.50 / 5.00 / 3.50 / 3.50 / 5.20 / 9.50 / 17.00 / 25.00"}
+    ],
+    "required_layers": ["1X2", "AH", "CS", "O/U"],
+    "notes": "CS层必须包含'胜其他/平其他/负其他'三项兜底; O/U必须从0到7+连续; AH线以主队让球数为准(负数=主让)"
+  }
+}

@@ -110,9 +110,9 @@ class RiskBarrierEngine:
     def scan(self, home: str, away: str,
              odds_1x2: Dict[str, float],
              league: str = "",
-             odds_ah: Dict = None,
-             odds_ou: Dict = None,
-             odds_open: Dict = None) -> RiskBarrierReport:
+             odds_ah: Optional[Dict] = None,
+             odds_ou: Optional[Dict] = None,
+             odds_open: Optional[Dict] = None) -> RiskBarrierReport:
         """
         扫描庄家风控防线
 
@@ -323,7 +323,7 @@ class RiskBarrierEngine:
     # ═══════════════════════════════════════════════════════════
 
     def _scan_barrier_4(self, oh: float, od: float, oa: float,
-                        odds_ah: Dict = None, odds_ou: Dict = None) -> BarrierSignal:
+                        odds_ah: Optional[Dict] = None, odds_ou: Optional[Dict] = None) -> BarrierSignal:
         """检测多个盘口间的不一致信号"""
         signals = []
 

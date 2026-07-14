@@ -97,7 +97,7 @@ class ScoreDistSimulator:
     3. informed: 给定"已知赛果" → 生成庄家内部分布
     """
     
-    def __init__(self, db_path: str = None):
+    def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path or "data/football_data.db"
         self.max_goals = MAX_GOALS
         self._score_cache: Dict[str, np.ndarray] = {}
@@ -145,7 +145,7 @@ class ScoreDistSimulator:
         
         return ScoreDistribution(matrix=matrix, lambda_h=lambda_h, lambda_a=lambda_a)
     
-    def dixon_coles(self, lambda_h: float, lambda_a: float, rho: float = None) -> ScoreDistribution:
+    def dixon_coles(self, lambda_h: float, lambda_a: float, rho: Optional[float] = None) -> ScoreDistribution:
         """
         Dixon-Coles 调整的比分分布
         
@@ -199,7 +199,7 @@ class ScoreDistSimulator:
     
     def informed_distribution(
         self, true_score_h: int, true_score_a: int,
-        sigma_hiding: float = None, n_samples: int = 5000,
+        sigma_hiding: Optional[float] = None, n_samples: int = 5000,
         method: str = 'dixon_coles'
     ) -> ScoreDistribution:
         """
@@ -252,7 +252,7 @@ class ScoreDistSimulator:
     
     def search_optimal_score(
         self, real_odds_vector: np.ndarray, 
-        sigma_hiding: float = None, max_score: int = 5
+        sigma_hiding: Optional[float] = None, max_score: int = 5
     ) -> Dict:
         """
         搜索最优比分假设: 在所有可能的比分中, 找到使模拟赔率最接近真实赔率的那个
@@ -329,7 +329,7 @@ class ScoreDistSimulator:
     def estimate_lambda_from_team_strength(
         self, home_attack: float, home_defense: float,
         away_attack: float, away_defense: float,
-        league_avg_goals: float = None
+        league_avg_goals: Optional[float] = None
     ) -> Tuple[float, float]:
         """
         从攻防强度估计 λ
@@ -355,7 +355,7 @@ class ScoreDistSimulator:
         
         return max(0.05, lam_h), max(0.05, lam_a)
     
-    def calibrate_from_db(self, league_name: str = None) -> Dict:
+    def calibrate_from_db(self, league_name: Optional[str] = None) -> Dict:
         """
         从数据库历史比赛校准 Dixson-Coles 参数
         
@@ -423,7 +423,7 @@ class ScoreDistSimulator:
 
 # ──────────── 便捷函数 ────────────
 
-def create_simulator(db_path: str = None) -> ScoreDistSimulator:
+def create_simulator(db_path: Optional[str] = None) -> ScoreDistSimulator:
     return ScoreDistSimulator(db_path)
 
 if __name__ == "__main__":

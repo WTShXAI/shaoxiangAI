@@ -131,7 +131,7 @@ class BookmakerBayesInfer:
       L3: 逆向 Dixon-Coles → 还原贝叶斯参数
     """
 
-    def __init__(self, league_margins: LeagueMargins = None,
+    def __init__(self, league_margins: Optional[LeagueMargins] = None,
                  max_goals: int = 8, dixon_coles_rho: float = -0.05):
         self.league = league_margins or LeagueMargins()
         self.max_goals = max_goals
@@ -179,7 +179,7 @@ class BookmakerBayesInfer:
 
     def multi_bookmaker_debias(self,
                                 multi_odds: List[Dict[str, float]],
-                                low_margin_bookmakers: List[int] = None
+                                low_margin_bookmakers: Optional[List[int]] = None
                                 ) -> Dict[str, float]:
         """
         多机构赔率融合去偏
@@ -230,7 +230,7 @@ class BookmakerBayesInfer:
 
     def estimate_nonuniform_margins(self,
                                      odds: Dict[str, float],
-                                     league: LeagueMargins = None
+                                     league: Optional[LeagueMargins] = None
                                      ) -> Dict[str, float]:
         """
         估计非均匀抽水系数
@@ -307,7 +307,7 @@ class BookmakerBayesInfer:
             return 1.0
 
     def _lambda_to_1x2_probs(self, lam_h: float, lam_a: float,
-                               rho: float = None) -> Dict[str, float]:
+                               rho: Optional[float] = None) -> Dict[str, float]:
         """
         Dixon-Coles 比分分布 → 1X2 边际概率
 
@@ -381,7 +381,7 @@ class BookmakerBayesInfer:
 
     def infer_lambda_from_odds(self,
                                 odds: Dict[str, float],
-                                margins: Dict[str, float] = None,
+                                margins: Optional[Dict[str, float]] = None,
                                 method: str = 'auto') -> Tuple[float, float]:
         """
         核心: 从1X2赔率反推 λ_h, λ_a
@@ -527,8 +527,8 @@ class BookmakerBayesInfer:
 
     def infer_parameters(self,
                           odds_1x2: Dict[str, float],
-                          multi_odds: List[Dict[str, float]] = None,
-                          odds_open: Dict[str, float] = None,
+                          multi_odds: Optional[List[Dict[str, float]]] = None,
+                          odds_open: Optional[Dict[str, float]] = None,
                           time_to_kickoff_hours: float = 24.0,
                           league_name: str = 'default',
                           ) -> BayesInferResult:
@@ -733,7 +733,7 @@ class LeagueCalibrator:
     这些参数成为未来单场推断的"超先验"。
     """
 
-    def __init__(self, db_path: str = None, infer: BookmakerBayesInfer = None):
+    def __init__(self, db_path: Optional[str] = None, infer: Optional[BookmakerBayesInfer] = None):
         self.db_path = db_path or "data/football_data.db"
         self.infer = infer or BookmakerBayesInfer()
 

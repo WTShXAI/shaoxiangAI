@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "哨响AI 赔率采集器",
+  "version": "1.0.0",
+  "description": "自动读取博彩网站赔率，推送到哨响AI操盘终端实时分析。仅读取DOM不下单。",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": [
+    "https://*.williamhill.com/*",
+    "https://*.bet365.com/*",
+    "https://*.pinnacle.com/*",
+    "https://*.betfair.com/*",
+    "*://localhost/*",
+    "*://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.williamhill.com/*", "https://*.bet365.com/*", "https://*.pinnacle.com/*", "https://*.betfair.com/*"],
+      "js": ["adapters/generic.js", "adapters/williamhill.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "哨响AI 赔率采集"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}
