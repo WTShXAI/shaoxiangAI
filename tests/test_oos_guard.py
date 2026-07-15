@@ -65,3 +65,22 @@ def test_audit_artifact_clean():
     # draw_expert 家族不得被标记为有真实 OOS（防 in-sample 幻觉当 edge）
     bad = [r for r in s.get("draw_expert_oos", []) if r.get("verdict") != "IN_SAMPLE_ONLY"]
     assert not bad, f"draw_expert 家族出现非 IN_SAMPLE_ONLY 声明(疑似 in-sample 幻觉): {bad}"
+
+
+def test_timeseries_oos_evidence():
+    """P0-② 诚实时序 OOS 证据必须存在, 且生产可验证模型不得是 in-sample 幻觉.
+
+    读取 scripts/audit_timeseries_oos.py 产物。任何 verified 模型若被判定为
+    IN_SAMPLE_ONLY / NOT_RECONSTRUCTABLE / OOS_UNCOMPUTABLE, 即视为"用随机切分
+    当 edge", 禁止合入。OU/goals 因盘口线无数据源, 必须诚实保留 NOT_VERIFIABLE 标注。
+    """
+    p = os.path.join(ROOT, "deliverables", "model_oos_timeseries_20260715.json")
+    assert os.path.exists(p), "缺失时序OOS审计产物(先运行 scripts/audit_timeseries_oos.py)"
+    d = json.load(open(p))
+    banned = ("IN_SAMPLE_ONLY", "NOT_RECONSTRUCTABLE_SCHEMA_DRIFT", "OOS_UNCOMPUTABLE")
+    bad = [r["model"] for r in d.get("verified_models", []) if r.get("verdict") in banned]
+    assert not bad, f"以下模型时序OOS判定为幻觉/不可重建, 禁止当edge合入: {bad}"
+    nv = d.get("not_verifiable_label_source", [])
+    kinds = " ".join(r.get("label_kind", "") for r in nv)
+    assert "OU大小球" in kinds and "总进球分档" in kinds, \
+        "OU/goals 标签源仍缺失, 必须诚实保留 NOT_VERIFIABLE 标注(不得假装已验证)"
