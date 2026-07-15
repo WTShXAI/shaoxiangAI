@@ -9,11 +9,18 @@ FootballAI — 诚实时序 OOS 重验 (P0-② 全模型 Honest-OOS 审计续)
 **时序 expand-window OOS 重验**（前 70% 时间窗训练，后 30% 测试），
 暴露随机切分导致的乐观偏差。
 
-标签可重建性（reality-check）：
+标签可重建性（reality-check，2026-07-15 修正）：
   ✅ multi_ah_handicap → handicap_labels.cover_result（home_cover/push/away_cover）
   ✅ wc_main_v1 / football_balanced → matches.final_result（1X2 三分类）
-  ❌ multi_ou_totals / multi_goals_total → 盘口线(ou_line/goal_threshold) 无充分数据源
-     （betting_markets 仅 564 行，handicap_labels 无 OU 列）→ NOT_VERIFIABLE
+  ⚠️ multi_ou_totals / multi_goals_total → NOT_VERIFIABLE（源存在但覆盖不相交）
+     事实核查：live_odds_raw.totals(JSON盘口线) + actual_score(比分) **技术上可重建**
+     OU 标签与总进球分档标签；但 live_odds_raw.commence_time 仅覆盖
+     **2026-07-10 起**的新赛季/WC 盘口，而 match_features（所有 multi_* 模型特征集）
+     行全部在 **2015~2026-07-09**（0 行在 2026-07-09 之后）。即 OU 标签源覆盖的比赛
+     群体与模型特征集/可访问的 OOS 测试窗口**时间零交集**：0 场能同时拿到"特征行 + OU 标签"。
+     因此对存量 OU/goals 模型做诚实时序 OOS 在现有数据下**不可能**——不是"无源"，
+     而是"源存在但覆盖不相交的比赛群体"。若强行用未来 WC 比赛重训新模型当 OOS，
+     则是不同群体/不同模型，非对存量模型的合法 OOS 审计。
 
 方法：用模型自带 feature_names 从 match_features 重建 X，按 match_date 时序排序，
 clone 模型自带 estimator（同类型+同超参）在时序切分上重训，评估 OOS。
@@ -41,8 +48,13 @@ MODEL_SPECS = [
 ]
 
 NOT_VERIFIABLE = [
-    ("multi_ou_totals_*.joblib (×7)", "OU大小球", "无 ou_line 标签源(仅 betting_markets 564行)"),
-    ("multi_goals_total_*.joblib (×7)", "总进球分档", "无 goal_threshold 标签源"),
+    ("multi_ou_totals_*.joblib (×7)", "OU大小球",
+     "live_odds_raw.totals 可重建OU标签, 但其 commence_time 仅覆盖 2026-07-10 起新赛季/WC, "
+     "与 match_features 特征集(2015~2026-07-09, 0 行在 2026-07-09 后)时间零交集: "
+     "0 场可同时取得 特征行+OU标签, 无法对存量模型做合法时序OOS"),
+    ("multi_goals_total_*.joblib (×7)", "总进球分档",
+     "actual_score 可重建总进球分档标签, 但同上受 live_odds_raw 时间窗口限制(2026-07-10 起), "
+     "与 match_features 训练/测试群体不相交, 存量模型诚实OOS不可行"),
 ]
 
 
@@ -146,8 +158,17 @@ def main():
         "not_verifiable_label_source": [
             {"models": m, "label_kind": k, "reason": r} for m, k, r in NOT_VERIFIABLE
         ],
+        "reality_check_ou_goals": {
+            "ou_label_source": "live_odds_raw.totals(JSON盘口线) + actual_score(比分)",
+            "live_odds_raw_commence_range": "2026-07-10 ~ 2026-09-02 (新赛季/WC盘口)",
+            "match_features_date_range": "2015 ~ 2026-07-09 (0 行在 2026-07-09 之后)",
+            "overlap_match_features_with_ou_label": 0,
+            "live_odds_raw_joinable_to_wc_window_matches": 19,
+            "of_which_have_match_features_row": 0,
+            "verdict": "源存在但覆盖不相交的比赛群体 -> 存量OU/goals模型诚实时序OOS不可行, 仍 NOT_VERIFIABLE",
+        },
         "headline": "标签可重建模型(3 AH变体 + wc_main + football_balanced)的诚实时序 OOS 结果; "
-                    "OU/goals 因盘口线无数据源仍 NOT_VERIFIABLE",
+                    "OU/goals 标签源(live_odds_raw)虽可重建OU标签, 但时间窗口与特征集零交集, 仍诚实 NOT_VERIFIABLE",
     }
     with open(OUT, "w") as fp:
         json.dump(out, fp, indent=2, ensure_ascii=False, default=str)
