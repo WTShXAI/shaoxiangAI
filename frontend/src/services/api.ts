@@ -20,13 +20,8 @@ import type {
   PlaceBetRequest,
   PlaceBetResponse,
   BetListResponse,
-  TerminalMatch,
-  DecisionCard,
-  DataGrowthStats,
-  TerminalMatchesResponse,
-  TerminalIngestRequest,
 } from '@/types'
-import { normalizePrediction, normalizeDecisionCard } from './bridgeAdapter'
+import { normalizePrediction } from './bridgeAdapter'
 
 // ── 运行时环境变量校验 (E4 P0-8) ──
 // 约定: 生产部署必须注入 VITE_BRIDGE_URL / VITE_API_URL; 缺失则告警并回退 dev 默认。
@@ -274,27 +269,8 @@ export const betService = {
   placeBet: (data: PlaceBetRequest) =>
     bridgeApi.post<ApiResponse<PlaceBetResponse>>('/api/bets', data),
 }
-// ============================================
-// 操盘终端服务 (OperatorTerminal) — bridge_service:9000
-// ============================================
-export const terminalService = {
-  // 当天可决策比赛列表 (有多庄赔率的)
-  getMatches: () =>
-    bridgeApi.get<ApiResponse<TerminalMatchesResponse>>('/api/terminal/matches'),
-  // 指定比赛实时拉取多庄 → 决策卡片
-  analyze: async (home: string, away: string, sportKey: string = 'soccer_fifa_world_cup') => {
-    const resp = await bridgeApi.post<ApiResponse<DecisionCard>>('/api/terminal/analyze', { home, away, sport_key: sportKey })
-    // E4 P0-8: 隔离引擎易变字段, 缺省补稳定默认
-    resp.data = { ...resp.data, data: normalizeDecisionCard(resp.data?.data) }
-    return resp
-  },
-  // 数据增长统计
-  getGrowthStats: () =>
-    bridgeApi.get<ApiResponse<DataGrowthStats>>('/api/data-growth/stats'),
-  // 插件赔率摄入 (HTTP降级版)
-  ingest: (data: TerminalIngestRequest) =>
-    bridgeApi.post<ApiResponse<{ status: string; match: string; books: number; direction?: string; decision?: string }>>('/api/terminal/ingest', data),
-}
+
+
 // ============================================
 // 量化模拟系统 (演示) — bridge_service:9000  /api/quant-demo/*
 // ============================================
@@ -336,5 +312,48 @@ export const quantService = {
     bridgeApi.post<ApiResponse<any>>('/api/quant/strategy/toggle', { strategy_id: strategyId, enabled }),
   reset: (bankroll?: number) =>
     bridgeApi.post<ApiResponse<any>>('/api/quant/reset', bankroll ? { bankroll } : {}),
+}
+
+// ── 回测组合绩效 (live_pilot_guardian --portfolio) ──
+export const portfolioService = {
+  /** 获取组合管理器完整快照: 资金曲线+持仓+绩效指标 */
+  snapshot: () => bridgeApi.get<{
+    sharpe_ratio?: number
+    max_drawdown_pct?: number
+    calmar_ratio?: number
+    win_rate_pct?: number
+    profit_loss_ratio?: number
+    expected_value?: number
+    total_trades?: number
+    total_roi_pct?: number
+    portfolio_snapshot?: {
+      initial_equity: number
+      current_equity: number
+      total_roi_pct: number
+      positions: any[]
+      equity_curve: { timestamp: string; equity: number; pnl: number; note: string }[]
+    }
+  }>('/api/portfolio'),
+}
+
+// ============================================
+// 赛事终端服务 — bridge_service:9000  /api/terminal/*
+// 赛事列表 + 全链路分析(_live_predict 11 层编排)
+// ============================================
+export const terminalService = {
+  /** 当天可决策赛事列表 (live_odds_raw, ≥2 庄) */
+  getMatches: () => bridgeApi.get<ApiResponse<any>>('/api/terminal/matches'),
+  /** 全链路分析 — 直接用盘口赔率(赛事列表同源), 不调 The Odds API */
+  analyze: (home: string, away: string, sportKey: string = 'soccer_fifa_world_cup',
+            odds?: { h: number; d: number; a: number }) =>
+    bridgeApi.post<ApiResponse<any>>('/api/terminal/analyze',
+      odds ? { home, away, sport_key: sportKey, odds_h: odds.h, odds_d: odds.d, odds_a: odds.a }
+           : { home, away, sport_key: sportKey }),
+  /** 实时赔率匹配 (三级回退: live_odds_raw → The Odds API → 提示) */
+  getMatchOdds: (home: string, away: string) =>
+    bridgeApi.get<ApiResponse<any>>('/api/match-odds', { params: { home, away } }),
+  /** HTTP 降级版赔率摄入 (浏览器插件 DOM 抓取 → 喂进 live_odds_raw) */
+  ingest: (data: { home: string; away: string; source?: string; h: number; d: number; a: number; score?: string; minute?: number }) =>
+    bridgeApi.post<ApiResponse<any>>('/api/terminal/ingest', data),
 }
 export default api

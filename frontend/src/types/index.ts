@@ -283,9 +283,39 @@ export interface FixtureEntry {
   home: string
   away: string
   commence_time: string
+  league?: string
+  sport?: string
+  // 1X2 全场
   odds_h?: number
   odds_d?: number
   odds_a?: number
+  // 全场让球 (AH)
+  ah_line?: string
+  ah_home?: number
+  ah_away?: number
+  // 全场大小 (OU)
+  ou_line?: string
+  ou_over?: number
+  ou_under?: number
+  // 半场 1X2
+  h1_odds_h?: number
+  h1_odds_d?: number
+  h1_odds_a?: number
+  // 半场让球
+  h_ah_line?: string
+  h_ah_home?: number
+  h_ah_away?: number
+  // 半场大小
+  h_ou_line?: string
+  h_ou_over?: number
+  h_ou_under?: number
+  // 状态
+  match_state?: number
+  score_home?: number
+  score_away?: number
+  match_minute?: string | number
+  kickoff_countdown?: string
+  kickoff_ms?: number
   bookmakers_count?: number
 }
 export interface LeagueFixturesResponse {
@@ -359,91 +389,6 @@ export interface ApiResponse<T> {
   timestamp: string
 }
 
-// ═══ 操盘终端 类型 (OperatorTerminal) ═══
-export interface TerminalMatch {
-  home: string
-  away: string
-  league: string
-  sport_key: string
-  commence_time: string
-  odds_h: number
-  odds_d: number
-  odds_a: number
-  bookmakers_count: number
-  bookmakers: string[]
-}
-
-export interface DecisionRow {
-  outcome: string
-  odds: number
-  edge_pct: number
-  ev: number
-  kelly_half: number
-}
-
-export interface DecisionCard {
-  fixture: {
-    home: string
-    away: string
-    commence_time: string
-    sport_key: string
-  }
-  odds: { oh: number; od: number; oa: number }
-  market_prob: { h: number; d: number; a: number }
-  direction: string
-  decision: 'BET' | 'PASS' | 'SCAN'
-  decision_text: string
-  best_direction: string
-  best_edge_pct: number
-  rows: DecisionRow[]
-  softline?: {
-    disagreement_detected?: boolean
-    softline_adjusted_probs?: number[]
-    softline_fade_applied?: boolean
-    [key: string]: unknown
-  }
-  books_count: number
-  draw_alert?: boolean
-  operator_view?: {
-    rules_fired: Array<{ id: string; label: string; detail: string; rule: string; color: string }>
-    primary_signal: string
-    confidence_pct: number
-    verdict: string
-    stake_hint: string
-    rule_count: number
-  }
-  sub_markets?: Record<string, unknown>
-  error?: string
-}
-
-export interface DataGrowthStats {
-  live_odds_raw_total: number
-  live_odds_raw_with_result: number
-  odds_features_total: number
-  odds_features_live_sync: number
-  today_collected: number
-  active_leagues: number
-  quota_remaining: number
-  error?: string
-}
-
-export interface TerminalMatchesResponse {
-  date: string
-  matches: TerminalMatch[]
-  total: number
-  note: string
-}
-
-export interface TerminalIngestRequest {
-  home: string
-  away: string
-  source?: string
-  h: number
-  d: number
-  a: number
-  score?: string
-  minute?: number
-}
 
 // ============================================
 // 量化投注系统类型 (真实数据驱动)
@@ -544,4 +489,63 @@ export interface QuantSnapshot {
   strategies: QuantStrategy[]
   auto_mode: boolean
   bet_count: number
+}
+
+// ============================================
+// 赛事终端类型 (全链路分析 _live_predict 输出)
+// ============================================
+export interface TerminalMatch {
+  home: string
+  away: string
+  league: string
+  sport_key: string
+  commence_time: string
+  odds_h: number
+  odds_d: number
+  odds_a: number
+  bookmakers_count: number
+  bookmakers?: string[]
+}
+/** 价值层单行 (H/D/A 每方向) */
+export interface ValueLayerRow {
+  outcome: string
+  odds: number
+  market_prob: number
+  model_prob: number
+  edge: number
+  edge_pct: number
+  ev: number
+  ev_pct: number
+  kelly_full: number
+  kelly_half: number
+  stake_unit: number
+}
+export interface OperatorView {
+  rules?: string[]
+  verdict?: string
+  stake_hint?: string
+  trap?: { score?: number; level?: string; tags?: string[] }
+}
+/** _live_predict 决策卡片 (terminal/analyze 返回) */
+export interface TerminalDecisionCard {
+  fixture: { home: string; away: string; commence_time: string; sport_key: string }
+  odds: { oh: number; od: number; oa: number }
+  market_prob: { h: number; d: number; a: number }
+  overround?: number
+  direction: string
+  market_conf?: number
+  decision: string  // BET / PASS
+  decision_text: string
+  best_direction?: string
+  best_edge_pct?: number
+  rows?: ValueLayerRow[]
+  softline?: any | null
+  books_count: number
+  draw_alert: boolean
+  operator_view?: OperatorView
+  sub_markets?: { ou?: any; draw?: any; correct_score?: any }
+  oip?: { lambda_h: number; lambda_a: number; top3_scores: string[]; top3_prob: number[]; over15?: number; over25?: number; over35?: number }
+  handicap?: any
+  value_layer?: any
+  error?: string
 }

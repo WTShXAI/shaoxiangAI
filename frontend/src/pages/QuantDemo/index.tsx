@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ReactECharts from 'echarts-for-react'
-import { quantService, type ScanSingleRequest } from '@/services/api'
+import { quantService, portfolioService, type ScanSingleRequest } from '@/services/api'
 import type {
   QuantSnapshot, QuantAccount, OptionValuation, ScanResult,
 } from '@/types'
@@ -32,6 +32,94 @@ function EquityChart({ curve }: { curve: { step: number; equity: number }[] }) {
   return <ReactECharts option={option} style={{ height: 192 }} />
 }
 
+// ── 回测绩效卡 (PortfolioManager 真实数据: 16140场, 139注, ROI+83.76%) ──
+function PortfolioCard() {
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    portfolioService.snapshot()
+      .then((r: any) => {
+        const d = r.data || r
+        if (d && d.total_trades != null && d.total_trades > 0) setData(d)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return null
+  if (!data) return null
+
+  const snap = data.portfolio_snapshot || {}
+  const ec = snap.equity_curve || []
+  const eqs = ec.map((e: any) => e.equity)
+  const notes = ec.map((e: any) => {
+    const n = e.note || ''
+    return n.length > 30 ? n.slice(0, 28) + '…' : n
+  })
+
+  // ECharts option (真实资金曲线)
+  const up = eqs.length > 1 && eqs[eqs.length - 1] >= eqs[0]
+  let peak = eqs[0] || 0
+  const peaks = eqs.map((v: number) => { peak = Math.max(peak, v); return peak })
+  const chartOption = {
+    grid: { left: 50, right: 16, top: 16, bottom: 28 },
+    tooltip: { trigger: 'axis',
+      backgroundColor: 'rgba(20,24,32,.95)', borderColor: 'rgba(255,255,255,.1)',
+      textStyle: { color: '#c9d1d9', fontSize: 11 },
+      formatter: (params: any[]) => {
+        const p = params[0]
+        return `<div>#${p.dataIndex + 1} <b>¥${Math.round(p.value).toLocaleString()}</b><br/>
+          <span style="color:#8b949e;font-size:10px">${notes[p.dataIndex] || ''}</span></div>`
+      } },
+    xAxis: { type: 'category', data: ec.map(() => ''), show: false },
+    yAxis: { type: 'value', scale: true, axisLine: { show: false },
+      splitLine: { lineStyle: { color: '#21262d' } },
+      axisLabel: { color: '#8b949e', fontSize: 9, formatter: (v: number) => '¥' + Math.round(v) } },
+    series: [
+      { name: '权益', type: 'line', data: eqs, smooth: true, symbol: 'none',
+        lineStyle: { color: up ? '#3fb950' : '#f85149', width: 2 },
+        areaStyle: { color: up ? 'rgba(63,185,80,.12)' : 'rgba(248,81,73,.12)' } },
+      { name: '峰值', type: 'line', data: peaks, symbol: 'none',
+        lineStyle: { color: '#58a6ff', width: 1, type: 'dashed', opacity: 0.5 } },
+    ],
+  }
+
+  return (
+    <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-500/[0.03]">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-blue-300">📊 回测绩效 (live_pilot_guardian 🛡️)</h3>
+        <span className="text-xs text-blue-200/50">{data.total_trades} 注 · {ec.length} 点</span>
+      </div>
+
+      {/* 指标卡片 */}
+      <div className="grid grid-cols-3 md:grid-cols-7 gap-2 mb-3">
+        {[
+          { l: '总ROI', v: `${data.total_roi_pct > 0 ? '+' : ''}${data.total_roi_pct}%`,
+            c: (data.total_roi_pct || 0) >= 0 ? 'text-emerald-400' : 'text-red-400' },
+          { l: '夏普', v: data.sharpe_ratio?.toFixed(2) || 'N/A',
+            c: (data.sharpe_ratio || 0) >= 0 ? 'text-emerald-400' : 'text-red-400' },
+          { l: '最大回撤', v: `${data.max_drawdown_pct}%`,
+            c: (data.max_drawdown_pct || 0) > 20 ? 'text-red-400' : 'text-amber-400' },
+          { l: '卡玛', v: data.calmar_ratio?.toFixed(2) || 'N/A', c: 'text-blue-300' },
+          { l: '胜率', v: `${data.win_rate_pct}%`, c: 'text-white/70' },
+          { l: '盈亏比', v: data.profit_loss_ratio?.toFixed(2) || 'N/A', c: 'text-purple-300' },
+          { l: 'EV/注', v: data.expected_value != null ? `¥${data.expected_value.toFixed(0)}` : 'N/A',
+            c: (data.expected_value || 0) > 0 ? 'text-emerald-400' : 'text-red-400' },
+        ].map((x) => (
+          <div key={x.l} className="p-2 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+            <div className="text-[10px] text-white/30">{x.l}</div>
+            <div className={`text-base font-bold tabular-nums ${x.c}`}>{x.v}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* 资金曲线 */}
+      {eqs.length > 1 && <ReactECharts option={chartOption} style={{ height: 160 }} />}
+    </div>
+  )
+}
+
 // ── 价值扫描卡片 ──
 function ScanCard({ s }: { s: ScanResult }) {
   const eg = s.expected_goals
@@ -49,7 +137,7 @@ function ScanCard({ s }: { s: ScanResult }) {
           {eg && <span className="text-purple-400">λ{eg.total}</span>}
           {bets.length > 0
             ? <span className="text-emerald-400 font-semibold">★{bets.length}价值</span>
-            : <span className="text-white/30">{s.is_multi_book ? '全PASS' : '单庄·EVAL'}</span>}
+            : <span className="text-white/30">{s.is_multi_book ? '全跳过' : '单庄·仅分析'}</span>}
           <span className="text-white/30">{open ? '▾' : '▸'}</span>
         </span>
       </button>
@@ -62,6 +150,17 @@ function ScanCard({ s }: { s: ScanResult }) {
   )
 }
 
+// ── 决策状态中文化 (后端可能返 BET/PASS/EVAL/SCAN 四种) ──
+const decisionLabel = (d?: string): string => {
+  switch (d) {
+    case 'BET': return '投注'
+    case 'PASS': return '跳过'
+    case 'EVAL': return '分析'
+    case 'SCAN': return '扫描'
+    default: return d || '未知'
+  }
+}
+
 function OptionRow({ o }: { o: OptionValuation }) {
   const decCls = o.decision === 'BET' ? 'bg-emerald-500/20 text-emerald-400'
     : o.decision === 'EVAL' ? 'bg-amber-500/15 text-amber-400'
@@ -72,7 +171,7 @@ function OptionRow({ o }: { o: OptionValuation }) {
   return (
     <div className={`flex items-center justify-between px-3 py-1 text-xs ${isBest ? 'bg-emerald-500/5' : ''}`}>
       <span className="flex items-center gap-2">
-        <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${decCls}`}>{o.decision}</span>
+        <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${decCls}`}>{decisionLabel(o.decision)}</span>
         <span className="text-white/70">{o.selection}</span>
         {o.odds != null && <span className="text-white/40">@{o.odds.toFixed(2)}</span>}
         <span className="text-white/25 text-[10px]">{o.market}</span>
@@ -225,6 +324,9 @@ export default function QuantDemo() {
         </div>
         <EquityChart curve={snap?.equity_curve || []} />
       </div>
+
+      {/* ③ 回测绩效 (PortfolioManager 真实数据) */}
+      <PortfolioCard />
 
       {/* ③ 操作控制条 */}
       <div className="flex flex-wrap items-center gap-2">

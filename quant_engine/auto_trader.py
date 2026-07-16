@@ -229,8 +229,8 @@ class QuantEngine:
             n_bets = len(bet_dirs)
             self._log_signal(
                 f"扫描 · {m.home} vs {m.away} → {len(sr.options)}选项 "
-                f"{n_bets}个策略信号 无下单 (PASS)" if m.is_multi_book else
-                f"扫描 · {m.home} vs {m.away} → {len(sr.options)}选项 单庄(仅EVAL不下单)",
+                f"{n_bets}个策略信号 无下单 (跳过)" if m.is_multi_book else
+                f"扫描 · {m.home} vs {m.away} → {len(sr.options)}选项 单庄(仅分析不下单)",
                 level="scan", n_bets=0,
             )
         return {

@@ -53,22 +53,4 @@ export const useAppStore = create<AppState>((set, get) => ({
   competition: 'wc',
   setCompetition: (competition) => set({ competition }),
 }))
-// ============================================
-// 预测大厅状态
-// ============================================
-interface PredictionHallState {
-  selectedLeague: string | null
-  setSelectedLeague: (league: string | null) => void
-  timeFilter: 'today' | 'week' | 'month'
-  setTimeFilter: (filter: 'today' | 'week' | 'month') => void
-  searchQuery: string
-  setSearchQuery: (query: string) => void
-}
-export const usePredictionHallStore = create<PredictionHallState>((set) => ({
-  selectedLeague: null,
-  setSelectedLeague: (league) => set({ selectedLeague: league }),
-  timeFilter: 'today',
-  setTimeFilter: (timeFilter) => set({ timeFilter }),
-  searchQuery: '',
-  setSearchQuery: (searchQuery) => set({ searchQuery }),
-}))
+// (已清理：预测大厅相关死切片)

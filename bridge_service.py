@@ -23,6 +23,7 @@ import json
 import time
 import logging
 import threading
+import asyncio
 from typing import Any, Dict, Optional
 from datetime import datetime, timedelta, timezone
 
@@ -285,6 +286,52 @@ def _wrap_error(code: str, message: str, details=None, status: int = 400) -> JSO
 
 
 # ── 从实时赔率库加载赛程数据（优先） ──
+def _resolve_team_cn(name: str) -> str:
+    """将英文/混合队名解析为中文 canonical 名, 查 team_canonical 表"""
+    if not name:
+        return name
+    # 已经是中文(含中文字符) 则直接返回
+    if any('\u4e00' <= c <= '\u9fff' for c in name):
+        return name
+    try:
+        db_path = os.path.join(PROJECT_ROOT, "data", "football_data.db")
+        if not os.path.exists(db_path):
+            return name
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+        # 正则提取拉丁字母
+        import re
+        latin = ''.join(re.findall(r'[A-Za-z]+', name)).lower()
+        if not latin:
+            conn.close()
+            return name
+        rows = cur.execute(
+            "SELECT canonical, aliases_json FROM team_canonical"
+        ).fetchall()
+        conn.close()
+        best = name  # 默认返回原值
+        for canon, aj in rows:
+            aliases = json.loads(aj) if aj else []
+            for a in aliases:
+                if ''.join(re.findall(r'[A-Za-z]+', a)).lower() == latin:
+                    # 优先取中文 canonical
+                    if any('\u4e00' <= c <= '\u9fff' for c in canon):
+                        return canon
+                    if best == name:
+                        best = canon
+                    break
+            if ''.join(re.findall(r'[A-Za-z]+', canon)).lower() == latin:
+                if any('\u4e00' <= c <= '\u9fff' for c in canon):
+                    return canon
+                if best == name:
+                    best = canon
+        return best
+    except Exception:
+        pass
+    return name
+
+
 def _load_real_match_data(db_path: Optional[str] = None, days: int = 7):
     """优先读取 live_odds_raw 的最新赛事, 失败时回退 QF JSON。"""
     fixtures = []
@@ -304,6 +351,11 @@ def _load_real_match_data(db_path: Optional[str] = None, days: int = 7):
                        commence_time, best_h2h, bookmakers_detail, captured_at
                 FROM live_odds_raw
                 WHERE commence_time IS NOT NULL
+                AND id IN (
+                    SELECT MAX(id) FROM live_odds_raw
+                    WHERE commence_time IS NOT NULL
+                    GROUP BY home_team, away_team, commence_time
+                )
                 ORDER BY commence_time ASC
                 """
             )
@@ -334,6 +386,9 @@ def _load_real_match_data(db_path: Optional[str] = None, days: int = 7):
             h2h = {}
         home = row["home_team"] or row["home_team_en"] or ""
         away = row["away_team"] or row["away_team_en"] or ""
+        # 解析为中文队名
+        home = _resolve_team_cn(home)
+        away = _resolve_team_cn(away)
         fixture_id = row["id"]
         odds_h = h2h.get("home")
         odds_d = h2h.get("draw")
@@ -663,6 +718,14 @@ async def _start_background_loops():
     _asyncio.create_task(_odds_features_sync_loop())
     # 每10分钟采集一次 live_odds_raw (轻度循环, 与赔率主循环互补)
     _asyncio.create_task(_live_odds_mini_loop())
+    # 实时比分轮询 (每 30s 拉一次 getMatchDetailPB, 仅对正在进行的比赛)
+    try:
+        from pipeline.leisu_live_scores import start_background_poller, init_scores_db
+        init_scores_db()
+        start_background_poller()
+        logger.info("[飞轮] 实时比分轮询已启动 (30s 间隔)")
+    except Exception as e:
+        logger.warning(f"[飞轮] 实时比分轮询启动失败: {e}")
 
 
 async def _live_odds_mini_loop():
@@ -1480,7 +1543,8 @@ def _live_predict(home, away, oh, od, oa,
     if extra_bookmakers:
         from pipeline.draw_signal import multi_bookmaker_consensus
     import numpy as np
-    from pipeline.deep_report import (compute_value_layer, consensus_probs,
+    from pipeline.compute_value_layer import compute_value_layer
+    from pipeline.deep_report import (consensus_probs,
                                       ou_value, draw_consensus_value,
                                       correct_score_value)
     oh = float(oh); od = float(od); oa = float(oa)
@@ -2087,87 +2151,131 @@ async def backtest_api():
         return _wrap_data({"error": f"读取回测数据失败: {e}"})
 
 
-# ═══ 联赛赛程 ═══
+# ═══ 联赛赛程 (数据源: 微瑞/乐鱼 live feed) ═══
+# 全局 feed 缓存: league_name -> [FixtureEntry], TTL 60s
+_LEISU_FEED_CACHE: Dict[str, Any] = {"fetched_at": 0.0, "data": None}
+_LEISU_FEED_LOCK = None
+LEISU_FEED_TTL = int(os.getenv("LEISU_FEED_TTL", "60"))
+
+
+async def _get_leisu_feed() -> Dict[str, Any]:
+    """取/刷新 live feed (带 TTL 缓存 + 异步锁)。失败返回 {error, leagues:{}}。"""
+    global _LEISU_FEED_CACHE, _LEISU_FEED_LOCK
+    if _LEISU_FEED_LOCK is None:
+        _LEISU_FEED_LOCK = asyncio.Lock()
+    now = time.time()
+    cached = _LEISU_FEED_CACHE.get("data")
+    if cached and (now - _LEISU_FEED_CACHE["fetched_at"]) < LEISU_FEED_TTL:
+        return cached
+    async with _LEISU_FEED_LOCK:
+        cached = _LEISU_FEED_CACHE.get("data")
+        if cached and (now - _LEISU_FEED_CACHE["fetched_at"]) < LEISU_FEED_TTL:
+            return cached
+        from pipeline.collectors.leisu_live import build_feed
+        try:
+            data = await asyncio.to_thread(build_feed)
+        except Exception as e:
+            data = {"error": f"feed 构建失败: {e}", "leagues": {}}
+        _LEISU_FEED_CACHE = {"fetched_at": time.time(), "data": data}
+        return data
+
+
 @app.get("/api/leagues")
 async def leagues_api():
-    """返回 34 联赛目录 (按分类分组, 含各联赛可赛程数)。"""
-    from pipeline.collectors.sp_odds_api import SPOddsAPI
-    try:
-        api = SPOddsAPI()
-        available = set()
-        if api.get_remaining_requests() > 0:
-            try:
-                sports = api.get_sports()
-                available = {s["key"] for s in sports if s.get("group") == "Soccer"}
-            except Exception:
-                logger.warning("联赛列表拉取失败, 用全量目录兜底")
-        else:
-            logger.warning("API 额度不足, 联赛可用性标记全部为未知")
-    except Exception:
-        available = set()
-
-    categories: Dict[str, list] = {}
-    for sk, info in LEAGUE_CATALOG.items():
-        cat = info["category"]
-        entry = {"sport_key": sk, "name": info["name"],
-                 "available": sk in available if available else True,
-                 "fixture_count": len(_LEAGUE_FIXTURE_CACHE.get(sk, {}).get("fixtures", []))}
-        categories.setdefault(cat, []).append(entry)
-
-    cat_order = ["五大联赛", "英格兰联赛", "德国联赛", "北欧", "美洲", "亚洲/其他", "杯赛/国际"]
-    result = [{"category": c, "leagues": categories.get(c, [])} for c in cat_order if c in categories]
-    return _wrap_data({"categories": result, "total_leagues": len(LEAGUE_CATALOG)})
+    """联赛目录 (动态, 来自微瑞 live feed; 按联赛名分组)。"""
+    feed = await _get_leisu_feed()
+    if feed.get("error"):
+        return _wrap_data({"error": feed["error"], "categories": [], "total_leagues": 0})
+    leagues = feed["leagues"]
+    entries = [
+        {"sport_key": name, "name": name, "available": True, "fixture_count": len(fx)}
+        for name, fx in leagues.items()
+    ]
+    entries.sort(key=lambda e: -e["fixture_count"])
+    categories = [{"category": "实时赛事", "leagues": entries}]
+    return _wrap_data({"categories": categories, "total_leagues": len(entries)})
 
 
 @app.get("/api/leagues/{sport_key}/fixtures")
 async def league_fixtures_api(sport_key: str):
-    """获取指定联赛未来赛程 (带 1 小时缓存, 来源 The Odds API)。"""
-    sk = sport_key
-    info = LEAGUE_CATALOG.get(sk)
-    if not info:
-        return _wrap_data({"error": f"未知联赛: {sk}", "fixtures": []})
+    """获取指定联赛赛程 (数据源: 微瑞 live feed, 全局缓存 60s)。"""
+    feed = await _get_leisu_feed()
+    if feed.get("error"):
+        return _wrap_data({"error": feed["error"], "fixtures": []})
+    leagues = feed["leagues"]
+    fx = leagues.get(sport_key) or leagues.get(sport_key.strip()) or []
+    return _wrap_data({
+        "sport_key": sport_key,
+        "name": sport_key,
+        "category": "实时赛事",
+        "fixtures": fx,
+        "cached": False,
+    })
 
-    # 缓存检查
-    cache = _LEAGUE_FIXTURE_CACHE.get(sk)
-    if cache:
-        age = (datetime.now(timezone.utc) - datetime.fromisoformat(cache["fetched_at"])).total_seconds()
-        if age < 3600:
-            return _wrap_data({"sport_key": sk, "name": info["name"], "category": info["category"],
-                               "fixtures": cache["fixtures"], "cached": True, "cache_age_s": int(age)})
 
-    # 实时拉取
-    from pipeline.collectors.sp_odds_api import SPOddsAPI
+# ═══ 水位信号 (前后两次快照差值, 跌水/升水=资金动向) ═══
+@app.get("/api/water-signals")
+async def water_signals_api(limit: int = 30, min_delta_pct: float = 1.0):
+    """返回最近 24h 内水位信号, 按 |delta_pct| 倒序。
+    - down = 跌水 (赔率降, 资金涌入此侧)
+    - up   = 升水 (赔率升, 资金撤出此侧)
+    - market 全名见 pipeline/collectors/leisu_live.py HPID_* 字段
+    """
+    from pipeline.leisu_store import get_recent_signals, init_db
     try:
-        api = SPOddsAPI()
-        matches = api.get_odds(sk)
+        init_db()
+        sigs = get_recent_signals(limit=limit, min_delta_pct=min_delta_pct)
+        return _wrap_data({"signals": sigs, "count": len(sigs), "min_delta_pct": min_delta_pct})
     except Exception as e:
-        # 缓存兜底 (即使过期)
-        if cache:
-            return _wrap_data({"sport_key": sk, "name": info["name"], "category": info["category"],
-                               "fixtures": cache["fixtures"], "cached": True,
-                               "stale": True, "note": f"实时拉取失败({e}), 返回缓存"})
-        return _wrap_data({"error": f"获取失败: {e}", "fixtures": []})
+        return _wrap_data({"error": str(e), "signals": [], "count": 0})
 
-    fixtures = []
-    for m in matches:
-        h2h = m.get("best_h2h", {})
-        fixtures.append({
-            "id": m.get("id", ""),
-            "home": m.get("home_team", ""),
-            "away": m.get("away_team", ""),
-            "commence_time": m.get("commence_time", ""),
-            "odds_h": h2h.get("home"),
-            "odds_d": h2h.get("draw"),
-            "odds_a": h2h.get("away"),
-            "bookmakers_count": len(m.get("bookmakers_raw", [])),
-        })
 
-    _LEAGUE_FIXTURE_CACHE[sk] = {
-        "fetched_at": datetime.now(timezone.utc).isoformat(),
-        "fixtures": fixtures,
-    }
-    return _wrap_data({"sport_key": sk, "name": info["name"], "category": info["category"],
-                       "fixtures": fixtures, "cached": False})
+@app.get("/api/snapshot/{mid}")
+async def get_snapshot_history(mid: str, limit: int = 20):
+    """取某 mid 最近 N 份快照, 用于看历史水位曲线。"""
+    import sqlite3 as _sq
+    db_path = os.path.join(PROJECT_ROOT, "data", "leisu_odds.db")
+    if not os.path.exists(db_path):
+        return _wrap_data({"error": "暂无快照数据", "snapshots": []})
+    c = _sq.connect(db_path)
+    rows = c.execute("""
+        SELECT snapshot_at, odds_h, odds_d, odds_a,
+               ah_home, ah_away, ou_over, ou_under
+        FROM odds_snapshots WHERE mid=?
+        ORDER BY snapshot_at DESC LIMIT ?
+    """, (mid, limit)).fetchall()
+    c.close()
+    snaps = [{
+        "ts": r[0], "odds_h": r[1], "odds_d": r[2], "odds_a": r[3],
+        "ah_home": r[4], "ah_away": r[5], "ou_over": r[6], "ou_under": r[7]
+    } for r in rows]
+    return _wrap_data({"mid": mid, "snapshots": snaps, "count": len(snaps)})
+
+
+# ═══ 实时比分 ═══
+@app.get("/api/live-scores")
+async def live_scores_api(limit: int = 30):
+    """从 DB 拉最近 60s 内更新的正在进行的比赛 (mststi > 0)。
+    - mststi: 1=上半场, 2=中场, 3=下半场, 4=加时, 5=点球, -1=结束
+    """
+    try:
+        from pipeline.leisu_live_scores import get_live_matches, init_scores_db
+        init_scores_db()
+        matches = get_live_matches(limit=limit)
+        return _wrap_data({"matches": matches, "count": len(matches)})
+    except Exception as e:
+        return _wrap_data({"error": str(e), "matches": [], "count": 0})
+
+
+@app.get("/api/live-score/{mid}")
+async def live_score_history_api(mid: str, limit: int = 60):
+    """某 mid 的比分时序 (快照历史)。"""
+    try:
+        from pipeline.leisu_live_scores import get_match_score_history
+        history = get_match_score_history(mid, limit=limit)
+        return _wrap_data({"mid": mid, "history": history, "count": len(history)})
+    except Exception as e:
+        return _wrap_data({"error": str(e), "history": [], "count": 0})
 
 
 
@@ -2362,10 +2470,14 @@ async def bets_place_api(request: Request):
 # ═══════════════════════════════════════════════
 
 class TerminalAnalyzeRequest(BaseModel):
-    """终端分析请求 — 指定比赛实时拉取多庄赔率并决策"""
+    """终端分析请求 — 直接用盘口赔率(赛事列表同源), 不调 The Odds API"""
     home: str
     away: str
     sport_key: str = "soccer_fifa_world_cup"
+    # 可选: 前端直接传入赔率(点击赛事卡片时带 odds_h/d/a), 避免二次查询
+    odds_h: Optional[float] = None
+    odds_d: Optional[float] = None
+    odds_a: Optional[float] = None
 
 
 class TerminalIngestRequest(BaseModel):
@@ -2403,6 +2515,17 @@ async def terminal_matches_api():
                ORDER BY commence_time ASC""",
             (f"{today}%",)
         ).fetchall()
+        mode = "today"
+        if not rows:
+            # 当日无实时采集 -> 诚实回退到最近有赔率的真实样本(非今日, 标注清楚)
+            rows = conn.execute(
+                """SELECT home_team, away_team, sport_key, commence_time,
+                          best_h2h, bookmakers_detail, captured_at
+                   FROM live_odds_raw
+                   WHERE bookmakers_detail IS NOT NULL
+                   ORDER BY captured_at DESC LIMIT 30"""
+            ).fetchall()
+            mode = "sample"
         conn.close()
 
         matches = []
@@ -2429,7 +2552,9 @@ async def terminal_matches_api():
             "date": today,
             "matches": matches,
             "total": len(matches),
-            "note": f"仅返回 >=2 庄的当日比赛 (共{len(matches)}场)",
+            "note": (f"当日实时比赛 (共{len(matches)}场)"
+                     if mode == "today"
+                     else f"实时采集暂停, 展示最近真实样本 (共{len(matches)}场, 最新 {(matches[0]['commence_time'] or 'N/A')[:10] if matches else 'N/A'})"),
         })
     except Exception as e:
         return _wrap_data({"error": f"获取失败: {e}", "matches": [], "total": 0})
@@ -2497,51 +2622,68 @@ async def quant_demo_reset():
 
 @app.post("/api/terminal/analyze")
 async def terminal_analyze_api(req: TerminalAnalyzeRequest):
-    """指定比赛实时拉取多庄赔率 → _live_predict → 决策卡片"""
+    """赛事分析 — 直接用盘口赔率(与赛事列表同源), 不调 The Odds API.
+
+    赔率来源优先级:
+      1. 前端直接传入 (odds_h/d/a, 点击卡片时带, 零查询零延迟)
+      2. live_odds_raw 表模糊匹配 (按 home/away 查最近一条多庄记录)
+    完全去掉 The Odds API 调用 — 赛事列表有什么赔率, 分析就用什么.
+    """
+    import sqlite3
     try:
-        from pipeline.collectors.sp_odds_api import SPOddsAPI
-        api = SPOddsAPI()
-        if api.get_remaining_requests() <= 0:
-            return _wrap_data({"error": "API配额耗尽", "decision": None})
+        oh, od, oa = req.odds_h, req.odds_d, req.odds_a
+        extra_books = None
+        league_name = LEAGUE_CATALOG.get(req.sport_key, {}).get('name', req.sport_key)
+        commence = None
 
-        matches = api.get_odds(req.sport_key)
-        target = None
-        for m in matches:
-            h = m.get("home_team", "")
-            a = m.get("away_team", "")
-            if (req.home.lower() in h.lower() or h.lower() in req.home.lower()) and \
-               (req.away.lower() in a.lower() or a.lower() in req.away.lower()):
-                target = m
-                break
+        if not (oh and od and oa and oh > 0 and od > 0 and oa > 0):
+            # 前端未传赔率 → 从 live_odds_raw 查最近一条多庄记录
+            db_path = os.path.join(PROJECT_ROOT, "data", "football_data.db")
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                """SELECT home_team, away_team, sport_key, commence_time,
+                          best_h2h, bookmakers_detail
+                   FROM live_odds_raw
+                   WHERE bookmakers_detail IS NOT NULL AND (
+                       (LOWER(home_team) LIKE ? AND LOWER(away_team) LIKE ?) OR
+                       (LOWER(home_team) LIKE ? AND LOWER(away_team) LIKE ?))
+                   ORDER BY captured_at DESC LIMIT 1""",
+                (f"%{req.home.lower()}%", f"%{req.away.lower()}%",
+                 f"%{req.away.lower()}%", f"%{req.home.lower()}%")
+            ).fetchone()
+            conn.close()
+            if not row:
+                return _wrap_data({"error": f"未找到盘口赔率: {req.home} vs {req.away} (赛事列表无此场或赔率未采集)", "decision": None})
+            h2h = json.loads(row['best_h2h'] or '{}')
+            oh, od, oa = h2h.get("home"), h2h.get("draw"), h2h.get("away")
+            if not (oh and od and oa):
+                return _wrap_data({"error": f"盘口赔率不完整: {req.home} vs {req.away}", "decision": None})
+            try:
+                bm = json.loads(row['bookmakers_detail'] or '[]')
+                extra_books = [[b["name"], b["h"], b["d"], b["a"]] for b in bm
+                               if all(k in b for k in ("name", "h", "d", "a"))]
+            except Exception:
+                extra_books = None
+            if extra_books and len(extra_books) < 2:
+                extra_books = None
+            req.home = row['home_team']
+            req.away = row['away_team']
+            commence = row['commence_time']
+            league_name = LEAGUE_CATALOG.get(row['sport_key'], {}).get('name', row['sport_key'])
 
-        if not target:
-            return _wrap_data({"error": f"未找到匹配比赛: {req.home} vs {req.away}", "decision": None})
-
-        h2h = target.get("best_h2h", {})
-        bm = target.get("bookmakers_detail", [])
-        extra = [[b["name"], b["h"], b["d"], b["a"]] for b in bm
-                 if all(k in b for k in ("name", "h", "d", "a"))]
-
+        # 用盘口赔率直接跑全链路模型 (不再调任何外部 API)
         result = _live_predict(
-            target.get("home_team"), target.get("away_team"),
-            h2h.get("home"), h2h.get("draw"), h2h.get("away"),
-            home_norm=target.get("home_team"), away_norm=target.get("away_team"),
-            date=target.get("commence_time"), league=None,
-            extra_bookmakers=extra if len(extra) >= 2 else None,
+            req.home, req.away, oh, od, oa,
+            home_norm=req.home, away_norm=req.away,
+            date=commence, league=league_name,
+            extra_bookmakers=extra_books,
         )
 
-        # 落库保存
-        try:
-            api.save_to_db(target)
-        except Exception:
-            pass
-
-        # 构建决策卡片
         vl = result.get("value_layer", {})
         card = {
-            "fixture": {"home": target.get("home_team"), "away": target.get("away_team"),
-                        "commence_time": target.get("commence_time"),
-                        "sport_key": target.get("sport_key")},
+            "fixture": {"home": req.home, "away": req.away,
+                        "commence_time": commence, "sport_key": req.sport_key},
             "odds": result.get("odds"),
             "market_prob": result.get("market_prob"),
             "direction": result.get("direction"),
@@ -2773,6 +2915,30 @@ try:
 except Exception as _qe:
     _QUANT_OK = False
     logger.warning(f"quant_engine 未就绪: {_qe}")
+
+
+_PORTFOLIO_JSON = os.path.join(PROJECT_ROOT, "data", "portfolio_metrics.json")
+
+
+@app.get("/api/portfolio")
+async def portfolio_api():
+    """返回 portfolio_manager 的完整快照 (资金曲线+持仓+绩效指标).
+
+    由 python scripts/live_pilot_guardian.py --portfolio 生成.
+    """
+    try:
+        if not os.path.exists(_PORTFOLIO_JSON):
+            return {"error": "未运行过 portfolio 回测. 执行: python scripts/live_pilot_guardian.py --portfolio", "available": False}
+        # 尝试多种编码 (Windows中文系统默认GBK, Linux默认UTF-8)
+        for enc in ("utf-8", "gbk", "utf-8-sig"):
+            try:
+                with open(_PORTFOLIO_JSON, "r", encoding=enc) as f:
+                    return json.load(f)
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                continue
+        raise ValueError(f"无法解码 {_PORTFOLIO_JSON}, 尝试了 utf-8/gbk")
+    except Exception as e:
+        raise HTTPException(500, f"读取 portfolio_metrics.json 失败: {e}")
 
 
 @app.get("/api/quant/snapshot")

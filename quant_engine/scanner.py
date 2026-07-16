@@ -21,10 +21,10 @@ from dataclasses import dataclass, field
 from .market_feeder import MatchMarket
 
 # ── SSoT imports (纯函数, 只读复用) ──
-from pipeline.deep_report import (
-    compute_value_layer, compute_submarket_value, consensus_probs,
-    kelly_fraction,
+from pipeline.compute_value_layer import (
+    compute_value_layer, compute_submarket_value, kelly_fraction,
 )
+from pipeline.deep_report import consensus_probs
 from pipeline.score_model import predict_score
 
 

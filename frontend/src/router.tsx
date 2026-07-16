@@ -3,15 +3,8 @@ import { lazy, Suspense } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
 
 // E4 P1-13: 路由级代码分割 — 各页独立 chunk, echarts/framer 不再进首包
-const PredictionHall = lazy(() => import('@/pages/PredictionHall'))
-const MatchAnalysis = lazy(() => import('@/pages/MatchAnalysis'))
-const ModelManagement = lazy(() => import('@/pages/ModelManagement'))
-const SystemMonitor = lazy(() => import('@/pages/SystemMonitor'))
-const DataExplorer = lazy(() => import('@/pages/DataExplorer'))
 const LeagueSchedule = lazy(() => import('@/pages/LeagueSchedule'))
-const OperatorTerminal = lazy(() => import('@/pages/OperatorTerminal'))
 const QuantDemo = lazy(() => import('@/pages/QuantDemo'))
-const TradingHub = lazy(() => import('@/pages/TradingHub'))
 
 const PageFallback = () => (
   <div className="flex items-center justify-center h-full min-h-[40vh] text-ink-secondary text-sm">
@@ -26,15 +19,9 @@ const router = createBrowserRouter([
     path: '/',
     element: <AppLayout />,
     children: [
-      { index: true, element: withSuspense(<PredictionHall />) },
-      { path: 'match-analysis', element: withSuspense(<MatchAnalysis />) },
-      { path: 'operator-terminal', element: withSuspense(<OperatorTerminal />) },
-      { path: 'quant-demo', element: withSuspense(<QuantDemo />) },
-      { path: 'trading-hub', element: withSuspense(<TradingHub />) },
-      { path: 'model-management', element: withSuspense(<ModelManagement />) },
-      { path: 'system-monitor', element: withSuspense(<SystemMonitor />) },
-      { path: 'data-explorer', element: withSuspense(<DataExplorer />) },
+      { index: true, element: withSuspense(<LeagueSchedule />) },
       { path: 'league-schedule', element: withSuspense(<LeagueSchedule />) },
+      { path: 'quant-demo', element: withSuspense(<QuantDemo />) },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
   },

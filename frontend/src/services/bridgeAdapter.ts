@@ -7,12 +7,12 @@
  * 会出现"静默崩溃"(UI 白屏/异常).
  *
  * 策略: 在 services 层对原始响应做一次规范化 (normalize), 给所有易变字段
- * 填稳定默认值, 使上层组件拿到的永远是结构完整的对象. 配合 Prediction/DecisionCard
+ * 填稳定默认值, 使上层组件拿到的永远是结构完整的对象. 配合 Prediction
  * 类型中这些字段已声明为 optional, 实现"引擎字段漂移 → 前端不崩".
  *
  * 注意: 这里只填默认值, 不做业务逻辑; 真实数据原样透传.
  */
-import type { Prediction, DecisionCard } from '@/types'
+import type { Prediction } from '@/types'
 
 type AnyObj = Record<string, any>
 
@@ -35,17 +35,6 @@ export function normalizePrediction(raw: any): Prediction {
   } as Prediction
 }
 
-/** 规范化操盘终端决策卡片 (DecisionCard). */
-export function normalizeDecisionCard(raw: any): DecisionCard {
-  const d: AnyObj = raw ?? {}
-  return {
-    ...(d as object),
-    softline: d.softline ?? undefined,
-    draw_alert: d.draw_alert ?? false,
-    operator_view: d.operator_view ?? undefined,
-    sub_markets: d.sub_markets ?? undefined,
-  } as DecisionCard
-}
 
 /** 通用安全取值 (防止深层字段缺失抛错). */
 export function safeField<T>(obj: any, path: string, fallback: T): T {

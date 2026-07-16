@@ -1,27 +1,29 @@
 import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/store'
-import { monitorService, alertService } from '@/services/api'
+
+const BRIDGE_URL = (import.meta as any).env?.VITE_BRIDGE_URL || 'http://localhost:9000'
 
 export default function TopBar() {
   const { systemHealth, setSystemHealth, alerts, setAlerts, unacknowledgedCount,
           metricsSummary, setMetricsSummary, competition, setCompetition } = useAppStore()
 
   useEffect(() => {
-    const fetch = async () => {
+    const poll = async () => {
+      // bridge_service /health (主 API /api/v1/* 不可用时静默降级)
       try {
-        const [h, a, m] = await Promise.all([
-          monitorService.getHealth(), alertService.getAlerts({ acknowledged: false }), monitorService.getMetricsSummary(),
-        ])
-        setSystemHealth((h.data as any)?.data || (h.data as any))
-        setAlerts((a.data as any)?.data || [])
-        setMetricsSummary((m.data as any)?.data || (m.data as any))
-      } catch {}
+        const ctrl = new AbortController()
+        const t = setTimeout(() => ctrl.abort(), 3000)
+        const r = await window.fetch(`${BRIDGE_URL}/health`, { signal: ctrl.signal })
+        clearTimeout(t)
+        const d = await r.json()
+        setSystemHealth({ status: d?.ok ? 'healthy' : 'degraded', ...(typeof d === 'object' ? d : {}) })
+      } catch { /* bridge 未就绪时静默 */ }
     }
-    fetch()
-    const i = setInterval(fetch, 15000)
+    poll()
+    const i = setInterval(poll, 15000)
     return () => clearInterval(i)
-  }, [setSystemHealth, setAlerts, setMetricsSummary])
+  }, [setSystemHealth])
 
   const statusColor =
     systemHealth?.status === 'healthy' ? 'bg-field-500' :

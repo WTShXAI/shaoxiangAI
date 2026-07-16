@@ -5,6 +5,13 @@ export default {
   theme: {
     extend: {
       colors: {
+        accent: {
+          DEFAULT: "#A8E34A",
+          dark: "#0A0A0B",
+          card: "#141417",
+          inner: "#1C1C20",
+          dim: "#9AA3B2",
+        },
         field: {
           50: "#edfdf5", 100: "#d3fae5", 200: "#aaf5ce", 300: "#73eab0",
           400: "#3ecf8e", 500: "#1fb873", 600: "#13985c", 700: "#0f7a4b",
@@ -53,7 +60,7 @@ export default {
       fontFamily: {
         display: ["Inter", "sans-serif"],
         body: ["Inter", "sans-serif"],
-        mono: ['"JetBrains Mono"', "monospace"],
+        mono: ['"Roboto Mono"', '"JetBrains Mono"', "ui-monospace", "monospace"],
       },
       borderRadius: {
         sm: "4px",
