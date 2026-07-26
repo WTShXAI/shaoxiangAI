@@ -143,7 +143,7 @@ class BookmakerBalanceSimulator:
 
             # 累积投注
             if step == 0:
-                cum_h, cum_d, cum_a = 0, 0, 0
+                cum_h, cum_d, cum_a = 0.0, 0.0, 0.0
             else:
                 prev = report.steps[-1]
                 cum_h = prev.bets_h + bet_h

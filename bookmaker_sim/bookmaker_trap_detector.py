@@ -95,7 +95,7 @@ def _get_threshold(match_type: str, strength_gap: str) -> float:
         base -= 0.15
     return base
 
-LEAGUE_TRAITS = {
+LEAGUE_TRAITS: Dict[str, Any] = {
     "英超": {"deep_trap": True, "home1_ball_trap": True, "draw_rate": "normal", "overround_base": 0.065},
     "西甲": {"half_ball_draw": True, "home_away_gap": True, "draw_rate": "high", "overround_base": 0.062},
     "意甲": {"home_shallow": True, "draw_rate": "high", "overround_base": 0.068},
@@ -285,7 +285,7 @@ def detect_ou_cs_divergence(
 def compute_anti_cs_features(
     score_odds: Optional[Dict[str, float]] = None,
     lam_h: float = 1.0, lam_a: float = 1.0,
-) -> Dict[str, float]:
+) -> Dict[str, Any]:
     """
     v3.1: 反波胆特征工程
 
@@ -404,7 +404,7 @@ def check_hidden_strength(
 
     # 默认友谊赛数据（无数据时用正式赛数据，ratio=1.0 不触发）
     friendly_scored = opponent_friendly_goals_scored or opponent_official_goals_scored
-    friendly_conceded = opponent_friendly_goals_conceded or opponent_official_goals_conceded
+    friendly_conceded = opponent_friendly_goals_conceded or opponent_official_goals_conceded or 1.0
 
     official_scored = opponent_official_goals_scored
     official_conceded = opponent_official_goals_conceded or 1.0
@@ -575,12 +575,16 @@ class BookmakerTrapDetector:
                 f"浅盘大热：理论让{d['fair_handicap']:.1f}实际{d['asian_handicap']:.1f}（浅{abs(gap):.1f}球）+大热",
                 {"D": +0.04, "A": +0.04} if d['favorite_is_home'] else {"D": +0.04, "H": +0.04})
 
+        return None
+
     # ── E2: 降赔升水 ──
     def _e2_drop_odds_rise_water(self, d: dict) -> Optional[TrapSignal]:
         if d['odds_trend'] == "dropping" and d['water_trend'] == "rising" and d['volume_ratio_fav'] > 0.65:
             return TrapSignal(TrapType.DROP_ODDS_RISE_WATER, 0.72, "underdog",
                 "降赔升水：降赔吸引+升水锁赔付 → 热门爆冷风险 ↑",
                 {"H": -0.06, "D": +0.04} if d['favorite_is_home'] else {"A": -0.06, "D": +0.04})
+
+        return None
 
     # ── E3: 升盘降水 → 造热 ──
     def _e3_rise_handicap_drop_water(self, d: dict) -> Optional[TrapSignal]:
@@ -589,12 +593,16 @@ class BookmakerTrapDetector:
                 "升盘降水：制造稳赢假象 → 追强队陷阱",
                 {"D": +0.03})
 
+        return None
+
     # ── E4: 平半高水死扛 ──
     def _e4_half_ball_high_water(self, d: dict) -> Optional[TrapSignal]:
         if abs(d['asian_handicap'] - 0.25) < 0.05 and d['water_level'] >= 0.98:
             return TrapSignal(TrapType.HALF_BALL_HIGH_WATER, 0.78, "draw",
                 "平半高水死扛：庄家不降水位 → 打平概率极高",
                 {"D": +0.10, "H": -0.05})
+
+        return None
 
     # ── E5: 临场突变 ──
     def _e5_last_minute_change(self, d: dict) -> Optional[TrapSignal]:
@@ -605,6 +613,8 @@ class BookmakerTrapDetector:
             return TrapSignal(TrapType.LAST_MINUTE_CHANGE, 0.55, "real_info",
                 "临场突变(多机构同步)：可能真实信息 → 顺势")
 
+        return None
+
     # ── E6: 深盘诱杀 [新增] ──
     def _e6_deep_handicap_trap(self, d: dict) -> Optional[TrapSignal]:
         """强队深让但 λ 实力差不足以支撑 → 造热上盘"""
@@ -614,6 +624,8 @@ class BookmakerTrapDetector:
             return TrapSignal(TrapType.DEEP_HANDICAP_TRAP, conf, "underdog_cover",
                 f"深盘诱杀：实力差仅{d['lam_diff']:.1f}球但让{d['asian_handicap']:.1f}球 → 赢球输盘高概率",
                 {"D": +0.04})
+
+        return None
 
     # ── E7: 抽水率异常 [新增] ──
     def _e7_overround_anomaly(self, d: dict) -> Optional[TrapSignal]:
@@ -636,6 +648,8 @@ class BookmakerTrapDetector:
             return TrapSignal(TrapType.OVERROUND_ANOMALY, 0.60, "uncertain",
                 f"抽水偏高({overround*100:.1f}%) → 赛果不确定性大，庄家需要对冲",
                 {"D": +0.03})
+
+        return None
 
     # ── E8: 波胆防线 [新增] ──
     def _e8_score_odds_barrier(self, d: dict) -> Optional[TrapSignal]:
@@ -675,6 +689,8 @@ class BookmakerTrapDetector:
                 f"波胆轻防：{high_rp_count}/{len(rp_values)}比分RP>3",
                 {"D": +0.03})
 
+        return None
+
     # ── E9: 凯利背离 [新增] ──
     def _e9_kelly_divergence(self, d: dict) -> Optional[TrapSignal]:
         """
@@ -699,6 +715,8 @@ class BookmakerTrapDetector:
                     f"凯利偏高(avg={avg_kelly:.2f}) → 庄家慷慨定价，对赛果极度自信",
                     {"D": -0.03})
 
+        return None
+
     # ── E13: 历史参照偏差修正 ──
     def _e13_historical_bias(self, d: dict) -> Optional[TrapSignal]:
         """战术升级 → 历史参照失真"""
@@ -709,6 +727,8 @@ class BookmakerTrapDetector:
                 "downgrade_trap_signals",
                 f"历史参照偏差(squad={sc:.2f},tac={ts:.2f})",
                 {})
+
+        return None
 
     # ── E14: 对手反击威胁评估 ──
     def _e14_counter_threat(self, d: dict) -> Optional[TrapSignal]:
@@ -731,6 +751,8 @@ class BookmakerTrapDetector:
             final_conf = min(0.85, max(0.25, base_conf))
             return TrapSignal(TrapType.COUNTER_THREAT_LOW, final_conf, "low_upset_risk",
                 base_desc, weight_adj)
+
+        return None
 
     # ── E15: OU-CS背离检测 [v3.1新增] ──
     def _e15_ou_cs_divergence(self, d: dict) -> Optional[TrapSignal]:
@@ -796,6 +818,8 @@ class BookmakerTrapDetector:
                 f"深盘退热：深开{d['asian_handicap']:.1f}球+高水 → 真实保护上盘",
                 {"H": +0.04} if d['favorite_is_home'] else {"A": +0.04})
 
+        return None
+
     # ── E11: 资金过热+赔率不动 ──
     def _e11_fund_imbalance(self, d: dict) -> Optional[TrapSignal]:
         if d['volume_ratio_fav'] > 0.70 and d['odds_trend'] in ("stable", "rising"):
@@ -804,6 +828,8 @@ class BookmakerTrapDetector:
             return TrapSignal(TrapType.FUND_IMBALANCE, conf, "reverse",
                 f"资金过热({d['volume_ratio_fav']*100:.0f}%)但赔率不动 → 庄家不怕，反向",
                 {dir_sign: -0.10})
+
+        return None
 
     # ── E12: 欧亚联动 ──
     def _e12_eu_asian_linkage(self, d: dict) -> List[TrapSignal]:

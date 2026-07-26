@@ -18,41 +18,80 @@ class Database:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 ts REAL, match TEXT, outcome TEXT,
                 odds REAL, stake REAL, result TEXT,
-                pnl REAL, kelly REAL, ev REAL
+                pnl REAL, kelly REAL, ev REAL,
+                mode TEXT DEFAULT 'real'
             );
             CREATE INDEX IF NOT EXISTS idx_ts ON bets(ts DESC);
         """)
+        # 兼容已存在的旧库 (无 mode 列)
+        try:
+            self.conn.execute("ALTER TABLE bets ADD COLUMN mode TEXT DEFAULT 'real'")
+            self.conn.commit()
+        except Exception:
+            pass
         self.conn.commit()
 
-    def add_bet(self, match="", outcome="", odds=0.0, stake=0.0, result="", pnl=0.0, kelly=0.0, ev=0.0) -> int:
+    def add_bet(self, match="", outcome="", odds=0.0, stake=0.0, result="", pnl=0.0, kelly=0.0, ev=0.0, mode="real") -> int:
         cur = self.conn.execute(
-            "INSERT INTO bets (ts,match,outcome,odds,stake,result,pnl,kelly,ev) VALUES (?,?,?,?,?,?,?,?,?)",
-            (time.time(), match, outcome, odds, stake, result, pnl, kelly, ev)
+            "INSERT INTO bets (ts,match,outcome,odds,stake,result,pnl,kelly,ev,mode) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (time.time(), match, outcome, odds, stake, result, pnl, kelly, ev, mode)
         )
         self.conn.commit()
         return cur.lastrowid
+
+    def settle_bet(self, bet_id: int, result: str, pnl: float | None = None) -> bool:
+        """结算一笔待确认注 (real 模式落库后调用)。
+
+        result: win / loss / void。pnl 缺省时由存储的 odds/stake 反推:
+            win  → stake*(odds-1); loss → -stake; void → 0
+        返回是否成功更新。
+        """
+        row = self.conn.execute(
+            "SELECT odds, stake FROM bets WHERE id=?", (bet_id,)
+        ).fetchone()
+        if not row:
+            return False
+        odds, stake = row
+        if pnl is None:
+            if result == "win":
+                pnl = stake * (odds - 1)
+            elif result == "loss":
+                pnl = -stake
+            else:
+                pnl = 0.0
+        self.conn.execute(
+            "UPDATE bets SET result=?, pnl=? WHERE id=?",
+            (result, round(pnl, 2), bet_id)
+        )
+        self.conn.commit()
+        return True
 
     def get_bets(self, limit=500, offset=0) -> List[dict]:
         rows = self.conn.execute(
             "SELECT * FROM bets ORDER BY ts DESC LIMIT ? OFFSET ?", (limit, offset)
         ).fetchall()
-        cols = ["id","ts","match","outcome","odds","stake","result","pnl","kelly","ev"]
+        cols = ["id","ts","match","outcome","odds","stake","result","pnl","kelly","ev","mode"]
         return [dict(zip(cols, r)) for r in rows]
 
-    def get_equity_curve(self) -> List[dict]:
-        rows = self.conn.execute(
-            "SELECT ts, SUM(pnl) OVER (ORDER BY ts) as equity FROM bets ORDER BY ts"
-        ).fetchall()
+    def get_equity_curve(self, mode: str | None = None) -> List[dict]:
+        sql = (
+            "SELECT ts, SUM(pnl) OVER (ORDER BY ts) as equity FROM bets"
+            + (" WHERE mode=?" if mode else "")
+            + " ORDER BY ts"
+        )
+        rows = self.conn.execute(sql, (mode,) if mode else ()).fetchall()
         return [{"ts": r[0], "equity": round(r[1], 2)} for r in rows]
 
-    def get_stats(self) -> dict:
-        row = self.conn.execute("""
+    def get_stats(self, mode: str | None = None) -> dict:
+        where = " WHERE mode=?" if mode else ""
+        params = (mode,) if mode else ()
+        row = self.conn.execute(f"""
             SELECT COUNT(*),
                    SUM(CASE WHEN result='win' THEN 1 ELSE 0 END),
                    SUM(CASE WHEN result='loss' THEN 1 ELSE 0 END),
                    SUM(pnl), AVG(ev), MAX(ABS(pnl))
-            FROM bets
-        """).fetchone()
+            FROM bets{where}
+        """, params).fetchone()
         total = row[0] or 0
         return {
             "total_bets": total,

@@ -21,6 +21,15 @@ from typing import Any, Dict, List, Tuple
 
 MAX_GOAL_DEFAULT = 8
 
+# OIP λ 全局缩放 (校准用) — 单一事实源 (SSoT)
+# WC: 1.35 修正OIP对世界杯总进球的系统性低估 (来源: wc_all_matches 313场 / wc_calibration.json,
+#     波胆top3 29.7%→34.4% +4.7pp)。仅WC生效。
+# 通用联赛: 1.2 (来源: interwetten_odds 140,729行真实赛果 walkforward 校准, 2026-07-18:
+#     train 2016-2022 选参 gs=1.2→test 2023-2025 OOS top3=0.3441 vs 基线1.0的0.3378 +0.63pp,
+#     train→test 衰减仅0.3pp = 干净泛化, 非过拟合; ρ(Dixon-Coles)扫描确认对top3无影响, 不采用)。
+WC_OIP_GOAL_SCALE = 1.35
+GENERAL_OIP_GOAL_SCALE = 1.2
+
 def deoverround(oh: float, od: float, oa: float) -> Tuple[float, float, float]:
     """1X2 去抽水 → 隐含 P(H),P(D),P(A)"""
     o = 1.0/oh + 1.0/od + 1.0/oa
@@ -78,16 +87,21 @@ def solve_oip(ph: float, pd: float, pa: float, maxg: int = MAX_GOAL_DEFAULT) -> 
                 bestr, best = r, (lh, la)
     return best
 
-def predict_score(home: str, away: str, oh: float, od: float, oa: float, max_goal: int = MAX_GOAL_DEFAULT, rho: float = 0.0, goal_scale: float = 1.0) -> Dict[str, Any]:
+def predict_score(home: str, away: str, oh: float, od: float, oa: float, max_goal: int = MAX_GOAL_DEFAULT, rho: float = 0.0, goal_scale: float = 1.2) -> Dict[str, Any]:
     """
     赔率隐含 Poisson 比分预测.
     返回 dict: lh, la(期望进球), p_h/p_d/p_a(胜平负), matrix(比分概率矩阵),
                top_scores(前5可能比分 [(i,j,p),...]), home/away(回声)
 
     rho: Dixon-Coles 低比分依赖项 (默认0=独立Poisson)。仅修正比分矩阵 M,
-         不影响 1X2 (p_h/p_d/p_a 来自 deoverround)。
-    goal_scale: λ 全局缩放(校准用)。WC-313校准得 1.35 修正OIP低估总进球(~0.48球),
-               使波胆top3命中率 29.7%→34.4%(+4.7pp)。仅WC生效; 经验收缩α/Dixon-Colesρ会拉低top3, 不采用。
+         不影响 1X2 (p_h/p_d/p_a 来自 deoverround)。walkforward 校准确认
+         ρ 对波胆 top3 命中率无影响(最优ρ=0), 故默认不采用, 避免过拟合。
+    goal_scale: λ 全局缩放(校准用)。
+         - WC: 1.35 修正OIP对世界杯总进球的系统性低估, 使波胆top3 29.7%→34.4%(+4.7pp)。
+         - 通用联赛: 1.2 (来源 interwetten_odds 140,729行真实赛果 walkforward,
+           2026-07-18): train(2016-2022)选参 gs=1.2 → test(2023-2025)OOS
+           top3=0.3441 vs 基线1.0的0.3378(+0.63pp, 干净泛化)。修正OIP对
+           通用联赛总进球的轻微低估。
     """
     ph, pd, pa = deoverround(oh, od, oa)
     lh, la = solve_oip(ph, pd, pa, max_goal)

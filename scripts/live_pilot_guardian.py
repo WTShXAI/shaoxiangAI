@@ -105,13 +105,23 @@ def metrics(curve, bets, wins):
     return final, roi, mdd * 100, wr, bets
 
 
-def backtest(pairs, write_db=False):
-    """安全试点历史复模拟. 返回 (pilot_curve, pilot_bets, pilot_wins, nogate_curve, nogate_bets, nogate_wins, records)."""
+def backtest(pairs, write_db=False, portfolio=False):
+    """安全试点历史复模拟. 返回 (pilot_curve, pilot_bets, pilot_wins, nogate_curve, nogate_bets, nogate_wins, records).
+
+    当 portfolio=True 时, 使用 PortfolioManager 追踪资金曲线, 并额外返回绩效指标 JSON.
+    """
+    from bookmaker_sim.portfolio_manager import PortfolioManager
+    from bookmaker_sim.performance_analyzer import compute_all_metrics
+
     eq_p = eq_n = BANKROLL
     cp, cn = [BANKROLL], [BANKROLL]
     bp = bn = wp = wn = 0
     records = []
     now = datetime.now(timezone.utc).isoformat()
+
+    # 组合/账户追踪 (--portfolio)
+    pm_p = PortfolioManager(initial_equity=BANKROLL) if portfolio else None
+    pm_n = PortfolioManager(initial_equity=BANKROLL) if portfolio else None
 
     con = sqlite3.connect(DB) if write_db else None
     if con:
@@ -128,6 +138,10 @@ def backtest(pairs, write_db=False):
             eq_n, sn, wn_ = decide_direction(di, nogate["cons"], nogate["odds"], eq_n, w, gate=False)
             if sn > 0:
                 cn.append(eq_n); bn += 1
+                if pm_n is not None:
+                    match_name = f"{ht} vs {at}"
+                    pos = pm_n.open_position(match_name, nogate["direction"], nogate["odds"][di], sn)
+                    pm_n.settle_position(pos, w)
             if wn_:
                 wn += 1
 
@@ -136,6 +150,10 @@ def backtest(pairs, write_db=False):
             eq_p, sp, wp_ = decide_direction(di, gated["cons"], gated["odds"], eq_p, w)
             if sp > 0:
                 cp.append(eq_p); bp += 1
+                if pm_p is not None:
+                    match_name = f"{ht} vs {at}"
+                    pos = pm_p.open_position(match_name, gated["direction"], gated["odds"][di], sp)
+                    pm_p.settle_position(pos, w)
             if wp_:
                 wp += 1
             if con:
@@ -165,7 +183,16 @@ def backtest(pairs, write_db=False):
         con.commit()
         con.close()
 
-    return cp, bp, wp, cn, bn, wn, records
+    # portfolio 模式: 计算完整绩效指标
+    portfolio_metrics = None
+    if portfolio and pm_p is not None:
+        from bookmaker_sim.performance_analyzer import compute_all_metrics
+        equity_vals = [pt.equity for pt in pm_p.equity_curve]
+        pos_dicts = [{"result": p.result, "pnl": p.pnl} for p in pm_p.all_positions]
+        portfolio_metrics = compute_all_metrics(equity_vals, pos_dicts, pm_p.total_roi)
+        portfolio_metrics["portfolio_snapshot"] = pm_p.to_dict()
+
+    return cp, bp, wp, cn, bn, wn, records, portfolio_metrics
 
 
 def live_mode():
@@ -330,6 +357,7 @@ def main():
     ap.add_argument("--interval", type=int, default=600, help="--daemon 循环间隔秒 (默认600)")
     ap.add_argument("--write-db", action="store_true", help="backtest 时把已结算注单写入 bet_records")
     ap.add_argument("--no-html", action="store_true", help="不生成 HTML 报告")
+    ap.add_argument("--portfolio", action="store_true", help="使用 PortfolioManager 追踪资金曲线并输出完整绩效指标")
     args = ap.parse_args()
 
     if args.daemon:
@@ -350,7 +378,8 @@ def main():
     pairs = fetch_pairs()
     meta = f"样本: 双庄同场 <b>{len(pairs)}</b> 场"
     print(f"[guardian] pairs={len(pairs)}")
-    cp, bp, wp, cn, bn, wn, records = backtest(pairs, write_db=args.write_db)
+    cp, bp, wp, cn, bn, wn, records, portfolio_metrics = backtest(
+        pairs, write_db=args.write_db, portfolio=args.portfolio)
     mp, mn = html_report(cp, bp, wp, cn, bn, wn, meta) if not args.no_html else (metrics(cp,bp,wp), metrics(cn,bn,wn))
     print(f"[安全试点/闸门] ROI={mp[1]:+.1f}%  胜率={mp[3]:.1f}%  注={mp[4]}  终值={mp[0]:.0f}")
     print(f"[无闸门裸接]   ROI={mn[1]:+.1f}%  胜率={mn[3]:.1f}%  注={mn[4]}  终值={mn[0]:.0f}")
@@ -358,6 +387,22 @@ def main():
         print(f"[bet_records] 已写入已结算试点注单 = {len(records)} 条")
     if not args.no_html:
         print(f"[guardian] HTML -> {OUT_HTML}")
+    if args.portfolio and portfolio_metrics:
+        import json
+        print(f"\n=== 组合/账户绩效 (PortfolioManager) ===")
+        print(f"夏普比率: {portfolio_metrics.get('sharpe_ratio', 'N/A')}")
+        print(f"最大回撤: {portfolio_metrics.get('max_drawdown_pct', 'N/A')}%")
+        print(f"卡玛比率: {portfolio_metrics.get('calmar_ratio', 'N/A')}")
+        print(f"胜率: {portfolio_metrics.get('win_rate_pct', 'N/A')}%")
+        print(f"盈亏比: {portfolio_metrics.get('profit_loss_ratio', 'N/A')}")
+        print(f"期望值(EV): {portfolio_metrics.get('expected_value', 'N/A')}")
+        print(f"总交易数: {portfolio_metrics.get('total_trades', 'N/A')}")
+        print(f"总ROI: {portfolio_metrics.get('total_roi_pct', 'N/A')}%")
+        # 写 JSON 供前端消费
+        out_json = os.path.join(_ROOT, "data", "portfolio_metrics.json")
+        with open(out_json, "w", encoding="utf-8") as f:
+            json.dump(portfolio_metrics, f, indent=2, ensure_ascii=False)
+        print(f"[portfolio] 绩效 JSON -> {out_json}")
 
 
 if __name__ == "__main__":

@@ -27,6 +27,7 @@ from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import logging
+import requests
 
 from .score_distribution import ScoreDistSimulator, ScoreDistribution
 from .market_derivation import MarketDerivationEngine, MarketOdds
@@ -79,7 +80,7 @@ class AdversarialOddsVerifier:
         print(f"置信度: {result.confidence:.2%}")
     """
     
-    def __init__(self, db_path: str = None, sigma_hiding: float = 0.35):
+    def __init__(self, db_path: Optional[str] = None, sigma_hiding: float = 0.35):
         self.db_path = db_path or "data/football_data.db"
         self.simulator = ScoreDistSimulator(self.db_path)
         self.engine = MarketDerivationEngine(default_margin=0.06)
@@ -227,7 +228,7 @@ class AdversarialOddsVerifier:
                 ... (如果有)
             }
         """
-        odds_data = {}
+        odds_data: Dict[str, Dict[str, float]] = {}
         conn = sqlite3.connect(self.db_path)
         cur = conn.cursor()
         
@@ -418,7 +419,7 @@ class AdversarialOddsVerifier:
         }
     
     def _score_histogram(self, results: List[AdversarialResult]) -> Dict[str, int]:
-        hist = {}
+        hist: Dict[str, int] = {}
         for r in results:
             key = f"{r.best_score_h}-{r.best_score_a}"
             hist[key] = hist.get(key, 0) + 1
@@ -426,7 +427,7 @@ class AdversarialOddsVerifier:
 
 # ──────────── 便捷函数 ────────────
 
-def create_verifier(db_path: str = None) -> AdversarialOddsVerifier:
+def create_verifier(db_path: Optional[str] = None) -> AdversarialOddsVerifier:
     return AdversarialOddsVerifier(db_path)
 
 if __name__ == "__main__":

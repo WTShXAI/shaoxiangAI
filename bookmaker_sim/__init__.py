@@ -43,4 +43,31 @@ from .margin_likelihood_bridge import (
     LeagueCalibrator,
 )
 
-__version__ = "1.2.0"
+# Phase A — 组合/账户层
+from .portfolio_manager import PortfolioManager, create_portfolio, Position, EquityPoint
+from .performance_analyzer import (
+    compute_all_metrics,
+    sharpe_ratio,
+    max_drawdown,
+    calmar_ratio,
+    win_rate,
+    profit_loss_ratio,
+    expected_value,
+)
+
+# Phase B — 策略注册表 + 回测引擎 + 上线校验
+from .strategy_registry import (
+    StrategyRegistry,
+    StrategyMetadata,
+    register_strategy,
+    get_registry,
+)
+from .backtest_engine import BacktestEngine, BacktestResult
+from .deployment_validator import (
+    DeploymentValidator,
+    ValidationReport,
+    ValidationCheck,
+    validate_deployment,
+)
+
+__version__ = "1.4.0"  # +Phase B 三件套

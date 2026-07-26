@@ -2,7 +2,7 @@
 """策略层 (演示): 多策略注册 + 统一信号接口.
 
 复用 SSoT 纯函数:
-  - pipeline.deep_report.compute_value_layer  (edge/EV/凯利/决策)
+  - pipeline.compute_value_layer.compute_value_layer  (edge/EV/凯利/决策, SSoT)
   - pipeline.reverse_odds_engine              (跨庄分歧检测 / soft-line)
 绝不 import pipeline.engine / wc_engine / league_engine.
 
@@ -16,7 +16,7 @@ from .types import SyntheticMatch, StrategySignal, StrategyMeta
 
 
 # ── 单一事实源 import (纯函数, 零 DB/模型耦合) ──
-from pipeline.deep_report import compute_value_layer
+from pipeline.compute_value_layer import compute_value_layer
 from pipeline.reverse_odds_engine import ReverseOddsEngine, OddsInput
 
 _ENG = ReverseOddsEngine()

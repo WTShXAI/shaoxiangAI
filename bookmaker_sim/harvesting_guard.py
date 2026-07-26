@@ -266,7 +266,7 @@ class HarvestingGuard:
             'Away': (a - fair_a_odds) / fair_a_odds,
         }
         
-        max_premium_dir = max(premiums, key=premiums.get)
+        max_premium_dir = max(premiums, key=lambda k: premiums[k])
         max_premium = premiums[max_premium_dir]
         
         if max_premium > self._anomaly_thresholds['premium']:
@@ -287,7 +287,7 @@ class HarvestingGuard:
             signal_score = max(signal_score, 0.8)
         
         # 检测3: 赔率抑制 (低于公平赔率 = 庄家压低真实方向)
-        min_premium_dir = min(premiums, key=premiums.get)
+        min_premium_dir = min(premiums, key=lambda k: premiums[k])
         min_premium = premiums[min_premium_dir]
         
         if min_premium < -self._anomaly_thresholds['suppression']:
@@ -979,7 +979,7 @@ class HarvestingGuard:
             return db_baseline
         
         # 回退到内置基线
-        baseline = LEAGUE_BASELINES.get(league, LEAGUE_BASELINES['default']).copy()
+        baseline = LEAGUE_BASELINES.get(league or 'default', LEAGUE_BASELINES['default']).copy()
         self._league_cache[cache_key] = baseline
         return baseline
     

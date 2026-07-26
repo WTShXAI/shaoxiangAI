@@ -187,7 +187,8 @@ print(f"""
 print(f"  📊 泊松模型 (λ={expected_total:.1f} 总进球)\n{S}")
 top_poisson = sorted(poisson_probs.items(), key=lambda x: x[1], reverse=True)[:6]
 for s, p in top_poisson:
-    odds = CORRECT_SCORE_ODDS.get(s, "N/A")
+    _o = CORRECT_SCORE_ODDS.get(s)
+    odds = "N/A" if _o is None else _o
     bar = "█" * int(p * 200)
     print(f"    {s:>4s}  @{odds if isinstance(odds,str) else f'{odds:.1f}':>6s}  {p:>6.1%}  {bar}")
 

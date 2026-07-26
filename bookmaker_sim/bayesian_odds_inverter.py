@@ -59,9 +59,9 @@ class BayesianLambdaPosterior:
     rho_std: float
 
     # 完整后验样本 (MCMC/SIR)
-    samples_lambda_h: np.ndarray = None
-    samples_lambda_a: np.ndarray = None
-    samples_rho: np.ndarray = None
+    samples_lambda_h: Optional[np.ndarray] = None
+    samples_lambda_a: Optional[np.ndarray] = None
+    samples_rho: Optional[np.ndarray] = None
 
     # 诊断信息
     convergence_ok: bool = True
@@ -69,9 +69,9 @@ class BayesianLambdaPosterior:
     r_hat: float = 1.0
 
     # 后验预测: P(H), P(D), P(A) 的分布
-    prob_home_samples: np.ndarray = None
-    prob_draw_samples: np.ndarray = None
-    prob_away_samples: np.ndarray = None
+    prob_home_samples: Optional[np.ndarray] = None
+    prob_draw_samples: Optional[np.ndarray] = None
+    prob_away_samples: Optional[np.ndarray] = None
 
     @property
     def prob_home_ci95(self) -> Tuple[float, float]:
@@ -128,7 +128,7 @@ class InversionResult:
     det_residual: float           # 确定性解的残差
 
     # 贝叶斯后验
-    posterior: BayesianLambdaPosterior = None
+    posterior: Optional[BayesianLambdaPosterior] = None
 
     # 额外上下文
     league_prior: Optional[Dict] = None
@@ -247,7 +247,7 @@ class LambdaInverter:
     MAX_GOALS = 8
 
     @staticmethod
-    def det_invert(probs: np.ndarray, rho_fixed: float = None,
+    def det_invert(probs: np.ndarray, rho_fixed: Optional[float] = None,
                    use_total_goals: bool = True,
                    avg_total_goals: float = 2.75) -> Tuple[float, float, float, float]:
         """
@@ -450,7 +450,7 @@ class BayesianOddsInverter:
       3. SIR (Sampling Importance Resampling): 非正态后验采样
     """
 
-    def __init__(self, db_path: str = None):
+    def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path
         self.max_goals = 8
 
@@ -470,7 +470,7 @@ class BayesianOddsInverter:
 
     # ── 先验设置 ───────────────────────────────────────────────────────
 
-    def set_empirical_prior_from_db(self, league: str = None, sample_size: int = 100000):
+    def set_empirical_prior_from_db(self, league: Optional[str] = None, sample_size: int = 100000):
         """
         从历史数据库 (312K条) 估计经验贝叶斯先验。
 
@@ -839,7 +839,7 @@ class OTSMDriftBayesianIntegrator:
       D3 凯利涨落 → 热门方后验概率的更新幅度
     """
 
-    def __init__(self, inverter: BayesianOddsInverter = None):
+    def __init__(self, inverter: Optional[BayesianOddsInverter] = None):
         self.inverter = inverter or BayesianOddsInverter()
 
     def integrate(self,
@@ -918,10 +918,20 @@ class OTSMDriftBayesianIntegrator:
         prior_precision_multiplier = np.clip(prior_precision_multiplier, 0.3, 3.0)
 
         # 综合贝叶斯置信度
+        assert result_close.posterior is not None
         bayes_conf_close = result_close.posterior.bayes_signal_strength
         bayes_confidence = float(np.clip(
             bayes_conf_close * prior_precision_multiplier, 0.0, 1.0
         ))
+
+        # 漂移期平局概率变化 (开→收)
+        assert result_open.posterior is not None
+        _close_samples = result_close.posterior.prob_draw_samples
+        _open_samples = result_open.posterior.prob_draw_samples
+        if _close_samples is not None and _open_samples is not None:
+            draw_prob_shift = float(_close_samples.mean() - _open_samples.mean())
+        else:
+            draw_prob_shift = 0.0
 
         return {
             'open_posterior': result_open.posterior,
@@ -932,11 +942,7 @@ class OTSMDriftBayesianIntegrator:
             'otms_adjusted_prior_precision': prior_precision_multiplier,
             'open_implied': result_open.implied_probs,
             'close_implied': result_close.implied_probs,
-            'draw_prob_shift': result_close.posterior.prob_draw_samples.mean()
-                               - result_open.posterior.prob_draw_samples.mean()
-                               if (result_open.posterior.prob_draw_samples is not None
-                                   and result_close.posterior.prob_draw_samples is not None)
-                               else 0.0,
+            'draw_prob_shift': draw_prob_shift,
         }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -968,12 +974,12 @@ BAYESIAN_DEFAULTS.update({
 })
 
 def compute_bayesian_features(odds_h: float, odds_d: float, odds_a: float,
-                               open_h: float = None, open_d: float = None, open_a: float = None,
+                               open_h: Optional[float] = None, open_d: Optional[float] = None, open_a: Optional[float] = None,
                                otsm_state: str = "ACTIVE",
                                otsm_lock_conf: float = 0.0,
                                otsm_entropy_drift: float = 0.0,
                                otsm_water_accel: float = 0.0,
-                               inverter: BayesianOddsInverter = None) -> Dict[str, float]:
+                               inverter: Optional[BayesianOddsInverter] = None) -> Dict[str, float]:
     """
     计算贝叶斯特征 (9维), 用于注入 v3.2 模型。
 
@@ -991,6 +997,7 @@ def compute_bayesian_features(odds_h: float, odds_d: float, odds_a: float,
 
     # 核心贝叶斯逆推
     result = inv.infer_map(odds_h, odds_d, odds_a)
+    assert result.posterior is not None
 
     features = {
         'bayes_lambda_h_map': float(np.clip(result.posterior.lambda_h_map, 0.02, 5.0)),
@@ -1004,7 +1011,7 @@ def compute_bayesian_features(odds_h: float, odds_d: float, odds_a: float,
     }
 
     # 如果有开盘赔率, 计算漂移 KL
-    if all(x is not None for x in [open_h, open_d, open_a]):
+    if open_h is not None and open_d is not None and open_a is not None:
         integrator = OTSMDriftBayesianIntegrator(inv)
         integration = integrator.integrate(
             (open_h, open_d, open_a),
@@ -1037,6 +1044,7 @@ def quick_bayesian_invert(odds_h: float, odds_d: float, odds_a: float) -> dict:
     """
     inv = BayesianOddsInverter()
     result = inv.infer_map(odds_h, odds_d, odds_a)
+    assert result.posterior is not None
 
     return {
         'lambda_h': round(result.posterior.lambda_h_map, 3),

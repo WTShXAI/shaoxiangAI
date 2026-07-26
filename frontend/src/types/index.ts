@@ -289,6 +289,15 @@ export interface FixtureEntry {
   odds_h?: number
   odds_d?: number
   odds_a?: number
+  // 初盘赔率 (固定, 第一条采集, 永不漂移)
+  opening_h?: number
+  opening_d?: number
+  opening_a?: number
+  // AH/OU 初盘
+  ah_op_home?: number
+  ah_op_away?: number
+  ou_op_over?: number
+  ou_op_under?: number
   // 全场让球 (AH)
   ah_line?: string
   ah_home?: number
@@ -313,10 +322,20 @@ export interface FixtureEntry {
   match_state?: number
   score_home?: number
   score_away?: number
+  score_inferred?: boolean  // drift 推断比分, 非 leyu 直接推送
   match_minute?: string | number
   kickoff_countdown?: string
   kickoff_ms?: number
   bookmakers_count?: number
+  sport_key?: string
+  // Req2: 赔率快照 + 漂移 (后端 _capture_initial_odds 注入)
+  _snapshot?: {
+    initial: { odds_h?: number; odds_d?: number; odds_a?: number;
+                ah_line?: string; ah_home?: number; ah_away?: number;
+                ou_line?: string; ou_over?: number; ou_under?: number } | null
+    drift: Partial<Record<'odds_h'|'odds_d'|'odds_a'|'ah_home'|'ah_away'|'ou_over'|'ou_under', number>> | null
+    has_snapshot: boolean
+  } | null
 }
 export interface LeagueFixturesResponse {
   sport_key: string
@@ -520,12 +539,48 @@ export interface ValueLayerRow {
   kelly_half: number
   stake_unit: number
 }
+/** 波胆交叉标注 (单比分 × 让球 × 大小球) */
+export interface ScoreAnnotated {
+  score: string
+  prob: number
+  prob_eff: number
+  direction: 'H' | 'D' | 'A'
+  handicap?: string | null   // 赢/输/走/半赢/半输
+  ou?: string | null          // 大/小/走
+  fair_decimal?: number | null
+  fair_eff_decimal?: number | null
+  long_tail?: boolean         // 长尾负EV
+}
+/** 市场结构波胆三角定位候选 (OU×AH×1X2×CS 取交集, 可审计) */
+export interface CsTriangulation {
+  winner?: 'home' | 'draw' | 'away'
+  ah_favorite?: 'home' | 'away' | null
+  ou_branch?: string
+  cs_coverage?: string
+  method?: string
+  ranked?: string[]
+  notes?: string[]
+  candidates?: Array<{
+    score: string; hg: number; ag: number; reason: string
+    cs_prob?: number | null; poisson?: number | null; blend?: number
+  }>
+}
 export interface OperatorView {
   rules?: string[]
   verdict?: string
   stake_hint?: string
   trap?: { score?: number; level?: string; tags?: string[] }
 }
+/** 单条策略方向信号 (面板提示级, 不改 verdict / 不自动下注) */
+export interface StrategySignal {
+  name: string
+  direction: string
+  strength: number        // 0-1 强度
+  metric: string
+  note: string
+  confidence: 'high' | 'low'
+}
+
 /** _live_predict 决策卡片 (terminal/analyze 返回) */
 export interface TerminalDecisionCard {
   fixture: { home: string; away: string; commence_time: string; sport_key: string }
@@ -544,8 +599,109 @@ export interface TerminalDecisionCard {
   draw_alert: boolean
   operator_view?: OperatorView
   sub_markets?: { ou?: any; draw?: any; correct_score?: any }
-  oip?: { lambda_h: number; lambda_a: number; top3_scores: string[]; top3_prob: number[]; over15?: number; over25?: number; over35?: number }
+  oip?: {
+    lambda_h: number; lambda_a: number
+    top3_scores: string[]; top3_prob: number[]
+    top5_scores: string[]; top5_prob: number[]
+    over15?: number; over25?: number; over35?: number
+    /** 波胆×让球×大小球交叉标注 */
+    scores_annotated?: ScoreAnnotated[]
+    /** 操盘纪律标记 */
+    discipline?: { multi_direction: boolean; direction_count: { H: number; D: number; A: number }; best_direction: string }
+    ah_line?: number | string | null
+    ou_line?: number | string | null
+    /** 市场结构波胆三角定位 (OU×AH×1X2×CS 取交集) */
+    cs_triangulation?: CsTriangulation | null
+  }
   handicap?: any
   value_layer?: any
+  /** 三方向策略信号 (tier 感知: 仅 obscure 低级别联赛层触发; 面板提示级, 不改 verdict) */
+  strategy_signals?: StrategySignal[]
+  /** 信号域: obscure(触发) / main / cup(不触发) */
+  strategy_tier?: 'obscure' | 'main' | 'cup'
+  /** In-play 条件波胆信息 (null=赛前/未裁剪) */
+  inplay?: {
+    current_score: string
+    elapsed: number
+    time_ratio: number
+    original_lambda_h: number
+    original_lambda_a: number
+    remaining_lambda_h: number
+    remaining_lambda_a: number
+    note: string
+  } | null
+  /** 多庄 sharp/retail 共识 (leisu 数据可用时) */
+  multibook_consensus?: {
+    n_books: number; n_sharp: number; has_true_sharp: boolean
+    sharp_books: string[]
+    sharp_consensus: { h: number; d: number; a: number }
+    retail_mean: { h: number; d: number; a: number }
+    value_side: { outcome: string; pp: number }
+    fade_side: { outcome: string; pp: number }
+    max_spread_pp: number
+    divergences?: { book: string; outcome: string; retail_over: boolean; pp: number }[]
+  } | null
+  /** 操盘手逆转信号 (初盘→live赔率漂移) */
+  operator_signals?: {
+    reversal_risk: number
+    operator_reliability: number
+    direction: 'home' | 'draw' | 'away'
+    drift_draw_down: boolean
+    drift_significant: boolean
+    favorite_flip: boolean
+    spread_change: number
+    signals: string[]
+    delta: { h: number; d: number; a: number }
+  } | null
   error?: string
+}
+
+// ═══ 实时比分 (bridge_service /api/live-scores, /api/live-score/{mid}) ═══
+// 数据源: live_scores DB 表 (_poll_live_details 后台线程写入)。
+// mststi: 1=上半场 2=中场 3=下半场 4=加时 5=点球 -1=结束
+export interface LiveScoreMatch {
+  mid: string
+  home: string
+  away: string
+  league: string
+  mststi: number
+  score_home: number
+  score_away: number
+  match_minute: string | number
+  mlet?: string
+  events?: any[]
+  snapshot_at: number
+  is_live: boolean
+  // 实时赔率 (DB 列可能为 NULL)
+  odds_h?: number | null
+  odds_d?: number | null
+  odds_a?: number | null
+  // 初盘 (固定, 第一条采集)
+  opening_h?: number | null
+  opening_d?: number | null
+  opening_a?: number | null
+  // AH 初盘
+  ah_op_home?: number | null
+  ah_op_away?: number | null
+  // OU 初盘
+  ou_op_over?: number | null
+  ou_op_under?: number | null
+  ou_line?: string | null
+  ou_over?: number | null
+  ou_under?: number | null
+  ah_line?: string | null
+  ah_home?: number | null
+  ah_away?: number | null
+}
+export interface LiveScoresResponse {
+  matches: LiveScoreMatch[]
+  count: number
+  error?: string
+}
+export interface ScoreHistoryEntry {
+  ts: number
+  score_home: number
+  score_away: number
+  match_minute: string | number
+  mststi: number
 }

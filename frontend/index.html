@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>哨响AI | 足球预测系统 v7.1</title>
+    <script>
+      // 防闪烁: React 挂载前先按 localStorage 定主题
+      (function () {
+        try {
+          var t = localStorage.getItem('sx-theme') || 'dark';
+          document.documentElement.dataset.theme = t;
+        } catch (e) { document.documentElement.dataset.theme = 'dark'; }
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body>

@@ -197,7 +197,7 @@ class BookmakerBayesInfer:
         if not multi_odds:
             return {}
 
-        all_probs = {k: [] for k in ['home', 'draw', 'away']}
+        all_probs: Dict[str, List[float]] = {k: [] for k in ['home', 'draw', 'away']}
         overrounds = []
 
         for odds in multi_odds:
@@ -271,8 +271,8 @@ class BookmakerBayesInfer:
 
         # 冷门额外抽水 (Favourite-Longshot Bias)
         # 赔率最高的方向 (最冷门) 额外抽水
-        max_prob_outcome = max(probs, key=probs.get)
-        min_prob_outcome = min(probs, key=probs.get)
+        max_prob_outcome = max(probs, key=lambda k: probs[k])
+        min_prob_outcome = min(probs, key=lambda k: probs[k])
         margins[min_prob_outcome] += lg.longshot_margin_scale
 
         return margins
@@ -514,12 +514,13 @@ class BookmakerBayesInfer:
 
         drift_factor = float(np.clip(magnitude_signal * time_weight, 0.0, 0.8))
 
-        return {
+        drift_result: Dict[str, Any] = {
             'drift_factor': drift_factor,
             'drift_direction': max_drift_outcome,
             'drift_magnitude': drift_magnitude,
             'drift_detail': drift,
         }
+        return drift_result
 
     # ════════════════════════════════════════════════════════════
     # 主推断流程

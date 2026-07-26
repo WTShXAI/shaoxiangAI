@@ -12,7 +12,7 @@ v5.7 自动化预测流水线 — 一键全链路
 v6.0 数据清理:
   - 移除硬编码测试数据 (6/28 R3 赛程)
   - 赛程数据现在从 FootballDataLive API 实时获取
-  - 赔率数据从配置文件 D:\Architecture\config\match_odds.json 读取 (手动维护)
+  - 赔率数据从配置文件 D:/Architecture/config/match_odds.json 读取 (手动维护)
 """
 
 import sys, json, argparse, subprocess, os

@@ -1,7 +1,7 @@
 {
   "name": "shaoxiang-ai",
   "version": "1.0.0",
-  "description": "ShaoxiangAI v5.2 — 33 specialists, unified entry, intelligent routing by Chief Architect",
+  "description": "ShaoxiangAI v7.1 — 34 agents (1 lead + 33 specialists), unified entry, intelligent routing by Chief Architect",
   "author": {
     "name": "杜博弈",
     "email": ""
@@ -83,23 +83,23 @@
     ]
   },
   "displayName": {
-    "en": "ShaoxiangAI v5.2",
+    "en": "ShaoxiangAI v7.1",
     "zh": "哨响AI"
   },
   "profession": {
-    "en": "ShaoxiangAI v5.2",
+    "en": "ShaoxiangAI v7.1",
     "zh": "哨响AI"
   },
   "displayDescription": {
-    "en": "33 experts: Commander+ThinkTank+Algorithm+Training+Data+QA+DevOps+Design+Knowledge. One entry, total control.",
-    "zh": "33位专家全栈协作：指挥官+智囊+算法+训练+数据+质检+DevOps+设计+知识官，一个入口，全局调度。"
+    "en": "34 agents: 1 lead + Commander+ThinkTank+Algorithm+Training+Data+QA+DevOps+Design+Knowledge. One entry, total control.",
+    "zh": "34位专家全栈协作：1总工+指挥官+智囊+算法+训练+数据+质检+DevOps+设计+知识官，一个入口，全局调度。"
   },
   "avatar": "avatars/expert.png",
   "categoryId": "04-DataAI",
   "plugin": "shaoxiang-ai",
   "defaultInitPrompt": {
-    "zh": "哨响AI v5.2.14 就绪。需要做什么？",
-    "en": "ShaoxiangAI v5.2.14 ready."
+    "zh": "哨响AI v7.1 就绪。需要做什么？",
+    "en": "ShaoxiangAI v7.1 ready."
   },
   "tags": [
     {

@@ -5,6 +5,8 @@ import { APP_VERSION } from '@/config/version'
 
 const navItems = [
   { to: '/', label: '联赛赛程', icon: ScheduleIcon },
+  { to: '/live-scores', label: '实时比分', icon: LiveScoreIcon },
+  { to: '/match-results', label: '赛果查询', icon: ResultIcon },
   { to: '/quant-demo', label: '量化模拟', icon: HubIcon },
 ]
 
@@ -104,10 +106,26 @@ function ScheduleIcon() {
   )
 }
 
+function LiveScoreIcon() {
+  return (
+    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13 3L4 14h7l-1 7 9-11h-7l1-7z" />
+    </svg>
+  )
+}
+
 function HubIcon() {
   return (
     <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25A2.25 2.25 0 018.25 10.5H6A2.25 2.25 0 013.75 8.25V6zm10.5 0A2.25 2.25 0 0116.5 3.75H18.75A2.25 2.25 0 0121 6v2.25A2.25 2.25 0 0118.75 10.5H16.5A2.25 2.25 0 0114.25 8.25V6zM3.75 16.5A2.25 2.25 0 016 14.25h2.25A2.25 2.25 0 0110.5 16.5V18.75A2.25 2.25 0 018.25 21H6A2.25 2.25 0 013.75 18.75V16.5zm10.5 0A2.25 2.25 0 0116.5 14.25H18.75A2.25 2.25 0 0121 16.5V18.75A2.25 2.25 0 0118.75 21H16.5A2.25 2.25 0 0114.25 18.75V16.5z" />
+    </svg>
+  )
+}
+
+function ResultIcon() {
+  return (
+    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   )
 }

@@ -1,44 +1,35 @@
 import axios from 'axios'
 import type {
   ApiResponse,
-  Match,
-  Prediction,
-  PredictionStats,
-  ModelVersion,
-  ModelComparison,
-  TrainingStatus,
-  SystemHealth,
-  Alert,
-  MetricsSummary,
-  User,
-  TeamFeatures,
-  League,
   FixturesResponse,
   LeaguesResponse,
   LeagueFixturesResponse,
-  BetRecord,
-  PlaceBetRequest,
-  PlaceBetResponse,
-  BetListResponse,
+  LiveScoreMatch,
+  LiveScoresResponse,
+  ScoreHistoryEntry,
 } from '@/types'
-import { normalizePrediction } from './bridgeAdapter'
+import { useAppStore } from '@/store'
 
-// ── 运行时环境变量校验 (E4 P0-8) ──
-// 约定: 生产部署必须注入 VITE_BRIDGE_URL / VITE_API_URL; 缺失则告警并回退 dev 默认。
-const _BRIDGE_URL = (import.meta as any).env?.VITE_BRIDGE_URL
-const _API_URL = (import.meta as any).env?.VITE_API_URL
+// ── 运行时客户端 (单一真相源) ──
+// 系统唯一后端 = bridge_service (:9000)。所有真实端点都建在它之上, 无 /api/v1 前缀:
+//   /api/leagues, /api/leagues/{sport_key}/fixtures, /api/match-results,
+//   /api/terminal/*, /api/quant*, /api/portfolio ...
+// 历史遗留: 一批指向 /api/v1/* (predict / models / training / monitor / fixtures /
+// matches / features / alerts / historical / auth / data-quality / bets ...) 的 service,
+// 其对应后端路由从未实现 → 前端调用必 404。已于 2026-07-17 架构/前端统一性审计中整体移除。
+// 哨响AI 前端 ↔ bridge_service 全部走同源 (空 baseURL, axios 自动补当前 origin)。
+// 这样可以彻底规避 CORS:
+//   - 浏览器从 http://127.0.0.1:9000 加载前端, 直接请求 /api/... = 同源
+//   - 不再依赖 bridge 的 CORS 中间件正确性
+// 保留 VITE_BRIDGE_URL 是为了 Docker/远程部署场景: 跨机访问时填入 http://<host>:9000。
+const _BRIDGE_URL = ((import.meta as any).env?.VITE_BRIDGE_URL || '').trim()
 if (!_BRIDGE_URL) {
-  console.warn(
-    '[env] VITE_BRIDGE_URL 未配置 → bridge_service 请求将回退 http://localhost:9000，' +
-    '生产部署会失效。请在 .env 设置 VITE_BRIDGE_URL (如 http://<host>:9000)。'
-  )
+  // 同源部署, 静默即可 — 这是默认期望
+} else {
+  console.info('[env] VITE_BRIDGE_URL 已配置, 跨源访问:', _BRIDGE_URL)
 }
 
-// 前缀约定 (文档化, 勿随意改名, 否则后端路由整片 404):
-//   - 主 API (FastAPI 后端):  baseURL = VITE_API_URL || '/api/v1'  → 路由 /api/v1/*
-//   - bridge_service:         baseURL = VITE_BRIDGE_URL || http://localhost:9000
-//                             → 其路由本身带 /api 前缀 (e.g. /api/leagues, /api/terminal/*)
-// 统一 axios 工厂 (E4 P1-13: 所有客户端经此创建, 杜绝散落重复实例)
+// 统一 axios 工厂 (所有客户端经此创建, 杜绝散落重复实例)
 function createClient(baseURL: string) {
   return axios.create({
     baseURL,
@@ -49,10 +40,7 @@ function createClient(baseURL: string) {
   })
 }
 
-const api = createClient(_API_URL || '/api/v1')
-
-// ── 预测服务专用实例 → bridge_service:9000 (FullLinkagePipeline v6.0) ──
-const bridgeApi = createClient(_BRIDGE_URL || 'http://localhost:9000')
+const bridgeApi = createClient(_BRIDGE_URL || '')
 bridgeApi.interceptors.request.use((config) => {
   const token = localStorage.getItem('auth_token')
   if (token) {
@@ -60,230 +48,50 @@ bridgeApi.interceptors.request.use((config) => {
   }
   return config
 })
-// 请求拦截器 - 添加认证Token
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
-})
-// 响应拦截器 - 统一错误处理
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('auth_token')
-      // 不再强制跳转，由各页面自行处理 401 错误
-    }
-    return Promise.reject(error)
-  }
-)
-// ============================================
-// 预测服务
-// ============================================
-export const predictionService = {
-  // 下一场比赛预测
-  getNextMatch: () =>
-    api.get<ApiResponse<{ match: Match; prediction: Prediction }>>('/predict/next-match'),
-  // 单场比赛预测 — 走 bridge_service (v7.1 双引擎)
-  predictSingle: async (data: { home_team?: string; homeTeam?: string; away_team?: string; awayTeam?: string; league?: string; odds_h?: number; odds_d?: number; odds_a?: number; hcp?: number; ou_line?: number; stage?: string; competition?: string }) => {
-    const resp = await api.post<ApiResponse<Prediction>>('/predict/single', data)
-    // E4 P0-8: 隔离引擎易变字段, 缺省补稳定默认 → 引擎输出变动不崩
-    resp.data = { ...resp.data, data: normalizePrediction(resp.data?.data) }
-    return resp
-  },
-  // 批量预测
-  predictBatch: (matches: { homeTeam: string; awayTeam: string; league?: string }[]) =>
-    api.post<ApiResponse<Prediction[]>>('/predict/batch', { matches }),
-  // 预测历史
-  getPredictionHistory: (params?: { page?: number; limit?: number; league?: string }) =>
-    api.get<ApiResponse<Prediction[]>>('/predict/history', { params }),
-  // 预测统计
-  getPredictionStats: () =>
-    api.get<ApiResponse<PredictionStats>>('/predict/stats'),
-  // 生成报告
-  generateReport: (data: { matchIds: string[]; format?: string }) =>
-    api.post<ApiResponse<{ url: string }>>('/predict/report', data),
-  // V4引擎预测 — 走 bridge_service (v7.1)
-  predictV4: async (data: { homeTeam: string; awayTeam: string; league?: string; odds_h?: number; odds_d?: number; odds_a?: number; hcp?: number; ou_line?: number; stage?: string; competition?: string }) => {
-    const resp = await api.post<ApiResponse<Prediction>>('/predict/single', {
-      home_team: data.homeTeam,
-      away_team: data.awayTeam,
-      league: data.league,
-      odds_h: data.odds_h,
-      odds_d: data.odds_d,
-      odds_a: data.odds_a,
-      hcp: data.hcp,
-      ou_line: data.ou_line,
-      stage: data.stage || 'knockout',
-      competition: data.competition || 'wc',
-    })
-    // E4 P0-8: 隔离引擎易变字段
-    resp.data = { ...resp.data, data: normalizePrediction(resp.data?.data) }
-    return resp
-  },
-}
-// ============================================
-// 模型管理服务
-// ============================================
-export const modelService = {
-  // 模型版本列表
-  getVersions: () =>
-    api.get<ApiResponse<ModelVersion[]>>('/models/versions'),
-  // 模型详情
-  getVersionDetail: (id: string) =>
-    api.get<ApiResponse<ModelVersion>>(`/models/versions/${id}`),
-  // 模型对比
-  compareModels: (params: { modelA: string; modelB: string }) =>
-    api.get<ApiResponse<ModelComparison>>('/models/compare', { params }),
-  // 模型信息
-  getModelInfo: () =>
-    api.get<ApiResponse<{ name: string; version: string; description: string }>>('/models/info'),
-  // 部署模型
-  deployModel: (modelId: string) =>
-    api.post<ApiResponse<{ success: boolean }>>('/models/deploy', { model_id: modelId }),
-  // 回滚模型
-  rollbackModel: (versionId: string) =>
-    api.post<ApiResponse<{ success: boolean }>>('/models/rollback', { version_id: versionId }),
-  // 自动提升
-  autoPromote: () =>
-    api.post<ApiResponse<{ promoted: boolean; modelId?: string }>>('/models/auto-promote'),
-}
-// ============================================
-// 训练服务
-// ============================================
-export const trainingService = {
-  // 启动训练
-  startTraining: (config?: Record<string, unknown>) =>
-    api.post<ApiResponse<{ trainingId: string }>>('/training/start', config || {}),
-  // 训练状态
-  getTrainingStatus: () =>
-    api.get<ApiResponse<TrainingStatus>>('/training/status'),
-  // 训练历史
-  getTrainingHistory: () =>
-    api.get<ApiResponse<TrainingStatus[]>>('/training/history'),
-}
-// ============================================
-// 比赛数据服务
-// ============================================
-export const matchService = {
-  // 比赛列表
-  getMatches: (params?: { league?: string; status?: string; date?: string; limit?: number; offset?: number }) =>
-    api.get<ApiResponse<Match[]>>('/matches/list', { params }),
-  // 比赛比分
-  getScores: (params?: { league?: string; date?: string }) =>
-    api.get<ApiResponse<Match[]>>('/matches/scores', { params }),
-}
-// ============================================
-// 实时赛程服务 (football-data.org 实时API, 后端1小时缓存)
-// ============================================
-export const fixtureService = {
-  // 未来7天世界杯赛程 + 完整预测管线嵌入
-  getUpcoming: (days: number = 7) =>
-    api.get<FixturesResponse>(`/fixtures/upcoming?days=${days}&include_predictions=true`),
-}
-// ============================================
-// 特征服务
-// ============================================
-export const featureService = {
-  // 球队特征
-  getTeamFeatures: (teamName: string) =>
-    api.get<ApiResponse<TeamFeatures>>(`/features/teams/${encodeURIComponent(teamName)}`),
-}
-// ============================================
-// 监控服务
-// ============================================
-export const monitorService = {
-  // 健康检查
-  getHealth: () =>
-    api.get<ApiResponse<SystemHealth>>('/monitor/health'),
-  // 系统信息
-  getSystemInfo: () =>
-    api.get<ApiResponse<{ version: string; uptime: number; pythonVersion: string }>>('/monitor/system'),
-  // 模型健康
-  getModelHealth: () =>
-    api.get<ApiResponse<{ status: string; lastPrediction: string; accuracy: number }>>('/monitor/model-health'),
-  // 指标摘要
-  getMetricsSummary: () =>
-    api.get<ApiResponse<MetricsSummary>>('/monitor/metrics/summary'),
-}
-// ============================================
-// 告警服务
-// ============================================
-export const alertService = {
-  // 告警列表
-  getAlerts: (params?: { severity?: string; acknowledged?: boolean }) =>
-    api.get<ApiResponse<Alert[]>>('/alerts/alerts', { params }),
-}
-// ============================================
-// 历史数据服务
-// ============================================
-export const historicalService = {
-  // 联赛列表
-  getLeagues: () =>
-    api.get<ApiResponse<League[]>>('/historical/leagues'),
-  // 联赛比赛数据
-  getLeagueMatches: (leagueCode: string) =>
-    api.get<ApiResponse<Match[]>>(`/historical/${leagueCode}/matches`),
-}
-// ============================================
-// 认证服务
-// ============================================
-export const authService = {
-  // 登录
-  login: (credentials: { username: string; password: string }) =>
-    api.post<ApiResponse<{ token: string; user: User }>>('/auth/login', credentials),
-  // 当前用户
-  getCurrentUser: () =>
-    api.get<ApiResponse<User>>('/auth/me'),
-}
-// ============================================
-// 数据质量服务
-// ============================================
-export const dataQualityService = {
-  // 数据质量报告
-  getReports: () =>
-    api.get<ApiResponse<{ reports: unknown[] }>>('/data-quality/reports'),
-}
+
 // ============================================
 // 联赛赛程服务 (34联赛) — bridge_service:9000
-// 注意: bridge_service 路由是 /api/leagues (无 /v1 前缀), 须用 bridgeApi 实例
 // ============================================
 export const leagueScheduleService = {
-  // 获取联赛目录 (按分类分组)
-  getLeagues: () =>
-    bridgeApi.get<ApiResponse<LeaguesResponse>>('/api/leagues'),
-  // 获取指定联赛赛程
+  // 获取联赛目录 (按分类分组); days=N 只保留近 N 天内(默认 2)有赛程的联赛
+  getLeagues: (days: number = 2) =>
+    bridgeApi.get<ApiResponse<LeaguesResponse>>(`/api/leagues?days=${days}`),
+  // 获取指定联赛赛程 (sport_key 含中文, 必须 encodeURIComponent)
   getFixtures: (sportKey: string) =>
-    bridgeApi.get<ApiResponse<LeagueFixturesResponse>>(`/api/leagues/${sportKey}/fixtures`),
-}
-// ============================================
-// 模拟投注服务 (paper betting) — bridge_service:9000
-// ============================================
-export const betService = {
-  // 查询投注记录 (支持分页 + 状态过滤)
-  getBets: (params?: { limit?: number; offset?: number; status?: 'resolved' | 'pending' | '' }) =>
-    bridgeApi.get<ApiResponse<BetListResponse>>('/api/bets', { params }),
-  // 手动模拟下注 (赛程页内嵌触发)
-  placeBet: (data: PlaceBetRequest) =>
-    bridgeApi.post<ApiResponse<PlaceBetResponse>>('/api/bets', data),
+    bridgeApi.get<ApiResponse<LeagueFixturesResponse>>(`/api/leagues/${encodeURIComponent(sportKey)}/fixtures`),
 }
 
+// ============================================
+// 赛果查询服务 — bridge_service:9000  /api/match-results
+// 数据源 football_data.db (matches + historical_matches UNION)
+// ============================================
+export interface MatchResult {
+  home: string; away: string; league: string; date: string
+  home_score: number; away_score: number; result: string
+  ht_h: number | null; ht_a: number | null; source: string
+}
+export const matchResultService = {
+  getResults: (params?: { league?: string; q?: string; date_from?: string; date_to?: string; limit?: number }) =>
+    bridgeApi.get<ApiResponse<{ results: MatchResult[]; total: number }> | { error: string; results: never[] }>('/api/match-results', { params }),
+}
 
 // ============================================
-// 量化模拟系统 (演示) — bridge_service:9000  /api/quant-demo/*
+// 实时比分服务 — bridge_service:9000  /api/live-scores(++) — 已有端点
+// 数据源 live_scores DB 表; 5s TTL 单场刷新端点专为前端实时轮询设计
 // ============================================
-export const quantDemoService = {
-  status: () => bridgeApi.get<ApiResponse<any>>('/api/quant-demo/status'),
-  step: (mode: string = 'sim') => bridgeApi.post<ApiResponse<any>>('/api/quant-demo/step', { mode }),
-  autoSim: () => bridgeApi.post<ApiResponse<any>>('/api/quant-demo/auto-sim'),
-  confirmAll: () => bridgeApi.post<ApiResponse<any>>('/api/quant-demo/confirm-all'),
-  confirmOne: (oid: string) => bridgeApi.post<ApiResponse<any>>('/api/quant-demo/confirm-one', { oid }),
-  toggle: (strategyId: string, enabled: boolean) =>
-    bridgeApi.post<ApiResponse<any>>('/api/quant-demo/toggle', { strategy_id: strategyId, enabled }),
-  reset: () => bridgeApi.post<ApiResponse<any>>('/api/quant-demo/reset'),
+export const liveScoreService = {
+  /** 最近 180s 内更新的全部进行中比赛 (mststi>0), 含实时赔率 */
+  getLiveMatches: (limit: number = 50) =>
+    bridgeApi.get<ApiResponse<LiveScoresResponse>>('/api/live-scores', { params: { limit } }),
+  /** 单场比分时序快照 (用于折线图/事件回放) */
+  getScoreHistory: (mid: string, limit: number = 60) =>
+    bridgeApi.get<ApiResponse<{ mid: string; history: ScoreHistoryEntry[]; count: number }>>(
+      `/api/live-score/${encodeURIComponent(mid)}`, { params: { limit } }),
+  /** 单场实时刷新 (5s TTL 缓存, 进球后 5-15s 反映到 UI) */
+  getLiveUpdate: (mid: string, force: boolean = false) =>
+    bridgeApi.get<ApiResponse<any>>(`/api/live-update/${encodeURIComponent(mid)}`, { params: { force } }),
 }
+
 // ============================================
 // 量化投注系统 (真实数据) — bridge_service:9000  /api/quant/*
 // 真实行情(live_odds_raw/odds_features) + 全市场扫描 + 历史回放 + 策略层
@@ -343,12 +151,32 @@ export const portfolioService = {
 export const terminalService = {
   /** 当天可决策赛事列表 (live_odds_raw, ≥2 庄) */
   getMatches: () => bridgeApi.get<ApiResponse<any>>('/api/terminal/matches'),
-  /** 全链路分析 — 直接用盘口赔率(赛事列表同源), 不调 The Odds API */
-  analyze: (home: string, away: string, sportKey: string = 'soccer_fifa_world_cup',
-            odds?: { h: number; d: number; a: number }) =>
-    bridgeApi.post<ApiResponse<any>>('/api/terminal/analyze',
-      odds ? { home, away, sport_key: sportKey, odds_h: odds.h, odds_d: odds.d, odds_a: odds.a }
-           : { home, away, sport_key: sportKey }),
+  /** 全链路分析 — 直接用盘口赔率(赛事列表同源), 不调 The Odds API
+   *  @param liveScore 可选 in-play 当前比分, 传入时后端启用条件 Poisson 裁剪 */
+  analyze: async (home: string, away: string, sportKey: string = 'soccer_fifa_world_cup',
+            odds?: { h: number; d: number; a: number },
+            handicap?: { ah_line?: number | string; ah_home?: number; ah_away?: number;
+                         ou_line?: number | string; ou_over?: number; ou_under?: number },
+            liveScore?: { homeGoals?: number; awayGoals?: number; elapsed?: number }) => {
+    const body: Record<string, any> = { home, away, sport_key: sportKey }
+    if (odds) Object.assign(body, { odds_h: odds.h, odds_d: odds.d, odds_a: odds.a })
+    if (handicap) Object.assign(body, {
+      ah_line: handicap.ah_line, ah_home: handicap.ah_home, ah_away: handicap.ah_away,
+      ou_line: handicap.ou_line, ou_over: handicap.ou_over, ou_under: handicap.ou_under,
+    })
+    if (liveScore) Object.assign(body, {
+      home_goals: liveScore.homeGoals, away_goals: liveScore.awayGoals, elapsed: liveScore.elapsed,
+    })
+    const resp = await bridgeApi.post<ApiResponse<any>>('/api/terminal/analyze', body)
+    // 赛事模型路由回填: model_type / model_calibrated_on 由后端 _live_predict 单一真相源给出,
+    // 前端绝不自己分类, 仅透传展示 (ApiResponse.data = _live_predict result dict)。
+    const payload = (resp.data as any)?.data
+    if (payload) {
+      useAppStore.getState().setModelType((payload as any).model_type ?? null)
+      useAppStore.getState().setModelCalibratedOn((payload as any).model_calibrated_on ?? null)
+    }
+    return resp
+  },
   /** 实时赔率匹配 (三级回退: live_odds_raw → The Odds API → 提示) */
   getMatchOdds: (home: string, away: string) =>
     bridgeApi.get<ApiResponse<any>>('/api/match-odds', { params: { home, away } }),
@@ -356,4 +184,3 @@ export const terminalService = {
   ingest: (data: { home: string; away: string; source?: string; h: number; d: number; a: number; score?: string; minute?: number }) =>
     bridgeApi.post<ApiResponse<any>>('/api/terminal/ingest', data),
 }
-export default api

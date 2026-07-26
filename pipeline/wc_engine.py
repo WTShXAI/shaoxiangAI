@@ -26,6 +26,17 @@ from typing import Dict, Optional, Tuple
 from dataclasses import dataclass
 import numpy as np
 
+# ════════════════════════════════════════════════════════════════════════
+# ⚠️ 模块角色 (SSoT 澄清, 2026-07-17):
+#   本模块是 pipeline.engine 的 **WC 引擎实现后端**, 并非"离线平行实现"。
+#   运行时链路: bridge_service → pipeline.engine.create_engine("wc")
+#               → (本模块 predict / MatchInput)。
+#   → 因此 **不可删除 / 不可移入 archived/**, 否则生产预测中断。
+#   league_engine.py 复用本模块的战绩/赔率解析基础函数 (同域内部复用, 允许)。
+#   任何新代码如需预测, 一律经 `from pipeline.engine import create_engine`,
+#   不得直接 import 本模块 (保持 engine.py 为唯一公开入口)。
+# ════════════════════════════════════════════════════════════════════════
+
 logger = logging.getLogger(__name__)
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -1029,11 +1040,14 @@ def predict_score_wc(match: MatchInput) -> dict:
     返回: 期望进球 lh/la, 胜平负隐含概率, 前5可能比分 [(i,j,p),...]
     """
     try:
-        from score_model import predict_score
+        from score_model import predict_score, WC_OIP_GOAL_SCALE
     except Exception as e:  # pragma: no cover
         logger.warning("[wc_engine] score_model 导入失败: %s", e)
         return {'available': False, 'error': str(e)}
-    res = predict_score(match.home, match.away, match.odds_h, match.odds_d, match.odds_a)
+    # WC 用 1.35 缩放 (SSoT: pipeline.score_model.WC_OIP_GOAL_SCALE),
+    # 修正OIP对世界杯总进球的系统性低估; 显式传入避免依赖默认(默认现为通用联赛1.2)。
+    res = predict_score(match.home, match.away, match.odds_h, match.odds_d, match.odds_a,
+                        goal_scale=WC_OIP_GOAL_SCALE)
     res['available'] = True
     return res
 

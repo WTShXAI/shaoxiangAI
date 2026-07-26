@@ -26,9 +26,14 @@ interface AppState {
   // 主题
   theme: 'dark' | 'light'
   setTheme: (theme: 'dark' | 'light') => void
-  // 赛事引擎 (全局切换)
+  // 赛事引擎 (全局切换, 旧开关: 保留但默认 league, 不再用于模型判断)
   competition: 'wc' | 'league'
   setCompetition: (competition: 'wc' | 'league') => void
+  // 赛事模型路由 (后端单一真相源回填, 前端绝不自己分类)
+  modelType: 'cup' | 'league' | null
+  setModelType: (modelType: 'cup' | 'league' | null) => void
+  modelCalibratedOn: string | null
+  setModelCalibratedOn: (modelCalibratedOn: string | null) => void
 }
 export const useAppStore = create<AppState>((set, get) => ({
   sidebarCollapsed: false,
@@ -50,7 +55,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   setPredictionStats: (predictionStats) => set({ predictionStats }),
   theme: 'dark',
   setTheme: (theme) => set({ theme }),
-  competition: 'wc',
+  competition: 'league',
   setCompetition: (competition) => set({ competition }),
+  modelType: null,
+  setModelType: (modelType) => set({ modelType }),
+  modelCalibratedOn: null,
+  setModelCalibratedOn: (modelCalibratedOn) => set({ modelCalibratedOn }),
 }))
 // (已清理：预测大厅相关死切片)

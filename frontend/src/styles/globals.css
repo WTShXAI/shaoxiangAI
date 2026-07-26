@@ -1,4 +1,83 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* 字体策略 (2026-07-25 重构):
+   - 移除 Google Fonts @import: 本机 GFW 屏蔽 fonts.googleapis.com, 加载请求恒失败且拖累首屏
+   - 全栈改用 system-ui: Windows 自动落到 Microsoft YaHei/Segoe UI; Mac 落到 PingFang/SF Pro;
+     中文场景天然友好, 0 网络请求, 0 FOUT。Inter 改在 Tailwind fontFamily 链尾作为可选增强。
+*/
+
+/* ═══ 主题变量 (RGB 通道) ═══
+   暗色为系统默认 (与旧硬编码值一致); [data-theme="light"] 覆盖亮色。
+   亮色刻意把 accent/field/pitch/ember/frost 调暗, 保证白底上赔率清晰可读。 */
+:root {
+  color-scheme: dark;
+  --color-fg: 255 255 255;
+  --color-ink-primary: 236 238 244;
+  --color-ink-secondary: 154 163 178;
+  --color-ink-muted: 107 114 128;
+  --color-ink-disabled: 110 114 122;
+  --color-surface-canvas: 10 10 11;
+  --color-surface-dark: 6 6 7;
+  --color-surface-panel: 16 16 19;
+  --color-surface-card: 20 20 23;
+  --color-surface-hover: 26 26 30;
+  --color-surface-border: 39 39 42;
+  --color-accent: 168 227 74;
+  --color-accent-dark: 10 10 11;
+  --color-accent-card: 20 20 23;
+  --color-accent-inner: 28 28 32;
+  --color-accent-dim: 154 163 178;
+  --color-field-400: 62 207 142;
+  --color-field-500: 31 184 115;
+  --color-field-600: 19 152 92;
+  --color-pitch-300: 115 234 176;
+  --color-pitch-400: 62 207 142;
+  --color-pitch-500: 31 184 115;
+  --color-pitch-600: 19 152 92;
+  --color-ember-300: 252 207 109;
+  --color-ember-400: 250 184 62;
+  --color-ember-500: 245 158 11;
+  --color-frost-300: 126 194 252;
+  --color-frost-400: 62 162 248;
+  --color-frost-500: 20 133 233;
+  --color-danger-400: 240 122 122;
+  --color-danger-500: 229 72 77;
+  --color-danger-600: 218 46 52;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --color-fg: 17 20 24;
+  --color-ink-primary: 17 20 24;
+  --color-ink-secondary: 71 80 94;
+  --color-ink-muted: 120 128 140;
+  --color-ink-disabled: 150 156 168;
+  --color-surface-canvas: 245 246 248;
+  --color-surface-dark: 232 234 238;
+  --color-surface-panel: 255 255 255;
+  --color-surface-card: 255 255 255;
+  --color-surface-hover: 238 240 243;
+  --color-surface-border: 222 226 232;
+  --color-accent: 21 122 72;
+  --color-accent-dark: 17 20 24;
+  --color-accent-card: 255 255 255;
+  --color-accent-inner: 236 247 240;
+  --color-accent-dim: 71 80 94;
+  --color-field-400: 18 130 80;
+  --color-field-500: 15 110 68;
+  --color-field-600: 12 92 56;
+  --color-pitch-300: 30 150 95;
+  --color-pitch-400: 18 130 80;
+  --color-pitch-500: 15 110 68;
+  --color-pitch-600: 12 92 56;
+  --color-ember-300: 175 120 20;
+  --color-ember-400: 190 110 8;
+  --color-ember-500: 165 95 6;
+  --color-frost-300: 40 130 215;
+  --color-frost-400: 18 110 200;
+  --color-frost-500: 12 92 180;
+  --color-danger-400: 200 50 55;
+  --color-danger-500: 185 38 44;
+  --color-danger-600: 165 30 36;
+}
 
 @tailwind base;
 @tailwind components;

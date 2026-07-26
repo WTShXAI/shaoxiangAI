@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
 import joblib
+from typing import Any, Dict
 
 # ============================================================
 # 赔率数据 (赛前45min)
@@ -23,7 +24,7 @@ ODDS_T1 = {
     "correct_score": {"1-0":13.5,"0-0":10.0,"0-1":6.70,"2-0":31.5,"1-1":7.50,"0-2":7.70,"2-1":17.0,"1-2":7.90},
 }
 
-ODDS_T2 = {
+ODDS_T2: Dict[str, Any] = {
     "home_win": 5.00, "draw": 3.75, "away_win": 1.70,
     "asian_handicap_line": -0.5, "ah_home_odds": 1.97, "ah_away_odds": 1.95,
     "goal_line": 2.25, "over_odds": 1.86, "under_odds": 2.04,
@@ -79,7 +80,7 @@ model_data = _ModelDataCompat(trainer)
 
 xgb_model  = trainer.xgb_model
 lgb_model  = trainer.lgb_model
-ridge_model = None  # v4.1 无 Ridge
+ridge_model: Any = None  # v4.1 无 Ridge
 oe_model   = trainer.odds_expert_model
 meta_learner = trainer.meta_learner
 scaler     = trainer.scaler
@@ -298,7 +299,7 @@ ens_sum = ensemble_h + ensemble_d + ensemble_a
 ensemble_h /= ens_sum; ensemble_d /= ens_sum; ensemble_a /= ens_sum
 
 # --- Meta-Learner (Stacking) ---
-meta_pred = None
+meta_pred: Any = None
 meta_proba = None
 if meta_learner:
     # Stacking expects 21 features (4 base models x 3 + raw features)

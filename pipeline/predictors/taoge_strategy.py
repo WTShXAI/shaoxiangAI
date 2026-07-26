@@ -33,7 +33,12 @@ class TaoGeStrategy:
             {best_score, alt_scores, top_scores, massacre_adjusted}
         """
         hcp_abs = abs(match.hcp)
-        home_give = match.hcp < 0  # 主让球
+        # P1 修复 (2026-07-19): 平手盘(hcp==0)下, 旧逻辑 home_give=False 会触发"主客互换",
+        # 把以主队赢为视角的模板整体反转为客胜比分, 导致"平手+主胜verdict"时 best_score=1-2 自相矛盾.
+        # 修复: 仅当客队是热门(主受 hcp>0, 或平手时客赔更低)才互换; 平手且主赔更优→保持模板原视角.
+        away_is_favorite = match.hcp > 0
+        if match.hcp == 0 and getattr(match, 'odds_h', None) and getattr(match, 'odds_a', None):
+            away_is_favorite = match.odds_a < match.odds_h
         massacre_adjusted = ou_link.get('massacre_rescaled', False)
         
         # 比分模板：按让球深度分级 (v5.23: +赔率深度修正)
@@ -78,10 +83,10 @@ class TaoGeStrategy:
         candidates = []
         for s in template:
             sh, sa = map(int, s.split('-'))
-            if home_give:
-                candidates.append(f'{sh}-{sa}')
-            else:
+            if away_is_favorite:
                 candidates.append(f'{sa}-{sh}')
+            else:
+                candidates.append(f'{sh}-{sa}')
         
         all_candidates = list(dict.fromkeys(candidates[:5]))
         if ou_link.get('massacre_rescaled'):

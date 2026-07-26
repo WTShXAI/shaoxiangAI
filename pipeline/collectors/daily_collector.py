@@ -203,15 +203,19 @@ class DailyCollector:
             stats["scanned"] = len(rows)
             conn.close()
 
-            # 尝试用 football-data.org 拉世界杯赛果（其他联赛暂标记为待手动回填）
+            # 尝试用 football-data.org 拉世界杯赛果
             wc_results = self._fetch_wc_results()
+            # 尝试用 leisu feed 拉已结束比赛(final 比分), 中英队名对齐回填非世界杯联赛
+            leisu_results = self._fetch_leisu_results()
 
             conn = sqlite3.connect(self.db_path)
             cur = conn.cursor()
             for row in rows:
                 rid, sk, home, away, ct = row
-                # 匹配世界杯赛果
+                # 先匹配世界杯赛果, 再用 team_canonical 中英对齐匹配 leisu 赛果
                 matched = self._match_result(home, away, wc_results)
+                if not matched:
+                    matched = self._match_result_cn(home, away, leisu_results)
                 if matched:
                     result, score = matched
                     cur.execute(
@@ -261,6 +265,81 @@ class DailyCollector:
             rh = (r.get('home') or '').lower().strip()
             ra = (r.get('away') or '').lower().strip()
             if (home_l in rh or rh in home_l) and (away_l in ra or ra in away_l):
+                return r['result'], r['score']
+        return None
+
+    def _fetch_leisu_results(self) -> List[Dict]:
+        """从 leisu feed 拉已结束比赛(final 比分), 用于回填非世界杯联赛。
+
+        仅当队名能被 team_canonical 对齐到 live_odds_raw(英文)时才有意义。
+        失败(网络/反爬)→ 返回空, 不影响现有世界杯回填逻辑。
+        """
+        try:
+            from pipeline.collectors.leisu_live import build_feed
+            feed = build_feed() or []
+            results = []
+            for m in feed:
+                st = m.get("match_state") if m.get("match_state") is not None else m.get("mststi")
+                try:
+                    st_i = int(st) if st is not None else 0
+                except (TypeError, ValueError):
+                    st_i = 0
+                if st_i != -1:  # 只取已结束(final)
+                    continue
+                hs = m.get("score_home") if m.get("score_home") is not None else m.get("mhs")
+                as_ = m.get("score_away") if m.get("score_away") is not None else m.get("mas")
+                if hs is None or as_ is None:
+                    continue
+                try:
+                    hs_i, as_i = int(hs), int(as_)
+                except (TypeError, ValueError):
+                    continue
+                result = 'H' if hs_i > as_i else ('A' if hs_i < as_i else 'D')
+                results.append({
+                    'home': m.get('home', '') or m.get('mhn', ''),
+                    'away': m.get('away', '') or m.get('man', ''),
+                    'result': result,
+                    'score': f"{hs_i}-{as_i}",
+                })
+            return results
+        except Exception as e:
+            logger.debug(f"拉 leisu 赛果失败(非致命): {e}")
+            return []
+
+    def _cn_candidates(self, name_en: str) -> List[str]:
+        """经 team_canonical 把英文队名转中文候选 (canonical 列)"""
+        if not name_en:
+            return []
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cur = conn.cursor()
+            cur.execute("SELECT canonical, aliases_json FROM team_canonical")
+            cands = []
+            target = name_en.lower().strip()
+            for canon, aj in cur.fetchall():
+                try:
+                    aliases = json.loads(aj) if aj else []
+                except (json.JSONDecodeError, TypeError):
+                    aliases = []
+                if target in [str(a).lower().strip() for a in aliases]:
+                    cands.append((canon or '').lower().strip())
+            conn.close()
+            return cands
+        except Exception:
+            return []
+
+    def _match_result_cn(self, home_en: str, away_en: str, results: List[Dict]):
+        """先把英文队名经 team_canonical 转中文候选, 再模糊匹配 leisu 中文队名"""
+        cn_h = self._cn_candidates(home_en)
+        cn_a = self._cn_candidates(away_en)
+        if not cn_h or not cn_a:
+            return None
+        for r in results:
+            rh = (r.get('home') or '').lower().strip()
+            ra = (r.get('away') or '').lower().strip()
+            h_ok = any(h in rh or rh in h for h in cn_h)
+            a_ok = any(a in ra or ra in a for a in cn_a)
+            if h_ok and a_ok:
                 return r['result'], r['score']
         return None
 

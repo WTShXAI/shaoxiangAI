@@ -67,7 +67,7 @@ class MarketDerivationEngine:
     
     # ──────────── 推导公平赔率 ────────────
     
-    def derive_all_markets(self, dist: ScoreDistribution, margin: float = None) -> Dict[str, MarketOdds]:
+    def derive_all_markets(self, dist: ScoreDistribution, margin: Optional[float] = None) -> Dict[str, MarketOdds]:
         """
         从比分分布推导所有玩法赔率
         
@@ -236,7 +236,7 @@ class MarketDerivationEngine:
     
     def cross_market_consistency(
         self, real_odds_1x2: Dict[str, float], real_odds_totals: Dict[str, float],
-        real_odds_ah: Dict[str, float] = None, margin: float = 0.06
+        real_odds_ah: Optional[Dict[str, float]] = None, margin: float = 0.06
     ) -> Dict:
         """
         跨市场一致性检查

@@ -5,6 +5,7 @@ import { quantService, portfolioService, type ScanSingleRequest } from '@/servic
 import type {
   QuantSnapshot, QuantAccount, OptionValuation, ScanResult,
 } from '@/types'
+import PageHeader from '@/components/layout/PageHeader'
 
 // ── 资金曲线 (echarts, 含峰值线 + 基准线) ──
 function EquityChart({ curve }: { curve: { step: number; equity: number }[] }) {
@@ -86,26 +87,26 @@ function PortfolioCard() {
   }
 
   return (
-    <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-500/[0.03]">
+    <div className="p-4 rounded-xl border border-frost-500/20 bg-frost-500/[0.03]">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-blue-300">📊 回测绩效 (live_pilot_guardian 🛡️)</h3>
-        <span className="text-xs text-blue-200/50">{data.total_trades} 注 · {ec.length} 点</span>
+        <h3 className="text-sm font-semibold text-frost-300">📊 回测绩效 (live_pilot_guardian 🛡️)</h3>
+        <span className="text-xs text-frost-200/50">{data.total_trades} 注 · {ec.length} 点</span>
       </div>
 
       {/* 指标卡片 */}
       <div className="grid grid-cols-3 md:grid-cols-7 gap-2 mb-3">
         {[
           { l: '总ROI', v: `${data.total_roi_pct > 0 ? '+' : ''}${data.total_roi_pct}%`,
-            c: (data.total_roi_pct || 0) >= 0 ? 'text-emerald-400' : 'text-red-400' },
+            c: (data.total_roi_pct || 0) >= 0 ? 'text-field-400' : 'text-danger-400' },
           { l: '夏普', v: data.sharpe_ratio?.toFixed(2) || 'N/A',
-            c: (data.sharpe_ratio || 0) >= 0 ? 'text-emerald-400' : 'text-red-400' },
+            c: (data.sharpe_ratio || 0) >= 0 ? 'text-field-400' : 'text-danger-400' },
           { l: '最大回撤', v: `${data.max_drawdown_pct}%`,
-            c: (data.max_drawdown_pct || 0) > 20 ? 'text-red-400' : 'text-amber-400' },
-          { l: '卡玛', v: data.calmar_ratio?.toFixed(2) || 'N/A', c: 'text-blue-300' },
+            c: (data.max_drawdown_pct || 0) > 20 ? 'text-danger-400' : 'text-ember-400' },
+          { l: '卡玛', v: data.calmar_ratio?.toFixed(2) || 'N/A', c: 'text-frost-300' },
           { l: '胜率', v: `${data.win_rate_pct}%`, c: 'text-white/70' },
-          { l: '盈亏比', v: data.profit_loss_ratio?.toFixed(2) || 'N/A', c: 'text-purple-300' },
+          { l: '盈亏比', v: data.profit_loss_ratio?.toFixed(2) || 'N/A', c: 'text-frost-300' },
           { l: 'EV/注', v: data.expected_value != null ? `¥${data.expected_value.toFixed(0)}` : 'N/A',
-            c: (data.expected_value || 0) > 0 ? 'text-emerald-400' : 'text-red-400' },
+            c: (data.expected_value || 0) > 0 ? 'text-field-400' : 'text-danger-400' },
         ].map((x) => (
           <div key={x.l} className="p-2 rounded-lg border border-white/[0.06] bg-white/[0.02]">
             <div className="text-[10px] text-white/30">{x.l}</div>
@@ -134,9 +135,9 @@ function ScanCard({ s }: { s: ScanResult }) {
           {s.league && <span className="text-white/30 text-xs ml-2">{s.league}</span>}
         </span>
         <span className="flex items-center gap-2 text-xs">
-          {eg && <span className="text-purple-400">λ{eg.total}</span>}
+          {eg && <span className="text-frost-400">λ{eg.total}</span>}
           {bets.length > 0
-            ? <span className="text-emerald-400 font-semibold">★{bets.length}价值</span>
+            ? <span className="text-field-400 font-semibold">★{bets.length}价值</span>
             : <span className="text-white/30">{s.is_multi_book ? '全跳过' : '单庄·仅分析'}</span>}
           <span className="text-white/30">{open ? '▾' : '▸'}</span>
         </span>
@@ -162,14 +163,14 @@ const decisionLabel = (d?: string): string => {
 }
 
 function OptionRow({ o }: { o: OptionValuation }) {
-  const decCls = o.decision === 'BET' ? 'bg-emerald-500/20 text-emerald-400'
-    : o.decision === 'EVAL' ? 'bg-amber-500/15 text-amber-400'
+  const decCls = o.decision === 'BET' ? 'bg-field-500/20 text-field-400'
+    : o.decision === 'EVAL' ? 'bg-ember-500/15 text-ember-400'
     : o.decision === 'SCAN' ? 'bg-white/[0.06] text-white/40'
     : 'bg-white/[0.04] text-white/25'
-  const edgeCls = o.edge_pct > 0 ? 'text-emerald-400' : 'text-white/30'
+  const edgeCls = o.edge_pct > 0 ? 'text-field-400' : 'text-white/30'
   const isBest = o.decision === 'BET'
   return (
-    <div className={`flex items-center justify-between px-3 py-1 text-xs ${isBest ? 'bg-emerald-500/5' : ''}`}>
+    <div className={`flex items-center justify-between px-3 py-1 text-xs ${isBest ? 'bg-field-500/5' : ''}`}>
       <span className="flex items-center gap-2">
         <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${decCls}`}>{decisionLabel(o.decision)}</span>
         <span className="text-white/70">{o.selection}</span>
@@ -289,23 +290,22 @@ export default function QuantDemo() {
 
   return (
     <div className="space-y-4">
-      {/* 标题 */}
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <h2 className="text-xl font-bold text-white">量化投注终端</h2>
-        <p className="text-xs text-white/40 mt-0.5">真实行情驱动 · 全市场价值扫描 · {mode === 'sim' ? '模拟自动结算' : '手动确认闸'} · {snap?.auto_mode ? '🟢 自动模式' : '⚪ 手动'}</p>
-      </motion.div>
+      <PageHeader
+        title="量化投注终端"
+        subtitle={`真实行情驱动 · 全市场价值扫描 · ${mode === 'sim' ? '模拟自动结算' : '手动确认闸'} · ${snap?.auto_mode ? '🟢 自动模式' : '⚪ 手动'}`}
+      />
 
       {/* ① 账户概览 */}
       {a && (
         <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
           {[
-            { l: '账户权益', v: `¥${Math.round(a.equity).toLocaleString()}`, c: a.equity >= a.init_bankroll ? 'text-emerald-400' : 'text-red-400' },
-            { l: '收益率', v: `${a.return_pct > 0 ? '+' : ''}${a.return_pct}%`, c: a.return_pct >= 0 ? 'text-emerald-400' : 'text-red-400' },
+            { l: '账户权益', v: `¥${Math.round(a.equity).toLocaleString()}`, c: a.equity >= a.init_bankroll ? 'text-field-400' : 'text-danger-400' },
+            { l: '收益率', v: `${a.return_pct > 0 ? '+' : ''}${a.return_pct}%`, c: a.return_pct >= 0 ? 'text-field-400' : 'text-danger-400' },
             { l: '胜率', v: `${a.win_rate}%`, c: 'text-white' },
-            { l: '夏普', v: `${a.sharpe}`, c: a.sharpe >= 0 ? 'text-emerald-400' : 'text-red-400' },
-            { l: '最大回撤', v: `${a.max_drawdown_pct}%`, c: a.max_drawdown_pct > 10 ? 'text-red-400' : 'text-amber-400' },
+            { l: '夏普', v: `${a.sharpe}`, c: a.sharpe >= 0 ? 'text-field-400' : 'text-danger-400' },
+            { l: '最大回撤', v: `${a.max_drawdown_pct}%`, c: a.max_drawdown_pct > 10 ? 'text-danger-400' : 'text-ember-400' },
             { l: '下注数', v: `${a.bets}`, c: 'text-white/70' },
-            { l: '累计盈亏', v: `${a.pnl_total > 0 ? '+' : ''}${Math.round(a.pnl_total)}`, c: a.pnl_total >= 0 ? 'text-emerald-400' : 'text-red-400' },
+            { l: '累计盈亏', v: `${a.pnl_total > 0 ? '+' : ''}${Math.round(a.pnl_total)}`, c: a.pnl_total >= 0 ? 'text-field-400' : 'text-danger-400' },
             { l: '信号数', v: `${snap?.signals.length || 0}`, c: 'text-white/70' },
           ].map((x) => (
             <div key={x.l} className="p-2.5 rounded-lg border border-white/[0.06] bg-white/[0.02]">
@@ -332,17 +332,17 @@ export default function QuantDemo() {
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex rounded-lg overflow-hidden border border-white/[0.1] text-sm">
           <button onClick={() => setMode('sim')} className={`px-3 py-2 font-medium ${mode === 'sim' ? 'bg-field-600 text-white' : 'text-white/50 hover:bg-white/[0.04]'}`}>模拟自动</button>
-          <button onClick={() => setMode('live')} className={`px-3 py-2 font-medium ${mode === 'live' ? 'bg-amber-600 text-white' : 'text-white/50 hover:bg-white/[0.04]'}`}>手动确认闸</button>
+          <button onClick={() => setMode('live')} className={`px-3 py-2 font-medium ${mode === 'live' ? 'bg-ember-600 text-white' : 'text-white/50 hover:bg-white/[0.04]'}`}>手动确认闸</button>
         </div>
-        <button onClick={toggleAuto} className={`px-3 py-2 rounded-lg text-sm font-medium ${autoOn ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'border border-white/[0.1] text-white/60 hover:bg-white/[0.04]'}`}>{autoOn ? '⏸ 停止自动' : '▶ 自动模式'}</button>
+        <button onClick={toggleAuto} className={`px-3 py-2 rounded-lg text-sm font-medium ${autoOn ? 'bg-field-600 hover:bg-field-500 text-white' : 'border border-white/[0.1] text-white/60 hover:bg-white/[0.04]'}`}>{autoOn ? '⏸ 停止自动' : '▶ 自动模式'}</button>
         <button onClick={onScan} disabled={busy} className="px-4 py-2 rounded-lg bg-field-600 hover:bg-field-500 text-white text-sm font-medium disabled:opacity-50">手动扫描</button>
         <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/[0.1]">
           <span className="text-xs text-white/40">回放</span>
           <input type="number" value={replayN} onChange={(e) => setReplayN(+e.target.value)} className="w-14 bg-transparent text-sm text-white/80 outline-none text-center" />
           <span className="text-xs text-white/40">场</span>
-          <button onClick={onReplay} disabled={busy} className="ml-1 px-2 py-0.5 rounded bg-amber-600/80 hover:bg-amber-500 text-white text-xs font-medium disabled:opacity-50">⚡历史回放</button>
+          <button onClick={onReplay} disabled={busy} className="ml-1 px-2 py-0.5 rounded bg-ember-600/80 hover:bg-ember-500 text-white text-xs font-medium disabled:opacity-50">⚡历史回放</button>
         </div>
-        <button onClick={() => setShowAnalyze(true)} className="px-4 py-2 rounded-lg border border-purple-500/30 text-purple-300 text-sm font-medium hover:bg-purple-500/10">🎯 单场分析</button>
+        <button onClick={() => setShowAnalyze(true)} className="px-4 py-2 rounded-lg border border-frost-500/30 text-frost-300 text-sm font-medium hover:bg-frost-500/10">🎯 单场分析</button>
         <button onClick={onReset} disabled={busy} className="px-3 py-2 rounded-lg border border-white/[0.1] text-white/40 text-sm hover:bg-white/[0.04] disabled:opacity-50">重置</button>
       </div>
 
@@ -356,7 +356,7 @@ export default function QuantDemo() {
                 className={`text-left p-3 rounded-lg border text-sm transition-all ${s.enabled ? 'border-field-500/30 bg-field-500/8' : 'border-white/[0.06] bg-white/[0.02] opacity-50'}`}>
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-white/90">{s.name}</span>
-                  <span className={`text-xs ${s.enabled ? 'text-emerald-400' : 'text-white/30'}`}>{s.enabled ? '● 启用' : '○ 停用'}</span>
+                  <span className={`text-xs ${s.enabled ? 'text-field-400' : 'text-white/30'}`}>{s.enabled ? '● 启用' : '○ 停用'}</span>
                 </div>
                 <div className="text-[11px] text-white/40 mt-1">{s.desc}</div>
               </button>
@@ -390,9 +390,9 @@ export default function QuantDemo() {
           <div className="space-y-1 max-h-[420px] overflow-y-auto pr-1">
             {snap?.signals && snap.signals.length > 0 ? (
               snap.signals.slice().reverse().map((s, i) => {
-                const color = s.level === 'order' ? 'border-field-500' : s.level === 'settle' ? 'border-emerald-500'
-                  : s.level === 'loss' ? 'border-red-500' : s.level === 'replay' ? 'border-purple-500'
-                  : s.level === 'analyze' ? 'border-amber-500' : 'border-white/[0.1]'
+                const color = s.level === 'order' ? 'border-field-500' : s.level === 'settle' ? 'border-field-500'
+                  : s.level === 'loss' ? 'border-danger-500' : s.level === 'replay' ? 'border-frost-500'
+                  : s.level === 'analyze' ? 'border-ember-500' : 'border-white/[0.1]'
                 return (
                   <div key={i} className={`pl-2.5 py-1.5 border-l-2 ${color} bg-white/[0.02] rounded-r text-xs`}>
                     <span className="text-white/30 mr-2 tabular-nums">{s.ts}</span>
@@ -407,8 +407,8 @@ export default function QuantDemo() {
 
       {/* ⑦ 待确认订单 (live 模式) */}
       {snap?.pending && snap.pending.length > 0 && (
-        <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
-          <h3 className="text-sm font-semibold text-amber-400 mb-2">⏳ 待确认订单 ({snap.pending.length}) — 真实下单前需手动确认</h3>
+        <div className="p-4 rounded-xl border border-ember-500/20 bg-ember-500/5">
+          <h3 className="text-sm font-semibold text-ember-400 mb-2">⏳ 待确认订单 ({snap.pending.length}) — 真实下单前需手动确认</h3>
           <div className="space-y-1.5">
             {snap.pending.map((o) => (
               <div key={o.oid} className="flex items-center justify-between text-sm bg-white/[0.03] rounded px-3 py-2">
@@ -417,12 +417,12 @@ export default function QuantDemo() {
                 <div className="flex gap-1">
                   {['H', 'D', 'A'].map((r) => (
                     <button key={r} onClick={() => onConfirmOne(o.oid)} disabled={busy}
-                      className="px-2 py-1 rounded bg-amber-600 hover:bg-amber-500 text-white text-xs disabled:opacity-50">结算({r})</button>
+                      className="px-2 py-1 rounded bg-ember-600 hover:bg-ember-500 text-white text-xs disabled:opacity-50">结算({r})</button>
                   ))}
                 </div>
               </div>
             ))}
-            <button onClick={onConfirmAll} disabled={busy} className="w-full py-1.5 rounded bg-amber-600/80 hover:bg-amber-500 text-white text-xs font-medium disabled:opacity-50">全部按平局结算</button>
+            <button onClick={onConfirmAll} disabled={busy} className="w-full py-1.5 rounded bg-ember-600/80 hover:bg-ember-500 text-white text-xs font-medium disabled:opacity-50">全部按平局结算</button>
           </div>
         </div>
       )}
@@ -453,9 +453,9 @@ export default function QuantDemo() {
                     <td className="py-1.5 px-2 text-right text-white/60 tabular-nums">{o.odds.toFixed(2)}</td>
                     <td className="py-1.5 px-2 text-right text-white/60 tabular-nums">¥{Math.round(o.stake)}</td>
                     <td className="py-1.5 px-2 text-center">
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${o.win ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>{o.win ? '赢' : '输'}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${o.win ? 'bg-field-500/20 text-field-400' : 'bg-danger-500/20 text-danger-400'}`}>{o.win ? '赢' : '输'}</span>
                     </td>
-                    <td className={`py-1.5 px-2 text-right tabular-nums font-semibold ${(o.pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{(o.pnl || 0) >= 0 ? '+' : ''}¥{Math.round(o.pnl || 0)}</td>
+                    <td className={`py-1.5 px-2 text-right tabular-nums font-semibold ${(o.pnl || 0) >= 0 ? 'text-field-400' : 'text-danger-400'}`}>{(o.pnl || 0) >= 0 ? '+' : ''}¥{Math.round(o.pnl || 0)}</td>
                   </tr>
                 ))}
               </tbody>

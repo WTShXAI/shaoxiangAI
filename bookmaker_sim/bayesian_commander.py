@@ -642,7 +642,7 @@ class ExperienceAwareCommander(BayesianCommander):
                 self.memory = None
 
     def route_with_experience(self, user_input: str,
-                                odds_override: _Dict = None) -> ExperienceRouteResult:
+                                odds_override: _Optional[_Dict] = None) -> ExperienceRouteResult:
         """经验型路由
 
         Args:

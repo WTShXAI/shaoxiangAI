@@ -33,6 +33,7 @@ data/*.bak*
 
 # 环境
 .env
+.env.*
 .venv/
 .venv_*/
 venv/
@@ -46,6 +47,7 @@ venv_*/
 
 # WorkBuddy
 .workbuddy/
+.edge_agent_profile/
 
 # 输出
 output/*.zip
@@ -111,12 +113,33 @@ playwright-report/
 nul
 *.log
 
+# 数据JSON (保留规则/特征库)
+!data/pattern_engine_rules.json
+!data/score_odds_patterns.json
+!data/score_odds_patterns_open.json
+!data/odds_score_distribution.json
+!data/cross_validation_report.json
+!data/feature_library_doc.json
+!data/rolling_odds_features.json
+!data/conditional_mid_scenario_audit.json
+!data/backtest_conditional_30k.json
+
+# 关键模型joblib (保留集成模型)
+!saved_models/outcome_25feat.joblib
+!saved_models/outcome_29feat.joblib
+
 # 散落垃圾/临时
 resp.json
 file.png
 overview.md
 PENDING
 awesome-design-md/
+_*.log
+_*.png
+_*.db
+_*.xml
+_*.py
+nul
 
 # 启动脚本(非源码)
 哨响AI.bat

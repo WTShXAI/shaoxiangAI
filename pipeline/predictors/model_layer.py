@@ -20,7 +20,7 @@ class ModelLayer:
     def _get_predictor(cls):
         """延迟加载+缓存 UnifiedPredictor, 避免每次 assess() 重建"""
         if cls._predictor_cache is None:
-            from predictors.unified_predictor import UnifiedPredictor
+            from pipeline.predictors.unified_predictor import UnifiedPredictor
             cls._predictor_cache = UnifiedPredictor()
         return cls._predictor_cache
 

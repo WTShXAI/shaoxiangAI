@@ -734,7 +734,7 @@ class OddsTemporalStateMachine:
             n = state_counts.get(s.value, 0)
             pct = n / len(results) * 100 if results else 0
             acc = self.state_accuracy.get(s.value, 0)
-            avg_conf = 0
+            avg_conf = 0.0
             subset = [r for r in results if r.state == s]
             if subset:
                 avg_conf = float(np.mean([r.lock_confidence for r in subset]))
