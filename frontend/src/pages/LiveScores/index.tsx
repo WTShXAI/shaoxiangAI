@@ -41,10 +41,11 @@ function stateOf(fx: FixtureEntry, now: number): { live: boolean; finished: bool
       st = 1 // 视为上半场
     }
   }
-  // 开赛已超 3h 且非结束 → 视为已结束
-  if (st === 0 && fx.commence_time) {
+  // 开赛已超 3h → 视为已结束 (修BUG#1: 从st===0放宽到所有st,
+  // 因后端 ms 终场可能不回落仍报进行中, 前端按时间兜底纠正)
+  if (fx.commence_time) {
     const elapsedMin = (now - new Date(fx.commence_time).getTime()) / 60000
-    if (elapsedMin > 180) st = -1
+    if (elapsedMin > 180 && st > 0) st = -1
   }
   let label = ''
   if (st === 1) label = `上半场 ${minStr || `~${Math.round((now - new Date(fx.commence_time).getTime()) / 60000)}'`}`.trim()
@@ -70,6 +71,37 @@ function countdown(iso: string, now: number): string | null {
 
 // ═══ 虚盘过滤 (滤掉乐鱼混入的电竞模拟 + 8分钟虚拟杯) ═══
 const FAKE_LEAGUE = /VS-|EAFC|PANDA|瓦尔哈拉|瓦尔基里|梦幻对垒|8分钟/
+
+// ═══ /api/live-scores 真实比赛 → FixtureEntry (补齐 obscure 联赛被 slice(0,20) 截断的 live 比赛) ═══
+function liveToFixture(m: any): FixtureEntry {
+  const commence = m.kickoff
+    || (m.snapshot_at ? new Date(m.snapshot_at * 1000).toISOString() : new Date().toISOString())
+  return {
+    id: m.mid || `${m.home}|${m.away}`,
+    home: m.home,
+    away: m.away,
+    commence_time: commence,
+    league: m.league,
+    sport_key: m.league,
+    match_state: m.mststi ?? m.match_state ?? 0,
+    match_minute: m.match_minute ?? '',
+    score_home: m.score_home ?? null,
+    score_away: m.score_away ?? null,
+    score_inferred: m.score_inferred ?? false,
+    odds_h: m.odds_h ?? null,
+    odds_d: m.odds_d ?? null,
+    odds_a: m.odds_a ?? null,
+    opening_h: m.opening_h ?? null,
+    opening_d: m.opening_d ?? null,
+    opening_a: m.opening_a ?? null,
+    ah_line: m.ah_line ?? null,
+    ah_home: m.ah_home ?? null,
+    ah_away: m.ah_away ?? null,
+    ou_line: m.ou_line ?? null,
+    ou_over: m.ou_over ?? null,
+    ou_under: m.ou_under ?? null,
+  } as FixtureEntry
+}
 
 // ═══ 状态徽章 ═══
 function StatusBadge({ fx, now }: { fx: FixtureEntry; now: number }) {
@@ -201,7 +233,7 @@ function OddsPanel({ fx }: { fx: FixtureEntry }) {
 }
 
 // ═══ 单场卡片 ═══
-function MatchCard({ fx, now, onAnalyze }: { fx: FixtureEntry; now: number; onAnalyze?: (home: string, away: string, sportKey?: string, odds?: { h: number; d: number; a: number }, liveScore?: { homeGoals: number; awayGoals: number; elapsed?: number }) => void }) {
+function MatchCard({ fx, now, onAnalyze }: { fx: FixtureEntry; now: number; onAnalyze?: (home: string, away: string, sportKey?: string, odds?: { h: number; d: number; a: number }, handicap?: { ah_line?: number | string; ah_home?: number; ah_away?: number; ou_line?: number | string; ou_over?: number; ou_under?: number }, liveScore?: { homeGoals: number; awayGoals: number; elapsed?: number }) => void }) {
   const { live, finished, pending, label } = stateOf(fx, now)
   // 比分必须双方都有有效数值才显示, 否则显示 vs (避免 0-0 误导)
   const hasScore = typeof fx.score_home === 'number' && typeof fx.score_away === 'number'
@@ -250,9 +282,15 @@ function MatchCard({ fx, now, onAnalyze }: { fx: FixtureEntry; now: number; onAn
           <button
             onClick={(e) => {
               e.stopPropagation()
+              const hasOU = fx.ou_line != null && fx.ou_over != null && fx.ou_under != null
+              const handicap = hasOU
+                ? { ou_line: fx.ou_line, ou_over: fx.ou_over, ou_under: fx.ou_under,
+                    ah_line: fx.ah_line ?? undefined, ah_home: fx.ah_home ?? undefined, ah_away: fx.ah_away ?? undefined }
+                : undefined
               onAnalyze(
                 fx.home, fx.away, fx.sport_key || fx.league,
                 { h: fx.odds_h as number, d: fx.odds_d as number, a: fx.odds_a as number },
+                handicap,
                 (typeof fx.score_home === 'number' && typeof fx.score_away === 'number')
                   ? { homeGoals: fx.score_home, awayGoals: fx.score_away, elapsed: typeof fx.match_minute === 'number' ? fx.match_minute : undefined }
                   : undefined
@@ -267,7 +305,7 @@ function MatchCard({ fx, now, onAnalyze }: { fx: FixtureEntry; now: number; onAn
 }
 
 // ═══ 主页面 ═══
-type FilterMode = 'all' | 'live' | 'today' | 'finished'
+type FilterMode = 'all' | 'live' | 'today' | 'finished' | 'upcoming'
 
 const MATCHES_CACHE_KEY = 'sx_ls_matches'
 const MATCHES_CACHE_TTL = 5 * 60_000
@@ -290,11 +328,11 @@ export default function LiveScoresPage() {
   const [error, setError] = useState('')
   const [updatedAt, setUpdatedAt] = useState<number | null>(null)
   const [now, setNow] = useState(() => Date.now())
-  const [filter, setFilter] = useState<FilterMode>('today')
+  const [filter, setFilter] = useState<FilterMode>('all')
   const [leagueFilter, setLeagueFilter] = useState<string>('')
-  const [analyze, setAnalyze] = useState<{ home: string; away: string; sportKey?: string; odds?: { h: number; d: number; a: number }; liveScore?: { homeGoals: number; awayGoals: number; elapsed?: number } } | null>(null)
-  const onAnalyze = useCallback((h: string, a: string, sportKey?: string, odds?: { h: number; d: number; a: number }, liveScore?: { homeGoals: number; awayGoals: number; elapsed?: number }) => {
-    setAnalyze({ home: h, away: a, sportKey, odds, liveScore })
+  const [analyze, setAnalyze] = useState<{ home: string; away: string; sportKey?: string; odds?: { h: number; d: number; a: number }; handicap?: { ah_line?: number | string; ah_home?: number; ah_away?: number; ou_line?: number | string; ou_over?: number; ou_under?: number }; liveScore?: { homeGoals: number; awayGoals: number; elapsed?: number } } | null>(null)
+  const onAnalyze = useCallback((h: string, a: string, sportKey?: string, odds?: { h: number; d: number; a: number }, handicap?: { ah_line?: number | string; ah_home?: number; ah_away?: number; ou_line?: number | string; ou_over?: number; ou_under?: number }, liveScore?: { homeGoals: number; awayGoals: number; elapsed?: number }) => {
+    setAnalyze({ home: h, away: a, sportKey, odds, handicap, liveScore })
   }, [])
 
   // 首次加载全量 (走 feed, 与联赛赛程页同源)
@@ -309,8 +347,8 @@ export default function LiveScoresPage() {
           if (lg.fixture_count > 0) leagues.push({ name: lg.name, sport_key: lg.sport_key })
         }
       }
-      // 并行抓取 (上限 20 个联赛, 与 LeagueSchedule 一致)
-      const toFetch = leagues.slice(0, 20)
+      // 并行抓取全部有赛程的联赛 (不再 slice(0,20), 否则 obscure 联赛的进行中/未开赛场永远进不来)
+      const toFetch = leagues
       const results = await Promise.all(toFetch.map(lg =>
         leagueScheduleService.getFixtures(lg.sport_key)
           .then(r2 => {
@@ -319,6 +357,35 @@ export default function LiveScoresPage() {
           }).catch(() => [] as FixtureEntry[])
       ))
       const all = results.flat().filter(f => !FAKE_LEAGUE.test(f.league || ''))
+      // ── 合并 /api/live-scores 的真实进行中比赛 ──
+      // feed 的 fixtures 对进行中比赛只给 match_state+分钟, 比分(score_home/away)为 NULL,
+      // 真实比分必须来自 /api/live-scores。这里把实时比分/分钟/状态 MERGE 进已存在的比赛
+      // (修正 feed 的 NULL 比分), 不在骨架里的才新增, 让"实时比分"页名副其实。
+      try {
+        const lr = await liveScoreService.getLiveMatches(8000)
+        const liveArr = (lr.data as any)?.data?.matches as any[] | undefined
+        if (liveArr && liveArr.length) {
+          const existMap = new Map(all.map(f => [`${f.home}|${f.away}`, f] as const))
+          for (const m of liveArr) {
+            if (!m || m.mststi == null) continue
+            const st = Number(m.mststi)
+            if (st < 1 || st >= 6) continue            // 只处理进行中(含中场), 避免污染赛程/异常态
+            const key = `${m.home}|${m.away}`
+            const ex = existMap.get(key)
+            if (ex) {
+              // 合并实时比分/分钟/状态 (feed 的 NULL 比分在此被修正)
+              if (m.score_home != null) ex.score_home = m.score_home
+              if (m.score_away != null) ex.score_away = m.score_away
+              if (m.match_minute != null) ex.match_minute = m.match_minute
+              ex.match_state = m.mststi
+              ex.score_inferred = m.score_inferred ?? ex.score_inferred
+            } else {
+              all.push(liveToFixture(m))
+              existMap.set(key, m)
+            }
+          }
+        }
+      } catch { /* 静默: 采集线程未运行时不影响主流程 */ }
       // 排序: 进行中置顶(state 降序) → 未开赛(开赛时间升序) → 已结束(开赛时间降序)
       all.sort((a, b) => {
         const sa = Number(a.match_state ?? 0), sb = Number(b.match_state ?? 0)
@@ -347,14 +414,13 @@ saveMatchesCache(all)
     return () => clearInterval(id)
   }, [fetchAll])
 
-  // 5s 轻量比分轮询: 只在有进行中比赛时, 走 /api/live-scores 合并最新比分
-  // (后台采集线程若没跑则返回空 → 静默跳过, 不影响主流程)
-  const liveKey = matches.some(f => stateOf(f, Date.now()).live)
+  // 5s 轻量比分轮询: 无条件运行, 走 /api/live-scores 合并最新比分
+  // (与联赛赛程页一致: 不依赖 liveKey 门控, 否则采集线程未跑/初始无 live 时永远不刷新)
+  // 后台采集线程若没跑则返回空 → 静默跳过, 不影响主流程。
   useEffect(() => {
-    if (!liveKey) return
     const id = setInterval(async () => {
       try {
-        const res = await liveScoreService.getLiveMatches(50)
+        const res = await liveScoreService.getLiveMatches(5000)
         const arr = (res.data as any)?.data?.matches as any[] | undefined
         if (!arr || arr.length === 0) return
         const key = (h: string, a: string) => `${h}|${a}`
@@ -362,22 +428,18 @@ saveMatchesCache(all)
         setMatches(prev => prev.map(f => {
           const m = map.get(key(f.home, f.away))
           if (!m) return f
+          // 仅比分/分钟/状态变化才更新: 赔率/盘口继续由30s全量fetchAll刷新,
+          // 避免 feed 缺字段时把 odds/ah/ou 覆盖成 None (回归防护)。
           if (f.score_home === m.score_home && f.score_away === m.score_away
-              && f.match_minute === m.match_minute) return f
+              && f.match_minute === m.match_minute && f.match_state === (m.mststi ?? f.match_state)) return f
           return { ...f, score_home: m.score_home, score_away: m.score_away,
                    match_minute: m.match_minute, match_state: m.mststi ?? f.match_state,
-                   odds_h: m.odds_h, odds_d: m.odds_d, odds_a: m.odds_a,
-                   opening_h: m.opening_h, opening_d: m.opening_d, opening_a: m.opening_a,
-                   ah_line: m.ah_line, ah_home: m.ah_home, ah_away: m.ah_away,
-                   ah_op_home: m.ah_op_home, ah_op_away: m.ah_op_away,
-                   ou_line: m.ou_line, ou_over: m.ou_over, ou_under: m.ou_under,
-                   ou_op_over: m.ou_op_over, ou_op_under: m.ou_op_under,
-                   score_inferred: m.score_inferred }
+                   score_inferred: m.score_inferred ?? f.score_inferred }
         }))
       } catch { /* 静默 */ }
     }, 5000)
     return () => clearInterval(id)
-  }, [liveKey])
+  }, [])
 
   // 1s 实时时钟 (倒计时/开赛同步)
   useEffect(() => {
@@ -411,13 +473,34 @@ saveMatchesCache(all)
     const { live, finished } = stateOf(f, now)
     if (filter === 'live' && !live) return false
     if (filter === 'finished' && !finished) return false
+    if (filter === 'upcoming' && (live || finished)) return false
     if (filter === 'today' && !live && !isToday(f.commence_time)) return false
     if (leagueFilter && (f.league || '其他') !== leagueFilter) return false
     return true
   }), [matches, filter, leagueFilter, now])
 
+  // 分组渲染: 仅 "全部"/"今日" 视图下把 进行中 / 未开赛 / 已结束 拆成独立区块
+  const groups = useMemo(() => {
+    if (filter !== 'all' && filter !== 'today') return null
+    const live: any[] = []
+    const upcoming: any[] = []
+    const finished: any[] = []
+    for (const f of visible) {
+      const s = stateOf(f, now)
+      if (s.live) live.push(f)
+      else if (s.finished) finished.push(f)
+      else upcoming.push(f)
+    }
+    return [
+      { key: 'live', title: '进行中', items: live },
+      { key: 'upcoming', title: '未开赛', items: upcoming },
+      { key: 'finished', title: '已结束', items: finished },
+    ]
+  }, [visible, filter, now])
+
   const liveCount = matches.filter(f => stateOf(f, now).live).length
   const finishedCount = matches.filter(f => stateOf(f, now).finished).length
+  const upcomingCount = matches.filter(f => { const s = stateOf(f, now); return !s.live && !s.finished }).length
   const todayCount = matches.filter(f => isToday(f.commence_time)).length
   const leagueCount = leagueOptions.length
 
@@ -451,6 +534,7 @@ saveMatchesCache(all)
           subtitle={`跨全部联赛 · 30s 刷新${updatedAt ? ` · ${new Date(updatedAt).toLocaleTimeString('zh-CN', { hour12: false })}` : ''}`}
           metrics={[
             { label: '进行中', value: liveCount, accent: 'field' },
+            { label: '未开赛', value: upcomingCount },
             { label: '今日', value: todayCount },
             { label: '已结束', value: finishedCount, accent: 'frost' },
           ]}
@@ -458,7 +542,7 @@ saveMatchesCache(all)
 
         {/* 状态过滤 chips + 时钟 */}
         <div className='flex items-center gap-1.5 mb-2'>
-          {([['today', '今日'], ['live', '进行中'], ['finished', '已结束'], ['all', '全部']] as [FilterMode, string][]).map(([key, label]) => (
+          {([['today', '今日'], ['live', '进行中'], ['upcoming', '未开赛'], ['finished', '已结束'], ['all', '全部']] as [FilterMode, string][]).map(([key, label]) => (
             <button
               key={key}
               onClick={() => setFilter(key)}
@@ -511,25 +595,46 @@ saveMatchesCache(all)
             <p className='text-[12px] text-ink-secondary'>
               {filter === 'live'
                 ? '当前没有进行中的比赛'
-                : filter === 'today'
-                  ? '今日暂无赛程'
-                  : filter === 'finished'
-                    ? '暂无已结束比赛数据'
-                    : '暂无比赛数据'}
+                : filter === 'upcoming'
+                  ? '暂无可查看的未开赛比赛'
+                  : filter === 'today'
+                    ? '今日暂无赛程'
+                    : filter === 'finished'
+                      ? '暂无已结束比赛数据'
+                      : '暂无比赛数据'}
             </p>
             <p className='text-[10px] text-ink-muted mt-1'>
               {filter === 'live'
                 ? '比赛开打后会自动出现在这里 · 可切换"今日"查看赛程'
-                : '切换其他筛选或稍后刷新'}
+                : filter === 'upcoming'
+                  ? '已开赛或已结束的比赛不显示在此筛选'
+                  : '切换其他筛选或稍后刷新'}
             </p>
           </div>
         ) : (
-          <>
-            <div className='text-[10px] text-ink-muted mb-2'>共 {visible.length} 场</div>
-            <div className='space-y-2'>
-              {visible.map(f => <MatchCard key={f.id || `${f.home}-${f.away}`} fx={f} now={now} onAnalyze={onAnalyze} />)}
+          groups ? (
+            <div className='space-y-4'>
+              {groups.map(g => g.items.length === 0 ? null : (
+                <section key={g.key}>
+                  <div className='flex items-center gap-2 mb-2'>
+                    <span className='text-[11px] font-bold text-ink-secondary'>{g.title}</span>
+                    <span className='text-[10px] text-ink-muted bg-surface-hover rounded px-1.5 py-0.5'>{g.items.length}</span>
+                    <span className='flex-1 h-px bg-surface-border' />
+                  </div>
+                  <div className='space-y-2'>
+                    {g.items.map(f => <MatchCard key={f.id || `${f.home}-${f.away}`} fx={f} now={now} onAnalyze={onAnalyze} />)}
+                  </div>
+                </section>
+              ))}
             </div>
-          </>
+          ) : (
+            <>
+              <div className='text-[10px] text-ink-muted mb-2'>共 {visible.length} 场</div>
+              <div className='space-y-2'>
+                {visible.map(f => <MatchCard key={f.id || `${f.home}-${f.away}`} fx={f} now={now} onAnalyze={onAnalyze} />)}
+              </div>
+            </>
+          )
         )}
         <div className='mt-6 text-[10px] text-ink-disabled text-center'>
           数据来自乐鱼/雷速实时接口 · 与联赛赛程同源 · 仅供分析参考, 非投注建议
@@ -538,7 +643,7 @@ saveMatchesCache(all)
       {analyze && (
         <MatchAnalysisModal
           home={analyze.home} away={analyze.away} sportKey={analyze.sportKey || 'soccer'}
-          odds={analyze.odds} liveScore={analyze.liveScore}
+          odds={analyze.odds} handicap={analyze.handicap} liveScore={analyze.liveScore}
           onClose={() => setAnalyze(null)}
         />
       )}

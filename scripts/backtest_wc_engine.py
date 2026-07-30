@@ -1,4 +1,4 @@
-"""v7.1 引擎 · 世界杯历史诚实回测
+"""v7.4 引擎 · 世界杯历史诚实回测
 对 wc_xlsx_matches (4届WC, 280场, 含真实赔率+比分) 跑 engine.predict,
 对比 模型准确率 vs 市场argmax(赔率隐含)基线.
 仅读取DB, 不写库. 输出准确率/平局指标/分届明细.
@@ -81,7 +81,7 @@ for edition, home, away, hg, ag, oh, od, oa, stage in rows:
         if pred == "D": e["dp"] += 1
 
 elapsed = time.time() - t0
-print(f"\n=== v7.1 引擎 WC 历史回测 (n={total}, 耗时{elapsed:.1f}s, predict失败={fails}) ===")
+print(f"\n=== v7.4 引擎 WC 历史回测 (n={total}, 耗时{elapsed:.1f}s, predict失败={fails}) ===")
 print(f"模型准确率 : {model_ok/total*100:.1f}%  ({model_ok}/{total})")
 print(f"市场argmax : {mkt_ok/total*100:.1f}%  ({mkt_ok}/{total})")
 print(f"平局真实数 : {draw_total} ({draw_total/total*100:.1f}%)")

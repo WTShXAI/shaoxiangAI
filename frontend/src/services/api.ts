@@ -31,11 +31,15 @@ if (!_BRIDGE_URL) {
 
 // 统一 axios 工厂 (所有客户端经此创建, 杜绝散落重复实例)
 function createClient(baseURL: string) {
+  // H4(2026-07-30): 若配置了 VITE_API_KEY 则注入 X-API-Key 头 (生产鉴权).
+  // 默认开发环境无此变量, 不注入, 保持兼容.
+  const apiKey = (import.meta as any).env?.VITE_API_KEY
   return axios.create({
     baseURL,
     timeout: 30000,
     headers: {
       'Content-Type': 'application/json',
+      ...(apiKey ? { 'X-API-Key': apiKey } : {}),
     },
   })
 }
@@ -81,7 +85,7 @@ export const matchResultService = {
 // ============================================
 export const liveScoreService = {
   /** 最近 180s 内更新的全部进行中比赛 (mststi>0), 含实时赔率 */
-  getLiveMatches: (limit: number = 50) =>
+  getLiveMatches: (limit: number = 5000) =>
     bridgeApi.get<ApiResponse<LiveScoresResponse>>('/api/live-scores', { params: { limit } }),
   /** 单场比分时序快照 (用于折线图/事件回放) */
   getScoreHistory: (mid: string, limit: number = 60) =>
@@ -183,4 +187,24 @@ export const terminalService = {
   /** HTTP 降级版赔率摄入 (浏览器插件 DOM 抓取 → 喂进 live_odds_raw) */
   ingest: (data: { home: string; away: string; source?: string; h: number; d: number; a: number; score?: string; minute?: number }) =>
     bridgeApi.post<ApiResponse<any>>('/api/terminal/ingest', data),
+}
+
+// ============================================
+// 概率排名编排器 — bridge_service:9000  /api/predict/ranked
+// 三市场 (1X2/OU/CS) 各自锚定操盘手赔率去水 → 跨市场按概率降序统一排名 (OU不特权)
+// 前端 MatchAnalysisModal 并行调用, 渲染"概率排名总览"面板 (analysis/markets/combined_top)
+// 仅取 home/away + 1X2 + OU; 操盘手CS赔率(op_cs)由后端自动从 GQ.db 回退
+// ============================================
+export const rankedService = {
+  predict: (home: string, away: string,
+            odds: { h: number; d: number; a: number },
+            handicap?: { ou_line?: number | string; ou_over?: number; ou_under?: number }) => {
+    const body: Record<string, any> = { home, away, oh: odds.h, od: odds.d, oa: odds.a }
+    if (handicap) {
+      if (handicap.ou_line != null && handicap.ou_line !== '') body.ou_line = Number(handicap.ou_line)
+      if (handicap.ou_over != null) body.over_water = handicap.ou_over
+      if (handicap.ou_under != null) body.under_water = handicap.ou_under
+    }
+    return bridgeApi.post<ApiResponse<any>>('/api/predict/ranked', body)
+  },
 }

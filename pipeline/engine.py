@@ -1,5 +1,5 @@
 """
-哨响AI v7.1 — 预测引擎抽象层
+哨响AI v7.4 — 预测引擎抽象层
 =============================
 按赛事类型分离:
   - wc: 世界杯引擎 (淘汰赛平局率高/小样本/屠杀/生死战/轮换)
@@ -58,7 +58,7 @@ class PredictionEngine(ABC):
     """预测引擎抽象基类"""
 
     name: str = "base"
-    version: str = "7.1.0"
+    version: str = "7.4.0"
     competition: str = "unknown"
 
     @abstractmethod
@@ -114,7 +114,7 @@ class WCEngine(PredictionEngine):
 
     @property
     def description(self) -> str:
-        return "哨响AI v7.1 WC引擎 (淘汰赛平局+屠杀预警+小样本保守+R3轮换)"
+        return "哨响AI v7.4 WC引擎 (淘汰赛平局+屠杀预警+小样本保守+R3轮换)"
 
     @property
     def features(self) -> dict:
@@ -164,7 +164,7 @@ class LeagueEngine(PredictionEngine):
 
     @property
     def description(self) -> str:
-        return "哨响AI v7.1 联赛引擎 (大样本+主场优势+联赛动机+高市场信任)"
+        return "哨响AI v7.4 联赛引擎 (大样本+主场优势+联赛动机+高市场信任)"
 
     @property
     def features(self) -> dict:

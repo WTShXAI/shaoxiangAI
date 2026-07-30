@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-将 cross_book_favorite_disagree 落成 v7.1 训练特征并验证边际价值.
+将 cross_book_favorite_disagree 落成 v7.4 训练特征并验证边际价值.
 严格时序切分: 仅用 pre-2019 双庄窗口(WH+IW 同场), train=2016 / test=2017-2018.
 目标: argmax_hit (共识/市场argmax是否命中赛果).
 对比: 基线9特征 vs +跨庄分歧特征, 看 AUC / Top-K ROI 增量.

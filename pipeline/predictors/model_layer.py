@@ -30,13 +30,14 @@ class ModelLayer:
         signals = []
         try:
             up = cls._get_predictor()
+            # 注(2026-07-30 修C1): 原调用传 asian_handicap/ou_line/over_water/under_water
+            #   四个 UnifiedPredictor.predict 不接受的关键字参数 → TypeError 被 except 捕获,
+            #   永远返回 MODEL_ERR 兜底(verdict='?'), 生产链路 v7.4 盘口锚定模型从未执行.
+            #   UnifiedPredictor 的盘口锚定走 1X2 去水(op)+可选开盘价(open_*)+跨庄(odds2_*)，
+            #   不需要亚盘/大小球水位参数, 故删除这 4 个非法 kwarg, 让核心模型真正跑通.
             result = up.predict(
                 home=match.home, away=match.away,
                 odds_h=match.odds_h, odds_d=match.odds_d, odds_a=match.odds_a,
-                asian_handicap=match.hcp,
-                ou_line=match.ou_line,
-                over_water=match.over_water,
-                under_water=match.under_water,
             )
 
             probs = result.get('probabilities', {})

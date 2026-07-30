@@ -22,11 +22,18 @@ from typing import Any, Dict, List, Tuple
 MAX_GOAL_DEFAULT = 8
 
 # OIP λ 全局缩放 (校准用) — 单一事实源 (SSoT)
-# WC: 1.35 修正OIP对世界杯总进球的系统性低估 (来源: wc_all_matches 313场 / wc_calibration.json,
-#     波胆top3 29.7%→34.4% +4.7pp)。仅WC生效。
+# WC: 1.35 修正OIP对世界杯总进球的系统性低估。仅WC生效。
+#     来源(2026-07-10, scripts/improve_cs_accuracy.py): wc_all_matches 313场(2014-2026四届),
+#     20×70/30 OOS(调参仅train/eval仅test), goal_scale 1.0→1.355 使 test集 top3 命中率
+#     29.68%→34.41% (+4.73pp, 物理直觉: OIP隐含总进球~2.4 vs WC实际~2.9, 放大λ灌质量到2-1/3-1/1-2)。
+#     独立复验(2026-07-25): n=70034 top3=34.46% 与校准值吻合。
+#     ⚠️ 注意: data/wc_calibration.json 是另一 88场 子集产物(base/calibrated top3 均=0.3182,
+#        该子集上 goal_scale 提升不显著), 与此 313场 test集 不冲突 — 两数据集不同。
+#     1X2 安全: goal_scale 仅缩放比分矩阵 λ/M, p_h/p_d/p_a 来自 deoverround 不受影响。
 # 通用联赛: 1.2 (来源: interwetten_odds 140,729行真实赛果 walkforward 校准, 2026-07-18:
 #     train 2016-2022 选参 gs=1.2→test 2023-2025 OOS top3=0.3441 vs 基线1.0的0.3378 +0.63pp,
-#     train→test 衰减仅0.3pp = 干净泛化, 非过拟合; ρ(Dixon-Coles)扫描确认对top3无影响, 不采用)。
+#     train→test 衰减仅0.3pp = 干净泛化, 非过拟合; ρ(Dixon-Coles)扫描确认对top3无影响, 不采用;
+#     ⚠️ 此数字目前仅在 .workbuddy/memory 记录, 无独立可一键复现脚本, 见 ARCHITECTURE.md §9)。
 WC_OIP_GOAL_SCALE = 1.35
 GENERAL_OIP_GOAL_SCALE = 1.2
 

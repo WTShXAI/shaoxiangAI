@@ -1,5 +1,5 @@
 """
-WC 模型重训管道 (双管齐下) — 哨响AI v7.1
+WC 模型重训管道 (双管齐下) — 哨响AI v7.4
 ============================================
 数据: matches league_name='世界杯' 且 final_result NOT NULL
   - 116 场有标签 (H55/D32/A29), 198 场有 match_features(84维)

@@ -115,7 +115,7 @@ export interface Prediction {
     secondary?: string
     direction?: string
   }
-  // ── WC校准 OU/让球建议 (v7.1 rules-layer 新增, 经 bridge /predict/single 透传) ──
+  // ── WC校准 OU/让球建议 (v7.4 rules-layer 新增, 经 bridge /predict/single 透传) ──
   /** WC实测校准大小球建议 */
   ou_recommend?: {
     recommend?: string
@@ -645,7 +645,7 @@ export interface TerminalDecisionCard {
   operator_signals?: {
     reversal_risk: number
     operator_reliability: number
-    direction: 'home' | 'draw' | 'away'
+    direction: 'home' | 'draw' | 'away' | 'none'
     drift_draw_down: boolean
     drift_significant: boolean
     favorite_flip: boolean

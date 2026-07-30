@@ -1,7 +1,7 @@
 /**
  * bridgeAdapter — 隔离 bridge / 预测引擎响应的易变字段 (E4 P0-8).
  *
- * 背景: bridge_service (v7.1 双引擎) 的响应含耦合引擎版本的稳定字段
+ * 背景: bridge_service (v7.4 双引擎) 的响应含耦合引擎版本的稳定字段
  * (consistency / hcp2_law_applied / p0_triggers / ou_recommend / hcp_recommend ...).
  * 这些字段随时可能因引擎升级而改名/缺省 → 若前端直接读取且引擎输出变动，
  * 会出现"静默崩溃"(UI 白屏/异常).

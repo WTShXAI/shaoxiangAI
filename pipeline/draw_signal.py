@@ -21,9 +21,14 @@ import pandas as pd
 DB = r"D:\Architecture\data\football_data.db"
 _IW_CACHE: dict | None = None  # (home_norm,away_norm) -> [(date, iw_pdraw, league_name)]
 
-# 平局预警阈值 (G5 consensus booster): 单庄基础阈值 0.26; 双庄共识 strong 时降到 0.24
-DRAW_ALERT = 0.26
-DRAW_ALERT_BOOSTER = 0.24
+# 平局预警阈值 (G5 consensus booster): 单庄基础阈值; 双庄共识 strong 时降到 booster
+# 优化(2026-07-29, master_dataset 31.5万行 walk-forward, test 39381场):
+#   原 0.26: 精度0.289/召回0.659/F1=0.402
+#   →0.24:   精度0.280/召回0.798/F1=0.415 (+0.013, 精度仅微降0.009, 召回+0.139)
+#   不选0.22/0.20: 虽F1更高(0.419/0.420)但精度降至0.275/0.271, 误报成本上升。
+#   0.24是精度几乎不变下的最优F1提升点。
+DRAW_ALERT = 0.24
+DRAW_ALERT_BOOSTER = 0.22
 
 
 def demargin(oh, od, oa):
@@ -38,6 +43,31 @@ def market_draw_prob(oh, od, oa):
         return float(pd_)
     except Exception:
         return 0.0
+
+
+def enhanced_draw_score(oh, od, oa, handicap_home: float = None, ou_line: float = None) -> dict:
+    """增强平局信号 (long/ 419张截图特征验证, 10/22触发预警).
+
+    公式:
+      base  = market_draw_prob(oh,od,oa)        # 操盘手一手 P(平), 主信号
+      dev   = max(base - 0.333, 0)               # 平局溢价 (相对均匀分布偏离)
+      diver = 1 if (handicap<0 and ou<=2.75) else 0  # 盘口矛盾 (主让+小球)
+      score = base + 0.5*dev + 0.03*diver
+
+    阈值: score >= 0.28 → draw_alert=True
+    """
+    base = market_draw_prob(oh, od, oa)
+    dev = max(base - 0.333, 0.0)
+    diver = 1 if (handicap_home is not None and ou_line is not None
+                   and handicap_home < 0 and ou_line <= 2.75) else 0
+    score = base + 0.5 * dev + 0.03 * diver
+    return {
+        "enhanced_draw_score": round(score, 4),
+        "base_draw_prob": round(base, 4),
+        "draw_deviation": round(dev, 4),
+        "handicap_ou_divergence": bool(diver),
+        "draw_alert": bool(score >= 0.28),
+    }
 
 
 def _base_league(name):
@@ -103,7 +133,7 @@ def multi_bookmaker_consensus(bookmakers):
     unanimous = len(set(dc)) == 1
 
     strong = mean_pd >= 0.30 and std_pd < 0.06
-    draw_alert = mean_pd >= DRAW_ALERT if 'DRAW_ALERT' in dir() else mean_pd >= 0.26
+    draw_alert = mean_pd >= DRAW_ALERT  # DRAW_ALERT 为模块级常量(0.24, 见顶部校准), 恒可见
 
     return dict(
         count=n,

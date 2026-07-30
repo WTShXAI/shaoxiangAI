@@ -1,7 +1,7 @@
 """
 哨响AI 独立桥接服务 (FootballAI Bridge)
 =========================================
-哨响AI v7.1 — 优化版规则流水线预测引擎 (DrawExpert + 17报告决策树)
+哨响AI v7.4 — 优化版规则流水线预测引擎 (DrawExpert + 17报告决策树)
 
 架构:
   bailongma 容器 ──HTTP──> :8000/predict ──> v7_rule_pipeline.predict()
@@ -60,7 +60,7 @@ except Exception as _gq_e:
     logger.warning(f"[analysis_cache] gq.db 加载失败, 复盘链路停用: {_gq_e}")
     _GQ_DB_OK = False
 
-# ── 加载核心引擎 (v7.1 双引擎: wc/league) ──
+# ── 加载核心引擎 (v7.4 双引擎: wc/league) ──
 _DEFAULT_ENGINE = os.getenv("ENGINE", "wc")
 ENGINE = None
 _ENGINE_REGISTRY: Dict[str, Any] = {}
@@ -228,10 +228,14 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# H7(2026-07-30): CORS 白名单而非 "*" — 防任意站点带凭证跨域请求.
+# 默认仅放行同源前端 (从 :9000 加载). 跨机部署设 CORS_ORIGINS 环境变量.
+_CORS_ORIGINS = [o.strip() for o in os.getenv(
+    "CORS_ORIGINS", "http://localhost:9000,http://127.0.0.1:9000").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_CORS_ORIGINS,
+    allow_credentials=(_CORS_ORIGINS != ["*"]),
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
@@ -269,19 +273,49 @@ async def rate_limit_middleware(request: Request, call_next):
         if not _rate_check(path, client_ip, limit):
             # 429 短路绕过 CORSMiddleware → 必须手工补 CORS 头,
             # 否则浏览器看到 "Access-Control-Allow-Origin 缺失" 会把 preflight 通过后的真实请求当成失败。
-            origin = request.headers.get("origin", "*")
+            origin = request.headers.get("origin", "")
+            echo_origin = origin if origin in _CORS_ORIGINS else (
+                _CORS_ORIGINS[0] if _CORS_ORIGINS and _CORS_ORIGINS != ["*"] else "*")
             req_headers = request.headers.get("access-control-request-headers", "")
             return JSONResponse(
                 status_code=429,
                 content={"success": False, "error": {"code": "rate_limit_exceeded", "message": "请求过于频繁, 请稍后再试"}},
                 headers={
-                    "Access-Control-Allow-Origin": origin,
-                    "Access-Control-Allow-Credentials": "true",
+                    "Access-Control-Allow-Origin": echo_origin,
+                    "Access-Control-Allow-Credentials": "true" if _CORS_ORIGINS != ["*"] else "false",
                     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
                     "Access-Control-Allow-Headers": req_headers or "*",
                     "Vary": "Origin",
                 },
             )
+    return await call_next(request)
+
+
+# ═══ API Key 鉴权中间件 (H4 2026-07-30) ═══
+# 仅当配置了 API_KEY 环境变量时才启用 (默认关闭, 保持单机私有部署兼容).
+# 写操作 (POST/PUT/DELETE/PATCH 到 /api/*) 必须带 X-API-Key 头且匹配, 否则 401.
+# 前端 api.ts 已支持从 VITE_API_KEY 注入该头. 生产部署设 API_KEY + 前端 VITE_API_KEY 即可收紧.
+@app.middleware("http")
+async def api_key_middleware(request: Request, call_next):
+    api_key = os.getenv("API_KEY", "")
+    if api_key:
+        path = request.url.path
+        is_write = request.method in ("POST", "PUT", "DELETE", "PATCH")
+        if path.startswith("/api") and is_write:
+            provided = request.headers.get("X-API-Key", "")
+            if provided != api_key:
+                origin = request.headers.get("origin", "")
+                echo_origin = origin if origin in _CORS_ORIGINS else (
+                    _CORS_ORIGINS[0] if _CORS_ORIGINS and _CORS_ORIGINS != ["*"] else "*")
+                return JSONResponse(
+                    status_code=401,
+                    content={"success": False, "error": {"code": "unauthorized", "message": "缺少有效的 X-API-Key"}},
+                    headers={
+                        "Access-Control-Allow-Origin": echo_origin,
+                        "Access-Control-Allow-Credentials": "true" if _CORS_ORIGINS != ["*"] else "false",
+                        "Vary": "Origin",
+                    },
+                )
     return await call_next(request)
 
 
@@ -300,10 +334,8 @@ async def _unhandled_exc_handler(request: Request, exc: Exception):
 
 @app.exception_handler(ValueError)
 async def _value_error_handler(request: Request, exc: ValueError):
-    err_str = str(exc)
-    if "numpy" in err_str.lower():
-        logger.warning(f"[numpy-safe] ValueError吞掉: {exc}")
-        return JSONResponse(status_code=200, content={"success": True, "data": None, "error": "numpy序列化降级"})
+    # 修H1(2026-07-30): 删除 numpy 特例 — 它把任何含"numpy"的真实业务 ValueError 吞成 200 success:None,
+    # 导致前端静默失败. numpy 序列化降级应在序列化层(NumPyJSONResponse)处理, 不应在异常处理器.
     return await _unhandled_exc_handler(request, exc)
 
 @app.exception_handler(StarletteHTTPException)
@@ -662,7 +694,19 @@ app.add_middleware(APIV1CompatMiddleware)
 
 # ── 前端静态文件 (SPA路由回退) — 必须在CORS和API中间件之后 ──
 #  注意: 前端 dist 不存在时跳过, 服务退化为纯 API 模式
+from fastapi import Request
 from fastapi.staticfiles import StaticFiles
+
+
+# SPA 缓存策略: 带 content-hash 的构建产物(/assets) → 永久缓存(文件名变即新文件);
+# index.html 不缓存(no-cache), 保证每次导航都向服务器验证, 避免旧版SPA残留导致的"前端信息滞后"。
+@app.middleware("http")
+async def _static_cache_policy(request: Request, call_next):
+    resp = await call_next(request)
+    if request.url.path.startswith("/assets/"):
+        resp.headers.setdefault("Cache-Control", "public, max-age=31536000, immutable")
+    return resp
+
 
 FRONTEND_DIR = os.path.join(PROJECT_ROOT, "frontend", "dist")
 ASSETS_DIR = os.path.join(FRONTEND_DIR, "assets")
@@ -735,11 +779,12 @@ async def _daily_odds_loop():
                     logger.warning(f"[飞轮] ⚠️ API配额低: {stats['remaining_quota']}")
         except Exception as e:
             logger.error(f"[飞轮] 每日赔率拉取失败(非致命): {e}")
-        # 等到明天凌晨00:05
+        # 等到明天凌晨00:05 (用 timedelta 跨月/跨年安全, 避免 day=now.day+1 在月末越界)
         now = datetime.now()
         target = now.replace(hour=0, minute=5, second=0, microsecond=0)
         if target <= now:
-            target = target.replace(day=now.day + 1)
+            from datetime import timedelta
+            target = (now + timedelta(days=1)).replace(hour=0, minute=5, second=0, microsecond=0)
         wait_sec = (target - now).total_seconds()
         logger.info(f"[飞轮] 下次赔率拉取: {target.isoformat()} (~{wait_sec//3600:.0f}h)")
         await asyncio.sleep(wait_sec)
@@ -904,10 +949,10 @@ async def root():
     index_path = os.path.join(FRONTEND_DIR, "index.html")
     if os.path.exists(index_path):
         from fastapi.responses import FileResponse
-        return FileResponse(index_path)
+        return FileResponse(index_path, headers={"Cache-Control": "no-cache"})
     return {
         "service": "FootballAI Bridge",
-        "version": "7.0.0",
+        "version": "7.4.0",
         "engine": ENGINE.description if ENGINE else "未加载",
         "engine_loaded": ENGINE is not None,
         "endpoints": {
@@ -1220,7 +1265,7 @@ async def predict_single(req: SinglePredictRequest):
         pred_code = "D"
     else:
         pred_code = "H"
-    # 推导模型概率 (pH, pD, pA) — v7.1-opt 使用 v7_rule 链
+    # 推导模型概率 (pH, pD, pA) — v7.4-opt 使用 v7_rule 链
     v7_chain = raw.get("chains", {}).get("v7_rule", {})
     model_verdict = v7_chain.get("verdict", raw.get("v7_raw", {}).get("prediction", "?"))
     draw_prob = raw.get("v7_raw", {}).get("market_probs", {}).get("D", 0.30)
@@ -1244,6 +1289,15 @@ async def predict_single(req: SinglePredictRequest):
         pH = 1 - pA - pD
     else:  # 未知: 使用赔率隐含概率
         pH, pD, pA = imp_h, imp_d, imp_a
+
+    # 修H5(2026-07-30): 高平局概率下 pH/pA 可能为负且不归一(如 draw_prob=0.7 → pH=1-0.4-0.7=-0.1).
+    # 这里 clamp 到 [0,1] 后重新归一化, 保证概率合法且和为 1.
+    pH = max(0.0, min(1.0, pH))
+    pD = max(0.0, min(1.0, pD))
+    pA = max(0.0, min(1.0, pA))
+    _p_sum = pH + pD + pA
+    if _p_sum > 0:
+        pH, pD, pA = pH / _p_sum, pD / _p_sum, pA / _p_sum
 
     # 安全解析 best_score (格式 "2-0", 容错无横杠/非数字/缺字段)
     _sc = fv.get("best_score") or "0-0"
@@ -1278,7 +1332,7 @@ async def predict_single(req: SinglePredictRequest):
                           [{"score": s, "prob": 0.15, "outcome": pred_code} for s in fv.get("alt_scores", [])],
         },
         "confidence": fv.get("confidence", 0),
-        "prediction_mode": "哨响AI-v7.1-opt+DrawExpert",
+        "prediction_mode": "哨响AI-v7.4-opt+DrawExpert",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "analysis": f"{primary}+{secondary}" if secondary else primary,
         # ── P0修复新增字段 ──
@@ -1291,7 +1345,7 @@ async def predict_single(req: SinglePredictRequest):
         "dgate_result": raw.get("dgate_result"),
         "ou_linkage": ou_link,
         "taoge_strategy": raw.get("taoge_strategy"),
-        # ── WC校准 OU/让球建议 (v7.1 rules-layer 新增) ──
+        # ── WC校准 OU/让球建议 (v7.4 rules-layer 新增) ──
         "ou_recommend": raw.get("v7_raw", {}).get("ou_recommend"),
         "hcp_recommend": raw.get("v7_raw", {}).get("hcp_recommend"),
         # Phase A: ReverseOddsEngine 赔率逆向分析
@@ -1960,7 +2014,13 @@ def _live_predict(home, away, oh, od, oa,
             H, A = int(home_goals), int(away_goals)
             # 剩余时间比例: 默认90分钟全场; elapsed<=0 或 >=90 时不缩放
             _elapsed = int(elapsed) if elapsed is not None else None
-            T_ratio = max(0.05, (90.0 - _elapsed) / 90.0) if (_elapsed and 0 < _elapsed < 90) else 1.0
+            # 剩余时间: >=90 时最多3分钟伤停补时; <90 时按比例; 补时比例极小
+            if _elapsed and _elapsed >= 90:
+                T_ratio = max(0.01, (93.0 - _elapsed) / 90.0)  # 补时最多3分钟
+            elif _elapsed and 0 < _elapsed < 90:
+                T_ratio = max(0.05, (90.0 - _elapsed) / 90.0)
+            else:
+                T_ratio = 1.0
             # 原始 λ (OIP 模型输出; obscure 联赛可能无 lh/la → 取默认值)
             _lam_h = float(r.get("lh", 1.2) or 1.2)
             _lam_a = float(r.get("la", 0.9) or 0.9)
@@ -2004,6 +2064,32 @@ def _live_predict(home, away, oh, od, oa,
     ov15 = float(sum(M[i, j] for i in range(mg + 1) for j in range(mg + 1) if i + j >= 2))
     ov35 = float(sum(M[i, j] for i in range(mg + 1) for j in range(mg + 1) if i + j >= 4))
     flat = M.flatten()
+
+    # ── 终场冻结(elapsed>=88): 抑制所有多球比分, 当前比分≈终局 ──
+    _hg = int(home_goals) if home_goals is not None else None
+    _ag = int(away_goals) if away_goals is not None else None
+    _el = int(elapsed) if elapsed is not None else 0
+    if _hg is not None and _ag is not None and _el >= 88:
+        flat = flat.copy()
+        _T = max(0.02, (93 - _el) / 90.0)
+        remain_chance = _T * 0.25
+        for i in range(mg + 1):
+            for j in range(mg + 1):
+                if i < _hg or j < _ag:
+                    # 分数不可能倒退
+                    flat[i * (mg + 1) + j] = 0.0
+                    continue
+                goals_needed = (i - _hg) + (j - _ag)
+                if goals_needed == 0:
+                    flat[i * (mg + 1) + j] = 0.94
+                elif goals_needed == 1:
+                    flat[i * (mg + 1) + j] *= remain_chance
+                else:
+                    flat[i * (mg + 1) + j] *= 0.0005
+        total = flat.sum()
+        if total > 0:
+            flat = flat / total
+
     order = np.argsort(-flat)[:5]
     top3 = [tuple(int(x) for x in divmod(int(k), mg + 1)) for k in order[:3]]
     top3_prob = [float(flat[k]) for k in order[:3]]
@@ -2237,7 +2323,13 @@ def _live_predict(home, away, oh, od, oa,
     }]
     hcp_ok = bool(handicap) and not handicap.get("error")
     if draw_alert:
-        op_rules.append({"id":"R2","label":"防平预警","detail":f"P(平)={round(m_pd*100,1)}% ≥ 26% → 需防平局","rule":"P(平)≥26%触发防平","color":"amber"})
+        # 修(2026-07-29): 文案阈值跟随 DRAW_ALERT 常量(现0.24), 原硬编码26%与新阈值矛盾
+        try:
+            from pipeline.draw_signal import DRAW_ALERT as _DA
+        except Exception:
+            _DA = 0.24
+        _da_pct = round(_DA * 100)
+        op_rules.append({"id":"R2","label":"防平预警","detail":f"P(平)={round(m_pd*100,1)}% ≥ {_da_pct}% → 需防平局","rule":f"P(平)≥{_da_pct}%触发防平","color":"amber"})
     if hcp_ok and handicap.get("consistent_with_x12") is False:
         op_rules.append({"id":"R3","label":"分歧盘:信1X2弃亚盘","detail":"亚盘与1X2反向, 历史验证1X2命中68%/亚盘10% → 亚盘当噪声","rule":"分歧盘一律信1X2","color":"amber"})
     if hcp_ok and handicap.get("depth_color")=="deep":
@@ -2602,8 +2694,11 @@ def _persist_bet_record(home, away, value_layer, oh, od, oa,
                 break
         predicted = best if best != "PASS" else None
         confidence = max(mod) if mod else 0.0
+        # 修(2026-07-30 体检): 幂等唯一索引, 防同场重预测插重复行污染 ROI/回撤统计
+        cur.execute("""CREATE UNIQUE INDEX IF NOT EXISTS uq_bet_records
+                       ON bet_records(home_team, away_team, match_date, bet_type, source)""")
         cur.execute(
-            """INSERT INTO bet_records
+            """INSERT OR IGNORE INTO bet_records
                (match_id, home_team, away_team, league, match_date, bet_type, source,
                 predicted_result, verdict_text, confidence,
                 home_prob, draw_prob, away_prob,
@@ -2748,6 +2843,58 @@ async def predict_live_api(req: LivePredictRequest):
     except Exception as e:
         logger.error(f"实时预测失败: {e}", exc_info=True)
         return _wrap_data({"error": f"预测失败: {e}"})
+
+
+def _lookup_op_cs(home: str, away: str):
+    """从 data/GQ.db match_outcomes 按 home/away 查最新一场的 op_cs (操盘手CS赔率 JSON 串).
+    前端不持有操盘手CS赔率, 后端自动回退查库; 查不到返回 None (ranked_predictor 降级纯OIP)."""
+    try:
+        import sqlite3, os
+        db = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "GQ.db")
+        if not os.path.exists(db):
+            return None
+        con = sqlite3.connect(db)
+        cur = con.cursor()
+        cur.execute(
+            "SELECT op_cs FROM match_outcomes WHERE home=? AND away=? AND op_cs IS NOT NULL "
+            "ORDER BY rowid DESC LIMIT 1",
+            (home, away),
+        )
+        row = cur.fetchone()
+        con.close()
+        return row[0] if row else None
+    except Exception:
+        return None
+
+
+class RankedPredictRequest(BaseModel):
+    """概率排名编排器请求 (已接前端 MatchAnalysisModal)."""
+    home: str
+    away: str
+    oh: float
+    od: float
+    oa: float
+    ou_line: Optional[float] = None
+    over_water: Optional[float] = None
+    under_water: Optional[float] = None
+    op_cs: Optional[str] = None  # JSON 串 [['1-1',8.3],...]; 缺省后端自动从 GQ.db 回退
+
+
+@app.post("/api/predict/ranked")
+async def predict_ranked_api(req: RankedPredictRequest):
+    """概率排名编排器 — 三市场去水锚定 + 跨市场统一排名 (OU不特权). 已接前端 MatchAnalysisModal."""
+    try:
+        from pipeline.ranked_predictor import predict as ranked_predict, to_api_contract
+        op_cs = req.op_cs
+        if not op_cs:
+            op_cs = _lookup_op_cs(req.home, req.away)
+        r = ranked_predict(req.home, req.away, req.oh, req.od, req.oa,
+                           ou_line=req.ou_line, ou_over=req.over_water, ou_under=req.under_water,
+                           op_cs=op_cs)
+        return _wrap_data(to_api_contract(r))
+    except Exception as e:
+        logger.error(f"概率排名预测失败: {e}", exc_info=True)
+        return _wrap_data({"error": f"概率排名预测失败: {e}"})
 
 
 @app.get("/api/live/wc")
@@ -2933,7 +3080,7 @@ async def analysis_export_api(date: str = "", league: str = "",
 # 全局 feed 缓存: league_name -> [FixtureEntry], TTL 60s
 _LEISU_FEED_CACHE: Dict[str, Any] = {"fetched_at": 0.0, "data": None}
 _LEISU_FEED_LOCK = None
-LEISU_FEED_TTL = int(os.getenv("LEISU_FEED_TTL", "60"))
+LEISU_FEED_TTL = int(os.getenv("LEISU_FEED_TTL", "20"))
 
 
 async def _get_leisu_feed() -> Dict[str, Any]:
@@ -2951,7 +3098,10 @@ async def _get_leisu_feed() -> Dict[str, Any]:
             return cached
         from pipeline.collectors.leisu_live import build_feed
         try:
-            data = await asyncio.to_thread(build_feed)
+            # 隔离 leisu 源偶发阻塞(MuMu离线/页面卡): 超过 10s 直接放弃, 立即回退 GQ 兜底, 不再卡死实时端点
+            data = await asyncio.wait_for(asyncio.to_thread(build_feed), timeout=10)
+        except asyncio.TimeoutError:
+            data = {"error": "feed 构建超时(leisu源阻塞>10s), 回退GQ", "leagues": {}}
         except Exception as e:
             data = {"error": f"feed 构建失败: {e}", "leagues": {}}
         _LEISU_FEED_CACHE = {"fetched_at": time.time(), "data": data}
@@ -2968,7 +3118,7 @@ def _gq_feed_fallback() -> Dict[str, Any]:
     global _GQ_FB_CACHE, _GQ_FB_TIME
     import time as _t
     now = _t.time()
-    if _GQ_FB_CACHE is not None and (now - _GQ_FB_TIME) < 60:
+    if _GQ_FB_CACHE is not None and (now - _GQ_FB_TIME) < 15:
         return _GQ_FB_CACHE
     data = _gq_build_feed()
     _GQ_FB_CACHE = data
@@ -2983,15 +3133,20 @@ def _gq_build_feed() -> Dict[str, Any]:
             return {"error": "GQ.db 不存在", "leagues": {}}
         c = sqlite3.connect(db); c.row_factory = sqlite3.Row
         rows = c.execute("""
-            SELECT match_key, home, away, league, kickoff, status,
-                   score_home, score_away, minute, mid
-            FROM matches
-            WHERE league NOT LIKE 'VS-%'   -- 排除电竞模拟盘
-              AND league NOT LIKE '%瓦尔哈拉%'  -- 8分钟虚拟杯
-              AND league NOT LIKE '%瓦尔基里%'
-              AND league NOT LIKE '%梦幻对垒%'
-              AND league NOT LIKE '%8分钟%'
-            ORDER BY last_seen DESC
+            SELECT m.match_key, m.home, m.away, m.league, m.kickoff, m.status,
+                   m.score_home, m.score_away, m.minute, m.mid,
+                   o.mid AS outcome_mid
+            FROM matches m
+            LEFT JOIN match_outcomes o ON m.mid = o.mid
+            WHERE m.league NOT LIKE 'VS-%'   -- 排除电竞模拟盘
+              AND m.league NOT LIKE '%瓦尔哈拉%'  -- 8分钟虚拟杯
+              AND m.league NOT LIKE '%瓦尔基里%'
+              AND m.league NOT LIKE '%梦幻对垒%'
+              AND m.league NOT LIKE '%8分钟%'
+              -- 僵尸清理(P0): status='live' 但 last_seen 超 3h 未更新(采集器每180s刷一次,
+              -- 真进行中必在3min内) → 视为已结束/不进入实时feed; 避免07-18起的1437场僵尸淹没有效比赛
+              AND (m.status != 'live' OR m.last_seen >= strftime('%s','now','-3 hours'))
+            ORDER BY m.last_seen DESC
         """).fetchall()
         leagues: Dict[str, list] = {}
         for r in rows:
@@ -2999,7 +3154,11 @@ def _gq_build_feed() -> Dict[str, Any]:
             if not lg:
                 continue
             st = r["status"]
-            ms = -1 if st == "finished" else 1 if st == "live" else 0
+            # 僵尸二次判定: 标 live 但 match_outcomes 已有终场比分 → 实际已结束, 不显示进行中
+            if st == "live" and r["outcome_mid"]:
+                ms = -1
+            else:
+                ms = -1 if st == "finished" else 1 if st == "live" else 0
             ko = (r["kickoff"] or "").strip()
             iso = ""
             if ko:
@@ -3366,12 +3525,15 @@ async def league_fixtures_api(sport_key: str):
             if not mk: continue
             db_sh = f.get("score_home") if isinstance(f.get("score_home"), int) else 0
             db_sa = f.get("score_away") if isinstance(f.get("score_away"), int) else 0
-            drift_g = _gq_drift_infer_goals(mk)
+            drift_g = _gq_drift_infer_goals(mk, f.get("league"))
             if drift_g:
-                f["score_home"] = max(db_sh, drift_g[0])
-                f["score_away"] = max(db_sa, drift_g[1])
-                if (f["score_home"], f["score_away"]) != (db_sh, db_sa):
-                    f["score_inferred"] = True
+                # 漂移推断只作「DB无真实比分(0-0)」时的兜底补充, 绝不覆盖已有真实分
+                if db_sh == 0 and db_sa == 0:
+                    f["score_home"] = drift_g[0]
+                    f["score_away"] = drift_g[1]
+                    if (f["score_home"], f["score_away"]) != (db_sh, db_sa):
+                        f["score_inferred"] = True
+                # 否则: DB已有真实比分(1-0等) → 信任DB, 不覆盖
         except Exception:
             pass
     # 为每场比赛附加初始快照 + 漂移 (Req2), 并自动记录已结束赛果 (Req3)
@@ -3437,20 +3599,47 @@ async def water_signals_api(limit: int = 30, min_delta_pct: float = 1.0):
 
 # ═══ 跨庄软线偏离信号 (真 edge 源: 多机构赔率 consensus 偏离检测) ═══
 @app.get("/api/cross-book/signals")
-async def cross_book_signals_api(limit: int = 50, min_spread_pp: float = 3.0):
-    """跨庄软线信号 — 多机构 OCR 赔率逐庄去水, 共识偏离 ≥ min_spread_pp 标记.
+async def cross_book_signals_api(limit: int = 50, min_spread_pp: float = 3.0,
+                                 source: str = "long_images",
+                                 min_severity: str = "any",
+                                 actionable_only: bool = False,
+                                 market: str = "1X2"):
+    """跨庄软线信号 — 多机构赔率逐庄去水, 共识偏离 ≥ min_spread_pp 标记.
 
-    数据源: data/long_images.db.cross_book_odds (OCR 截图, obscure 联赛)
+    数据源:
+      - long_images: data/long_images.db.cross_book_odds (OCR 截图, obscure 联赛)
+      - leisu:       data/football_data.db.leisu_odds (雷速多庄实时源, 真 edge 主源)
+    min_severity: any/LOW/MED/HIGH — 仅返回达到该严重度的场次.
+    actionable_only: 只返回 gate 结果(scan_actionable, 默认仅 HIGH≥15pp 放注级可下注).
+    market: 1X2 / OU / AH — 检测市场(仅 source=leisu 生效; long_images 仅 1X2).
     """
     try:
-        from pipeline.cross_book_edge import analyze_all, to_report
-        edges = analyze_all()
-        report = to_report(edges)
+        from pipeline.cross_book_edge import (
+            analyze_all, to_report, analyze_all_leisu, to_report_leisu,
+            scan_actionable,
+        )
+        if source == "leisu":
+            edges = analyze_all_leisu(market=market)
+            report = to_report_leisu(edges, with_actionable=True)
+        else:
+            edges = analyze_all(market="1X2")
+            report = to_report(edges, with_actionable=True)
+        # gate: 仅 HIGH(≥15pp) 放注级可下注
+        if actionable_only:
+            scan = scan_actionable(edges, min_severity="HIGH")
+            return _wrap_data({"source": source, "market": market, "actionable": scan,
+                               "n_actionable": len(scan)})
         # 按 max_spread_pp 筛选
         report["matches"] = [m for m in report["matches"] if m["max_spread_pp"] >= min_spread_pp]
+        if min_severity != "any":
+            report["matches"] = [m for m in report["matches"]
+                                 if m.get("severity") == min_severity]
         if limit and len(report["matches"]) > limit:
             report["matches"] = report["matches"][:limit]
         report["filter_min_spread_pp"] = min_spread_pp
+        report["filter_min_severity"] = min_severity
+        report["source"] = source
+        report["market"] = market
         return _wrap_data(report)
     except Exception as e:
         return _wrap_data({"error": str(e), "matches": [], "n_matches": 0})
@@ -3570,10 +3759,14 @@ def _get_operator_signals(home: str, away: str,
         if os.path.exists(db):
             conn = sqlite3.connect(db); conn.row_factory = sqlite3.Row
             odds = conn.execute("""
-                SELECT selection, MIN(odds) as first_odds FROM odds_snapshots
-                WHERE match_key IN (SELECT match_key FROM matches WHERE home LIKE ? AND away LIKE ?)
-                  AND market='1X2'
-                GROUP BY selection
+                SELECT s.selection, s.odds as first_odds
+                FROM odds_snapshots s
+                JOIN (SELECT match_key, selection, MIN(captured_at) as earliest
+                      FROM odds_snapshots WHERE market='1X2' GROUP BY match_key, selection) e
+                  ON s.match_key=e.match_key AND s.selection=e.selection
+                 AND s.captured_at=e.earliest
+                WHERE s.match_key IN (SELECT match_key FROM matches WHERE home LIKE ? AND away LIKE ?)
+                  AND s.market='1X2'
             """, (f"%{home}%", f"%{away}%")).fetchall()
             od_map = {row['selection']: row['first_odds'] for row in odds}
             conn.close()
@@ -3716,13 +3909,23 @@ def _gq_best_ah_ou(match_keys):
     return {k: _GQ_AHOU_CACHE.get(k) for k in match_keys if _GQ_AHOU_CACHE.get(k)}
 
 
-def _gq_drift_infer_goals(match_key):
+def _gq_drift_infer_goals(match_key, league=None):
     """用 1X2 odds 漂移检测进球 (初盘假定为 0:0 状态).
 
-    阈值: 主客赔率反向移动 >25% 判定单方进球 1 球; >45% 视为 2 球.
-    阈值依据: 进球后让球盘/1X2 赔率通常漂移 30-50%; 保守阈值避免误判.
+    1球门槛: 主客赔率反向移动 >35% (单方大跌+另一方大涨).
+    2球门槛(2026-07-30 收紧): 大跌方 >50% 且 大涨方 >+100% (即非得分方赔率翻倍+) 才判2球.
+      仅用单一阈值(原-0.55)会把"深盘一边倒"误判成2球; 加 +100% 守卫可区分"真屠杀"与"市场正常偏向".
+    阈值依据: 进球后1X2赔率通常漂移 40-60%; 2球屠杀场非得分方赔率可涨数倍.
+    修BUG#2(2026-07-29): 原25%阈值过低, 友谊赛/表演赛开盘→临场正常漂移25%+被误判进球.
+      - 友谊赛/表演赛/热身赛禁用drift推断(赔率波动无规律)
+      - 阈值从25%/45%提高到35%剔除噪声; 2球再加 +100% 守卫防误判
+    修BUG#3(2026-07-30): 删除交叉误判(客队进球时主队赔率大涨被当成主队进球→凭空塞球).
+    实测: 国防2-0大胜列斯特拉, 主赔-53.7%/客赔+1030% → 旧-0.55阈值判1球, 新-0.50+da>1.0守卫判2球.
     Returns (goals_home, goals_away) 或 None.
     """
+    # 友谊赛/表演赛/热身赛: 赔率波动大且无规律, 禁用drift推断
+    if league and any(k in str(league) for k in ("友谊", "表演", "热身", "Friend", "friendly")):
+        return None
     try:
         import sqlite3, os
         db = os.path.join(PROJECT_ROOT, "data", "GQ.db")
@@ -3750,14 +3953,16 @@ def _gq_drift_infer_goals(match_key):
         dh = (last['home'] - first['home']) / first['home']
         da = (last['away'] - first['away']) / first['away']
         inf_h = inf_a = 0
-        # 客队进球: away 跌 + home 涨
-        if da < -0.25 and dh > 0.25:
-            inf_a = 2 if da < -0.45 else 1
-            if dh > 0.45: inf_h = max(inf_h, 1)
+        # 客队进球: away 跌 + home 涨 (1球门槛35%; 2球需 away大跌<-0.50 且 主队赔率暴涨>+100%)
+        # 注(2026-07-30 修BUG): 原 if dh>0.55: inf_h+=1 已删除 — 客队进球时主队大涨只是市场反应,
+        #   不代表主队进球. 同理主队分支删 if da>0.55: inf_a+=1. 否则大胜场会凭空捏造非得分方进球
+        #   (实测: 国防2-0大胜列斯特拉, 客赔+1030%被误判成客队1球→前端显示1-1).
+        #   2球守卫 da>1.0/dh>1.0: 仅当非得分方赔率翻倍+才认2球, 避免深盘一边倒被误判成屠杀.
+        if da < -0.35 and dh > 0.35:
+            inf_a = 2 if (da < -0.50 and dh > 1.0) else 1
         # 主队进球: home 跌 + away 涨
-        elif dh < -0.25 and da > 0.25:
-            inf_h = 2 if dh < -0.45 else 1
-            if da > 0.45: inf_a = max(inf_a, 1)
+        elif dh < -0.35 and da > 0.35:
+            inf_h = 2 if (dh < -0.50 and da > 1.0) else 1
         else:
             return None
         return (inf_h, inf_a)
@@ -3780,14 +3985,17 @@ def _gq_live_scores(limit: int = 50):
         if not os.path.exists(db):
             return []
         c = sqlite3.connect(db); c.row_factory = sqlite3.Row
+        import time as _time
+        cutoff = _time.time() - 10800  # 修BUG#3: 4h→3h(含中场+补时+缓冲, 超过基本已结束)
         rows = c.execute("""
             SELECT match_key, home, away, league, kickoff, status,
                    score_home, score_away, minute, mid, last_seen
             FROM matches
             WHERE league NOT LIKE 'VS-%' AND status='live'
+              AND last_seen > ?
             ORDER BY last_seen DESC
             LIMIT ?
-        """, (max(int(limit), 300),)).fetchall()
+        """, (cutoff, max(int(limit), 300))).fetchall()
         keys = [r['match_key'] for r in rows]
         odds_map = {}
         if keys:
@@ -3811,23 +4019,39 @@ def _gq_live_scores(limit: int = 50):
             # Drift 推断比分 (弥补 leyu 上游 msc 滞后). 取 max 防止误判退步.
             db_sh = r['score_home'] if isinstance(r['score_home'], int) else 0
             db_sa = r['score_away'] if isinstance(r['score_away'], int) else 0
-            drift_g = _gq_drift_infer_goals(mk)
+            drift_g = _gq_drift_infer_goals(mk, r['league'])
             score_inferred = False
             if drift_g:
-                final_sh = max(db_sh, drift_g[0])
-                final_sa = max(db_sa, drift_g[1])
-                score_inferred = (final_sh, final_sa) != (db_sh, db_sa)
+                # 漂移推断只作「DB无真实比分(0-0)」时的兜底补充, 绝不覆盖已有真实分
+                if db_sh == 0 and db_sa == 0:
+                    final_sh, final_sa = drift_g[0], drift_g[1]
+                    score_inferred = (final_sh, final_sa) != (db_sh, db_sa)
+                else:
+                    final_sh, final_sa = db_sh, db_sa
             else:
                 final_sh, final_sa = db_sh, db_sa
+            # 修BUG#3: 不硬编码mststi=1. 用status+kickoff时间动态判定:
+            # status=finished→已结束; 否则按kickoff距今>130min兜底为已结束
+            import time as _t2
+            _is_finished = (r['status'] == 'finished')
+            if not _is_finished and ko:
+                try:
+                    from datetime import datetime
+                    ko_dt = datetime.fromisoformat(iso.replace('Z',''))
+                    if (_t2.time() - ko_dt.timestamp()) / 60 > 130:
+                        _is_finished = True
+                except Exception:
+                    pass
+            _mstate = -1 if _is_finished else 1
             out.append({
                 "mid": mk, "home": r['home'], "away": r['away'], "league": r['league'],
-                "mststi": 1, "match_state": 1,
+                "mststi": _mstate, "match_state": _mstate,
                 "score_home": final_sh, "score_away": final_sa,
                 "score_inferred": score_inferred,
                 "match_minute": r['minute'] if r['minute'] else "",
                 "mlet": None, "events": [],
                 "snapshot_at": r['last_seen'],
-                "is_live": True,
+                "is_live": not _is_finished,
                 "odds_h": h, "odds_d": d, "odds_a": a,
                 "opening_h": (op or {}).get("h"), "opening_d": (op or {}).get("d"), "opening_a": (op or {}).get("a"),
                 "ah_line": ao.get("ah_line"), "ah_home": ao.get("ah_home"), "ah_away": ao.get("ah_away"),
@@ -3843,27 +4067,78 @@ def _gq_live_scores(limit: int = 50):
         return []
 
 
+def _apply_drift_score(f: dict) -> bool:
+    """对单个 fixture 应用 GQ drift 推断比分 (与 league_fixtures_api 同源). 直接改 f, 返回是否触发推断."""
+    try:
+        mk = f.get("match_key") or f.get("id")
+        if not mk:
+            return False
+        db_sh = f.get("score_home") if isinstance(f.get("score_home"), int) else 0
+        db_sa = f.get("score_away") if isinstance(f.get("score_away"), int) else 0
+        drift_g = _gq_drift_infer_goals(mk, f.get("league"))
+        if drift_g:
+            # 漂移推断只作「DB无真实比分(0-0)」时的兜底补充, 绝不覆盖已有真实分
+            if db_sh == 0 and db_sa == 0:
+                f["score_home"] = drift_g[0]
+                f["score_away"] = drift_g[1]
+                if (f["score_home"], f["score_away"]) != (db_sh, db_sa):
+                    f["score_inferred"] = True
+                    return True
+    except Exception:
+        pass
+    return False
+
+
 @app.get("/api/live-scores")
-async def live_scores_api(limit: int = 30):
-    """从 DB 拉最近 60s 内更新的正在进行的比赛 (mststi > 0)。
-    - mststi: 1=上半场, 2=中场, 3=下半场, 4=加时, 5=点球, -1=结束
-    - leisu 子系统未采集(空)或异常时, 回退 GQ.db 实时比赛, 避免前端空白。
+async def live_scores_api(limit: int = 5000):
+    """实时比分 (与 fixtures 端点同源: 雷速 feed + GQ drift 修正)。
+
+    早期版本回退 GQ.db status='live' (仅乐鱼覆盖的 ~50 场), 与主列表 fixtures(雷速 feed, ~360 场)
+    数据源/覆盖不一致 → 前端 5s 轮询按 home|away 匹配时仅 ~10% 命中, 其余进行中比赛比分停滞/缺失
+    (即"前端比分没匹配好")。现统一为与 league_fixtures_api 完全相同的 feed 源 + drift 修正,
+    使 key/覆盖/比分三者一致, 匹配率→~100%。
     """
     try:
-        from pipeline.leisu_live_scores import get_live_matches, init_scores_db
-        init_scores_db()
-        matches = get_live_matches(limit=limit)
-        if not matches:
-            matches = _gq_live_scores(limit=limit)
+        feed = await _get_leisu_feed()
+        if feed.get("error") or not feed.get("leagues"):
+            feed = _gq_feed_fallback()
+        if feed.get("error"):
+            return _wrap_data({"matches": [], "count": 0})
+        matches = []
+        for lg, fx_list in feed["leagues"].items():
+            for f in (fx_list if isinstance(fx_list, list) else []):
+                try:
+                    ms = f.get("match_state")
+                    if not (isinstance(ms, int) and ms > 0):
+                        continue  # 仅进行中
+                    _apply_drift_score(f)
+                    matches.append({
+                        "mid": f.get("match_key") or f.get("id"),
+                        "home": f.get("home"), "away": f.get("away"),
+                        "league": f.get("league"),
+                        "mststi": ms, "match_state": ms,
+                        "score_home": f.get("score_home"), "score_away": f.get("score_away"),
+                        "score_inferred": f.get("score_inferred", False),
+                        "match_minute": f.get("match_minute") if f.get("match_minute") is not None else "",
+                        "mlet": None, "events": [],
+                        "snapshot_at": time.time(),
+                        "is_live": True,
+                        "odds_h": f.get("odds_h"), "odds_d": f.get("odds_d"), "odds_a": f.get("odds_a"),
+                        "opening_h": f.get("opening_h"), "opening_d": f.get("opening_d"), "opening_a": f.get("opening_a"),
+                        "ah_line": f.get("ah_line"), "ah_home": f.get("ah_home"), "ah_away": f.get("ah_away"),
+                        "ah_op_home": f.get("ah_op_home"), "ah_op_away": f.get("ah_op_away"),
+                        "ou_line": f.get("ou_line"), "ou_over": f.get("ou_over"), "ou_under": f.get("ou_under"),
+                        "ou_op_over": f.get("ou_op_over"), "ou_op_under": f.get("ou_op_under"),
+                        "commence_time": f.get("commence_time"),
+                    })
+                except Exception:
+                    continue
+        # 有比分的排前面, 提升有效信息密度
+        matches.sort(key=lambda m: ((m.get("score_home") or 0) + (m.get("score_away") or 0)), reverse=True)
+        if limit and len(matches) > limit:
+            matches = matches[:limit]
         return _wrap_data({"matches": matches, "count": len(matches)})
     except Exception as e:
-        # leisu 子系统异常 → 仍尝试 GQ 回退, 不让页面全空
-        try:
-            matches = _gq_live_scores(limit=limit)
-            if matches:
-                return _wrap_data({"matches": matches, "count": len(matches)})
-        except Exception:
-            pass
         return _wrap_data({"error": str(e), "matches": [], "count": 0})
 
 
@@ -4129,15 +4404,24 @@ async def bets_place_api(request: Request):
         db_path = os.path.join(PROJECT_ROOT, "data", "football_data.db")
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
+        # 修H2(2026-07-30): 幂等补 stake 列, 让真实注码可追溯 (原 INSERT 漏 stake 列 → 注码丢失)
+        try:
+            cur.execute("ALTER TABLE bet_records ADD COLUMN stake REAL DEFAULT 0")
+        except Exception:
+            pass
+        # 修(2026-07-30 体检): 幂等唯一索引 + INSERT OR IGNORE 防重复行污染 ROI
+        cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_bet_records ON bet_records(home_team, away_team, match_date, bet_type, source)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_bet_records_date ON bet_records(match_date, bet_type)")
+        cur.execute("PRAGMA journal_mode=WAL")
         cur.execute(
-            """INSERT INTO bet_records
+            """INSERT OR IGNORE INTO bet_records
                (match_id, home_team, away_team, league, bet_type, source,
                 predicted_result, confidence, home_prob, draw_prob, away_prob,
-                home_odds, draw_odds, away_odds, kelly, expected_value, notes)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                home_odds, draw_odds, away_odds, kelly, expected_value, stake, notes)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (None, home, away, league, "executed", "manual",
              side, confidence, ph, pd, pa,
-             oh, od, oa, round(kelly_half, 4), round(kelly_full, 4),
+             oh, od, oa, round(kelly_half, 4), round(kelly_full, 4), stake,
              f"手动模拟下注 {side} @{o_side}, 注码¥{stake}"),
         )
         bet_id = cur.lastrowid
@@ -4887,11 +5171,11 @@ if os.path.exists(FRONTEND_DIR):
             from fastapi.responses import FileResponse
             qt = os.path.join(FRONTEND_DIR, "quant_terminal.html")
             if os.path.exists(qt):
-                return FileResponse(qt)
+                return FileResponse(qt, headers={"Cache-Control": "no-cache"})
         index_path = os.path.join(FRONTEND_DIR, "index.html")
         if os.path.exists(index_path):
             from fastapi.responses import FileResponse
-            return FileResponse(index_path)
+            return FileResponse(index_path, headers={"Cache-Control": "no-cache"})
         return {"error": "frontend not built"}
 
 

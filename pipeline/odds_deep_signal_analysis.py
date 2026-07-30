@@ -127,15 +127,13 @@ def analyze():
     # 用v4.1模型定义"被D-Gate误判的非平局"
     print("加载v4.1模型进行预测...")
     from predictors.unified_predictor import UnifiedPredictor
-    model_path = str(FAI_ROOT / "saved_models" / "football_v4.1_production.joblib")
-    up = UnifiedPredictor(model_path=model_path, enable_trap=False, enable_dh=False, use_threshold=False)
+    up = UnifiedPredictor()
     
     # 先获取模型pD
     for f in features:
         try:
             r = up.predict(home=f['match'].split('vs')[0], away=f['match'].split('vs')[1],
-                          odds_h=f['oh'], odds_d=f['od'], odds_a=f['oa'],
-                          asian_handicap=f['hcp'], ou_line=f['ou'])
+                          odds_h=f['oh'], odds_d=f['od'], odds_a=f['oa'])
             probs = r.get('probabilities', {})
             f['model_pd'] = probs.get('D', f['imp_d'])
         except (KeyError, TypeError, AttributeError):

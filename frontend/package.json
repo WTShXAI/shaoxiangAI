@@ -1,9 +1,9 @@
 {
   "name": "whistle-ai-frontend",
   "private": true,
-  "version": "7.1.0",
+  "version": "7.4.0",
   "type": "module",
-  "description": "哨响AI足球预测系统 - 前端 v7.1",
+  "description": "哨响AI足球预测系统 - 前端 v7.4",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

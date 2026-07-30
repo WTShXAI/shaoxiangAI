@@ -1,5 +1,5 @@
 """
-G10 · soft-line 进 v7.1 predict() 衔接 — 自包含单测 (CI 可移植, 无重DB/无模型加载)
+G10 · soft-line 进 v7.4 predict() 衔接 — 自包含单测 (CI 可移植, 无重DB/无模型加载)
 
 验证点:
   G10-1 护栏OFF(softline=None) -> predict() 完全等价现状(不覆盖)

@@ -1,5 +1,5 @@
 """
-哨响AI v7.1 — 规则流水线预测引擎 (支持双模式)
+哨响AI v7.4 — 规则流水线预测引擎 (支持双模式)
 ================================================
 基于 WC26 42场回测 + 17份报告构建。
 
@@ -19,6 +19,9 @@
   - WC 平局率实测 27.6% (旧报告38.5%偏高, 已修正)
   - 屠杀/碾压信号压倒赔率指向
   - 主模型CV准确率74.1% (vs 57.7%基线, +16.4%), 平局F1 0.623
+    ⚠️ 上为 in-sample CV 数字; OOS 见 ARCHITECTURE.md §9 — 跨届 walk-forward
+       验证 wc_cross_tournament_wf.py: 主模型跨届泛化≈0.54 ≈ 赔率argmax,
+       drawF1=0 (模型外推失效)。故生产护栏 ENABLE_ML_MARKET_OVERRIDE 默认 OFF。
 """
 
 import os, sys, json, math, logging
@@ -27,14 +30,23 @@ from dataclasses import dataclass
 import numpy as np
 
 # ════════════════════════════════════════════════════════════════════════
-# ⚠️ 模块角色 (SSoT 澄清, 2026-07-17):
+# ⚠️ 模块角色 (SSoT 澄清, 2026-07-17 / 2026-07-26 修正):
 #   本模块是 pipeline.engine 的 **WC 引擎实现后端**, 并非"离线平行实现"。
-#   运行时链路: bridge_service → pipeline.engine.create_engine("wc")
-#               → (本模块 predict / MatchInput)。
-#   → 因此 **不可删除 / 不可移入 archived/**, 否则生产预测中断。
-#   league_engine.py 复用本模块的战绩/赔率解析基础函数 (同域内部复用, 允许)。
-#   任何新代码如需预测, 一律经 `from pipeline.engine import create_engine`,
-#   不得直接 import 本模块 (保持 engine.py 为唯一公开入口)。
+#
+#   运行时链路 (按端点分两条):
+#     - 旧端点 (/predict, /predict/single, /predict/simple):
+#         bridge_service._run_predict → pipeline.engine.create_engine("wc")
+#         → (本模块 predict / MatchInput)。⚠️ 前端不调用这些端点。
+#     - 生产端点 (/api/terminal/analyze, 前端 terminalService.analyze 唯一入口):
+#         bridge_service._live_predict → pipeline.score_model.predict_score (OIP Poisson)
+#         ⚠️ 不经本模块, 不加载 wc_main_v1 / draw_expert_v3_focal 模型。
+#
+#   → 因此 **不可删除 / 不可移入 archived/** (旧端点 + LeagueEngine 仍依赖本模块的
+#     战绩/赔率解析基础函数, 删除会中断)。
+#   → league_engine.py 复用本模块的战绩/赔率解析基础函数 (同域内部复用, 允许)。
+#   → 任何新代码如需走旧引擎链路, 一律经 `from pipeline.engine import create_engine`,
+#     不得直接 import 本模块 (保持 engine.py 为唯一公开入口)。
+#   → 见 ARCHITECTURE.md §1 SSoT 表 与 §4 矛盾#8 (双链路并存)。
 # ════════════════════════════════════════════════════════════════════════
 
 logger = logging.getLogger(__name__)
@@ -163,7 +175,8 @@ def _canon_team(name: str) -> str:
         return _ZH2EN[key]
     return key                             # 3)兜底: 英文原样小写(未收录队)
 
-DE_THRESHOLD = 0.688  # 保留兼容(实际未使用); 真门控阈值取包内 _DE_PKG['threshold']=0.375
+# (2026-07-26) 原 DE_THRESHOLD=0.688 已删除 — 与 DRAW_GATE=0.688 同值双轨,
+# 且自承"实际未使用"。真门控阈值统一用 DRAW_GATE (见下)。
 # ── DrawGate 平局专家门控 (攻克DE核心, 2026-07-07) ──
 # 机制: DrawExpert 是专门平局二分类器(非主模型3-class argmax), 其 Isotonic 校准后的
 #   平局概率 de_prob 在平局边界有真实信号(诊断: 平局场均值0.387 vs 非平局0.099)。
@@ -180,7 +193,10 @@ DE_THRESHOLD = 0.688  # 保留兼容(实际未使用); 真门控阈值取包内 
 #   需模型/特征重训或融合"赔率隐含平局概率"才有望覆盖剩余平局。
 # 诚实标注: in-sample偏乐观; 跨届OOS需补赔率(wc_all_matches跨届oh/od/oa=None)后验证。
 DRAW_GATE = 0.688
-DRAW_GATE_MIN_IMP_D = 0.10
+# 优化(2026-07-29, wc_all_matches 313场): imp_d下限护栏
+#   0.10: 保留平局98% 滤非平局1% | 0.15: 保留平局98% 滤非平局9% | 0.18: 保留95%(误杀2场)
+#   0.15在平局保留率不变(98%)下多滤8%非平局 → precision更优, 无召回损失
+DRAW_GATE_MIN_IMP_D = 0.15
 
 # ── DrawTightGate: 胶着+战意 平局补充门控 (选择性修正边缘局, 2026-07-07) ──
 # 机制: 小组MD3生死战(或淘汰赛均势 survival_clash)中, 若平局隐含概率紧贴热门
@@ -834,7 +850,7 @@ def _predict_optimized(match: MatchInput) -> PipelineResult:
         if de_signal and odds['imp_d'] > 0.22:
             prediction = 'D'
             confidence = 0.55
-            rationale = f'中高区间+DE双确认(D_prob>{DE_THRESHOLD:.2f})'
+            rationale = f'中高区间+DE双确认(D_prob>{DRAW_GATE:.2f})'
             confidence_level = 'medium'
         elif form['strength_gap'] in ('edge_home','massacre_home'):
             prediction = 'H'; confidence = 0.65; rationale = '中高区间+主队优势'; confidence_level = 'medium'
@@ -1038,6 +1054,10 @@ def predict_score_wc(match: MatchInput) -> dict:
     补上系统'无真比分模型'天花板. 跨届OOS验证: logloss=2.83 / Top3=50% / H-D-A=66.7%.
     详见 pipeline/score_model.py (DC 在小样本下过拟合, 已弃用).
     返回: 期望进球 lh/la, 胜平负隐含概率, 前5可能比分 [(i,j,p),...]
+
+    ⚠️ @deprecated 2026-07-26: 全仓库零引用(grep 确认)。生产前端 /api/terminal/analyze
+       直接调用 pipeline.score_model.predict_score (经 bridge_service._live_predict),
+       不经此封装。保留仅为向后兼容(防外部脚本 import); 新代码请直调 score_model.predict_score。
     """
     try:
         from score_model import predict_score, WC_OIP_GOAL_SCALE
@@ -1066,7 +1086,7 @@ if __name__ == "__main__":
     ]
     
     print(f"{'═'*70}")
-    print(f"  哨响AI v7.0 规则流水线 — 自检 ({len(test_matches)}场)")
+    print(f"  哨响AI v7.4 规则流水线 — 自检 ({len(test_matches)}场)")
     print(f"{'═'*70}")
     
     for m in test_matches:

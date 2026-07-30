@@ -7,7 +7,7 @@ WC2026 全源合并回测 (最大规模, 真实赔率+真实赛果)
   A. 3个脚本源 (去重后 37 场, 6.11~6.21): validate_wc2026 / wc2026_backtest_final / worldcup2026_backtest
   B. 桌面截图 OCR 源 (37 场, 6.22~7.2) -> 其中 36 场在 football_data.db 命中真实赛果
 赛果: 全部取自 football_data.db (matches 表中文行 final_result), 禁止任何虚拟/模拟数据
-引擎: wc_engine v7.1 (rule 模式 = 6步流水线; optimized 模式 = 同规则 + ML融合层)
+引擎: wc_engine v7.4 (rule 模式 = 6步流水线; optimized 模式 = 同规则 + ML融合层)
      注: WC match_features 表实际含 ~198 场世界杯行 (77维特征), 模型文件存在 ->
          optimized 在队名命中DB时真实调用 wc_main_v1+DrawExpert 融合, 一般 ≠ rule。
 赛果: 全部取自 football_data.db (matches 表 final_result) 为唯一权威; 脚本源自带 res 仅作交叉校验,

@@ -144,3 +144,9 @@ nul
 # 启动脚本(非源码)
 哨响AI.bat
 start_g3_daemon.bat
+
+# ── 敏感凭据 (C3 2026-07-30: 防 git add . 泄露真实 token/cookie) ──
+edge_profile/
+*_cookies*.json
+api_req_headers.json
+*_diag_Cookies*

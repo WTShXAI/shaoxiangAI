@@ -676,7 +676,7 @@ function LeagueSchedulePanel({fixtures, allLeagues, onAnalyze, selectedLeague, o
           <div className='mt-1'>
             <div className='px-1 mb-1 text-[10px] text-ink-muted'>时间轴 ({baseList.length} 场 · 按开赛升序)</div>
             <div className='space-y-0.5'>
-              {baseList.sort((a,b)=>new Date(a.commence_time).getTime()-new Date(b.commence_time).getTime()).map(f => {
+              {baseList.slice().sort((a,b)=>new Date(a.commence_time).getTime()-new Date(b.commence_time).getTime()).map(f => {
                 const id = f.id || `${f.home}-${f.away}`
                 const state = Number(f.match_state ?? 0)
                 const isLive = state > 0

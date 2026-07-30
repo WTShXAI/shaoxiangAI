@@ -237,7 +237,12 @@ class ReverseOddsEngine:
         intent = self.PATTERN_MAP.get((hd, dd, ad), Intent.NEUTRAL)
         # 置信度: 三方drift的显著程度
         drift_mag = max(abs(odds.drift_h or 0.0), abs(odds.drift_d or 0.0), abs(odds.drift_a or 0.0))
-        confidence = min(1.0, drift_mag / 0.30)  # 0.30为强drift
+        # 归一化基准 0.50 (优化2026-07-29, master_dataset 31.5万行):
+        #   drift_mag分档客胜率: <0.05→0.27, 0.10-0.20→0.32, 0.20-0.30→0.40,
+        #   0.30-0.50→0.48, 0.50-1.0→0.61, >1.0→0.73。信号单调无饱和。
+        #   原0.30把dm>0.30(4%样本,客胜率51-73%)全截断为1.0, 丢失区分度。
+        #   提到0.50: dm 0.30-0.50区间得到0.6-1.0的渐增confidence, dm≥0.50才饱和。
+        confidence = min(1.0, drift_mag / 0.50)  # 0.50为强drift饱和点
         return intent, confidence, pattern
 
     def _drift_sign(self, drift: Optional[float]) -> int:
