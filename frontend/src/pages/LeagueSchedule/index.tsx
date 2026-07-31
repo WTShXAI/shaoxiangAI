@@ -67,11 +67,14 @@ function useLiveMinute(matchMinute: string | number | undefined | null, matchSta
   return localMin
 }
 
-function formatMatchTime(min: number | null): string {
+function formatMatchTime(min: number | null, isHalftime = false): string {
+  if (isHalftime) return `中场休息`
   if (min == null) return ''
   if (min < 0.5) return `开球`
   if (min < 45) return `上半场 ${Math.floor(min)}:${String(Math.round((min % 1) * 60)).padStart(2, '0')}`
-  if (min < 50) return `中场休息`
+  // 45-60 分钟可能是上半场补时、真正中场休息或下半场刚开始; 数据源无明确 HT 标记时,
+  // 保守显示为"上半场 45+'", 避免把正在踢的比赛(如此前 2-1 阶段)误判为中场休息。
+  if (min < 60) return `上半场 ${Math.floor(min)}+'`
   if (min < 90) return `下半场 ${Math.floor(min)}:${String(Math.round((min % 1) * 60)).padStart(2, '0')}`
   return `下半场 ${Math.floor(min)}'+`
 }
@@ -237,7 +240,7 @@ function MatchRow({fx, onAnalyze, now, onToggleExpand, expanded, activeLiveId, o
 
   // 实时计时器 (Req1)
   const liveMin = useLiveMinute(fx.match_minute, ms)
-  const timeLabel = isLive ? formatMatchTime(liveMin)
+  const timeLabel = isLive ? formatMatchTime(liveMin, ms === 2)
     : !isLive && !isFinished && remain > 0 ? `距开赛 ${cdStr}`
     : !isLive && !isFinished && remain <= 0 ? '即将开赛'
     : '已结束'
@@ -846,7 +849,7 @@ function LivePanel({fixtures, now, activeLiveId, onSelectLiveId, selectedLeague,
           <span className={`text-[12px] font-bold ${isAwayLead?'text-white':'text-white/80'}`}>{live.away}</span>
         </div>
         <div className='text-[10px] text-center text-white/70 font-mono'>
-          {formatMatchTime(liveMin)}
+          {formatMatchTime(liveMin, liveMs === 2)}
         </div>
       </div>
       {/* 全场波胆 6x6 网格 */}

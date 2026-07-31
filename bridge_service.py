@@ -1957,6 +1957,44 @@ def _resolve_wc_extra_bookmakers(home_canon, away_canon):
     return None
 
 
+def _reconcile_conclusions(direction, draw_alert, m_pd, strategy_signals,
+                            tier, market_conf, overround, top_score):
+    """结论一致性仲裁层 (2026-07-31).
+
+    多个分析模块独立计算, 可能给出方向相反的建议(如 R2防平 vs FadeDraw排除平局)。
+    本函数在 verdict 拼接前做冲突检测+按数据裁决。
+
+    裁决依据 (master_dataset 31.5万行回测, R2与FadeDraw同时触发时实际平局率):
+      league层: 0.281 vs 基线0.259 (+2.3pp) → 信R2(防平)
+      cup层:   0.282 vs 基线0.240 (+4.2pp) → 信R2(防平)
+      结论: 冲突时一律信R2(防平), 抑制FadeDraw(其obscure校准在高平区不准)。
+
+    Returns:
+      {fade_draw_suppressed: bool, conflicts: [str], verdict_suffix: str}
+    """
+    conflicts = []
+    fade_draw_suppressed = False
+    # 冲突1: R2(防平) vs FadeDraw(排除平局) — 同一个P(平)信号方向相反
+    has_fade = any('Fade Draw' in str(s.get('name', '')) for s in (strategy_signals or []))
+    if draw_alert and has_fade:
+        # 数据裁决: m_pd>=DRAW_ALERT 时实际平局率高于基线, FadeDraw"排除平局"是错的 → 抑制FadeDraw
+        fade_draw_suppressed = True
+        conflicts.append("平局信号矛盾: 防平(实际平局率+2~4pp) vs 做空平局 → 采信防平,抑制做空平局")
+    # 冲突2(信息标注, 不裁决): direction vs 波胆top1
+    if top_score and direction and direction != '平局':
+        try:
+            th, ta = str(top_score).split('-')
+            if int(th) == int(ta):  # top1是平局比分(如0-0/1-1)但direction非平
+                conflicts.append(f"方向({direction})与波胆top1({top_score}平局)不一致")
+        except Exception:
+            pass
+    # 冲突3(信息标注): R6高抽水 — 不裁决, 由调用方加降权前缀
+    verdict_suffix = ""
+    if conflicts:
+        verdict_suffix = " | ⚠️" + "; ".join(conflicts)
+    return {"fade_draw_suppressed": fade_draw_suppressed, "conflicts": conflicts, "verdict_suffix": verdict_suffix}
+
+
 def _live_predict(home, away, oh, od, oa,
                   home_norm=None, away_norm=None, date=None, league=None,
                   sport_key=None,
@@ -2369,6 +2407,11 @@ def _live_predict(home, away, oh, od, oa,
         stake = "谨慎"
         verdict.append("陷阱信号→重仓降谨慎")
 
+    # 结论一致性仲裁-冲突标注 (2026-07-31): draw_alert触发时FadeDraw必然也在(pd>0.20)
+    # 数据裁决: 此区实际平局率+2~4pp高于基线 → 信防平, 标注冲突(FadeDraw抑制在后段strategy_signals处理)
+    if draw_alert:
+        verdict.append("⚠️平局信号已仲裁: 采信防平(回测+2~4pp), 抑制做空平局")
+
     operator_view = {
         "rules_fired": op_rules,
         "primary_signal": direction,
@@ -2614,6 +2657,17 @@ def _live_predict(home, away, oh, od, oa,
         logger.warning(f"[strategy_signals] 计算失败: {_ss_e}")
         strategy_signals = []
         _strat_tier = 'cup' if is_cup else 'obscure'
+
+    # ── 结论一致性仲裁 (2026-07-31): R2防平 vs FadeDraw冲突 → 数据裁决信R2, 抑制FadeDraw ──
+    _top1 = f"{top3[0][0]}-{top3[0][1]}" if top3 else None
+    _recon = _reconcile_conclusions(direction, draw_alert, m_pd, strategy_signals,
+                                     _strat_tier, market_conf, overround, _top1)
+    if _recon["fade_draw_suppressed"]:
+        # 抑制FadeDraw: 加suppressed标记而非删除(保留透明性, 前端可灰显)
+        for s in strategy_signals:
+            if 'Fade Draw' in str(s.get('name', '')):
+                s['suppressed'] = True
+                s['suppress_reason'] = '与防平信号冲突, 回测实际平局率+2~4pp高于基线, 采信防平'
 
     result = {
         "home": home, "away": away,

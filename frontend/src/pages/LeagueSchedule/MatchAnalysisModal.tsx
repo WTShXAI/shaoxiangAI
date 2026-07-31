@@ -757,22 +757,24 @@ export default function MatchAnalysisModal({
                   {card.strategy_signals && card.strategy_signals.length > 0 ? (
                     <div className="space-y-2">
                       {card.strategy_signals.map((s: any, i: number) => (
-                        <div key={i} className="rounded-lg bg-white/[0.03] border border-white/10 px-3 py-2.5">
+                        <div key={i} className={`rounded-lg border px-3 py-2.5 ${s.suppressed ? 'bg-ember-500/[0.04] border-ember-500/15 opacity-60' : 'bg-white/[0.03] border-white/10'}`}>
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-[13px] font-bold text-white">{s.name}</span>
+                            <span className="text-[13px] font-bold text-white">{s.name}{s.suppressed && <span className="text-[10px] text-ember-400 ml-1">(已抑制)</span>}</span>
                             <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
-                              s.confidence === 'high' ? 'bg-accent/15 text-accent' : 'bg-ember-500/15 text-ember-300'
-                            }`}>{s.confidence === 'high' ? '高置信' : '方向性'}</span>
+                              s.suppressed ? 'bg-ember-500/15 text-ember-300' : s.confidence === 'high' ? 'bg-accent/15 text-accent' : 'bg-ember-500/15 text-ember-300'
+                            }`}>{s.suppressed ? '⚠️抑制' : s.confidence === 'high' ? '高置信' : '方向性'}</span>
                           </div>
-                          <div className="text-[12px] text-accent mt-0.5">{s.direction}</div>
+                          <div className={`text-[12px] mt-0.5 ${s.suppressed ? 'text-white/50 line-through' : 'text-accent'}`}>{s.direction}</div>
                           <div className="flex items-center gap-2 mt-1.5">
                             <div className="flex-1 h-1.5 rounded-full bg-white/[0.08] overflow-hidden">
-                              <div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(6, Math.round((s.strength || 0) * 100))}%` }} />
+                              <div className={`h-full rounded-full ${s.suppressed ? 'bg-ember-500/40' : 'bg-accent'}`} style={{ width: `${Math.max(6, Math.round((s.strength || 0) * 100))}%` }} />
                             </div>
                             <span className="text-[10px] font-mono text-white/65 w-9 text-right">{Math.round((s.strength || 0) * 100)}%</span>
                           </div>
                           <div className="text-[10px] text-white/55 mt-1">📊 {s.metric}</div>
-                          <div className="text-[10px] text-white/45 mt-0.5">{s.note}</div>
+                          {s.suppressed
+                            ? <div className="text-[10px] text-ember-400 mt-0.5">⚠️ {s.suppress_reason || '与其他信号冲突,经回测抑制'}</div>
+                            : <div className="text-[10px] text-white/45 mt-0.5">{s.note}</div>}
                         </div>
                       ))}
                     </div>

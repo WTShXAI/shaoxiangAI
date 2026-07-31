@@ -59,12 +59,13 @@ function stateOf(fx: FixtureEntry, now: number): { live: boolean; finished: bool
     const ageMin = (now - Number((fx as any).snapshot_at) * 1000) / 60000
     if (ageMin > 60) st = -1
   }
-  // 半场识别: 标 live 但 minute=45(且无下半场迹象) → 中场休息, 不计入"进行中"计数
-  const isHalftime = st > 0 && mm === 45
+  // 半场识别: 仅当后端明确返回中场状态(state=2) 或 minute 明确为 HT/中场/PB 时才是中场休息。
+  // 不能把 integer 45 当成半场: 45 可能是上半场第45分钟、上半场补时(45+)或数据脏标,
+  // 若直接判中场会误导用户以为比赛已暂停(如此前 2-1 时显示中场休息, 实际仍在踢成 2-3)。
+  const isHalftime = st === 2 || raw === 'HT' || raw === '中场' || raw === 'PB'
   let label = ''
   if (isHalftime) label = '中场休息'
   else if (st === 1) label = `上半场 ${minStr || `~${Math.round((now - new Date(fx.commence_time).getTime()) / 60000)}'`}`.trim()
-  else if (st === 2) label = '中场休息'
   else if (st === 3) label = `下半场 ${minStr}`.trim()
   else if (st === 4) label = `加时 ${minStr}`.trim()
   else if (st === 5) label = '点球大战'
