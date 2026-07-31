@@ -393,9 +393,10 @@ function UpcomingRow({fx, now, onAnalyze, activeLiveId, onSelectLiveId}:{fx:Fixt
   const cd = remain > 0 ? (()=>{const m=Math.floor(remain/60000); const h=Math.floor(m/60); return h>0?`${h}h${m%60}m`:`${m}m`})() : null
   const state = Number(fx.match_state ?? 0)
   const hasScore = typeof fx.score_home === 'number' && typeof fx.score_away === 'number'
-  // 状态判定: 数据源已标记live/finished, 或开赛时间已过且有比分
-  const isLive = state > 0 || (remain <= 0 && hasScore && (fx.score_home! > 0 || fx.score_away! > 0 || state !== 0))
-  const isFinished = state < 0 || (hasScore && remain < -9000000)  // 开赛>2.5h后有比分=已结束
+  // 状态判定: 严格信任后端 match_state; 后端已综合 kickoff/status/minute/last_seen 做兜底,
+  // 前端不再自行推断, 避免 finished(state=-1) 因 score!=0 被误判为 live。
+  const isFinished = state < 0
+  const isLive = state > 0 && !isFinished
   // 解析分钟: "45"→45, "45+2"→45, "HT"→45
   const parseMin = (m: any): number | null => {
     if (m == null) return null

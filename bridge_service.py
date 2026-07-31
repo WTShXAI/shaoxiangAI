@@ -3127,6 +3127,7 @@ def _gq_feed_fallback() -> Dict[str, Any]:
 
 def _gq_build_feed() -> Dict[str, Any]:
     import sqlite3
+    import time as _t
     try:
         db = os.path.join(PROJECT_ROOT, "data", "GQ.db")
         if not os.path.exists(db):
@@ -3134,7 +3135,7 @@ def _gq_build_feed() -> Dict[str, Any]:
         c = sqlite3.connect(db); c.row_factory = sqlite3.Row
         rows = c.execute("""
             SELECT m.match_key, m.home, m.away, m.league, m.kickoff, m.status,
-                   m.score_home, m.score_away, m.minute, m.mid,
+                   m.score_home, m.score_away, m.minute, m.mid, m.last_seen,
                    o.mid AS outcome_mid
             FROM matches m
             LEFT JOIN match_outcomes o ON m.mid = o.mid
@@ -3143,9 +3144,11 @@ def _gq_build_feed() -> Dict[str, Any]:
               AND m.league NOT LIKE '%瓦尔基里%'
               AND m.league NOT LIKE '%梦幻对垒%'
               AND m.league NOT LIKE '%8分钟%'
-              -- 僵尸清理(P0): status='live' 但 last_seen 超 3h 未更新(采集器每180s刷一次,
-              -- 真进行中必在3min内) → 视为已结束/不进入实时feed; 避免07-18起的1437场僵尸淹没有效比赛
-              AND (m.status != 'live' OR m.last_seen >= strftime('%s','now','-3 hours'))
+          -- 僵尸清理(P0): status='live' 且 last_seen 超 3h 未更新 且 开赛已超 6h
+          -- (采集器每180s刷一次, 真进行中必在3min内; 但采集器短暂掉线时, 开赛才几小时的真比赛
+          --  last_seen 也会滞后, 不应误杀) → 视为卡盘不进入实时feed; 避免07-18起的1437场老僵尸淹没。
+          -- 开赛 6h 内的 live 比赛一律保留(交由前端按时间兜底判进行中/已结束), 仅"开赛很久+滞后"才判僵尸。
+          AND (m.status != 'live' OR m.last_seen >= strftime('%s','now','-3 hours') OR m.kickoff >= datetime('now','-6 hours'))
             ORDER BY m.last_seen DESC
         """).fetchall()
         leagues: Dict[str, list] = {}
@@ -3155,15 +3158,74 @@ def _gq_build_feed() -> Dict[str, Any]:
                 continue
             st = r["status"]
             # 僵尸二次判定: 标 live 但 match_outcomes 已有终场比分 → 实际已结束, 不显示进行中
-            if st == "live" and r["outcome_mid"]:
-                ms = -1
-            else:
-                ms = -1 if st == "finished" else 1 if st == "live" else 0
+            is_zombie = False
+            if st == "live":
+                now_ts = _t.time()
+                ls = float(r["last_seen"]) if r["last_seen"] else now_ts
+                age_min = (now_ts - ls) / 60
+                # 开赛距今(分钟): 开赛 6h 内的 live 比赛即便 last_seen 滞后, 也大概率是真进行中/
+                # 刚结束(采集器短暂掉线), 不应误判僵尸; 只有"开赛很久(>6h) 且 last_seen 滞后"才是卡盘。
+                ko_raw = (r["kickoff"] or "").strip()
+                ko = ko_raw.replace(" ", "T")
+                ko_ts = None
+                if ko:
+                    # 兼容 'YYYY-MM-DD HH:MM' 与 'YYYY-MM-DD HH:MM:SS'
+                    iso = ko + ":00" if ko.count(":") == 1 else ko
+                    try:
+                        ko_ts = _t.mktime(_t.strptime(iso[:19], "%Y-%m-%dT%H:%M:%S"))
+                    except Exception:
+                        try:
+                            ko_ts = float(ko)
+                        except Exception:
+                            ko_ts = None
+                ko_age_min = (now_ts - ko_ts) / 60 if ko_ts else 9999
+                recent_kickoff = ko_age_min <= 360
+                minute = r["minute"]
+                # 仅对"开赛很久"的比赛做 last_seen 僵尸判定, 避免误杀采集器短暂掉线导致的滞后场
+                if not recent_kickoff and age_min > 60:
+                    is_zombie = True
+                # 半场/全场节点停滞过久 → 已结束(常规比赛半场≤20min, 90'+≤15min).
+                # 不依赖 recent_kickoff: 即便开赛不久, 45' 节点卡>30min 也必定是数据脏/已结束。
+                if not is_zombie and minute in (45, 90) and age_min > 30:
+                    is_zombie = True
+                if not is_zombie and minute in (46, 47, 48, 49, 50) and age_min > 45:
+                    is_zombie = True
+                # 兜底: 按开赛时间推断, 45' 已开赛超过 75min / 90' 超过 105min 必已结束
+                # (规避 obscure 联赛 minute 字段长期不更新但 last_seen 仍刷新的脏数据)
+                if not is_zombie and ko_ts:
+                    elapsed_min = (now_ts - ko_ts) / 60
+                    if minute == 45 and elapsed_min > 75:
+                        is_zombie = True
+                    elif minute == 90 and elapsed_min > 105:
+                        is_zombie = True
             ko = (r["kickoff"] or "").strip()
             iso = ""
+            ko_ts = None
             if ko:
                 # 'YYYY-MM-DD HH:MM' -> 'YYYY-MM-DDTHH:MM:00' (Safari 兼容, 供 new Date 解析)
                 iso = ko.replace(" ", "T") + ":00" if " " in ko else ko
+                try:
+                    ko_ts = _t.mktime(_t.strptime(iso[:19], "%Y-%m-%dT%H:%M:%S"))
+                except Exception:
+                    ko_ts = None
+            # 关键修正: 开赛时间在未来 → 不可能是进行中/已结束 (GQ 偶发把未来赛程标成 live+minute=45)
+            # 强制视为未开赛, 避免全部显示为"中场休息"的乌龙。
+            is_upcoming = ko_ts is not None and ko_ts > _t.time() + 60
+            if is_upcoming:
+                ms = 0
+            elif st == "live" and r["outcome_mid"]:
+                ms = -1
+            elif st == "live" and is_zombie:
+                ms = -1
+            else:
+                ms = -1 if st == "finished" else 1 if st == "live" else 0
+            # 修正 GQ 脏 minute: 标 45' 但开赛还不到 45min (或未来) → 不可能是中场休息,
+            # 清空 minute 让前端按 elapsed 显示为上半场; 同理 90' 但未到 90min。
+            minute = r["minute"]
+            if ms == 1 and ko_ts and minute in (45, 90):
+                elapsed_min = (_t.time() - ko_ts) / 60
+                if (minute == 45 and elapsed_min < 45) or (minute == 90 and elapsed_min < 90):
+                    minute = None
             fx = {
                 "id": r["match_key"] or r["mid"] or f"{r['home']}|{r['away']}",
                 "match_key": r["match_key"],
@@ -3171,8 +3233,9 @@ def _gq_build_feed() -> Dict[str, Any]:
                 "league": lg, "sport_key": lg,
                 "commence_time": iso,
                 "match_state": ms,
-                "score_home": r["score_home"], "score_away": r["score_away"],
-                "match_minute": r["minute"] if r["minute"] else "",
+                "score_home": r["score_home"] if not is_upcoming else None,
+                "score_away": r["score_away"] if not is_upcoming else None,
+                "match_minute": "" if is_upcoming else (minute if minute else ""),
                 "mid": r["mid"],
             }
             leagues.setdefault(lg, []).append(fx)
@@ -3374,7 +3437,7 @@ def _fixture_should_show(f):
     return False
 
 @app.get("/api/leagues")
-async def leagues_api(days: int = 2):
+async def leagues_api(days: int = 7):
     """联赛目录 (动态, 来自微瑞 live feed / GQ.db 回退; 按联赛名分组)。
 
     days=N: 只保留近 N 天内有赛程的联赛, fixture_count 改为近 N 天的场数(0=全部).
@@ -3560,6 +3623,96 @@ async def league_fixtures_api(sport_key: str):
         "fixtures": out,
         "cached": False,
     })
+
+
+# ── 全量赛程聚合端点 (修复"赛事不全": 前端原 Promise.all 并发逐联赛抓取触发全局限流 120/min → 部分联赛 fixtures 被 429 丢弃) ──
+@app.get("/api/all-fixtures")
+async def all_fixtures_api(days: int = 7):
+    """全量赛程聚合端点.
+
+    修复前端 LiveScores.fetchAll 用 Promise.all 并发抓取所有联赛 fixtures 时,
+    因全局限流 key=client_ip|api (120/min) 在 days≥7 时 233 个请求远超限制,
+    大量联赛 fixtures 被 429 丢弃 → "赛事不全". 此端点后端内部一次取 feed,
+    前端仅发 1 请求, 彻底绕开限流.
+
+    days: 仅保留 commence_time 在近[-1,+days]天窗口内的比赛(默认7), 防历史过期堆积.
+    返回扁平 fixtures 数组(含 sport_key/league 标注), drift 仅在无真实分时兜底.
+    """
+    # SSoT 修正(2026-07-31): 旧逻辑 leisu OR GQ —— 当 leisu 返回部分脏数据(78 场无开赛时间)时,
+    # GQ.db 真实比赛的 172+ 场被整体丢弃 → 前端"赛事不全". 改为:
+    #   GQ.db 已采集比赛作基准全集(采集器持续写入, 覆盖全量真实在跑/将跑比赛)
+    #   + 微瑞 leisu 实时 feed 叠加"进行中"的比分/分钟/状态(leisu 实时性更好)
+    #   + 给基准补 1X2/AH/OU 赔率(否则前端永远不显示赔率、无法点分析)
+    gq_fb = _gq_feed_fallback()
+    gq_leagues = gq_fb.get("leagues", {}) if not gq_fb.get("error") else {}
+    now = time.time()
+    lo, hi = now - 1 * 86400, now + days * 86400
+    def _in_window(ct):
+        if ct is None:
+            return True  # 无开赛时间(leisu 实时场)视为当场, 不丢
+        try:
+            if isinstance(ct, (int, float)):
+                t = float(ct)
+            else:
+                s = str(ct).replace("Z", "+00:00")
+                t = time.mktime(time.strptime(s[:19], "%Y-%m-%dT%H:%M:%S")) if "T" in s else float(s)
+            return lo <= t <= hi
+        except Exception:
+            return True
+    # 1) GQ 基准 → 按窗口过滤 → 补赔率
+    gq_flat: list = []
+    for _lg, _fx in gq_leagues.items():
+        for _f in (_fx if isinstance(_fx, list) else []):
+            _ff = dict(_f)
+            _ff["sport_key"] = _lg
+            if not _ff.get("league"):
+                _ff["league"] = _lg
+            if _in_window(_ff.get("commence_time")):
+                gq_flat.append(_ff)
+    if gq_flat:
+        gq_flat = _attach_gq_1x2(gq_flat)
+    base: Dict[str, dict] = {f"{f.get('home')}|{f.get('away')}": f for f in gq_flat}
+    # 2) leisu 实时叠加 (失败/空则跳过, 不阻断基准)
+    try:
+        leisu = await _get_leisu_feed()
+        leisu_leagues = leisu.get("leagues", {}) if not leisu.get("error") else {}
+        for _lg, _fx in leisu_leagues.items():
+            for _f in (_fx if isinstance(_fx, list) else []):
+                if not isinstance(_f, dict):
+                    continue
+                _key = f"{_f.get('home')}|{_f.get('away')}"
+                if _key in base:
+                    # leisu 实时字段覆盖 GQ (比分/分钟/状态更实时)
+                    for _k in ("score_home", "score_away", "match_minute", "match_state"):
+                        if _f.get(_k) is not None:
+                            base[_key][_k] = _f[_k]
+                else:
+                    _nf = dict(_f)
+                    _nf["sport_key"] = _lg
+                    if not _nf.get("league"):
+                        _nf["league"] = _lg
+                    if _in_window(_nf.get("commence_time")):
+                        base[_key] = _nf
+    except Exception:
+        pass
+    # 3) 漂移推断(仅 DB 无真实分 0-0 时兜底) + 组装
+    out = []
+    for f in base.values():
+        try:
+            f = dict(f)
+            mk = f.get("match_key") or f.get("id")
+            if mk:
+                db_sh = f.get("score_home") if isinstance(f.get("score_home"), int) else 0
+                db_sa = f.get("score_away") if isinstance(f.get("score_away"), int) else 0
+                if db_sh == 0 and db_sa == 0:
+                    dg = _gq_drift_infer_goals(mk, f.get("league"))
+                    if dg:
+                        f["score_home"], f["score_away"] = dg[0], dg[1]
+                        f["score_inferred"] = True
+            out.append(f)
+        except Exception:
+            continue
+    return _wrap_data({"fixtures": out, "count": len(out), "days": days})
 
 
 # ── 自动赛果查询 (Req3: 替代手动赛果查询, 直接对接盘口自动记录) ──
@@ -4033,22 +4186,41 @@ def _gq_live_scores(limit: int = 50):
             # 修BUG#3: 不硬编码mststi=1. 用status+kickoff时间动态判定:
             # status=finished→已结束; 否则按kickoff距今>130min兜底为已结束
             import time as _t2
-            _is_finished = (r['status'] == 'finished')
-            if not _is_finished and ko:
+            # 关键修正: 开赛时间在未来 → 不可能是 live/finished, 强制未开赛(规避 GQ 脏数据 live+minute=45)
+            _is_upcoming = False
+            if ko:
                 try:
                     from datetime import datetime
                     ko_dt = datetime.fromisoformat(iso.replace('Z',''))
-                    if (_t2.time() - ko_dt.timestamp()) / 60 > 130:
+                    ko_age_min = (_t2.time() - ko_dt.timestamp()) / 60
+                    if ko_age_min < -1:
+                        _is_upcoming = True
+                    elif not _is_finished and ko_age_min > 130:
                         _is_finished = True
+                    # 半场/全场节点卡死检测 (obscure 联赛 minute 不更新但 last_seen 仍刷新)
+                    if not _is_finished and not _is_upcoming:
+                        minute = r['minute']
+                        if minute == 45 and ko_age_min > 75:
+                            _is_finished = True
+                        elif minute == 90 and ko_age_min > 105:
+                            _is_finished = True
                 except Exception:
                     pass
-            _mstate = -1 if _is_finished else 1
+            _mstate = 0 if _is_upcoming else (-1 if _is_finished else 1)
+            if _is_upcoming:
+                final_sh, final_sa, score_inferred = None, None, False
+            # 修正 GQ 脏 minute: 45' 但开赛<45min / 90' 但开赛<90min → 不可能是中场
+            _mm = r['minute']
+            if _mstate == 1 and ko_dt:
+                elapsed_min = (_t2.time() - ko_dt.timestamp()) / 60
+                if (_mm == 45 and elapsed_min < 45) or (_mm == 90 and elapsed_min < 90):
+                    _mm = None
             out.append({
                 "mid": mk, "home": r['home'], "away": r['away'], "league": r['league'],
                 "mststi": _mstate, "match_state": _mstate,
                 "score_home": final_sh, "score_away": final_sa,
                 "score_inferred": score_inferred,
-                "match_minute": r['minute'] if r['minute'] else "",
+                "match_minute": "" if _is_upcoming else (_mm if _mm else ""),
                 "mlet": None, "events": [],
                 "snapshot_at": r['last_seen'],
                 "is_live": not _is_finished,
@@ -4109,7 +4281,8 @@ async def live_scores_api(limit: int = 5000):
             for f in (fx_list if isinstance(fx_list, list) else []):
                 try:
                     ms = f.get("match_state")
-                    if not (isinstance(ms, int) and ms > 0):
+                    # 严格仅保留真正进行中: 整数且>0, 同时排除 bool(True)污染
+                    if not (isinstance(ms, int) and not isinstance(ms, bool) and ms > 0):
                         continue  # 仅进行中
                     _apply_drift_score(f)
                     matches.append({

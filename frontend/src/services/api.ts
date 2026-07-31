@@ -57,12 +57,15 @@ bridgeApi.interceptors.request.use((config) => {
 // 联赛赛程服务 (34联赛) — bridge_service:9000
 // ============================================
 export const leagueScheduleService = {
-  // 获取联赛目录 (按分类分组); days=N 只保留近 N 天内(默认 2)有赛程的联赛
-  getLeagues: (days: number = 2) =>
+  // 获取联赛目录 (按分类分组); days=N 只保留近 N 天内(默认 7)有赛程的联赛
+  getLeagues: (days: number = 7) =>
     bridgeApi.get<ApiResponse<LeaguesResponse>>(`/api/leagues?days=${days}`),
   // 获取指定联赛赛程 (sport_key 含中文, 必须 encodeURIComponent)
   getFixtures: (sportKey: string) =>
     bridgeApi.get<ApiResponse<LeagueFixturesResponse>>(`/api/leagues/${encodeURIComponent(sportKey)}/fixtures`),
+  // 全量赛程聚合 (一次返回所有联赛 fixtures, 避免前端逐联赛并发触发全局限流导致赛事不全)
+  getAllFixtures: (days: number = 7) =>
+    bridgeApi.get<ApiResponse<any>>(`/api/all-fixtures?days=${days}`),
 }
 
 // ============================================
