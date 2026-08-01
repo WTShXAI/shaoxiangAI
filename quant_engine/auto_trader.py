@@ -29,6 +29,13 @@ from quant_demo.types import SyntheticMatch
 # 注码 SSoT
 from scripts.bet_core import safe_stake, _load_betting_config
 
+# P0b 投注账本 SSoT (best-effort, 记账失败不阻断下注主流程)
+try:
+    from pipeline import bet_ledger as _ledger
+    _HAS_LEDGER = True
+except Exception:
+    _HAS_LEDGER = False
+
 log = logging.getLogger("quant_engine")
 _IDX = {"H": 0, "D": 1, "A": 2}
 _SEL_DIR = {"主胜": "H", "平局": "D", "客胜": "A"}
@@ -184,6 +191,7 @@ class QuantEngine:
             o.strategy_name = sig.strategy_name
             self.orders.append(o)
             new_orders.append(o)
+            self._ledger_record(o, opt, m)  # P0b: 下注即记账
             self._log_signal(
                 f"下单 · {m.home} vs {m.away} [{sig.strategy_name}/{opt.selection}] "
                 f"edge+{opt.edge_pct:.1f}% EV+{opt.ev_pct:.1f}% 注¥{stake:.0f}",
@@ -215,6 +223,7 @@ class QuantEngine:
                 )
                 self.orders.append(o)
                 new_orders.append(o)
+                self._ledger_record(o, opt, m)  # P0b: 下注即记账
                 self._log_signal(
                     f"下单 · {m.home} vs {m.away} [{opt.market}/{opt.selection}] "
                     f"edge+{opt.edge_pct:.1f}% EV+{opt.ev_pct:.1f}% 注¥{stake:.0f}",
@@ -257,6 +266,31 @@ class QuantEngine:
             return "A"
         return "H"
 
+    # ── P0b 投注账本记账 (best-effort, 不阻断主流程) ──
+    def _ledger_record(self, o: Order, opt, m) -> None:
+        if not _HAS_LEDGER:
+            return
+        try:
+            _ledger.record_bet(
+                bet_id=o.oid, match_id=o.mid, home=o.home, away=o.away,
+                league=getattr(m, "league", None), market=o.market, selection=o.selection,
+                odds=o.odds, model_prob=o.model_prob,
+                edge_pp=getattr(o, "edge_pct", None), ev_pct=getattr(o, "ev_pct", None),
+                stake=o.stake, bankroll_at=o.equity_before,
+                decision="BET", mode=("real" if o.mode == "live" else "sim"),
+                source="quant_engine",
+            )
+        except Exception:
+            pass
+
+    def _ledger_settle(self, o: Order, win: bool) -> None:
+        if not _HAS_LEDGER:
+            return
+        try:
+            _ledger.settle_bet(o.oid, won=win, actual_result=o.direction)
+        except Exception:
+            pass
+
     def _settle_order(self, o: Order, actual: str, score: Optional[str]):
         """结算订单 (用真实赛果). actual: H/D/A."""
         win = (o.direction == actual)
@@ -278,6 +312,7 @@ class QuantEngine:
             f"{pnl:+.0f} → 权益¥{self.pf.equity:.0f}",
             level="settle" if win else "loss", oid=o.oid, win=win, pnl=pnl,
         )
+        self._ledger_settle(o, win)  # P0b: 结算即更新账本
 
     # ── 自动扫描周期 (拉真实在跑比赛) ──
     def run_scan_cycle(self, limit: int = 20, mode: str = "sim") -> Dict[str, Any]:
