@@ -82,3 +82,9 @@ betting:
   max_stake_frac: 0.10       # 单注封顶(占本金比例)
   min_disagreement_bets: 300 # 生产环境分歧子集最低容量 (低于此值→全局NO-GO)
   env: "DEV"                 # DEV/PROD — PROD 启用 NO-GO 护栏
+  # ── P0a 注码风控闸门 (2026-08-01, 针对 ROI=-30% 根因: 重注低赔热门全输) ──
+  hot_odds_max: 1.5          # 低赔热门阈值: odds<此值视为市场强热门, 触发限注
+  hot_frac_cap: 0.03         # 热门单注封顶(占本金): 从10%压到3%, 止"重注热门全输"
+  min_spread_pp: 0.0         # 跨庄分歧放注门槛(pp): >0时跨庄spread不足则NO-BET (P1接跨庄后建议15)
+  loss_cooldown_after: 0     # 连败降档触发场数: >0时连输N场后凯利缩放 (0=不启用)
+  loss_frac_scale: 0.5       # 连败降档缩放: 触发后 frac *= 此值

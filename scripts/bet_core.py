@@ -48,6 +48,17 @@ MAX_STAKE_FRAC = float(_BC.get("max_stake_frac", 0.10))
 MIN_DISAGREEMENT_BETS = int(_BC.get("min_disagreement_bets", 300))
 _ENV = str(_BC.get("env", "DEV")).upper()
 
+# ── P0a 注码风控闸门 (2026-08-01, 针对 ROI=-30% 根因: 74%本金重注低赔热门全输) ──
+# 低赔热门限注: odds<HOT_ODDS_MAX 视为市场强热门, 单注从 MAX_STAKE_FRAC 压到 HOT_FRAC_CAP。
+# 这是 ROI=-30%(14单) 的核心止血: 此前 decide_argmax 押热门时 10% 封顶照放满所致。
+HOT_ODDS_MAX = float(_BC.get("hot_odds_max", 1.5))
+HOT_FRAC_CAP = float(_BC.get("hot_frac_cap", 0.03))
+# 跨庄分歧放注门槛 (P1 接入跨庄后启用; 默认0=不启用): 仅跨庄 spread≥min_spread_pp(pp) 才放注
+MIN_SPREAD_PP = float(_BC.get("min_spread_pp", 0.0))
+# 连败降档 (默认0=不启用): 连输 loss_cooldown_after 场后 frac *= LOSS_FRAC_SCALE
+LOSS_COOLDOWN_AFTER = int(_BC.get("loss_cooldown_after", 0))
+LOSS_FRAC_SCALE = float(_BC.get("loss_frac_scale", 0.5))
+
 
 def _check_no_go(bet_count: int) -> Tuple[bool, str]:
     """ENV=PROD 容量护栏: 分歧子集 < MIN_DISAGREEMENT_BETS → 全局 NO-GO."""
@@ -66,8 +77,10 @@ def kelly_fraction(p: float, odds: float) -> float:
 
 
 def safe_stake(p: float, o: float, equity: float, frac_kelly: float = FRAC_KELLY, max_frac: float = MAX_STAKE_FRAC,
-               source: str = "", gate: bool = False, bet_count: int = 0) -> Tuple[float, float]:
-    """规范凯利封顶注码 + 审计日志 + PROD NO-GO 护栏.
+               source: str = "", gate: bool = False, bet_count: int = 0,
+               spread_pp: Optional[float] = None, min_spread_pp: float = MIN_SPREAD_PP,
+               consec_losses: int = 0, loss_cooldown_after: int = LOSS_COOLDOWN_AFTER) -> Tuple[float, float]:
+    """规范凯利封顶注码 + 审计日志 + PROD NO-GO 护栏 + P0a 风控闸门.
 
     Args:
         p, o, equity: 胜率/赔率/本金
@@ -76,11 +89,18 @@ def safe_stake(p: float, o: float, equity: float, frac_kelly: float = FRAC_KELLY
         source: 调用来源 (用于审计追踪)
         gate: 分歧闸门是否通过 (gate=False 时强制 stake=0)
         bet_count: 分歧子集累计注数 (用于 PROD 容量护栏)
+        spread_pp: 跨庄价差(pp); 配合 min_spread_pp 使用 (P0a-2, 默认不启用)
+        min_spread_pp: 跨庄放注门槛(pp); >0时 spread_pp 不足则 NO-BET
+        consec_losses: 当前连败场数; 配合 loss_cooldown_after 使用 (P0a-3, 默认不启用)
+        loss_cooldown_after: 连败降档触发场数; >0时触发后 frac *= LOSS_FRAC_SCALE
 
     Returns:
         (stake, kelly_fraction). 禁止下注时返回 (0.0, 0.0).
 
-    审计日志: 记录 kelly/frac/cap_hit/gate/source/bet_count 到 bet_core.audit.
+    P0a 风控 (2026-08-01, 针对 ROI=-30% 根因):
+      1. 低赔热门限注 (默认启用): odds<HOT_ODDS_MAX 时单注压到 HOT_FRAC_CAP, 止"重注热门全输".
+      2. 跨庄分歧门槛 (min_spread_pp>0 启用): 仅跨庄 spread 足够才放注 (真 edge 来自跨庄).
+      3. 连败降档 (loss_cooldown_after>0 启用): 连输后凯利缩放, 防情绪化加注.
     """
     # ── PROD 容量护栏 ──
     no_go, no_go_reason = _check_no_go(bet_count)
@@ -93,12 +113,30 @@ def safe_stake(p: float, o: float, equity: float, frac_kelly: float = FRAC_KELLY
         _audit_logger.info(f"PASS: gate=False source={source}")
         return 0.0, 0.0
 
+    # ── P0a-2 跨庄分歧门槛 (默认0不启用; P1接入跨庄后建议 min_spread_pp=15) ──
+    if min_spread_pp > 0:
+        if spread_pp is None or spread_pp < min_spread_pp:
+            _audit_logger.info(f"NO_BET: spread_pp={spread_pp}<{min_spread_pp}pp source={source}")
+            return 0.0, 0.0
+
     k = kelly_fraction(p, o)
     if k <= 0:
         _audit_logger.info(f"NO_BET: kelly={k:.4f} source={source}")
         return 0.0, 0.0
 
     frac = frac_kelly * k
+
+    # ── P0a-3 连败降档 (默认0不启用) ──
+    if loss_cooldown_after > 0 and consec_losses >= loss_cooldown_after:
+        frac *= LOSS_FRAC_SCALE
+        _audit_logger.info(f"LOSS_COOLDOWN: consec_losses={consec_losses}>={loss_cooldown_after} frac*={LOSS_FRAC_SCALE}")
+
+    # ── P0a-1 低赔热门限注 (默认启用, 止血核心) ──
+    hot_capped = False
+    if o < HOT_ODDS_MAX and frac > HOT_FRAC_CAP:
+        frac = HOT_FRAC_CAP
+        hot_capped = True
+
     cap_hit = False
     if frac > max_frac:
         frac = max_frac
@@ -110,8 +148,8 @@ def safe_stake(p: float, o: float, equity: float, frac_kelly: float = FRAC_KELLY
         return 0.0, 0.0
 
     _audit_logger.info(
-        f"BET: kelly={k:.4f} frac={frac:.4f} cap_hit={cap_hit} "
-        f"gate={gate} source={source} stake={stake:.2f} equity={equity:.2f}"
+        f"BET: kelly={k:.4f} frac={frac:.4f} cap_hit={cap_hit} hot_capped={hot_capped} "
+        f"spread_pp={spread_pp} gate={gate} source={source} stake={stake:.2f} equity={equity:.2f}"
     )
     return stake, k
 
