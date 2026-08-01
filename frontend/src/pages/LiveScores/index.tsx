@@ -9,7 +9,9 @@ function fmtClockGMT8(now: number) {
   return new Date(now).toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
 }
 function fmtGMT8(iso: string) {
+  if (!iso) return '' // 空开赛时间 → 空串, 而非 "Invalid Date"
   try {
+    if (isNaN(new Date(iso).getTime())) return '' // 无效日期 toLocaleTimeString 返回 "Invalid Date" 而非抛错, 需显式拦截
     return new Date(iso).toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hour12: false })
   } catch { return '' }
 }
@@ -75,6 +77,7 @@ function stateOf(fx: FixtureEntry, now: number): { live: boolean; finished: bool
 // 倒计时 (距开赛)
 function countdown(iso: string, now: number): string | null {
   const ko = new Date(iso).getTime()
+  if (isNaN(ko)) return null // 空/无效开赛时间 → 不显示倒计时 (修复 "距开赛 NaNm")
   const remain = ko - now
   if (remain <= 0) return null
   const m = Math.floor(remain / 60000)
@@ -266,7 +269,8 @@ function MatchCard({ fx, now, onAnalyze }: { fx: FixtureEntry; now: number; onAn
   const awayLead = live && hasScore && sa > sh
   // 只在 live/finished 且有真实比分时才显示比分; 中场休息若有比分也展示(半场比分)
   const showScore = (live || finished || halftime) && hasScore
-  const timeLabel = live ? label : halftime ? '中场休息' : finished ? '已结束' : pending ? '状态待定' : `${fmtGMT8(fx.commence_time)} 开赛`
+  const koClock = fmtGMT8(fx.commence_time)
+  const timeLabel = live ? label : halftime ? '中场休息' : finished ? '已结束' : pending ? '状态待定' : (koClock ? `${koClock} 开赛` : '时间待定')
   return (
     <div className={`rounded-lg border px-3 py-2 transition-colors duration-150 ${
       live

@@ -2,7 +2,11 @@ import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/store'
 
-const BRIDGE_URL = (import.meta as any).env?.VITE_BRIDGE_URL || 'http://localhost:9000'
+// 与 services/api.ts 保持一致: 默认同源(空串), 规避 localhost vs 127.0.0.1 的 CORS 跨域;
+// 仅 Docker/远程跨机部署时才设 VITE_BRIDGE_URL=http://<host>:9000。
+// (此前硬编码 localhost:9000, 浏览器经 127.0.0.1:9000 加载时 /health 被 CORS 打死,
+//  导致 TopBar 健康点长期误显红色"异常"。)
+const BRIDGE_URL = ((import.meta as any).env?.VITE_BRIDGE_URL || '').trim()
 
 export default function TopBar() {
   const { systemHealth, setSystemHealth, alerts, setAlerts, unacknowledgedCount,
