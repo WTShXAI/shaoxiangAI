@@ -37,6 +37,12 @@ MAX_GOAL_DEFAULT = 8
 WC_OIP_GOAL_SCALE = 1.35
 GENERAL_OIP_GOAL_SCALE = 1.2
 
+# 波胆概率温度缩放校准 (2026-08-01, walkforward 严格验证): T=0.90 使 OIP 比分概率略尖锐,
+# 修正其轻微 under-confident。train(≤2022, 2.5万)学T → test(≥2023, 3.9万) logloss 2.8830→2.8777(-0.0054),
+# brier 0.9263→0.9258(-0.0005)。提升概率准确度(利于价值层EV/凯利/ROI稳定), 不改 top-N 排名(softmax单调)。
+# temperature=1.0 可退回旧行为。
+CS_PROB_TEMPERATURE = 0.90
+
 def deoverround(oh: float, od: float, oa: float) -> Tuple[float, float, float]:
     """1X2 去抽水 → 隐含 P(H),P(D),P(A)"""
     o = 1.0/oh + 1.0/od + 1.0/oa
@@ -94,7 +100,7 @@ def solve_oip(ph: float, pd: float, pa: float, maxg: int = MAX_GOAL_DEFAULT) -> 
                 bestr, best = r, (lh, la)
     return best
 
-def predict_score(home: str, away: str, oh: float, od: float, oa: float, max_goal: int = MAX_GOAL_DEFAULT, rho: float = 0.0, goal_scale: float = 1.2) -> Dict[str, Any]:
+def predict_score(home: str, away: str, oh: float, od: float, oa: float, max_goal: int = MAX_GOAL_DEFAULT, rho: float = 0.0, goal_scale: float = 1.2, temperature: float = CS_PROB_TEMPERATURE) -> Dict[str, Any]:
     """
     赔率隐含 Poisson 比分预测.
     返回 dict: lh, la(期望进球), p_h/p_d/p_a(胜平负), matrix(比分概率矩阵),
@@ -117,6 +123,11 @@ def predict_score(home: str, away: str, oh: float, od: float, oa: float, max_goa
     M = M / M.sum()
     if rho:
         M = _dc_correct(M, rho, max_goal)
+    # 温度缩放校准 (T=CS_PROB_TEMPERATURE, walkforward验证): 修正OIP比分概率轻微under-confident,
+    # 提升概率准确度(logloss/brier), 不改top-N排名。temperature=1.0 退回旧行为。
+    if temperature and abs(temperature - 1.0) > 1e-9:
+        Mp = np.power(np.clip(M, 1e-12, 1.0), 1.0 / temperature)
+        M = Mp / Mp.sum()
     flat = M.flatten()
     order = np.argsort(-flat)[:5]
     top = [(int(divmod(k, max_goal+1)[0]), int(divmod(k, max_goal+1)[1]), round(float(flat[k]), 4))
