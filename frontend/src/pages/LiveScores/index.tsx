@@ -361,6 +361,7 @@ export default function LiveScoresPage() {
   const [now, setNow] = useState(() => Date.now())
   const [filter, setFilter] = useState<FilterMode>('all')
   const [leagueFilter, setLeagueFilter] = useState<string>('')
+  const [leagueSearch, setLeagueSearch] = useState('')
   const [analyze, setAnalyze] = useState<{ home: string; away: string; sportKey?: string; odds?: { h: number; d: number; a: number }; handicap?: { ah_line?: number | string; ah_home?: number; ah_away?: number; ou_line?: number | string; ou_over?: number; ou_under?: number }; liveScore?: { homeGoals: number; awayGoals: number; elapsed?: number } } | null>(null)
   const onAnalyze = useCallback((h: string, a: string, sportKey?: string, odds?: { h: number; d: number; a: number }, handicap?: { ah_line?: number | string; ah_home?: number; ah_away?: number; ou_line?: number | string; ou_over?: number; ou_under?: number }, liveScore?: { homeGoals: number; awayGoals: number; elapsed?: number }) => {
     setAnalyze({ home: h, away: a, sportKey, odds, handicap, liveScore })
@@ -482,6 +483,13 @@ saveMatchesCache(all)
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1])
   }, [matches])
 
+  // 联赛搜索过滤 (2026-08-01 前端优化: 联赛数多时输入关键词快速定位, 免横向长滚)
+  const filteredLeagueOptions = useMemo(() => {
+    const q = leagueSearch.trim().toLowerCase()
+    if (!q) return leagueOptions
+    return leagueOptions.filter(([name]) => name.toLowerCase().includes(q))
+  }, [leagueOptions, leagueSearch])
+
   // 今日议程判定 (GMT+8, 用标准 timeZone 选项)
   const todayKey = useMemo(() => {
     return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' }) // YYYY-MM-DD
@@ -589,7 +597,13 @@ saveMatchesCache(all)
 
         {/* 联赛筛选 (横向滚动, 不换行避免高度跳动) */}
         {leagueOptions.length > 0 && (
-          <div className='flex gap-1.5 overflow-x-auto pb-1' style={{ scrollbarWidth: 'thin' }}>
+          <div className='flex gap-1.5 overflow-x-auto pb-1 items-center' style={{ scrollbarWidth: 'thin' }}>
+            <input
+              value={leagueSearch}
+              onChange={(e) => setLeagueSearch(e.target.value)}
+              placeholder='搜联赛'
+              className='px-2 py-0.5 rounded text-[10px] bg-surface-hover text-white placeholder-ink-muted w-20 flex-shrink-0 outline-none focus:ring-1 focus:ring-accent/50'
+            />
             <button
               onClick={() => setLeagueFilter('')}
               className={`px-2 py-0.5 rounded text-[10px] transition-colors flex-shrink-0 ${
@@ -598,7 +612,7 @@ saveMatchesCache(all)
             >
               全部联赛
             </button>
-            {leagueOptions.map(([name, cnt]) => (
+            {filteredLeagueOptions.map(([name, cnt]) => (
               <button
                 key={name}
                 onClick={() => setLeagueFilter(leagueFilter === name ? '' : name)}
