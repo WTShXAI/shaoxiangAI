@@ -190,6 +190,20 @@ function OddsPanel({ fx }: { fx: FixtureEntry }) {
   const hasOU = typeof ouO === 'number' && typeof ouU === 'number' && ouL != null
   const hasOUOp = typeof ouOpO === 'number' && typeof ouOpU === 'number'
 
+  // OU 方向置信度(2026-08-01 用所有OU数据校准): 市场一边倒 + 盘口线极端 → 高置信
+  // 移植自 pipeline/evaluation/ou_eval.ou_confidence; 分桶验证: <0.3=46.6% / 0.5-0.7=77% / >=0.7=97.7%
+  const ouConfidence = (line: number | string | null, over: number, under: number): number | null => {
+    if (line == null || !isFinite(over) || !isFinite(under) || over <= 1.01 || under <= 1.01) return null
+    const ln = typeof line === 'string' ? parseFloat(line) : line
+    if (!isFinite(ln)) return null
+    const pOver = (1 / over) / (1 / over + 1 / under)
+    const pFav = Math.max(pOver, 1 - pOver)
+    const confMarket = (pFav - 0.5) * 2
+    const confLine = Math.min(Math.abs(ln - 2.75) / 2.0, 1.0)
+    return Math.round((0.5 * confMarket + 0.5 * confLine) * 1000) / 1000
+  }
+  const ouConf = hasOU ? ouConfidence(ouL, ouO, ouU) : null
+
   if (!has1x2 && !has1x2Op && !hasAH && !hasAHOp && !hasOU && !hasOUOp) return null
 
   const C = (v: number | undefined | null) => typeof v === 'number' && !isNaN(v) ? String(Number(v.toFixed(2))) : '——'
@@ -253,6 +267,12 @@ function OddsPanel({ fx }: { fx: FixtureEntry }) {
           <span className='text-ink-muted'>大{ouL}</span>
           {G(ouO, 'text-pitch-400')}{G(ouU, 'text-ember-400')}
         </span>
+        {ouConf != null && ouConf >= 0.5 && (
+          <span className='text-[9px] px-1 py-px rounded bg-emerald-500/20 text-emerald-300 font-bold'>有把握</span>
+        )}
+        {ouConf != null && ouConf < 0.3 && (
+          <span className='text-[9px] px-1 py-px rounded bg-ink-muted/10 text-ink-muted/60'>模糊</span>
+        )}
       </div>}
     </div>
   )
