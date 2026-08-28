@@ -318,9 +318,10 @@ def _vote_three_paths(model_verdict: str, dgate_verdict: str, form_result,
         else:
             path_c = 'D'
     
-    # 投票计数 (A weight=0.6, B weight=0.9, C weight=0.5)
+    # 投票计数 (A weight=0.6, B weight=0.0, C weight=0.5)
+    # P0-1b: D-Gate 已桩化(DGateLayerStub恒返'?'), weight_b 降为 0.0 不再参与加权
     votes = {'H': 0, 'D': 0, 'A': 0}
-    weight_a = 0.6; weight_b = 0.9; weight_c = 0.5
+    weight_a = 0.6; weight_b = 0.0; weight_c = 0.5
     
     for v, w in [(path_a, weight_a), (path_b, weight_b), (path_c, weight_c)]:
         if v in votes:
@@ -330,24 +331,30 @@ def _vote_three_paths(model_verdict: str, dgate_verdict: str, form_result,
     consensus = sum(1 for v in [path_a, path_b, path_c] if v == winner)
     
     # 裁决逻辑
+    # P0-1b: D-Gate 桩化后 path_b 恒为 '?' —— 分歧时不再走 D-Gate優先, 回退模型優先
     if consensus >= 2:
         verdict = winner
         reason = f'三路径共识({consensus}/3): A={path_a} B={path_b} C={path_c}'
-    elif path_b != winner:
-        verdict = path_b  # D-Gate优先
+    elif path_b != winner and path_b != '?':
+        verdict = path_b  # D-Gate优先(仅在 D-Gate 活跃时生效)
         reason = f'D-Gate优先(分歧): A={path_a} B={path_b} C={path_c}'
     else:
         verdict = path_a
         reason = f'模型优先(分歧): A={path_a} B={path_b} C={path_c}'
     
     # 让2球场景历史相似场检索
+    # P0-1a fix: rules/ 目录在仓A 不存在, 裸 import 会 ModuleNotFoundError
+    # similar_match_ref 是装饰性字段, 不影响裁决; try/except 兜底
     similar_match_ref = None
     if abs(hcp) >= 1.5:
-        from rules.d_gate_utils import ALL_RESULTS
-        for h, a, hg, ag, hcp_ref, _ in ALL_RESULTS:
-            if abs(hcp_ref - abs(hcp)) <= 0.5 and abs((hg + ag) - ou_line) <= 1.0:
-                similar_match_ref = f'{h}vs{a} {hg}-{ag}(hcp={hcp_ref})'
-                break
+        try:
+            from rules.d_gate_utils import ALL_RESULTS
+            for h, a, hg, ag, hcp_ref, _ in ALL_RESULTS:
+                if abs(hcp_ref - abs(hcp)) <= 0.5 and abs((hg + ag) - ou_line) <= 1.0:
+                    similar_match_ref = f'{h}vs{a} {hg}-{ag}(hcp={hcp_ref})'
+                    break
+        except ModuleNotFoundError:
+            similar_match_ref = None  # rules/ 包缺失时不崩溃, 不影响裁决
     
     return {
         'verdict': verdict,

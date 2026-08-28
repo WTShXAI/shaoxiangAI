@@ -51,7 +51,7 @@ def parse_date(match_time):
 
 def build_value_layer(home, away, oh, od, oa, d=None):
     """构建价值层。跨庄共识概率(诚实估计) vs 跨庄最优价。
-    单庄时共识=该庄 → edge≈0 → 强制 PASS(edge 不可证伪)。"""
+    单源时共识=该庄(无跨庄价差); edge 由 margin 数学自然判定, 不预设单源无edge。"""
     price_books = [[oh, od, oa]]
     if d:
         for bk in (d.get("odds_1x2_multi") or []):
@@ -72,7 +72,6 @@ def build_value_layer(home, away, oh, od, oa, d=None):
     best_odds = [max(p[0] for p in price_books),
                  max(p[1] for p in price_books),
                  max(p[2] for p in price_books)]
-    single_book = len(price_books) <= 1
     overround = (1.0 / oh + 1.0 / od + 1.0 / oa) - 1.0
     cons = consensus_probs(price_books)   # 跨庄共识隐含概率(诚实估计)
     vl = compute_value_layer(odds=best_odds,
@@ -80,13 +79,7 @@ def build_value_layer(home, away, oh, od, oa, d=None):
                              overround=overround)
     vl["best_odds"] = [round(x, 3) for x in best_odds]
     vl["books_count"] = len(price_books)
-    if single_book:
-        vl["decision"] = "PASS"
-        vl["best_direction"] = "PASS"
-        vl["single_book"] = True
-        vl["decision_text"] = "PASS · 单庄无独立定价验证，edge 不可证伪→不接盘"
-        vl["scenario"] = {"direction": None, "note": "单庄模式: 价值层仅展示 edge/EV, 不下注结论"}
-    return vl, (not single_book)
+    return vl, (len(price_books) > 1)
 
 
 def upsert(cur, home, away, date, vl, oh, od, oa, league, final_result, dry_run):

@@ -1,10 +1,7 @@
-"""Full Linkage Predictor 拆分包"""
-from pipeline.predictors.data_classes import *  # noqa: F401, F403
-from pipeline.predictors.ou_linkage import *  # noqa: F401, F403
-# dgate_layer removed 2026-07-06
-from pipeline.predictors.model_layer import *  # noqa: F401, F403
-from pipeline.predictors.live_movement import *  # noqa: F401, F403
-from pipeline.predictors.taoge_strategy import *  # noqa: F401, F403
-from pipeline.predictors.helpers import *  # noqa: F401, F403
-from pipeline.predictors.pipeline import *  # noqa: F401, F403
-from pipeline.predictors.cli import *  # noqa: F401, F403
+"""Full Linkage Predictor 拆分包
+
+P0-Ω0 (2026-08-11): 移除所有 import * 惰性加载.
+8 条级联 import * 在 bridge 取 MatchInput 时加载 10 个子模块(含 ou_linkage),
+实测对线上预测零贡献(全仓活跃代码均使用全路径导入).
+现仅保留 docstring, 所有子模块按需由消费者显式导入.
+"""

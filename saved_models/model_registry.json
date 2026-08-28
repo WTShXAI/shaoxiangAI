@@ -1,6 +1,6 @@
 {
   "active": "wc_v1",
-  "note": "WC模型重训(双管齐下): 主模型wc_main_v1 + DrawExpert_v3_focal, 基于116场真实WC比赛",
+  "note": "模型注册表(2026-08-13 去重清理): league_v1=联赛链路(1x2 AUC 0.6445/ Draw/ OU/ AH 4模型, data/league_*.joblib); wc2026_v1=世界杯2026链路(115场, 锚定赔率, data/wc2026_*.joblib, 未激活生产); wc_v1=legacy 活跃指针(孤儿, 无磁盘文件); 6.0-rule=规则基线历史标记.",
   "current": {
     "version": "wc_v1",
     "timestamp": "2026-07-06T23:44:28.159220+08:00",
@@ -31,60 +31,6 @@
     },
     {
       "version": "wc_v1",
-      "timestamp": "2026-07-06T15:58:25.849798+08:00",
-      "engine": "WC Dual ML: wc_main_v1(Stacking LGB+XGB) + DrawExpert_v3_focal",
-      "n_features": 81,
-      "wc_samples": 112,
-      "metrics": {
-        "main_acc": 0.7411,
-        "main_macro_f1": 0.745,
-        "draw_f1": 0.6182,
-        "baseline_acc": 0.5769,
-        "acc_uplift": 0.1642
-      },
-      "models": [
-        "wc_main_v1",
-        "draw_expert_v3_focal"
-      ]
-    },
-    {
-      "version": "wc_v1",
-      "timestamp": "2026-07-06T16:08:35.963176+08:00",
-      "engine": "WC Dual ML: wc_main_v1(Stacking LGB+XGB) + DrawExpert_v3_focal",
-      "n_features": 81,
-      "wc_samples": 112,
-      "metrics": {
-        "main_acc": 0.7411,
-        "main_macro_f1": 0.745,
-        "draw_f1": 0.6182,
-        "baseline_acc": 0.5769,
-        "acc_uplift": 0.1642
-      },
-      "models": [
-        "wc_main_v1",
-        "draw_expert_v3_focal"
-      ]
-    },
-    {
-      "version": "wc_v1",
-      "timestamp": "2026-07-06T19:46:18.525364+08:00",
-      "engine": "WC Dual ML: wc_main_v1(Stacking LGB+XGB) + DrawExpert_v3_focal",
-      "n_features": 77,
-      "wc_samples": 112,
-      "metrics": {
-        "main_acc": 0.7411,
-        "main_macro_f1": 0.745,
-        "draw_f1": 0.6182,
-        "baseline_acc": 0.5769,
-        "acc_uplift": 0.1642
-      },
-      "models": [
-        "wc_main_v1",
-        "draw_expert_v3_focal"
-      ]
-    },
-    {
-      "version": "wc_v1",
       "timestamp": "2026-07-06T22:13:49.782197+08:00",
       "engine": "WC Dual ML: wc_main_v1(Stacking LGB+XGB) + DrawExpert_v3_focal",
       "n_features": 77,
@@ -102,22 +48,171 @@
       ]
     },
     {
-      "version": "wc_v1",
-      "timestamp": "2026-07-06T23:44:28.159220+08:00",
-      "engine": "WC Dual ML: wc_main_v1(Stacking LGB+XGB) + DrawExpert_v3_focal",
-      "n_features": 77,
-      "wc_samples": 115,
+      "version": "league_v1",
+      "chain": "league",
+      "timestamp": "2026-08-12T16:41:54.120492+08:00",
+      "engine": "League Stacking(LGB+XGB->LR) + DrawExpert + OU/AH calibrated",
+      "n_features": 37,
+      "league_samples_1x2": 2999,
+      "league_samples_ou": 2469,
+      "league_samples_ah": 1274,
+      "excluded": {
+        "wc": 310,
+        "friendly": 259,
+        "other": 0
+      },
       "metrics": {
-        "main_acc": 0.7565,
-        "main_macro_f1": 0.7487,
-        "draw_f1": 0.6301,
-        "baseline_acc": 0.5769,
-        "acc_uplift": 0.1796
+        "1x2_acc": 0.5245,
+        "1x2_macro_f1": 0.3814,
+        "1x2_auc": 0.6445,
+        "1x2_baseline_acc": 0.4565,
+        "1x2_acc_uplift": 0.068,
+        "draw_f1": 0.3721,
+        "draw_auc": 0.6073,
+        "ou_auc": 0.5456,
+        "ou_base_rate": 0.5452,
+        "ou_monotonic": false,
+        "ah_auc": 0.7602,
+        "ah_base_rate": 0.4144
       },
       "models": [
-        "wc_main_v1",
-        "draw_expert_v3_focal"
+        "league_main_v1",
+        "league_draw_expert",
+        "league_ou_v1",
+        "league_ah_v1"
+      ]
+    },
+    {
+      "version": "wc2026_v1",
+      "chain": "wc",
+      "timestamp": "2026-08-24T06:02:36.277583+08:00",
+      "engine": "WC2026 Stacking(LGB+XGB->LR) + DrawExpert + OU(over2.5) calibrated",
+      "n_features": 12,
+      "wc2026_samples": 115,
+      "data_source": "football_data.db.wc_all_matches(edition=2026) + 截图盘口",
+      "name_canonical": "48 队 (2026 世界杯 48 队赛制)",
+      "metrics": {
+        "1x2_acc": 0.5304,
+        "1x2_macro_f1": 0.4212,
+        "1x2_auc": 0.7093,
+        "1x2_baseline_majority": 0.4783,
+        "1x2_baseline_favorite": 0.6,
+        "1x2_acc_uplift_vs_favorite": -0.0696,
+        "draw_f1": 0.4576,
+        "draw_auc": 0.5949,
+        "ou_auc": 0.6038,
+        "ou_base_rate": 0.5652,
+        "ou_monotonic": true
+      },
+      "models": [
+        "wc2026_main_v1",
+        "wc2026_draw_expert",
+        "wc2026_ou_v1"
+      ],
+      "note": "AH 暂未训: 数据集无一致 AH 盘口线/标签"
+    },
+    {
+      "version": "league_v1",
+      "chain": "league",
+      "timestamp": "2026-08-24T06:02:51.250207+08:00",
+      "engine": "League Stacking(LGB+XGB->LR) + DrawExpert + OU/AH calibrated",
+      "n_features": 29,
+      "league_samples_1x2": 7542,
+      "league_samples_ou": 6722,
+      "league_samples_ah": 4428,
+      "excluded": {
+        "wc": 310,
+        "friendly": 254,
+        "other": 0
+      },
+      "metrics": {
+        "1x2_acc": 0.5106,
+        "1x2_macro_f1": 0.4075,
+        "1x2_auc": 0.6607,
+        "1x2_baseline_acc": 0.4236,
+        "1x2_acc_uplift": 0.087,
+        "draw_f1": 0.4137,
+        "draw_auc": 0.5859,
+        "ou_auc": 0.5609,
+        "ou_base_rate": 0.5378,
+        "ou_monotonic": false,
+        "ah_auc": 0.8329,
+        "ah_base_rate": 0.4045
+      },
+      "models": [
+        "league_main_v1",
+        "league_draw_expert",
+        "league_ou_v1",
+        "league_ah_v1"
       ]
     }
-  ]
+  ],
+  "chains": {
+    "league": "league_v1",
+    "wc": "wc_v1"
+  },
+  "league_current": {
+    "version": "league_v1",
+    "chain": "league",
+    "timestamp": "2026-08-24T06:02:51.250207+08:00",
+    "engine": "League Stacking(LGB+XGB->LR) + DrawExpert + OU/AH calibrated",
+    "n_features": 29,
+    "league_samples_1x2": 7542,
+    "league_samples_ou": 6722,
+    "league_samples_ah": 4428,
+    "excluded": {
+      "wc": 310,
+      "friendly": 254,
+      "other": 0
+    },
+    "metrics": {
+      "1x2_acc": 0.5106,
+      "1x2_macro_f1": 0.4075,
+      "1x2_auc": 0.6607,
+      "1x2_baseline_acc": 0.4236,
+      "1x2_acc_uplift": 0.087,
+      "draw_f1": 0.4137,
+      "draw_auc": 0.5859,
+      "ou_auc": 0.5609,
+      "ou_base_rate": 0.5378,
+      "ou_monotonic": false,
+      "ah_auc": 0.8329,
+      "ah_base_rate": 0.4045
+    },
+    "models": [
+      "league_main_v1",
+      "league_draw_expert",
+      "league_ou_v1",
+      "league_ah_v1"
+    ]
+  },
+  "wc2026_current": {
+    "version": "wc2026_v1",
+    "chain": "wc",
+    "timestamp": "2026-08-24T06:02:36.277583+08:00",
+    "engine": "WC2026 Stacking(LGB+XGB->LR) + DrawExpert + OU(over2.5) calibrated",
+    "n_features": 12,
+    "wc2026_samples": 115,
+    "data_source": "football_data.db.wc_all_matches(edition=2026) + 截图盘口",
+    "name_canonical": "48 队 (2026 世界杯 48 队赛制)",
+    "metrics": {
+      "1x2_acc": 0.5304,
+      "1x2_macro_f1": 0.4212,
+      "1x2_auc": 0.7093,
+      "1x2_baseline_majority": 0.4783,
+      "1x2_baseline_favorite": 0.6,
+      "1x2_acc_uplift_vs_favorite": -0.0696,
+      "draw_f1": 0.4576,
+      "draw_auc": 0.5949,
+      "ou_auc": 0.6038,
+      "ou_base_rate": 0.5652,
+      "ou_monotonic": true
+    },
+    "models": [
+      "wc2026_main_v1",
+      "wc2026_draw_expert",
+      "wc2026_ou_v1"
+    ],
+    "note": "AH 暂未训: 数据集无一致 AH 盘口线/标签"
+  }
 }

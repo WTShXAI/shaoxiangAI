@@ -1,0 +1,9 @@
+{
+  "base_gs": 1.2,
+  "cs_w_market": 1.0,
+  "max_goal": 8,
+  "ensemble_1x2": {"wi_teacher": 0.85, "devig_raw": 0.15},
+  "ensemble_total": {"wi_total": 0.70, "jepa_score": 0.30},
+  "priority_override": "cross_book_edge",
+  "wi_1x2_weight": 0.6
+}

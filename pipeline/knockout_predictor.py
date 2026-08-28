@@ -24,9 +24,12 @@ GROUPS = ['A','B','C','D','E','F','G','H','I','J','K','L']
 
 def load_standings():
     """从DynamicTeamDB获取所有球队积分"""
-    from data.dynamic_team_db_module import DynamicTeamDB
-    DynamicTeamDB.load()
-    return DynamicTeamDB._db
+    try:
+        from data.dynamic_team_db_module import DynamicTeamDB
+        DynamicTeamDB.load()
+        return DynamicTeamDB._db
+    except ImportError:
+        return {}
 
 def get_group_from_map(team_name, group_map):
     """查找球队所在小组"""
@@ -55,8 +58,12 @@ def predict_r3(matches_dict, group_standings):
 
 def _build_elo():
     """从 ALL_RESULTS 构建Elo"""
-    from rules.d_gate_utils import ALL_RESULTS
-    from rules.drawgate_v53 import imp_from_odds
+    try:
+        from rules.d_gate_utils import ALL_RESULTS
+        from rules.drawgate_v53 import imp_from_odds
+    except ImportError:
+        ALL_RESULTS = []
+        imp_from_odds = lambda *a, **kw: {}
     
     fifa = {}
     try:
@@ -207,15 +214,19 @@ def main():
     
     db = load_standings()
     elo = _build_elo()
-    from data.dynamic_team_db_module import DynamicTeamDB
+    try:
+        from data.dynamic_team_db_module import DynamicTeamDB
+    except ImportError:
+        DynamicTeamDB = None
     
     # 从DB加载已知积分 (使用fuzzy match)
     group_standings = {}
-    for g, teams in ALL_GROUPS.items():
-        for t in teams:
-            d = DynamicTeamDB.get_team(t)
-            if d and d.get('gp', 0) > 0:
-                group_standings[t] = d
+    if DynamicTeamDB is not None:
+        for g, teams in ALL_GROUPS.items():
+            for t in teams:
+                d = DynamicTeamDB.get_team(t)
+                if d and d.get('gp', 0) > 0:
+                    group_standings[t] = d
     
     print(f'总球队: {len(ALL_GROUPS)*4} ({len(ALL_GROUPS)}组) | 有积分数据: {len(group_standings)}队\n')
     

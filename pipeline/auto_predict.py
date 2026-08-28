@@ -71,7 +71,11 @@ def plugin_fetch_odds(matches, standings, matchday):
 
 def plugin_predict(matches_with_odds, standings, matchday):
     """P3: 运行预测"""
-    from rules.tournament_dynamics import predict_with_scores
+    try:
+        from rules.tournament_dynamics import predict_with_scores
+    except ImportError:
+        predict_with_scores = lambda *a, **kw: {'verdict':'?', 'winner':'?', 'mode':'unavailable',
+            'scores':[], 'signals':['rules.tournament_dynamics 不可用'], 'lambda_h':0, 'lambda_a':0}
     
     results = []
     for dt, h, a, oh, od, oa, hcp, ou in matches_with_odds:

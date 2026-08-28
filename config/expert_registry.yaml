@@ -78,13 +78,26 @@ experts:
 # ═══════════════════════════════════════════
 betting:
   bankroll: 3000.0           # 本金基准 (单位)
-  frac_kelly: 0.5            # 凯利比例 (0.5 = 半凯利)
+  frac_kelly: 0.25           # 凯利比例 (0.25 = 1/4 凯利; 报告 P2#2 收紧, 降 p 高估 overbet 破产风险)
   max_stake_frac: 0.10       # 单注封顶(占本金比例)
   min_disagreement_bets: 300 # 生产环境分歧子集最低容量 (低于此值→全局NO-GO)
   env: "DEV"                 # DEV/PROD — PROD 启用 NO-GO 护栏
   # ── P0a 注码风控闸门 (2026-08-01, 针对 ROI=-30% 根因: 重注低赔热门全输) ──
   hot_odds_max: 1.5          # 低赔热门阈值: odds<此值视为市场强热门, 触发限注
   hot_frac_cap: 0.03         # 热门单注封顶(占本金): 从10%压到3%, 止"重注热门全输"
+  hot_edge_min_pp: 3.0       # P0-3 热门主动拒止: 热门且 edge<3pp → 直接 NO-BET (FLB验证: 低热门微边被抽水吃)
   min_spread_pp: 0.0         # 跨庄分歧放注门槛(pp): >0时跨庄spread不足则NO-BET (P1接跨庄后建议15)
-  loss_cooldown_after: 0     # 连败降档触发场数: >0时连输N场后凯利缩放 (0=不启用)
+  loss_cooldown_after: 8     # 连败降档触发场数: 连输8场后凯利缩放 (P0-2 已启用, 2026-08-11)
   loss_frac_scale: 0.5       # 连败降档缩放: 触发后 frac *= 此值
+  # ── P0-1 价值闸门强制 (2026-08-01, 针对 Flat Argmax 100%破产) ──
+  value_gate_enforced: true   # PROD 强制 value gate; flat argmax/裸跟方向在PROD返回NO-BET
+  # ── P0-2 回撤预算机制 (2026-08-01, 针对 Value Gate 34%回撤 + 76.8%水下时间) ──
+  drawdown_budget_enabled: true       # 启用动态Kelly缩放 + 月度止盈止损
+  max_drawdown_pct: 0.10              # 峰值回撤≥10%触发Kelly线性缩放
+  dd_kelly_scale_min: 0.25            # 达到max_drawdown_pct时Kelly缩至25% (最低)
+  monthly_stop_loss: -500.0           # 月度止损线(绝对P&L); 触发后当月停注
+  monthly_stop_profit: 1500.0         # 月度止盈线(绝对P&L); 触发后当月停注
+  # ── P0-3 热门主动拒止 (2026-08-01, 针对低赔热门微小edge被7-9% overround吃掉) ──
+  hot_reject_enabled: true            # odds<hot_reject_odds_max 且 edge<hot_reject_edge_min_pp → PASS
+  hot_reject_odds_max: 1.5            # 热门拒止赔率上限 (与 hot_odds_max 一致)
+  hot_reject_edge_min_pp: 3.0         # 热门最小edge门槛(百分点); edge<此值即使EV>0也PASS

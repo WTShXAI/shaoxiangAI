@@ -1,0 +1,86 @@
+[
+  {
+    "mid": "5572826",
+    "sh": 2,
+    "sa": 1,
+    "ht_sh": 1,
+    "ht_sa": 0,
+    "source": "sportscore/elbotola/wildstat 俄杯资格赛",
+    "note": "圣彼得堡迪纳摩 2-1 莫斯科10 (HT 1-0)"
+  },
+  {
+    "mid": "5576823",
+    "sh": 0,
+    "sa": 2,
+    "ht_sh": 0,
+    "ht_sa": 1,
+    "source": "wildstat/scores24/a-hupu 俄杯资格赛",
+    "note": "奥布宁斯克(量子) 0-2 瑞亚赞(梁赞) (HT 0-1)"
+  },
+  {
+    "mid": "5581619",
+    "sh": 0,
+    "sa": 0,
+    "ht_sh": 0,
+    "ht_sa": 0,
+    "source": "sporteden/ooscore/flashscore/wildstat 俄杯资格赛",
+    "note": "巴尔瑙尔戴拿模 0-0 迪那摩海参崴 (HT 0-0, 点球4-3 Barnaul晋级)"
+  },
+  {
+    "mid": "5581620",
+    "sh": 2,
+    "sa": 2,
+    "ht_sh": 0,
+    "ht_sa": 1,
+    "source": "1x2.tv/booscore/aiscore/wlaa/a-hupu 俄杯资格赛",
+    "note": "KDV托木斯克 2-2 新西伯利亚 (HT 0-1, 点球5-4 KDV晋级)"
+  },
+  {
+    "mid": "5577421",
+    "sh": 0,
+    "sa": 0,
+    "ht_sh": 0,
+    "ht_sa": 0,
+    "source": "scores24/wildstat/9host/a-hupu/playmakerstats 俄杯资格赛",
+    "note": "安古什特 0-0 德鲁日巴 (HT 0-0, 点球2-4 Druzhba晋级)"
+  },
+  {
+    "mid": "5578190",
+    "sh": 1,
+    "sa": 1,
+    "ht_sh": 0,
+    "ht_sa": 0,
+    "source": "sporteden/goals365/kickoffscore/falconscores 俄杯资格赛",
+    "note": "艾立叙欧斯克(=额尔齐斯Omsk Irtysh) 1-1 土星(Saturn) (HT 0-0, 点球4-2 Irtysh晋级)"
+  },
+  {
+    "mid": "5577414",
+    "sh": 0,
+    "sa": 0,
+    "source": "1x2.tv/soccer365/a-hupu/miguvideo 俄杯资格赛",
+    "note": "穆罗姆 0-0 利比克(利佩茨克冶金) (HT 未知)"
+  },
+  {
+    "mid": "5578181",
+    "sh": 1,
+    "sa": 1,
+    "source": "1x2.tv/soccer365/a-hupu/miguvideo 俄杯资格赛",
+    "note": "阿斯特拉罕 1-1 麦呼克KMV (HT 未知)"
+  },
+  {
+    "mid": "5578185",
+    "sh": 0,
+    "sa": 3,
+    "source": "1x2.tv/soccer365/a-hupu/miguvideo 俄杯资格赛",
+    "note": "斯特罗吉诺 0-3 瓦拉迪米魚雷(弗拉基米尔鱼雷) (HT 未知)"
+  },
+  {
+    "mid": "5581622",
+    "sh": 1,
+    "sa": 2,
+    "ht_sh": 0,
+    "ht_sa": 0,
+    "source": "soccer365/miguvideo/163体育/haodiany 俄杯资格赛",
+    "note": "FC伊热夫斯克 1-2 米阿斯(米阿斯鱼雷) (HT 0-0)"
+  }
+]

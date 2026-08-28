@@ -75,7 +75,7 @@ def consensus_probs(books: List[List[float]]) -> List[float]:
     设计依据（FootballAI v6 铁律）：模型对 1X2 无超越赔率的信息优势，
     故"模型概率"的最佳估计 = 跨庄共识隐含概率；1X2 的真实 edge 仅来自
     跨庄价差（soft line / 套利空间），由 compute_value_layer 用 best_odds 计算。
-    books = [[oh, od, oa], ...]，单庄时共识=该庄 → edge≈0 → PASS。"""
+    books = [[oh, od, oa], ...]，单源时共识=该庄 → edge≈0 → PASS。"""
     valid = [b for b in books if b and all(x > 0 for x in b)]
     if not valid:
         return [0.0, 0.0, 0.0]

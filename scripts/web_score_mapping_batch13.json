@@ -1,0 +1,57 @@
+[
+  {
+    "mid": "5604962",
+    "sh": 3,
+    "sa": 0,
+    "source": "dailysports 俄乙B Second League B 2026-08-22",
+    "note": "波贝达哈萨维尤特 3-0 卢甘斯克曙光 (Pobeda Khasavyurt 3-0 Luch Energiya Vladikavkaz)"
+  },
+  {
+    "mid": "5582534",
+    "sh": 0,
+    "sa": 0,
+    "ht_sh": 0,
+    "ht_sa": 0,
+    "source": "statshub/booscore 俄乙B Second League B 2026-08-22",
+    "note": "圣彼得堡迪纳摩 0-0 切列波韦茨 (Dinamo St Petersburg 0-0 Cherepovets, HT 0-0)"
+  },
+  {
+    "mid": "5585368",
+    "sh": 1,
+    "sa": 1,
+    "source": "statshub 俄乙B Second League B 2026-08-22",
+    "note": "德鲁日巴 1-1 克孜勒塔什 (Druzhba 1-1 Kiziltash)"
+  },
+  {
+    "mid": "5604985",
+    "sh": 0,
+    "sa": 1,
+    "ht_sh": 0,
+    "ht_sa": 1,
+    "source": "footywow/zgzcw 俄乙B Second League B 2026-08-22",
+    "note": "纳尔特切尔克斯克 0-1 卢宾雅尔塔 (Nart Cherkessk 0-1 Rubin Yalta, HT 0-1)"
+  },
+  {
+    "mid": "5607537",
+    "sh": 0,
+    "sa": 0,
+    "source": "offsidescores 俄乙B Second League B 2026-08-22",
+    "note": "奥廖尔 0-0 瑞亚赞 (Oryol 0-0 Ryazan)"
+  },
+  {
+    "mid": "5585336",
+    "sh": 1,
+    "sa": 2,
+    "ht_sh": 0,
+    "ht_sa": 2,
+    "source": "leisu/statshub 俄乙B Second League B 2026-08-22",
+    "note": "斯特罗吉诺 1-2 伯力能源B队 (Strogino 1-2 SKA-Khabarovsk B, HT 0-2)"
+  },
+  {
+    "mid": "5607103",
+    "sh": 4,
+    "sa": 0,
+    "source": "thefishy/dailysports 俄乙B Second League B 2026-08-23",
+    "note": "叶尼塞B队 4-0 克伊斯克拉 (Yenisey B 4-0 Iskra)"
+  }
+]

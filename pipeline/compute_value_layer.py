@@ -11,11 +11,15 @@ pipeline/compute_value_layer.py
   - 注码/凯利统一走 scripts.bet_core (SSoT, 含 10% 封顶 + 分歧闸门 + 审计)。
   - 模型概率来自 OIP 比分矩阵边缘（由 predict_score 推导）或跨庄共识隐含概率。
   - edge = 模型概率 − 市场隐含概率；EV = 模型概率×赔率 − 1；凯利 = (p·odds−1)/(odds−1)。
+  - P0-1: PROD 环境经 value_layer_approved=True 传递审批到 bet_core.safe_stake。
+  - P0-3: 热门主动拒止 — odds<1.5 且 edge<3pp → 直接 PASS (不接盘)。
 
 依赖：仅标准库 + scripts.bet_core（已为 SSoT）。无 numpy / 无外部 heavy dep。
 """
 from __future__ import annotations
 import math
+from enum import Enum
+from dataclasses import dataclass
 from typing import Dict, Any, List, Optional, Tuple
 
 # ── 注码/凯利统一走 bet_core (SSoT) ──
@@ -41,13 +45,36 @@ except Exception:  # pragma: no cover
     def _cb_severity(pp: float) -> str:
         return "HIGH" if pp >= 15 else "MED" if pp >= 10 else "LOW" if pp >= 5 else ""
 
+# ── P0-3 热门主动拒止配置 ──
+# 从 expert_registry.yaml 加载; 失败则用硬编码默认值 (与 bet_core 同源)。
+def _load_betting_config() -> dict:
+    import yaml, os
+    _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    config_path = os.path.join(_root, "config", "expert_registry.yaml")
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f)
+        return cfg.get("betting", {})
+    except Exception:
+        return {}
+
+_BC2 = _load_betting_config()
+_HOT_REJECT_ENABLED = bool(_BC2.get("hot_reject_enabled", True))
+_HOT_REJECT_ODDS_MAX = float(_BC2.get("hot_reject_odds_max", 1.5))
+# 抗诱导口径 (2026-08-18): 判定用隐含概率坐标 (1/odds), 与原始赔率值单调等价、行为不变,
+# 但阈值语义跨日稳定(1.5 的"深盘"含义随当日抽水漂移, 66.7% 隐含概率不漂移)。
+_HOT_REJECT_MIN_IMPLIED = 1.0 / _HOT_REJECT_ODDS_MAX  # ≈0.667
+_HOT_REJECT_EDGE_MIN_PP = float(_BC2.get("hot_reject_edge_min_pp", 3.0))
+
 
 def _capped_stake(p: float, odds: float, bankroll: float,
                   frac_kelly: float = 0.5, gate: bool = True,
                   source: str = "compute_value_layer") -> float:
-    """统一封顶注码 (10%封顶 + 分歧闸门, 走 bet_core.safe_stake SSoT)。"""
+    """统一封顶注码 (10%封顶 + 分歧闸门, 走 bet_core.safe_stake SSoT)。
+    P0-1: 始终传 value_layer_approved=True (本函数是价值层唯一注码入口)."""
     stake, _ = _bet_core_safe_stake(
-        p, odds, bankroll, frac_kelly=frac_kelly, gate=gate, source=source)
+        p, odds, bankroll, frac_kelly=frac_kelly, gate=gate, source=source,
+        value_layer_approved=True)
     return float(stake)
 
 
@@ -122,7 +149,7 @@ def compute_value_layer(
     """
     if overround is None:
         overround = (sum(1.0 / o for o in odds) - 1.0)
-    # ── P1a 跨庄共识锚定 (2026-08-01, v6铁律: 真edge来自跨庄价差, 单庄去水无edge) ──
+    # ── P1a 跨庄共识锚定 (2026-08-01, v6铁律: 真edge来自跨庄价差) ──
     # 传入 cross_book(=cross_book_edge.analyze_match 的单场输出)时, 市场公平价改用
     # 跨庄共识(各庄去水概率中位数, 抗离群), 替代单庄去水/FLB; 共识已是公平价, 不再FLB惩罚。
     spread_pp = 0.0
@@ -155,9 +182,11 @@ def compute_value_layer(
         if cb_used:
             # P1a 跨庄模式: stake_unit 走 bet_core.safe_stake 完整风控(P0a热门限注+跨庄分歧门槛+10%封顶),
             # 把 spread_pp 传入启用跨庄闸门; min_spread_pp>0 时 spread 不足则 stake=0 (真edge不足不接盘)。
+            # P0-1: value_layer_approved=True (经 compute_value_layer 审批).
             stake_capped, _ = _bet_core_safe_stake(
                 p_mod, o, bankroll, frac_kelly=frac_kelly, gate=gate,
                 spread_pp=spread_pp, min_spread_pp=min_spread_pp,
+                value_layer_approved=True,
                 source="compute_value_layer")
         else:
             # stake_unit 仅供展示; 实际下注须走 bet_core.safe_stake (含 10% 封顶)
@@ -183,6 +212,16 @@ def compute_value_layer(
     #      非跨庄模式 ev>0 ⟺ stake_unit>0, 不改变原行为。
     positive_ev = best["ev"] > 0 and gate and best["stake_unit"] > 0  # 分歧闸门未过→强制 PASS
 
+    # ── P0-3 热门主动拒止 (2026-08-01) ──
+    # odds < 1.5 且 edge < 3pp → 即使 EV>0 也 PASS。
+    # 实证: 低赔热门即使有微小+edge, 也会被7-9% overround 吃掉;
+    # 热门限注(3%)只能止血, 不能止亏 → 直接拒止, 不接盘。
+    hot_rejected = False
+    if positive_ev and _HOT_REJECT_ENABLED:
+        if (1.0 / best["odds"]) > _HOT_REJECT_MIN_IMPLIED and best["edge_pct"] < _HOT_REJECT_EDGE_MIN_PP:
+            positive_ev = False
+            hot_rejected = True
+
     if positive_ev:
         stake = best["stake_unit"]
         win_pnl = stake * (best["odds"] - 1)
@@ -204,7 +243,14 @@ def compute_value_layer(
     else:
         scenario = {"direction": None, "note": "全方向负 EV 或零 edge，建议 PASS"}
         decision = "PASS"
-        decision_text = "PASS · 全方向负 EV（抽水吃掉 edge），不接盘"
+        if hot_rejected:
+            decision_text = (
+                f"PASS · 热门拒止(P0-3): odds={best['odds']:.2f}<{_HOT_REJECT_ODDS_MAX} "
+                f"edge=+{best['edge_pct']:.2f}%<{_HOT_REJECT_EDGE_MIN_PP}pp, "
+                f"微小edge会被overround吃掉, 不接盘"
+            )
+        else:
+            decision_text = "PASS · 全方向负 EV（抽水吃掉 edge），不接盘"
 
     return {
         "odds": odds,
@@ -218,11 +264,17 @@ def compute_value_layer(
         "decision_text": decision_text,
         "scenario": scenario,
         "flb_applied": (use_flb and not cb_used),
+        # ── P0-3 热门拒止字段 ──
+        "hot_rejected": hot_rejected,
         # ── P1a 跨庄字段 ──
         "cross_book_used": cb_used,
         "spread_pp": round(spread_pp, 2),
         "severity": (_cb_severity(spread_pp) if cb_used else ""),
         "edge_basis": ("cross_book_consensus" if cb_used else "single_book_devig"),
+        # ── 报告Fix D(3): 单庄/高抽水 edge 可靠性标注 ──
+        # 跨庄共识(多庄交叉)→ high; 单庄且抽水高(>8%)→ low(edge 不可靠, 仅作参考);
+        # 其余单庄正常抽水 → medium。前端据此降低单庄高抽水信号的权重。
+        "reliability": ("high" if cb_used else ("low" if overround > 0.07 else "medium")),
     }
 
 
@@ -531,6 +583,8 @@ def correct_score_value(model_m: Any, score_odds: Optional[Dict] = None, top_n: 
             k = kelly_fraction(p_eff, odds)
             rows.append({"score": f"{i}-{j}", "prob": round(p, 4),
                          "prob_eff": round(p_eff, 4), "odds": odds,
+                         "fair_decimal": round(1 / p, 2) if p > 0 else None,
+                         "fair_eff_decimal": round(1 / p_eff, 2) if p_eff > 0 else None,
                          "ev_pct": round(ev * 100, 2), "kelly_half": round(k * frac_kelly, 4),
                          "stake": round(_capped_stake(p_eff, odds, bankroll,
                                                      frac_kelly=frac_kelly, gate=gate,
@@ -574,3 +628,176 @@ def correct_score_value(model_m: Any, score_odds: Optional[Dict] = None, top_n: 
     return {"rows": rows, "decision": "SCAN", "edge_available": False,
             "decision_text": "SCAN · 无跨庄波胆价, 仅展示fair value(同源主盘), 不宣称edge" + eff_note,
             "scenario": {"note": "no cross-book CS odds in dataset; value layer gated per v6 iron law"}}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 事故⑦ 双源 ROI 治理 (REQ-09, T09 + T13)
+#   - 写入护栏: 脏行拒绝写 (呼应"修bug必追问历史数据回填", 严禁脏数据入 unified_history.db)
+#   - 双源 ROI 对齐: 同 (match, market, timestamp) 对齐两源, 算置信区间;
+#     |ΔROI| > Config.roi_delta_threshold(默认5.0pp) → source=DISPUTED
+#   - 每个信号/ROI 输出带 source + confidence
+# ═══════════════════════════════════════════════════════════════════════════
+
+class Source(str, Enum):
+    """ROI/信号来源 (REQ-13)。"""
+    LEYU = "LEYU"
+    LEISU = "LEISU"
+    UNIFIED = "UNIFIED"
+    DISPUTED = "DISPUTED"
+
+
+@dataclass
+class SignalOutput:
+    """统一信号输出 (REQ-13: 必带 source + confidence)。"""
+    match_id: str
+    signal_type: str
+    value: float = 0.0
+    roi: float = 0.0
+    source: Source = Source.UNIFIED
+    confidence: float = 0.0
+    verdict: str = "NEUTRAL"
+    basis: str = ""
+
+
+# 脏行 ROI 超界阈值 (pp); 远超合理 ROI 区间者视为占位/垃圾
+_ROI_OUTLIER_PP = 1_000_000.0
+
+
+def validate_roi_record(rec: Dict[str, Any]) -> Tuple[bool, str]:
+    """脏行写入护栏 (事故⑦): 返回 ``(ok, reason)``。
+
+    拒绝以下脏数据写入 ``unified_history.db``:
+      - 缺失关键字段 (``match_id/market/timestamp/roi`` 为 None 或空串)
+      - ``roi`` 非有限数 / 非数值
+      - ``roi`` 超界 (``|roi| > _ROI_OUTLIER_PP``, 如 99999 占位)
+      - ``source`` 非法 (None 或不在已知源集合)
+      - 赔率 ``odds`` 存在但 ``<= 0``
+
+    注意: 本护栏只判"脏", 不判"赛果对错"; 真实赛果数据由 ``clean_outcomes`` SSoT 管理,
+    严禁在此改动/直读 ``match_outcomes`` 盘口列 (铁律)。
+    """
+    if not isinstance(rec, dict):
+        return False, "not_a_dict"
+    required = ("match_id", "market", "timestamp", "roi")
+    for k in required:
+        v = rec.get(k)
+        if v is None or (isinstance(v, str) and v.strip() == ""):
+            return False, f"missing_field:{k}"
+    try:
+        roi = float(rec["roi"])
+    except (TypeError, ValueError):
+        return False, "roi_not_numeric"
+    if not math.isfinite(roi):
+        return False, "roi_not_finite"
+    if abs(roi) > _ROI_OUTLIER_PP:
+        return False, "roi_out_of_range"
+    source = rec.get("source")
+    if not source or str(source) not in {s.value for s in Source}:
+        return False, "bad_source"
+    odds = rec.get("odds")
+    if odds is not None:
+        try:
+            if float(odds) <= 0:
+                return False, "nonpositive_odds"
+        except (TypeError, ValueError):
+            return False, "odds_not_numeric"
+    return True, ""
+
+
+def _roi_threshold_from_config() -> float:
+    """从中央配置读取双源 ROI 偏差阈值(pp); 不可用时回落 5.0 (TBC-3 默认值)。"""
+    try:
+        from core.config import get_config as _get_cfg
+        cfg = _get_cfg()
+        if cfg is not None:
+            return float(cfg.roi_delta_threshold)
+    except Exception:
+        pass
+    return 5.0
+
+
+def align_dual_source_roi(
+    rows: List[Dict[str, Any]],
+    roi_delta_threshold: Optional[float] = None,
+    confidence_z: float = 1.96,
+) -> List[Dict[str, Any]]:
+    """双源 ROI 对齐 (事故⑦)。
+
+    输入 ``rows``: 混合两源 (LEYU/LEISU) 的 ROI 样本, 每条含
+        ``match_id, market, timestamp, roi, source, n``(可选样本量, 默认1)
+    ROI 单位 = pp (与设计文档阈值 ``roi_delta_threshold=5.0pp`` 一致)。
+
+    逻辑:
+      1. 按 ``(match_id, market, timestamp)`` 对齐两源样本。
+      2. 两源齐全 → 算 ``ΔROI = roi_leiyu - roi_leisu`` 与 95% 置信区间
+         (独立两样本 ``SE = sqrt(se_a^2 + se_b^2)``, ``se = |roi|/sqrt(n)``)。
+      3. ``|ΔROI| > roi_delta_threshold``(默认 ``Config.roi_delta_threshold=5.0pp``)
+         → ``source=DISPUTED/已知采样差异``, ``confidence`` 随偏差降低。
+      4. 仅单源 → 不标 DISPUTED, 直接给该源(置信度按样本量给中低)。
+
+    返回: 对齐后的信号列表 (每个带 ``source`` + ``confidence`` + ``verdict`` + ``basis``)。
+    """
+    if roi_delta_threshold is None:
+        roi_delta_threshold = _roi_threshold_from_config()
+    groups: Dict[Tuple[Any, Any, Any], Dict[str, Dict[str, Any]]] = {}
+    for r in rows:
+        key = (r.get("match_id"), r.get("market"), r.get("timestamp"))
+        src = str(r.get("source") or "")
+        groups.setdefault(key, {})[src] = r
+
+    aligned: List[Dict[str, Any]] = []
+    for key, by_src in groups.items():
+        rec_a = by_src.get(Source.LEYU.value)
+        rec_b = by_src.get(Source.LEISU.value)
+        if not rec_a or not rec_b:
+            # 仅单源: 不标 DISPUTED, 直接给该源(置信度随样本量上升, 上限低于双源一致)
+            only = rec_a or rec_b
+            roi = float(only.get("roi", 0.0))
+            n = max(int(only.get("n", 1) or 1), 1)
+            confidence = round(min(0.35 + 0.05 * math.log10(n + 1), 0.6), 4)
+            aligned.append({
+                "match_id": key[0], "market": key[1], "timestamp": key[2],
+                "roi": round(roi, 4),
+                "source": str(only.get("source")),
+                "confidence": confidence,
+                "verdict": "NEUTRAL",
+                "delta_roi": 0.0, "ci95": [0.0, 0.0], "disputed": False,
+                "basis": "单源样本, 无双源对照, 不标 DISPUTED",
+            })
+            continue
+
+        roi_a = float(rec_a.get("roi", 0.0))
+        roi_b = float(rec_b.get("roi", 0.0))
+        n_a = max(int(rec_a.get("n", 1) or 1), 1)
+        n_b = max(int(rec_b.get("n", 1) or 1), 1)
+        delta = roi_a - roi_b
+        se_a = abs(roi_a) / math.sqrt(n_a)
+        se_b = abs(roi_b) / math.sqrt(n_b)
+        se = math.sqrt(se_a * se_a + se_b * se_b)
+        lo = delta - confidence_z * se
+        hi = delta + confidence_z * se
+        disputed = abs(delta) > roi_delta_threshold
+        mean_roi = (roi_a + roi_b) / 2.0
+        if disputed:
+            # 偏差超阈值: 标 DISPUTED, 置信度随 |Δ|/阈值 倍数下降(下限0.1)
+            ratio = abs(delta) / max(roi_delta_threshold * 2.0, 1e-9)
+            confidence = round(max(0.1, 1.0 - min(ratio, 1.0)), 4)
+            basis = (f"双源ROI偏差 |Δ|={abs(delta):.2f}pp > 阈值{roi_delta_threshold:.1f}pp, "
+                     f"标 DISPUTED/已知采样差异 (CI95 [{lo:.2f},{hi:.2f}])")
+        else:
+            # 双源一致: 高置信, 标 UNIFIED
+            confidence = round(min(0.95, 0.7 + 0.1 * math.log10(n_a + n_b)), 4)
+            basis = (f"双源ROI一致 (Δ={delta:+.2f}pp 在阈值{roi_delta_threshold:.1f}pp 内, "
+                     f"CI95 [{lo:.2f},{hi:.2f}])")
+        aligned.append({
+            "match_id": key[0], "market": key[1], "timestamp": key[2],
+            "roi": round(mean_roi, 4),
+            "source": Source.DISPUTED.value if disputed else Source.UNIFIED.value,
+            "confidence": confidence,
+            "verdict": "DISPUTED" if disputed else "ALIGNED",
+            "delta_roi": round(delta, 4),
+            "ci95": [round(lo, 4), round(hi, 4)],
+            "disputed": disputed,
+            "basis": basis,
+        })
+    return aligned

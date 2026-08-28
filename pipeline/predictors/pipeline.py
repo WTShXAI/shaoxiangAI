@@ -11,18 +11,151 @@ from ._compat import np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from pipeline.predictors.data_classes import *  # noqa: F401, F403
 from pipeline.predictors.ou_linkage import *  # noqa: F401, F403
-# dgate_layer removed 2026-07-06 — D-Gate退化为中性层
-class DGateLayerStub:
-    def assess(self, match, form_result=None):
-        return ChainResult(
-            chain_name='D-Gate [已移除]',
-            verdict='?',
-            draw_prob=0.30,
-            confidence=0.0,
-            signals=['D-Gate已移除: 中性评估'],
-            metadata={'dgate_active': False}
-        )
-DGateLayer = DGateLayerStub
+# D-Gate v5.5: 操盘手平局判定 + 跨庄共识 (2026-08-11, ml-engineer 重校准)
+# 基于 draw_signal.py 的市场隐含平局概率 + multi_bookmaker_consensus,
+# 替代原 v5.1 的五层硬编码规则, 改为数据驱动阈值校准。
+class DGateLayer:
+    """D-Gate v5.5: 操盘手锚定平局判定层
+
+    核心逻辑:
+      1. 单庄 market_draw_prob (去抽水 P(平)) → 主信号
+      2. 双庄共识 (WH+IW) → 强化/弱化信号
+      3. 盘口矛盾 (handicap vs OU divergence) → 辅助信号
+      4. 数据标定阈值: DRAW_ALERT=0.24, DRAW_ALERT_BOOSTER=0.22
+
+    输出:
+      - draw_prob: 综合平局概率
+      - risk_tag: Clean / DrawAlert
+      - confidence: 信号置信度
+      - dgate_active: True 当触发 draw_alert
+    """
+
+    def __init__(self):
+        try:
+            from pipeline.draw_signal import (
+                market_draw_prob, enhanced_draw_score,
+                consensus_draw_signal, draw_alert_with_booster,
+                multi_bookmaker_consensus,
+            )
+            self._market_draw_prob = market_draw_prob
+            self._enhanced_draw = enhanced_draw_score
+            self._consensus_draw = consensus_draw_signal
+            self._alert_booster = draw_alert_with_booster
+            self._multi_consensus = multi_bookmaker_consensus
+            self._available = True
+        except ImportError:
+            self._available = False
+
+    def assess(self, match, form_result=None) -> ChainResult:
+        if not self._available:
+            return ChainResult(
+                chain_name='D-Gate v5.5',
+                verdict='?',
+                draw_prob=0.30,
+                confidence=0.0,
+                signals=['D-Gate: draw_signal 不可用'],
+                metadata={'dgate_active': False, 'version': '5.5'},
+            )
+
+        try:
+            oh, od, oa = float(match.odds_h), float(match.odds_d), float(match.odds_a)
+
+            # 1. 市场隐含平局概率 (主信号)
+            m_pd = self._market_draw_prob(oh, od, oa)
+
+            # 2. 增强平局信号 (含盘口矛盾检测)
+            enhanced = self._enhanced_draw(
+                oh, od, oa,
+                handicap_home=getattr(match, 'hcp', None),
+                ou_line=getattr(match, 'ou_line', None),
+            )
+
+            # 3. 跨庄共识 (WH+IW) — 尝试通过 home/away 名匹配
+            consensus = None
+            home_norm = getattr(match, 'home', '').strip()
+            away_norm = getattr(match, 'away', '').strip()
+            if home_norm and away_norm:
+                try:
+                    consensus = self._consensus_draw(
+                        home_norm, away_norm, oh, od, oa,
+                        match_date=None, wh_league=None,
+                    )
+                except Exception:
+                    pass
+
+            # 4. 多庄家共识 (当有多庄赔率时)
+            multi_consensus = None
+            extra_bookmakers = getattr(match, 'bookmakers', None)
+            if extra_bookmakers:
+                try:
+                    multi_consensus = self._multi_consensus(extra_bookmakers)
+                except Exception:
+                    pass
+
+            # 5. 判定
+            draw_alert = self._alert_booster(m_pd, consensus, base=0.24, booster=0.22)
+
+            # 信号强度
+            if enhanced.get('draw_alert') and (consensus and consensus.get('strong')):
+                risk_tag = RiskTag.FAVOR_DRAW
+                confidence = 0.75
+            elif enhanced.get('draw_alert'):
+                risk_tag = RiskTag.DRAW_ALERT
+                confidence = 0.60
+            elif draw_alert:
+                risk_tag = RiskTag.WEAK_DRAW
+                confidence = 0.45
+            else:
+                risk_tag = RiskTag.NEUTRAL
+                confidence = 0.30
+
+            # 信号列表
+            signals = []
+            if enhanced.get('draw_alert'):
+                signals.append('draw_alert')
+            if consensus and consensus.get('strong'):
+                signals.append('consensus_strong')
+            if enhanced.get('handicap_ou_divergence'):
+                signals.append('hcp_ou_divergence')
+
+            draw_prob = float(enhanced.get('enhanced_draw_score', m_pd))
+
+            metadata = {
+                'dgate_active': draw_alert,
+                'version': '5.5',
+                'market_draw_prob': round(m_pd, 4),
+                'enhanced_draw_score': enhanced.get('enhanced_draw_score'),
+                'handicap_ou_divergence': enhanced.get('handicap_ou_divergence'),
+                'consensus_available': consensus.get('available') if consensus else False,
+                'consensus_strong': consensus.get('strong') if consensus else False,
+                'risk_tag': risk_tag,
+            }
+            if multi_consensus and multi_consensus.get('available'):
+                metadata['multi_bookmaker'] = {
+                    'count': multi_consensus.get('count'),
+                    'mean_pd': multi_consensus.get('mean_pd'),
+                    'strong': multi_consensus.get('strong'),
+                }
+
+            return ChainResult(
+                chain_name='D-Gate v5.5',
+                verdict='D' if draw_alert else '?',
+                draw_prob=round(draw_prob, 4),
+                confidence=confidence,
+                signals=signals,
+                metadata=metadata,
+            )
+
+        except Exception as e:
+            logger.warning(f"D-Gate v5.5 评估异常: {e}")
+            return ChainResult(
+                chain_name='D-Gate v5.5',
+                verdict='?',
+                draw_prob=0.30,
+                confidence=0.0,
+                signals=[f'D-Gate 异常: {str(e)[:80]}'],
+                metadata={'dgate_active': False, 'version': '5.5', 'error': str(e)[:200]},
+            )
 from pipeline.predictors.model_layer import ModelLayer
 from pipeline.predictors.taoge_strategy import TaoGeStrategy
 from pipeline.predictors.data_classes import MatchInput, ChainResult

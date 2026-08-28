@@ -69,8 +69,11 @@ class CoachDualPathAnalyzer:
     @classmethod
     def get_tier(cls, team: str) -> int:
         """从动态数据库获取球队档位"""
-        from data.dynamic_team_db_module import DynamicTeamDB
-        return DynamicTeamDB.get_tier(team)
+        try:
+            from data.dynamic_team_db_module import DynamicTeamDB
+            return DynamicTeamDB.get_tier(team)
+        except ImportError:
+            return 99  # fallback: 最低档
     
     # ═══ 球队历史赛果 = 动态数据库驱动 ═══
     # 移除了硬编码的HISTORICAL_SCOUTING, 所有侦察数据来自DynamicTeamDB
@@ -78,7 +81,10 @@ class CoachDualPathAnalyzer:
     @classmethod
     def get_scout_report(cls, team: str) -> Optional[dict]:
         """从动态数据库获取球队历史赛果侦察报告"""
-        from data.dynamic_team_db_module import DynamicTeamDB
+        try:
+            from data.dynamic_team_db_module import DynamicTeamDB
+        except ImportError:
+            return None
         t = DynamicTeamDB.get_team(team)
         if not t or t.get('gp', 0) == 0:
             return None
@@ -92,8 +98,11 @@ class CoachDualPathAnalyzer:
     @classmethod
     def get_tier_legacy(cls, team: str) -> int:
         """遗留方法 — 已被DynamicTeamDB替代"""
-        from data.dynamic_team_db_module import DynamicTeamDB
-        return DynamicTeamDB.get_tier(team)
+        try:
+            from data.dynamic_team_db_module import DynamicTeamDB
+            return DynamicTeamDB.get_tier(team)
+        except ImportError:
+            return 99
     
     @classmethod
     def generate_plan(cls, team: str, opponent: str, 

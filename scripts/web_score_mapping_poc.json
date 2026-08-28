@@ -1,0 +1,20 @@
+[
+  {
+    "mid": "5506161",
+    "sh": 1,
+    "sa": 2,
+    "ht_sh": 0,
+    "ht_sa": 1,
+    "source": "WebSearch多源一致: scores24.live / booscore(繁) / betimate / offsidescores 均显 1-2, 半场0-1",
+    "note": "新西兰中央联赛 2026-07-18 岛湾联vs惠灵顿奥林匹克"
+  },
+  {
+    "mid": "5523879",
+    "sh": 10,
+    "sa": 0,
+    "ht_sh": 2,
+    "ht_sa": 0,
+    "source": "WebSearch多源一致: 网易体育/直播吧/CC直播吧 均显 10-0, 半场2-0; 雷速显2:0(错误已弃用)",
+    "note": "日本地区足球联赛 2026-07-19 德岛vs高知美洲驼"
+  }
+]

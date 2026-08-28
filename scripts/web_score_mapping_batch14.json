@@ -1,0 +1,38 @@
+[
+  {
+    "mid": "5610406",
+    "sh": 2,
+    "sa": 2,
+    "ht_sh": 1,
+    "ht_sa": 0,
+    "source": "leisu/statshub(sportradar) 俄乙B Group4 2026-08-23",
+    "note": "新特罗伊茨克诺斯塔 2-2 下诺夫哥罗德胜利 (Nosta Novotroitsk 2-2 Pobeda Nizhny Novgorod, HT 1-0)"
+  },
+  {
+    "mid": "5582542",
+    "sh": 1,
+    "sa": 2,
+    "ht_sh": 0,
+    "ht_sa": 0,
+    "source": "leisu/theyscored 俄乙B Group4 2026-08-23",
+    "note": "喀山红宝石B队 1-2 乌拉尔B队 (Rubin Kazan 2 1-2 Ural 2, HT 0-0)"
+  },
+  {
+    "mid": "5600798",
+    "sh": 2,
+    "sa": 1,
+    "ht_sh": 1,
+    "ht_sa": 1,
+    "source": "leisu/wildstat 俄乙B Group4 2026-08-23",
+    "note": "奥伦堡B队 2-1 切亚宾斯克B队 (Orenburg 2 2-1 Chelyabinsk 2, HT 1-1)"
+  },
+  {
+    "mid": "5604407",
+    "sh": 2,
+    "sa": 2,
+    "ht_sh": 1,
+    "ht_sa": 1,
+    "source": "leisu/懂球帝 俄乙B Group2(西部) 2026-08-23",
+    "note": "迪纳摩沃洛格达 2-2 卢奇安拿吉耶 (Dynamo Vologda 2-2 Luki-Energiya, HT 1-1; 57'乌龙)"
+  }
+]

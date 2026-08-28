@@ -36,7 +36,8 @@
     "odds_half": {
       "1x2": { "home": "float|null", "draw": "float|null", "away": "float|null" },
       "hcp": [ { "line": "float", "home": "float", "away": "float" } ],
-      "ou": [ { "line": "float", "over": "float", "under": "float" } ]
+      "ou": [ { "line": "float", "over": "float", "under": "float" } ],
+      "correct_score": [ { "score": "string", "odds": "float", "type": "home/away/draw" } ]
     }
   },
   "timeline_schema": {

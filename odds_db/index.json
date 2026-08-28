@@ -675,5 +675,60 @@
     "timeline_file": null,
     "note": "低级别联赛实时波胆截图。全场波胆格子均显示'—'，无法读取赔率；当前2-2高亮。下半场46'+伤停补时。",
     "confidence": "low"
+  },
+  {
+    "match_id": "tromso_u19_vs_lillestrom_u19_20260820",
+    "match_time": "2026-08-20T18:55:37+08:00",
+    "home": "特罗姆瑟U19",
+    "away": "利勒斯特罗姆U19",
+    "snapshot_count": 13,
+    "latest_1x2": {
+      "home": 3.10,
+      "draw": 4.40,
+      "away": 1.74
+    },
+    "latest_hcp": "客让0.5/1 @1.84/1.94",
+    "latest_ou": "半场后OU 3/3.5: 大1.93/小1.87 (小球持续低水)",
+    "verdict": "客胜命中,但半场后小球3.25信号被终场1-3打脸(总球4); 赛前高线OU4.75反而兑现",
+    "first_score": "0-1(客队)",
+    "file": "tromso_u19_vs_lillestrom_u19_20260820.json",
+    "timeline_file": "timeline/tromso_u19_vs_lillestrom_u19_20260820.json",
+    "note": "滚球神器学习样本: 开盘高进球预期(OU4.75) → 半场0-1后庄家给小球低水 → 但U19/超长补时104min+体能崩盘 → 终场1-3大球赢; 半活盘低水≠概率终点"
+  },
+  {
+    "match_id": "hailisilian_nv_vs_ailawalashengelasi_nv_20260823",
+    "match_time": "2026-08-23T15:34:00+08:00",
+    "home": "海利斯联(女)",
+    "away": "艾拉瓦拉斯亨拉斯(女)",
+    "snapshot_count": 2,
+    "latest_1x2": {
+      "home": 1.55,
+      "draw": 3.7,
+      "away": 4.3
+    },
+    "latest_hcp": "-0.5/1 @1.79/1.95",
+    "latest_ou": "2.5 @1.85/1.89",
+    "verdict": "滚球11' 0-0：全场仍站主队(-0.75低水)与2.5球偏上，半场站客队+0.25低水/小0.5/1高水；低水=受注位非真相，无drift/跨庄不能判诱/护。",
+    "first_score": null,
+    "file": "hailisilian_nv_vs_ailawalashengelasi_nv_20260823.json",
+    "timeline_file": "timeline/hailisilian_nv_vs_ailawalashengelasi_nv_20260823.json"
+  },
+  {
+    "match_id": "tacoma_challenge_vs_kansas_city_b_20260825",
+    "match_time": "2026-08-25T10:29:14+08:00",
+    "home": "塔科马挑战",
+    "away": "堪萨斯城竞技B队",
+    "snapshot_count": 3,
+    "latest_1x2": null,
+    "latest_hcp": "-0/0.5 @1.86/1.96",
+    "latest_ou": "4.5/5 @1.84/1.96",
+    "verdict": "全场终场 4-0（主胜）；半场 3-0，下半场再进 1 球（分钟未提供）；进球 11'、12'、20'",
+    "first_score": "3-0",
+    "ht_score": "3-0",
+    "final_score": "4-0",
+    "stage": "fulltime_final",
+    "goal_times": ["11", "12", "20"],
+    "file": "tacoma_challenge_vs_kansas_city_b_20260825.json",
+    "timeline_file": "timeline/tacoma_challenge_vs_kansas_city_b_20260825.json"
   }
 ]

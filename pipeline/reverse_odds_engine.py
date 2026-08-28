@@ -201,6 +201,9 @@ class ReverseOddsEngine:
         Intent.NEUTRAL: None,
     }
 
+    # ── 全局模型缓存: 避免每个请求重复加载模型 (2026-08-05 修复桥端30s超时) ──
+    _MODEL_CACHE = {}  # model_path -> (model, feature_names)
+
     def __init__(self, model_path: Optional[str] = None):
         """
         Args:
@@ -212,10 +215,15 @@ class ReverseOddsEngine:
             model_path = os.path.join(PROJECT_ROOT, 'saved_models', 'mispricing_detector.joblib')
         self.model_path = model_path
         if os.path.exists(model_path):
+            # 全局缓存命中: 直接复用, 不再 reload
+            if model_path in ReverseOddsEngine._MODEL_CACHE:
+                self.mispricing_model, self.model_features = ReverseOddsEngine._MODEL_CACHE[model_path]
+                return
             try:
                 bundle = joblib.load(model_path)
                 self.mispricing_model = bundle.get('model') or bundle
                 self.model_features = bundle.get('feature_names')
+                ReverseOddsEngine._MODEL_CACHE[model_path] = (self.mispricing_model, self.model_features)
                 logger.info(f"误定价模型已加载: {model_path}")
             except Exception as e:
                 logger.warning(f"误定价模型加载失败, 降级为纯规则模式: {e}")
@@ -938,6 +946,26 @@ def train_mispricing_detector(db_path: Optional[str] = None, split: str = '2023-
     logger.info(f"模型保存: {output} | AUC={auc:.4f}")
     logger.info(f"Top2000 ROI={results.get('top2000', {}).get('roi')}")
     return results
+
+
+# ── 集成 CS 滚球 +EV 检测器 (P0-1) ──
+# 在 ReverseOddsEngine 上挂载 cs_value_flag / rank_ev_scores 方法,
+# 使逆向引擎可直接对滚球/赛前精确比分做跨市场错价打分。
+try:
+    from pipeline.cs_ev_engine import attach_to_engine
+    attach_to_engine(ReverseOddsEngine)
+except Exception as _e:  # 集成失败不阻断引擎其他功能
+    logger.warning(f"[ReverseOdds] CS+EV 检测器挂载失败: {_e}")
+
+
+# ── 集成 H1 赛前 favorite-被低估 检测器 (Dixon-Coles 队力公平模型) ──
+# 在 ReverseOddsEngine 上挂载 detect_prematch_fav_undervalue 方法,
+# 用队力公平概率 vs 开盘1X2 去水隐含概率的偏差, 赛前识别"被隐藏战力的强队"。
+try:
+    from analysis.h1_fav_undervalue_detector import attach_to_engine as _h1_attach
+    _h1_attach(ReverseOddsEngine)
+except Exception as _e:  # 集成失败不阻断引擎其他功能
+    logger.warning(f"[ReverseOdds] H1 检测器挂载失败: {_e}")
 
 
 if __name__ == '__main__':

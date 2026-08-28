@@ -1,0 +1,62 @@
+[
+  {
+    "mid": "5571084",
+    "sh": 3, "sa": 3, "ht_sh": 1, "ht_sa": 1,
+    "source": "WebSearch多源一致: hope1983(塔恩比3:3赫尔雷夫,丹麦丁2026-08-08) + 网易体育(塔恩比3:3,HT1-1) 均显3-3",
+    "note": "丹麦丁级联赛 2026-08-08 塔恩比 vs 赫尔雷夫"
+  },
+  {
+    "mid": "5612108",
+    "sh": 4, "sa": 1, "ht_sh": 1, "ht_sa": 1,
+    "source": "WebSearch多源一致: offsidescores(OKS 4-1 Horsens FS, Danmarksserien G3 W3, HT1-1) + lsmedia2 LiveScore(22 AUG FT OKS Horsens fS 4 1)",
+    "note": "丹麦丁级联赛 2026-08-22 奥克斯(OKS) vs 贺森斯弗雷亚(Horsens Freja)"
+  },
+  {
+    "mid": "5612225",
+    "sh": 0, "sa": 1,
+    "source": "WebSearch: scores24 双方近期战绩交叉印证 (Herlev Fredensborg 0 1 / Fredensborg 客场1-0胜Herlev, 2026-08-22); 半场未明确故HT留空",
+    "note": "丹麦丁级联赛 2026-08-22 赫尔雷夫 vs 费雷登斯伯格 (HT未查证, 仅终比分)"
+  },
+  {
+    "mid": "5614893",
+    "sh": 1, "sa": 2, "ht_sh": 0, "ht_sa": 1,
+    "source": "WebSearch: 雷速文字直播(detail-4620941) 埃斯比约B队 1-2 阿晓斯青年队, HT 0-1, 明确终比分",
+    "note": "丹麦丁级联赛 2026-08-23 埃斯比约B队 vs 阿尔胡斯费马B队"
+  },
+  {
+    "mid": "5570018",
+    "sh": 1, "sa": 0, "ht_sh": 0, "ht_sa": 0,
+    "source": "WebSearch多源一致: scores24(Helsingor 1-0 Frem, HT0-0) + 星星体育(FC赫尔辛格1:0费林) + matchcountdown + fotmob 均显1-0",
+    "note": "丹麦丙级联赛 2026-08-15 赫尔辛格 vs 费林"
+  },
+  {
+    "mid": "5557959",
+    "sh": 1, "sa": 1, "ht_sh": 1, "ht_sa": 1,
+    "source": "WebSearch多源一致: elbotola/flashscore/offscores/oddsrun/atpx 均显 Naestved 1-1 Hellerup, HT 1-1",
+    "note": "丹麦乙级联赛 2026-08-09 奈司特维德 vs 赫勒乌普"
+  },
+  {
+    "mid": "5585128",
+    "sh": 2, "sa": 1, "ht_sh": 2, "ht_sa": 0,
+    "source": "WebSearch多源一致: 网易彩票(海勒鲁普2:1法特列斯堡,HT2-0) + ouchtime(2:1) + 足彩网(zgzcw 2:1 HT2-0) 均显2-1",
+    "note": "丹麦乙级联赛 2026-08-15 赫勒乌普 vs 法特列斯堡"
+  },
+  {
+    "mid": "5580250",
+    "sh": 4, "sa": 0, "ht_sh": 3, "ht_sa": 0,
+    "source": "WebSearch多源一致: 雷速(尼克宾4-0 B93,HT3-0) + zctv(4-0,HT3-0) + nowscore + ccican(尼克宾vsB93哥本哈根4-0) 均显4-0",
+    "note": "丹麦乙级联赛 2026-08-15 尼克宾 vs B93哥本哈根"
+  },
+  {
+    "mid": "5570016",
+    "sh": 0, "sa": 1, "ht_sh": 0, "ht_sa": 1,
+    "source": "WebSearch多源一致: 500彩票(布拉布兰0:1纳斯特维德,HT0-1) + tipsme(巴布安特0:1奈司特维德,HT0-1) 均显0-1",
+    "note": "丹麦乙级联赛 2026-08-15 巴布安特 vs 奈司特维德"
+  },
+  {
+    "mid": "5570017",
+    "sh": 0, "sa": 2, "ht_sh": 0, "ht_sa": 0,
+    "source": "WebSearch多源一致: 雷速(斯基夫0-2阿玛盖尔,HT0-0) + 500彩票(0:2 HT0-0) + 足彩网(zgzcw 0:2 HT0-0) 均显0-2",
+    "note": "丹麦乙级联赛 2026-08-15 斯基夫 vs 阿玛盖尔"
+  }
+]

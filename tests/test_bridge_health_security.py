@@ -1,11 +1,9 @@
 """
 tests/test_bridge_health_security.py — bridge_service 健康/安全/校验冒烟测试
 ============================================================================
-覆盖 ECC 生产标准:
-  - /health 返回结构化依赖就绪度 (引擎/DB/量化/预算)
+覆盖:
+  - /health 返回结构化依赖就绪度 (引擎/DB/预算)
   - /api/bets 输入校验: 缺字段 → 422, bet_side 非法 → 400, 统一错误信封
-  - /api/quant/order/confirm 输入校验: 缺 oid → 422
-  - 速率限制中间件对 /api/* 生效 (不返回 500)
 """
 import os
 import sys
@@ -33,7 +31,6 @@ def test_health_structure(client):
     assert "ok" in body and "status" in body
     assert "checks" in body
     assert "db" in body["checks"]
-    assert "quant_engine" in body["checks"]
 
 
 def test_bets_missing_field_returns_422(client):
@@ -61,9 +58,3 @@ def test_bets_bad_odds_returns_422(client):
         "home_odds": 1.0, "draw_odds": 3.4, "away_odds": 3.1,
     })
     assert r.status_code == 422
-
-
-def test_quant_confirm_missing_oid_returns_422(client):
-    r = client.post("/api/quant/order/confirm", json={})
-    assert r.status_code == 422
-    assert r.json()["error"]["code"] == "validation_error"

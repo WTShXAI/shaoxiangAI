@@ -3,9 +3,43 @@
 # 本文件为中央护栏(api_budget.py)的配置源, 环境变量 API_DAILY_CAP / API_HARD_FLOOR 可覆盖
 
 daily_cap: 300              # 每日最多调用次数 (硬闸, 烧满即返回 429 → 调用方 no-op)
-hard_floor_remaining: 500   # 真实月剩余 < 500 时拒绝新调用, 强制留缓冲
+hard_floor_remaining: 50     # 真实月剩余 < 50 时拒绝新调用, 强制留缓冲 (注: 实测套餐约500/月, 原500地板会永久封锁)
 
 cache_ttl:
   sports: 86400    # 联赛列表: 24h (几乎不变)
   odds: 7200       # 比赛盘口: 2h (平衡新鲜度与配额; mini loop 30min 大多命中缓存)
   quota: 300       # remaining 探测: 5min (免为"查剩余"重复烧)
+
+# ═══ 自适应调度 (AdaptiveBudgetScheduler) ═══
+# 基于比赛重要性和时间窗口动态调整缓存TTL，最大化配额利用率
+adaptive:
+  # 核心联赛缓存TTL (秒)
+  core_league_ttl: 14400          # 4小时: 5大联赛+英冠英甲乙+德乙+法乙+葡超+荷甲+苏超
+  # 开赛前24h内缓存加速
+  prematch_ttl: 3600              # 1小时: 任何比赛开赛前24h内
+  # 全量扫设置
+  full_scan_utc_hour: 3           # UTC凌晨3点 (北京时间11点) 执行全量联赛扫描
+  full_scan_ttl: 86400            # 非核心联赛: 每天仅拉1次
+  # 月末保护
+  eom_protection_day: 25          # 每月25号开始检查
+  eom_remaining_threshold: 100    # 剩余 < 100 时触发
+  eom_degraded_ttl: 43200         # 全量降级为 12小时
+  # 熔断
+  circuit_breaker_limit: 250      # 日消耗达250次自动暂停
+  circuit_breaker_ttl: 86400      # 暂停24小时 (次日UTC 0点重置)
+
+  # 核心联赛 sport_key 列表 (与 scheduler 代码中 CORE_LEAGUE_KEYS 同步)
+  core_league_keys:
+    - soccer_epl                    # 英超
+    - soccer_spain_la_liga          # 西甲
+    - soccer_italy_serie_a          # 意甲
+    - soccer_germany_bundesliga     # 德甲
+    - soccer_france_ligue_one       # 法甲
+    - soccer_efl_champ              # 英冠
+    - soccer_england_league1        # 英甲
+    - soccer_england_league2        # 英乙
+    - soccer_germany_bundesliga2    # 德乙
+    - soccer_france_ligue_two       # 法乙
+    - soccer_portugal_primeira_liga # 葡超
+    - soccer_netherlands_eredivisie # 荷甲
+    - soccer_scotland_premiership   # 苏超

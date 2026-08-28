@@ -23,12 +23,18 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# ── 加载 .env (使 THEODDS_API_KEY 等环境变量可用, 优先于 config.ini) ──
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except Exception:
-    pass
+# ── 手动加载 .env (纯标准库, 无 dotenv 依赖) ──
+_ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".env")
+if os.path.isfile(_ENV_PATH):
+    with open(_ENV_PATH, "r", encoding="utf-8") as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if not _line or _line.startswith("#") or "=" not in _line:
+                continue
+            _k, _, _v = _line.partition("=")
+            _k, _v = _k.strip(), _v.strip().strip('"').strip("'")
+            if _k and _v and _k not in os.environ:
+                os.environ[_k] = _v
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional
@@ -198,8 +204,8 @@ class SPOddsAPI:
         self._config = configparser.ConfigParser()
         self._config.read(config_path or str(CONFIG_PATH), encoding="utf-8")
 
-        # 优先 .env (THEODDS_API_KEY), 回退 config.ini 旧值
-        self.api_key = os.getenv("THEODDS_API_KEY") or os.getenv("THE_ODDS_API_KEY") or self._config.get("api", "odds_api_key", fallback="")
+        # 优先 .env (THEODDS_API_KEY / ODDS_API_KEY), 回退 config.ini 旧值
+        self.api_key = os.getenv("THEODDS_API_KEY") or os.getenv("THE_ODDS_API_KEY") or os.getenv("ODDS_API_KEY") or self._config.get("api", "odds_api_key", fallback="")
         self.base_url = self._config.get("api", "odds_api_base", fallback="https://api.the-odds-api.com/v4")
         self.regions = self._config.get("analysis", "regions", fallback="eu,uk")
         self.odds_format = self._config.get("analysis", "odds_format", fallback="decimal")

@@ -44,6 +44,70 @@ class ConsistencyValidator:
                 report['failures'].append(name)
         return report
 
+    # ═════════════════════════════════════════════════════════════
+    #  多模型分歧校准 (2026-08-24 新增, 对应"向匹配的模型对齐")
+    #  不覆盖结论: 主模型 = ranked_predictor 融合结果(已胜出), 本方法只检测
+    #  各分量( WI教师 / 庄家去水 / JEPА / FL结构 / 独立残差 / 历史相似 )
+    #  是否在 top-label 或概率上分歧过大, 透明标注, 供决策智能体参考.
+    # ═════════════════════════════════════════════════════════════
+    _LABELS_1X2 = ["主胜", "平局", "客胜"]
+    _SPREAD_WARN = 0.20   # 分量 top-label 概率极差超过此值 → 标记分歧
+
+    @classmethod
+    def reconcile_components(cls, rp_result: Dict[str, Any]) -> Dict[str, Any]:
+        """检测 ranked_predictor 内部多模型分量的分歧, 主模型胜出不改结论."""
+        try:
+            comps = (rp_result.get("markets", {})
+                     .get("1x2", {})
+                     .get("components", {}) or {})
+        except Exception:
+            comps = {}
+
+        parsed: Dict[str, Tuple[str, float]] = {}
+        for key, vec in comps.items():
+            if not vec or not isinstance(vec, (list, tuple)) or len(vec) < 3:
+                continue
+            try:
+                ph, pd, pa = float(vec[0]), float(vec[1]), float(vec[2])
+            except (TypeError, ValueError):
+                continue
+            if any(p < 0 or p > 1 for p in (ph, pd, pa)):
+                continue
+            top_i = max(range(3), key=lambda i: (ph, pd, pa)[i])
+            parsed[key] = (cls._LABELS_1X2[top_i], (ph, pd, pa)[top_i])
+
+        if len(parsed) < 2:
+            return {
+                "conflict": False,
+                "spread": 0.0,
+                "components": parsed,
+                "available": list(parsed.keys()),
+                "note": "可用分量不足2个, 无法判定分歧",
+            }
+
+        top_labels = {k: v[0] for k, v in parsed.items()}
+        top_probs = [v[1] for v in parsed.values()]
+        spread = max(top_probs) - min(top_probs)
+        label_conflict = len(set(top_labels.values())) > 1
+
+        conflict = label_conflict or (spread > cls._SPREAD_WARN)
+        if not conflict:
+            note = "各分量方向一致, 主模型结论稳健"
+        elif label_conflict:
+            note = "分量 top-label 分歧(" + " / ".join(
+                f"{k}→{v}" for k, v in top_labels.items()) + "), 主模型(融合)胜出"
+        else:
+            note = f"分量概率极差 {spread:.2f} 超阈, 主模型(融合)胜出"
+
+        return {
+            "conflict": conflict,
+            "spread": round(spread, 4),
+            "label_conflict": label_conflict,
+            "components": parsed,
+            "available": list(parsed.keys()),
+            "note": note,
+        }
+
     @staticmethod
     def _parse_score(score_str: str) -> Tuple[int, int]:
         try:

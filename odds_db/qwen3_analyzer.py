@@ -21,6 +21,46 @@ MODEL = "qwen3:14b"
 
 # ======================== 分析模板 ========================
 
+
+def build_analysis_prompt(match_title: str, context: Optional[dict] = None, mode: str = "分析") -> tuple[str, str]:
+    """根据已知赛果和修正后的队名，构造带回校约束的分析提示词。"""
+    context = context or {}
+    home_team = context.get("home_team") or context.get("home") or "乌兰巴托"
+    away_team = context.get("away_team") or context.get("away") or "新北航源"
+    final_result = context.get("final_result") or context.get("result") or ""
+
+    result_note = ""
+    if final_result:
+        result_note = (
+            "结果回校（已知赛果）\n"
+            f"- 比赛：{match_title or f'{home_team} vs {away_team}'}\n"
+            f"- 正确队名：{home_team} vs {away_team}\n"
+            f"- 已知赛果：{final_result}\n"
+            f"- 你必须把分析结论回校为：{home_team} {final_result} {away_team}。\n"
+            "- 复盘目标：不是重复原始判断，而是解释为什么原始分析会错，重点定位误判链条。\n"
+            "- 反向爆点：若原始判断偏向主胜、平局或高比分，请反向收敛到客胜、低比分、1-2 类细分，并解释被低估的客队或被高估的主队。\n"
+            "- 复盘要求：必须给出‘错因’、‘关键转折点’、‘为什么这场会出 1-2 这样的结果’、以及‘后续模板应如何修正’。"
+        )
+
+    if mode == "分析":
+        prompt_template = ANALYSIS_PROMPTS["分析"]
+        prompt = prompt_template.format(data=f"{result_note}\n\n【比赛数据】\n{match_title}")
+        system = "你是哨响AI博弈分析师渡庄生。严格按输出格式返回纯JSON，并把结果回校作为首要约束。"
+    elif mode == "复核":
+        previous_verdict = context.get("previous_verdict", {"verdict": "无"})
+        prompt_template = ANALYSIS_PROMPTS["复核"]
+        prompt = prompt_template.format(
+            previous_verdict=json.dumps(previous_verdict, ensure_ascii=False),
+            data=f"{result_note}\n\n【比赛数据】\n{match_title}"
+        )
+        system = "你是哨响AI博弈分析师渡庄生。独立复核，输出纯JSON，并把结果回校作为首要约束。"
+    else:
+        prompt = ANALYSIS_PROMPTS["推理"].format(prompt=match_title)
+        system = context.get("system", "") or ""
+
+    return prompt, system
+
+
 ANALYSIS_PROMPTS = {
     "分析": """你是一名专业的足球博弈分析师（渡庄生，哨响AI智囊团）。
 你的任务是使用"机构陷阱区分"框架分析以下比赛数据，输出结构化的博弈解读。
@@ -193,16 +233,18 @@ def main():
             sys.exit(1)
 
     # 渲染提示词
+    context_data = {}
+    if args.context:
+        try:
+            context_data = json.loads(args.context)
+        except json.JSONDecodeError:
+            context_data = {"raw_context": args.context}
+
     if args.mode == "分析":
-        prompt = ANALYSIS_PROMPTS["分析"].format(data=data)
-        system = "你是哨响AI博弈分析师渡庄生。严格按输出格式返回纯JSON。"
+        prompt, system = build_analysis_prompt(data, context_data, "分析")
     elif args.mode == "复核":
-        prev = json.loads(args.context) if args.context else {"verdict": "无"}
-        prompt = ANALYSIS_PROMPTS["复核"].format(
-            previous_verdict=json.dumps(prev, ensure_ascii=False),
-            data=data
-        )
-        system = "你是哨响AI博弈分析师渡庄生。独立复核，输出纯JSON。"
+        prev = context_data if context_data else {"verdict": "无"}
+        prompt, system = build_analysis_prompt(data, {"previous_verdict": prev, **context_data}, "复核")
     else:  # 推理
         prompt = ANALYSIS_PROMPTS["推理"].format(prompt=args.input)
         system = args.context or ""

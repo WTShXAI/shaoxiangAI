@@ -141,7 +141,10 @@ class MatchContextAnalyzer:
         - 查找 (team vs opponent) 的比赛结果
         - 从终态积分中减去该场得分, 得到赛前积分
         """
-        from data.dynamic_team_db_module import DynamicTeamDB
+        try:
+            from data.dynamic_team_db_module import DynamicTeamDB
+        except ImportError:
+            return None
         t = DynamicTeamDB.get_team(team)
         final_pts = t.get('pts', 0)
         gp = t.get('gp', 0)
@@ -172,9 +175,12 @@ class MatchContextAnalyzer:
     @classmethod
     def get_team_gp(cls, team: str) -> int:
         """获取球队已赛场次"""
-        from data.dynamic_team_db_module import DynamicTeamDB
-        t = DynamicTeamDB.get_team(team)
-        return t.get('gp', 0)
+        try:
+            from data.dynamic_team_db_module import DynamicTeamDB
+            t = DynamicTeamDB.get_team(team)
+            return t.get('gp', 0)
+        except ImportError:
+            return 0
     
     @classmethod
     def get_group(cls, team: str) -> str:

@@ -72,54 +72,59 @@ def main():
             fixtures = []
 
         if fixtures:
-            from pipeline.full_linkage_predictor import FullLinkagePipeline, MatchInput
-            pipeline = FullLinkagePipeline()
-            results = []
-            skipped_no_odds = 0
-            for f in fixtures[:12]:  # 最多预测12场
-                # v6.0: 从赔率数据库读取真实赔率, 无数据时跳过而非使用默认假值
-                try:
-                    odds_path = ARCH / 'odds_db' / f"{f.get('homeTeam',{}).get('name','')}_vs_{f.get('awayTeam',{}).get('name','')}_{date}.json"
-                    odds_data = json.loads(odds_path.read_text(encoding='utf-8')) if odds_path.exists() else None
-                except Exception:
-                    odds_data = None
+            try:
+                from pipeline.full_linkage_predictor import FullLinkagePipeline, MatchInput
+            except ImportError:
+                logger.warning("full_linkage_predictor 不可用, 跳过自动预测")
+                FullLinkagePipeline = None; MatchInput = None
+            if FullLinkagePipeline is not None:
+                pipeline = FullLinkagePipeline()
+                results = []
+                skipped_no_odds = 0
+                for f in fixtures[:12]:  # 最多预测12场
+                    # v6.0: 从赔率数据库读取真实赔率, 无数据时跳过而非使用默认假值
+                    try:
+                        odds_path = ARCH / 'odds_db' / f"{f.get('homeTeam',{}).get('name','')}_vs_{f.get('awayTeam',{}).get('name','')}_{date}.json"
+                        odds_data = json.loads(odds_path.read_text(encoding='utf-8')) if odds_path.exists() else None
+                    except Exception:
+                        odds_data = None
 
-                if odds_data is None:
-                    skipped_no_odds += 1
-                    print(f"\n  ⚠️ {f.get('homeTeam',{}).get('name','?')} vs {f.get('awayTeam',{}).get('name','?')}: 无赔率数据, 跳过 (不生成假数据)")
-                    continue
+                    if odds_data is None:
+                        skipped_no_odds += 1
+                        print(f"\n  ⚠️ {f.get('homeTeam',{}).get('name','?')} vs {f.get('awayTeam',{}).get('name','?')}: 无赔率数据, 跳过 (不生成假数据)")
+                        continue
 
-                odds_h = odds_data.get('1X2', {}).get('home')
-                odds_d = odds_data.get('1X2', {}).get('draw')
-                odds_a = odds_data.get('1X2', {}).get('away')
-                
-                # 三项赔率缺一不可
-                if not all([odds_h, odds_d, odds_a]):
-                    skipped_no_odds += 1
-                    print(f"\n  ⚠️ {f.get('homeTeam',{}).get('name','?')} vs {f.get('awayTeam',{}).get('name','?')}: 赔率数据不完整, 跳过")
-                    continue
+                    odds_h = odds_data.get('1X2', {}).get('home')
+                    odds_d = odds_data.get('1X2', {}).get('draw')
+                    odds_a = odds_data.get('1X2', {}).get('away')
                     
-                hcp = odds_data.get('hcp', {}).get('line', 0.0) if odds_data else 0.0
-                ou = odds_data.get('ou', {}).get('line', 2.5) if odds_data else 2.5
+                    # 三项赔率缺一不可
+                    if not all([odds_h, odds_d, odds_a]):
+                        skipped_no_odds += 1
+                        print(f"\n  ⚠️ {f.get('homeTeam',{}).get('name','?')} vs {f.get('awayTeam',{}).get('name','?')}: 赔率数据不完整, 跳过")
+                        continue
+                        
+                    hcp = odds_data.get('hcp', {}).get('line', 0.0) if odds_data else 0.0
+                    ou = odds_data.get('ou', {}).get('line', 2.5) if odds_data else 2.5
 
-                m = MatchInput(
-                    f.get('homeTeam', {}).get('name', '?'),
-                    f.get('awayTeam', {}).get('name', '?'),
-                    odds_h, odds_d, odds_a,
-                    hcp, ou
-                )
-                try:
-                    r = pipeline.predict(m)
-                    results.append(r)
-                    fv = r['final_verdict']
-                    print(f"\n  {r['match']}")
-                    print(f"    方向: {fv['primary']} / {fv['secondary']}")
-                    print(f"    比分: {fv['best_score']} 备选: {fv['alt_scores']}")
-                except Exception as pred_err:
-                    print(f"\n  ❌ {m.home} vs {m.away} 预测失败: {pred_err}")
+                    m = MatchInput(
+                        f.get('homeTeam', {}).get('name', '?'),
+                        f.get('awayTeam', {}).get('name', '?'),
+                        odds_h, odds_d, odds_a,
+                        hcp, ou
+                    )
+                    try:
+                        r = pipeline.predict(m)
+                        results.append(r)
+                        fv = r['final_verdict']
+                        print(f"\n  {r['match']}")
+                        print(f"    方向: {fv['primary']} / {fv['secondary']}")
+                        print(f"    比分: {fv['best_score']} 备选: {fv['alt_scores']}")
+                    except Exception as pred_err:
+                        print(f"\n  ❌ {m.home} vs {m.away} 预测失败: {pred_err}")
 
-            skip_msg = f' (跳过{skipped_no_odds}场无赔率数据)' if skipped_no_odds else ''
-            print(f'\n  ✅ 预测完成 ({len(results)}/{len(fixtures[:12])}场){skip_msg}')
+                skip_msg = f' (跳过{skipped_no_odds}场无赔率数据)' if skipped_no_odds else ''
+                print(f'\n  ✅ 预测完成 ({len(results)}/{len(fixtures[:12])}场){skip_msg}')
         else:
             print(f'\n  ⚠️ {date} 无赛程数据，跳过预测。')
         

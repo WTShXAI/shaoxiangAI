@@ -1,0 +1,45 @@
+{
+  "N": 100000,
+  "N_test": 20000,
+  "reversal_rate": 0.4899,
+  "outcome_acc": 0.4853,
+  "reversal_acc": 0.6113,
+  "reversal_auc": 0.6554,
+  "drift_acc": 0.6136,
+  "drift_auc": 0.6598,
+  "top_features": [
+    [
+      "imp_open_d",
+      2364.0
+    ],
+    [
+      "imp_close_d",
+      2171.0
+    ],
+    [
+      "imp_shift_d",
+      1850.0
+    ],
+    [
+      "close_spread",
+      1823.0
+    ],
+    [
+      "open_spread",
+      1604.0
+    ],
+    [
+      "drift_d",
+      1579.0
+    ],
+    [
+      "drift_a",
+      1553.0
+    ],
+    [
+      "imp_shift_h",
+      1503.0
+    ]
+  ],
+  "trained_at": "2026-07-26T02:31:58.228271"
+}

@@ -23,6 +23,7 @@ import json
 import time
 import logging
 import threading
+import sqlite3
 import asyncio
 from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, timedelta, timezone
@@ -60,6 +61,48 @@ except Exception as _gq_e:
     logger.warning(f"[analysis_cache] gq.db 加载失败, 复盘链路停用: {_gq_e}")
     _GQ_DB_OK = False
 
+# ── 分析中心扫描引擎 (比赛分析页面主数据源) ──
+try:
+    from pipeline.analysis_center import run_scan as _analysis_scan
+    _ANALYSIS_CENTER_OK = True
+except Exception as _ace:
+    logger.warning(f"[analysis_center] 加载失败: {_ace}")
+    _ANALYSIS_CENTER_OK = False
+
+# ── 冷门波胆检测模型 (赛前CS网格 + 正路盘口交叉验证闭环) ──
+try:
+    from analysis.cold_door_model import predict_for_grid as _cold_predict
+    from pipeline.analysis_center import cs_top3_from_market as _regular_cs_top3
+    _COLD_OK = True
+except Exception as _cle:
+    logger.warning(f"[cold_door] 加载失败: {_cle}")
+    _COLD_OK = False
+
+# ── 滚球破蛋概率仪 (Live Goal Probe) ──
+try:
+    from analysis.live_goal_probe import probe_match as _live_goal_probe, list_live_matches as _live_goal_matches, analyze_three_market as _analyze_three_market, list_three_market_candidates as _list_three_market_candidates
+    from analysis.backtest_live_goal_probe import main as _backtest_live_goal_probe
+    _LIVE_GOAL_OK = True
+except Exception as _lge:
+    logger.warning(f"[live_goal_probe] 加载失败: {_lge}")
+    _LIVE_GOAL_OK = False
+
+# ── 分钟级数据流 (Minute-level stream: 盘口+比分时间线/进球事件/逐分钟破蛋曲线) ──
+try:
+    from analysis.minute_level_stream import get_match_minute_stream as _get_match_minute_stream
+    _MINUTE_STREAM_OK = True
+except Exception as _mse:
+    logger.warning(f"[minute_level_stream] 加载失败: {_mse}")
+    _MINUTE_STREAM_OK = False
+
+# ── 模板偏差实时扫描 ──
+try:
+    from pipeline.template_deviation_api import scan_live_matches as _template_scan
+    _TEMPLATE_DEV_OK = True
+except Exception as _tde:
+    logger.warning(f"[template_deviation] 加载失败: {_tde}")
+    _TEMPLATE_DEV_OK = False
+
 # ── 加载核心引擎 (v7.4 双引擎: wc/league) ──
 _DEFAULT_ENGINE = os.getenv("ENGINE", "wc")
 ENGINE = None
@@ -74,6 +117,73 @@ _INITIAL_ODDS_SNAPSHOT: Dict[str, Any] = {}
 # ── 自动赛果记录 (Req3: feed 检测到 match_state<0 时自动记录) ──
 # key = f"{home}|{away}|{date}", value = {result, score, opening_odds, closing_odds, recorded_at}
 _AUTO_RESULTS: Dict[str, Any] = {}
+
+
+# ── 运动类型过滤(2026-08-27): 只对外暴露足球, 排除篮球/板球/棒球/排球/网球/电竞/虚拟等 ──
+# 关键词黑名单(覆盖 BSKT/IPBL/WNBA/IPL板球/篮球/棒球/排球/网球/UFC/NFL/F1/电竞/虚拟足球等)
+# league 文本含任一关键词 → 视为非足球, 响应层排除。改此清单改一处即生效。
+NON_FOOTBALL_LEAGUE_KEYWORDS = [
+    # 篮球 (含单字"篮"覆盖 澳篮联/篮球/女篮/男篮 等所有篮球联赛命名)
+    "篮球", "篮", "BSKT", "WNBA", "NBA", "MPBL", "PBA", "NBL", "ABL", "B联赛", "CBA",
+    # 板球/棒球/排球/网球/高尔夫/手球/曲棍球
+    "板球", "棒球", "排球", "网球", "高尔夫", "手球", "曲棍球", "马球", "羽毛球", "乒乓球", "壁球",
+    # 格斗/美式足球
+    "拳击", "UFC", "MMA", "美式足球", "NFL", "澳式足球", "AFL", "击剑",
+    # 赛车
+    "F1", "F2", "F3", "MotoGP",
+    # 冰球
+    "冰球", "NHL",
+    # 电竞/虚拟体育(明确非足球, 包括电子足球)
+    "电竞", "电子竞技", "FIFAe", "eSports", "Esports",
+    # 乐鱼虚拟电子足球(8分钟电子赛, 与"梦幻对垒"虚拟)
+    "VS-", "瓦尔哈拉", "瓦尔基里", "梦幻对垒", "8分钟",
+]
+
+
+def is_football(league: Optional[str]) -> bool:
+    """判断 league 名是否属于足球(是→True, 否→False)。空值视为足球兜底。"""
+    if not league:
+        return True
+    return not any(kw in league for kw in NON_FOOTBALL_LEAGUE_KEYWORDS)
+
+
+def _filter_football_matches(matches: list, league_key: str = "league") -> list:
+    """对比赛字典列表做运动类型过滤, 非足球被丢弃。league_key 默认'league', 可改 sport_key。"""
+    if not matches:
+        return matches
+    return [m for m in matches if is_football(m.get(league_key) or m.get("sport_key") or "")]
+
+
+def _resolve_live_ou_anchor(match_key: str, minute: int = 0):
+    """滚球锚 (2026-08-27 用户: 锚点用滚球数据, 不用固定数值).
+
+    从 odds_snapshots 自动取该场【当前】滚球 OU 主盘线 + 去水隐含总球,
+    取代固定 line=2.5 / 开盘锚 opening_total。复用 _current_inplay_odds(live 快照)。
+    返回 (line, implied_total) 或 (None, None) — 无滚球数据(如未开赛)时诚实降级。
+    """
+    try:
+        import sqlite3
+        from analysis.live_goal_probe import _current_inplay_odds
+        db = os.path.join(PROJECT_ROOT, "data", "events.db")
+        con = sqlite3.connect(db, timeout=10)
+        try:
+            cur = _current_inplay_odds(con, match_key, minute or 0)
+        finally:
+            con.close()
+        if not cur or not cur.get("ou"):
+            return None, None
+        ou_line, ou_over, ou_under = cur["ou"]
+        if ou_line is None or ou_over is None or ou_under is None:
+            return (float(ou_line), None) if ou_line else (None, None)
+        try:
+            po = (1.0 / float(ou_over)) / (1.0 / float(ou_over) + 1.0 / float(ou_under))
+        except (ZeroDivisionError, TypeError, ValueError):
+            po = 0.5
+        # OU 隐含总球: total = line + 2*(p_over - 0.5) (1球=100%概率差)
+        implied_total = round(float(ou_line) + 2.0 * (po - 0.5), 2)
+        return float(ou_line), implied_total
+    except Exception:
+        return None, None
 
 
 try:
@@ -240,6 +350,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── 事故③ 根治: 注册统一错误信封 — 任何未捕获异常都返回 {"ok":false,"error":{code,message}},
+#    message 恒为 str, 杜绝前端白屏 (core 缺失时降级跳过, 不阻断桥启动) ──
+def _coerce_message_fallback(value):
+    """core 不可用时的兜底: 保证 detail 恒为 str, 绝不透传裸对象(事故③同源坏点)。"""
+    try:
+        return str(value)
+    except Exception:
+        return "unspecified error"
+
+
+# 先挂兜底, core 可用时再覆盖为 error_envelope.coerce_message (对象型 message→安全字符串).
+coerce_message = _coerce_message_fallback
+
+try:
+    from core.error_envelope import (
+        register_exception_handlers as _register_exception_handlers,
+        coerce_message,  # 覆盖兜底: 任意对象(含 list[dict])→str, 杜绝前端白屏
+    )
+    _register_exception_handlers(app)
+except Exception:
+    # 极端情况 (core 不可 import): 用兜底 coerce_message, detail 仍为 str (降级路径)
+    pass
+
 # ═══ 速率限制中间件 (ECC security-review: 所有端点限流) ═══
 # 进程内固定窗口: 按 (客户端IP, 路径前缀) 计数, 默认 120 次/分钟
 # 仅作用于 /api/* 与 /predict/*; /health /ws 等健康与长连接豁免
@@ -252,7 +385,13 @@ def _rate_check(path: str, client_ip: str, limit_per_min: int) -> bool:
     if not (path.startswith("/api") or path.startswith("/predict")):
         return True
     now = time.time()
-    key = f"{client_ip}|{path.split('/')[1]}"
+    # live-goal-probe/focus 是滚球神器高频轮询端点, 用独立桶(否则与其它 /api 共享 120/min 桶,
+    # 多标签页 5s 轮询瞬间 429 风暴 → 前端"崩"). 其余 /api 仍共享默认桶.
+    if path.startswith("/api/live-goal-probe") or path.startswith("/api/focus"):
+        seg = "api_probe"
+    else:
+        seg = path.split('/')[1]
+    key = f"{client_ip}|{seg}"
     with _rate_lock:
         bucket = _rate_buckets.get(key)
         if bucket is None or now - bucket[0] >= 60:
@@ -269,7 +408,15 @@ async def rate_limit_middleware(request: Request, call_next):
     path = request.url.path
     if path.startswith("/api") or path.startswith("/predict"):
         client_ip = request.client.host if request.client else "unknown"
-        limit = int(os.getenv("RATE_LIMIT_PER_MIN", "120"))
+        # live-goal-probe 是滚球神器核心端点, 前端每 5s 轮询列表+详情+焦点(多标签页会成倍),
+        # 与其他 /api 共享 120/min 桶会瞬间 429 风暴 → 前端"崩"(拿不到数据/反复错误)。
+        # live-goal-probe/focus 是本地滚球神器高频轮询端点, 用户会开大量标签页。多次上调后
+        # 4000/min 仍被瞬时峰值顶穿; 作为单机私有部署, 直接给到 8000/min 硬件上限, 并保留
+        # 前端 Page Visibility 降低后台轮询。其余 /api 仍 120/min。
+        if path.startswith("/api/live-goal-probe") or path.startswith("/api/focus"):
+            limit = int(os.getenv("RATE_LIMIT_PROBE_PER_MIN", "8000"))
+        else:
+            limit = int(os.getenv("RATE_LIMIT_PER_MIN", "120"))
         if not _rate_check(path, client_ip, limit):
             # 429 短路绕过 CORSMiddleware → 必须手工补 CORS 头,
             # 否则浏览器看到 "Access-Control-Allow-Origin 缺失" 会把 preflight 通过后的真实请求当成失败。
@@ -344,7 +491,7 @@ async def _http_exc_handler(request: Request, exc: StarletteHTTPException):
 
 @app.exception_handler(RequestValidationError)
 async def _validation_exc_handler(request: Request, exc: RequestValidationError):
-    return JSONResponse(status_code=422, content={"success": False, "data": None, "error": "参数校验失败", "detail": exc.errors()})
+    return JSONResponse(status_code=422, content={"success": False, "data": None, "error": "参数校验失败", "detail": coerce_message(exc.errors())})
 
 
 def _json_safe(obj):
@@ -390,6 +537,29 @@ def _wrap_data(data) -> dict:
         "data": data,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+
+def _resolve_mk(match_key: str) -> str:
+    """2026-08-28: match_key 规范化 (IR-16 队名透传).
+    GQ H5 实时队名 vs DB 历史队名存在音译差异(如 奎瓦特→塞瓦特 / 河床FC→河王FC),
+    前端选中比赛后各端点按 match_key 精确查 DB 落空 → 全部 not found。
+    这里统一"精确→模糊"两级解析, 失败原样返回(宁缺勿错)。"""
+    if not match_key:
+        return match_key
+    try:
+        from analysis.match_key_resolver import resolve_match_key
+        import analysis.live_goal_probe as _lgp
+        con = _lgp._open_gq()
+        try:
+            resolved = resolve_match_key(con, str(match_key))
+        finally:
+            try:
+                con.close()
+            except Exception:
+                pass
+        return resolved or str(match_key)
+    except Exception:
+        return str(match_key)
 
 
 def _wrap_error(code: str, message: str, details=None, status: int = 400) -> JSONResponse:
@@ -715,6 +885,15 @@ if os.path.exists(FRONTEND_DIR) and os.path.isdir(ASSETS_DIR):
     logger.info(f"[Bridge] 前端静态文件: {FRONTEND_DIR}")
 
 
+# ═══ 交易 API 路由 (B-2): 信号列表 / 下单 / 结算 / 持仓 ═══
+try:
+    from pipeline.trading_api import trading_router
+    app.include_router(trading_router)
+    logger.info("[Bridge] 交易API路由已注册: /api/trading/*")
+except Exception as _trade_e:
+    logger.warning(f"[Bridge] 交易API路由加载失败 (Trading页面将不可用): {_trade_e}")
+
+
 # ═══════════════════════════════════════════════════════
 # WebSocket ConnectionManager (实时推送管理)
 # ═══════════════════════════════════════════════════════
@@ -847,13 +1026,40 @@ async def _start_background_loops():
     # 每10分钟采集一次 live_odds_raw (轻度循环, 与赔率主循环互补)
     _asyncio.create_task(_live_odds_mini_loop())
     # 实时比分轮询 (每 30s 拉一次 getMatchDetailPB, 仅对正在进行的比赛)
+    # 2026-08-27: 雷速已删除, ws_collector 秒级推流(events.db matches.score/minute) 已覆盖,
+    # 不再需要 leisu_live_scores 后台轮询.
+
+    # 自主巡航 Agent (后台常驻: 扫描临场窗口+滚盘 → 硬阈值判定 → qwen3 写人话 → WS 推告警)
     try:
-        from pipeline.leisu_live_scores import start_background_poller, init_scores_db
-        init_scores_db()
-        start_background_poller()
-        logger.info("[飞轮] 实时比分轮询已启动 (30s 间隔)")
+        from agent_cruise import start_cruise
+        _asyncio.create_task(start_cruise(
+            broadcast=ws_manager.broadcast,
+            analyze=_live_operator_card_compute,
+            cross_book=_get_cross_book_signal,
+        ))
+        logger.info("[cruise] autonomous cruise agent started")
     except Exception as e:
-        logger.warning(f"[飞轮] 实时比分轮询启动失败: {e}")
+        logger.warning(f"[cruise] cruise agent start failed: {e}")
+
+    # 2026-08-27: 模型引擎预热 — ModelRouter/unified_predictor v7.4 首次调用懒加载 ~29s,
+    # 导致 bridge 重启后首个前端 analyze 请求 29s+ → 前端 30s 超时("timeout of 30000ms exceeded")。
+    # 启动时后台预热引擎, 首个 analyze 请求命中已加载引擎 → 毫秒级。
+    try:
+        def _warm_model_engine():
+            from pipeline.predictors.model_router import ModelRouter
+            ModelRouter.analyze(
+                home="预热引擎", away="预热引擎",
+                h=2.0, d=3.2, a=3.8,
+                ou_line=None, ah_line=None, ah_home=None, ah_away=None,
+            )
+            logger.info("[飞轮] model engine warmed (analyze 首请求不再 29s)")
+
+        async def _warm():
+            await _asyncio.to_thread(_warm_model_engine)
+        _asyncio.create_task(_warm())
+        logger.info("[飞轮] model engine warmup started (后台)")
+    except Exception as e:
+        logger.warning(f"[飞轮] model engine warmup failed: {e}")
 
 
 async def _live_odds_mini_loop():
@@ -985,9 +1191,6 @@ async def health():
     else:
         checks["db"] = "missing"
 
-    # 量化引擎
-    checks["quant_engine"] = bool(globals().get("_QUANT_OK", False))
-
     # API 预算剩余
     try:
         from pipeline.collectors.api_budget import get_guard
@@ -1034,7 +1237,7 @@ async def ready():
 
 # ── WebSocket 实时更新 ──
 @app.websocket("/ws/realtime")
-async def ws_realtime(ws):
+async def ws_realtime(ws: WebSocket):
     """WebSocket 实时推送 — 心跳保持连接, 接收终端订阅"""
     await ws_manager.connect(ws)
     try:
@@ -1677,18 +1880,22 @@ def _compute_trap_detector(oh, od, oa, ph, pd, pa, market_conf, direction,
     return {"trap_score": score, "traps_fired": traps, "trap_verdict": verdict}
 
 
-def _build_cs_score_odds(books):
+def _build_cs_score_odds(books, min_books: int = 2):
     """[score_str, odds] 或 [book, score_str, odds] 列表 → {(i,j): 跨庄最优十进制赔率}。
-    取同一比分跨庄的最高赔率(最优价)。无有效项返回 {}。"""
+    取同一比分跨庄的最高赔率(最优价)。要求 ≥min_books 家独立庄才返回(单源无法交叉验证edge, 返回空)。
+    2026-08-12 反推复盘: 单源CS价(如GQ单源)会产出+773%伪edge, 加庄数门槛回归诚实SCAN."""
     if not books:
         return {}
     best = {}
+    seen_books = set()
     for entry in books:
         try:
             if len(entry) >= 3:
-                s, o = entry[1], float(entry[2])
+                bk, s, o = entry[0], entry[1], float(entry[2])
+                seen_books.add(bk)
             elif len(entry) == 2:
                 s, o = entry[0], float(entry[1])
+                seen_books.add("__single__")
             else:
                 continue
             if not isinstance(s, str) or "-" not in s:
@@ -1702,6 +1909,8 @@ def _build_cs_score_odds(books):
                 best[key] = o
         except (ValueError, TypeError, AttributeError, IndexError):
             continue
+    if len(seen_books) < min_books:
+        return {}
     return best
 
 
@@ -1925,7 +2134,7 @@ def _normalize_team_p1b(name):
     return out
 
 def _resolve_wc_extra_bookmakers(home_canon, away_canon):
-    """P1b④: 从 The Odds API 快照取 >=2 家 1X2 盘口 (英文canonical队名匹配), 解单庄拒注."""
+    """P1b④: 从 The Odds API 快照取 >=2 家 1X2 盘口 (英文canonical队名匹配), 解单源拒注."""
     import json as _json
     _f = os.path.join(PROJECT_ROOT, "data", "oddsapi_wc_raw_latest.json")
     if not os.path.exists(_f):
@@ -2025,6 +2234,11 @@ def _live_predict(home, away, oh, od, oa,
     direction = _LIVE_DIRECTION[best[1]]
     market_conf = best[0]
 
+    # 联赛零配置反查: 前端/内部调用未显式传 league 时, 按主客队从 events.db 反查,
+    # 让"联赛进球先验 + 杯赛识别"对真实比赛自动生效 (无匹配则 league 保持 None, 零回归).
+    if not league:
+        league = _lookup_league(home, away)
+
     # ③ OIP 比分 / 大小球
     # WC 识别: 优先用原始 sport_key(英文, 含 world_cup) → 修正旧逻辑用中文 league 判定永远 False 的 bug;
     # goal_scale: WC=1.35 (修正OIP低估WC总进球) / 通用联赛=1.2 (140k真实赛果walkforward校准, 2026-07-18)。
@@ -2038,6 +2252,44 @@ def _live_predict(home, away, oh, od, oa,
                       goal_scale=WC_OIP_GOAL_SCALE if is_cup else GENERAL_OIP_GOAL_SCALE)
     M = r["matrix"]; mg = M.shape[0] - 1
 
+    # ── 联赛/赛事进球水平先验 (2026-08-12: 独立特征+校准+零回归) ──
+    # 把"赛事/联赛场均总球"作为合法先验收缩混合进 OIP 中心 λ(lh+la), 重建 Poisson 矩阵。
+    # 仅当 league 提供时生效; 无 league → 完全跳过 (零回归)。
+    # 不影响 1X2 verdict(方向=市场argmax, 来自 oh/od/oa); 仅修正 OU/CS/平局的中心 λ。
+    league_scoring = None
+    oip_raw_total = float(r.get("lh") or 0.0) + float(r.get("la") or 0.0)
+    if league:
+        try:
+            from pipeline.league_scoring_prior import blend_total_with_league as _ls_blend
+            if oip_raw_total > 0:
+                _ls = _ls_blend(oip_raw_total, league)
+                _adj = _ls["adjusted"]
+                _s = _adj / oip_raw_total
+                _lh2, _la2 = float(r.get("lh") or 0.0) * _s, float(r.get("la") or 0.0) * _s
+                from math import exp as _exp, factorial as _fac
+                def _poi(k, lam):
+                    if k < 0 or lam <= 0:
+                        return 0.0
+                    return _exp(-lam) * (lam ** k) / _fac(k)
+                _mg = M.shape[0] - 1
+                _M2 = np.zeros_like(M)
+                for _i in range(_mg + 1):
+                    for _j in range(_mg + 1):
+                        _M2[_i, _j] = _poi(_i, _lh2) * _poi(_j, _la2)
+                _M2sum = _M2.sum()
+                if _M2sum > 1e-12:
+                    M = _M2 / _M2sum
+                    r["lh"] = _lh2
+                    r["la"] = _la2
+                league_scoring = {
+                    "prior_total": _ls["prior_mean"], "prior_n": _ls["prior_n"],
+                    "matched_league": _ls["matched_league"], "liquidity": _ls["liquidity"],
+                    "weight": _ls["weight"], "method": _ls["method"],
+                    "raw_total": round(oip_raw_total, 3), "adjusted_total": round(_adj, 3),
+                }
+        except Exception as _lse:
+            logger.warning(f"[league_scoring] 先验注入失败(跳过): {_lse}")
+
     # ── In-play 条件概率裁剪 ──
     # 当传入当前比分时, 对 OIP Poisson 矩阵做条件概率更新:
     #   1) 已不可能比分(h<H or a<A) 概率归零
@@ -2046,19 +2298,15 @@ def _live_predict(home, away, oh, od, oa,
     #   无比分传入时(赛前/None) → 行为与改动前完全一致, 不裁剪
     inplay_applied = False
     inplay_info = None
-    if home_goals is not None and away_goals is not None:
+    # 2026-08-12 反推复盘: 仅当 当前比分 + 有效 elapsed(0<_elapsed<90) 齐备才做条件裁剪.
+    # 原 else 分支 elapsed 缺失仍 T_ratio=1.0 静默裁剪 -> 复现"83min 4-1 +773% edge"虚假高概率.
+    # 现: elapsed 缺省/无效/终场 -> 不裁剪, 保留全场矩阵, 不标 inplay.
+    _elapsed = int(elapsed) if elapsed is not None else None
+    if home_goals is not None and away_goals is not None and _elapsed is not None and 0 < _elapsed < 90:
         try:
             from math import exp as _mexp, factorial as _mfac
             H, A = int(home_goals), int(away_goals)
-            # 剩余时间比例: 默认90分钟全场; elapsed<=0 或 >=90 时不缩放
-            _elapsed = int(elapsed) if elapsed is not None else None
-            # 剩余时间: >=90 时最多3分钟伤停补时; <90 时按比例; 补时比例极小
-            if _elapsed and _elapsed >= 90:
-                T_ratio = max(0.01, (93.0 - _elapsed) / 90.0)  # 补时最多3分钟
-            elif _elapsed and 0 < _elapsed < 90:
-                T_ratio = max(0.05, (90.0 - _elapsed) / 90.0)
-            else:
-                T_ratio = 1.0
+            T_ratio = max(0.05, (90.0 - _elapsed) / 90.0)
             # 原始 λ (OIP 模型输出; obscure 联赛可能无 lh/la → 取默认值)
             _lam_h = float(r.get("lh", 1.2) or 1.2)
             _lam_a = float(r.get("la", 0.9) or 0.9)
@@ -2091,8 +2339,7 @@ def _live_predict(home, away, oh, od, oa,
                     "remaining_lambda_h": round(_rem_h, 4),
                     "remaining_lambda_a": round(_rem_a, 4),
                     "note": (f"In-play 条件裁剪: 当前 {H}-{A}"
-                             f" @ {_elapsed if _elapsed else '?'}min"
-                             f", 剩余时间比例 {T_ratio:.1%}")
+                             f" @ {_elapsed}min, 剩余时间比例 {T_ratio:.1%}")
                 }
                 logger.info(f"[inplay] 条件概率裁剪生效: {inplay_info['note']}")
         except Exception as _ie:
@@ -2136,7 +2383,7 @@ def _live_predict(home, away, oh, od, oa,
 
     # ⑩ 价值层 (L0 深度决策): 跨庄共识概率 vs 跨庄最优价 → edge/EV/凯利/情景PnL
     # 诚实约束(v6铁律): 模型对1X2无超额信息优势 → "模型概率"取跨庄共识隐含概率;
-    # 真实 edge 仅来自跨庄价差(soft line)。单庄时共识=该庄 → edge≈0 → 强制PASS。
+    # 真实 edge 仅来自跨庄价差(soft line)。
     price_books = [[oh, od, oa]]
     if extra_bookmakers:
         for bk in extra_bookmakers:
@@ -2199,7 +2446,6 @@ def _live_predict(home, away, oh, od, oa,
     if ENABLE_SOFTLINE_DECISION and _sl_fade and _sl_adj:
         cons = list(_sl_adj)
 
-    single_book = len(price_books) <= 1
     value_layer = compute_value_layer(
         odds=best_odds,
         model_probs=cons,
@@ -2209,14 +2455,6 @@ def _live_predict(home, away, oh, od, oa,
     value_layer["books_count"] = len(price_books)
     # soft-line 展示字段 (始终挂, 供人工复核; 决策是否采用由开关控制)
     value_layer["softline"] = _sl_display
-    if single_book:
-        # 单庄: 共识=该庄, edge 不可证伪 → 仅展示, 不下注结论
-        value_layer["decision"] = "PASS"
-        value_layer["best_direction"] = "PASS"
-        value_layer["single_book"] = True
-        value_layer["decision_text"] = "PASS · 单庄无独立定价验证，edge 不可证伪→不接盘"
-        value_layer["scenario"] = {"direction": None,
-                                   "note": "单庄模式: 价值层仅展示 edge/EV, 不下注结论"}
 
     # ④ 平局信号 (操盘手一手定价)
     m_pd = market_draw_prob(oh, od, oa)
@@ -2244,9 +2482,9 @@ def _live_predict(home, away, oh, od, oa,
             consensus = None
 
     # G5 · consensus booster: 双庄共识 strong → 平局预警阈值 0.26→0.24 (设计见 draw_bookmaker_validation.md)
-    # consensus 不可用(单庄/WC无IW→available=False/strong=False)时回退纯市场 P 平
+    # consensus 不可用(无多庄/WC无IW→available=False/strong=False)时回退纯市场 P 平
     draw_alert = draw_alert_with_booster(m_pd, consensus)
-    # P1b① 双庄共识 strong -> 主verdict覆写为平局 (解"永不选平"); 单庄仅保留"配防平"文本提示
+    # P1b① 双庄共识 strong -> 主verdict覆写为平局 (解"永不选平"); 无共识时仅保留"配防平"文本提示
     draw_verdict_override = bool(consensus and consensus.get("strong"))
     if draw_verdict_override:
         direction = "平局"
@@ -2435,7 +2673,7 @@ def _live_predict(home, away, oh, od, oa,
                 model_m=M.tolist())
         except Exception:
             pass
-    # 平局共识: 需跨庄/WH×IW 共识 P(平) (单庄时 consensus=None → 跳过, 不可证伪)
+    # 平局共识: 需跨庄/WH×IW 共识 P(平) (无共识时 consensus=None → 跳过, 不可证伪)
     cons_pd = None
     cons_strong = False
     if consensus:
@@ -2457,20 +2695,11 @@ def _live_predict(home, away, oh, od, oa,
     # 有跨庄CS盘→真实edge(按EV排序); 无CS盘→诚实概率扫描(decision=SCAN, 不伪称edge)。
     # cs_score_odds 始终定义({(i,j): odds} 元组键), 供 correct_score_value 与三角引擎复用
     cs_score_odds = _build_cs_score_odds(correct_score_books) if correct_score_books else {}
-    # Phase B: 终端未传 CS 盘时, 回退到 GQ.db 实时采集的波胆赔率(乐鱼体育 H5 采集器持续写入)
+    # Phase B: GQ 单源 CS 无跨庄验证, 不进 correct_score_value 的 BET 分支(仅做诚实概率扫描)
+    # (2026-08-12 反推复盘: 单源CS价会产出+773%伪edge, 回归诚实 SCAN 才符铁律
+    # "子市场edge只来自跨庄价差"). GQ CS 仍用于上方三时点时间线/三角引擎.
     if not cs_score_odds:
-        try:
-            from pipeline.cs_odds_resolver import resolve_cs_odds, resolve_cs_odds_live
-            # OPT-A: matches 表匹配失败 → 直接按 odds_snapshots.match_key(队名)取最新CS,
-            # 让混合波胆排名(cs_triangulate blend)在更多 live 比赛触发, 而非退化纯Poisson
-            _gq_cs = resolve_cs_odds(home, away) or resolve_cs_odds_live(home, away)
-            if _gq_cs:
-                cs_score_odds = {
-                    (int(s.split("-")[0]), int(s.split("-")[1])): o
-                    for s, o in _gq_cs.items()
-                }
-        except Exception:
-            pass
+        cs_score_odds = {}
     # 三时点 CS 赔率时间线 (初盘/中场收盘/当前 + drift) — 仅 GQ 已采集比赛有值
     # 用于前端实时赔率面板 + 临场漂移陷阱识别。低级别联赛(采集器未覆盖)为 None。
     _cs_timeline = None
@@ -2479,6 +2708,21 @@ def _live_predict(home, away, oh, od, oa,
         _cs_timeline = resolve_cs_odds_timeline(home, away)
     except Exception:
         _cs_timeline = None
+    # ⑬c CS波胆跟庄信号 (基于初盘→当前赔率变动的 GREEN/AMBER/RED 三色分析)
+    _cs_follow = None
+    try:
+        if _cs_timeline and _cs_timeline.get("open") and _cs_timeline.get("live"):
+            from pipeline.cs_momentum import CSMomentumTracker
+            _tracker = CSMomentumTracker()
+            _live_sc = (int(home_goals), int(away_goals)) if (
+                home_goals is not None and away_goals is not None) else None
+            _cs_follow = _tracker.analyze_cs_movement(
+                initial_odds=_cs_timeline["open"],
+                current_odds=_cs_timeline["live"],
+                live_score=_live_sc,
+            )
+    except Exception:
+        _cs_follow = None
     try:
         sub_markets["correct_score"] = correct_score_value(
             M.tolist(), score_odds=cs_score_odds if cs_score_odds else None, top_n=3,
@@ -2643,7 +2887,7 @@ def _live_predict(home, away, oh, od, oa,
         if ou_line is not None and over_water and under_water:
             _strat_ou = (float(over_water), float(under_water), float(ou_line))
         else:
-            # 前端未传 OU → 从 GQ.db 实时采集兜底 (采集器 2026-07-21 已修复 OU 解析 bug,
+            # 前端未传 OU → 从 events.db 实时采集兜底 (采集器 2026-07-21 已修复 OU 解析 bug,
             # 现能稳定采集 OU; 兜底使 Fade Over 信号在有 OU 支撑时置信升级 medium)
             try:
                 from pipeline.cs_odds_resolver import resolve_ou_odds
@@ -2652,7 +2896,8 @@ def _live_predict(home, away, oh, od, oa,
                     _strat_ou = (float(_gq_ou[0]), float(_gq_ou[1]), float(_gq_ou[2]))
             except Exception as _ou_e:
                 logger.warning(f"[strategy_signals] GQ OU 兜底失败: {_ou_e}")
-        strategy_signals = compute_signals(oh=oh, od=od, oa=oa, ou=_strat_ou, tier=_strat_tier)
+        strategy_signals = compute_signals(oh=oh, od=od, oa=oa, ou=_strat_ou, tier=_strat_tier,
+                                           model_p_over=ov25)
     except Exception as _ss_e:
         logger.warning(f"[strategy_signals] 计算失败: {_ss_e}")
         strategy_signals = []
@@ -2692,6 +2937,7 @@ def _live_predict(home, away, oh, od, oa,
             "cs_triangulation": cs_triangulation,  # ⑫ 市场结构波胆三角定位(可审计候选集)
             "cs_odds_timeline": _cs_timeline,      # ⑬ CS 三时点赔率(open/ht_close/live)+drift_live_open/drift_ht_open/drift_summary; 仅GQ已采集比赛
             "cs_drift_signal": (_cs_timeline or {}).get("drift_summary"),  # ⑬b 顺人性盘读数(初盘→中场收盘 drift 主导): follow_money/fade/neutral; 报告验证200↓/45↑
+            "cs_follow_signal": _cs_follow,       # ⑬c CS波胆跟庄信号 (FOLLOW/FADE/WATCH) + 三色明细
             "cs_longtail": cs_longtail,            # OPT-B: 庄家未报的OIP高概率长尾比分(补覆盖缺口)
             "draw_zone": draw_zone,                # 平局高发区bias: 被看好方胜赔∈[1.31,1.45]时 True
             "draw_zone_boost": round(draw_zone_boost, 3),  # 平局概率保守修正系数(封顶1.5x), 不改verdict
@@ -2711,6 +2957,12 @@ def _live_predict(home, away, oh, od, oa,
         "cross_book": _get_cross_book_signal(
             home=home, away=away,
             league=league or (sport_key if isinstance(sport_key, str) else "")),
+        # 联赛/赛事进球水平先验 (2026-08-12 接入): 中心 λ 升级为联赛感知;
+        # expected_total = 收缩混合后; expected_total_raw = 原 OIP(lh+la) (零回归审计用).
+        "expected_total": (round(league_scoring["adjusted_total"], 3)
+                           if league_scoring else round(oip_raw_total, 3)),
+        "expected_total_raw": round(oip_raw_total, 3),
+        "league_scoring": league_scoring,
     }
 
     # ── V7.1 复盘链路: 赛前分析快照落库 (非致命, 失败仅 log, 绝不影响主预测返回) ──
@@ -2900,11 +3152,11 @@ async def predict_live_api(req: LivePredictRequest):
 
 
 def _lookup_op_cs(home: str, away: str):
-    """从 data/GQ.db match_outcomes 按 home/away 查最新一场的 op_cs (操盘手CS赔率 JSON 串).
+    """从 data/events.db match_outcomes 按 home/away 查最新一场的 op_cs (操盘手CS赔率 JSON 串).
     前端不持有操盘手CS赔率, 后端自动回退查库; 查不到返回 None (ranked_predictor 降级纯OIP)."""
     try:
         import sqlite3, os
-        db = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "GQ.db")
+        db = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "events.db")
         if not os.path.exists(db):
             return None
         con = sqlite3.connect(db)
@@ -2921,6 +3173,49 @@ def _lookup_op_cs(home: str, away: str):
         return None
 
 
+# ── 联赛反查缓存 (主客队 → 联赛), 60s TTL, 避免每次预测都查库 ──
+_LEAGUE_CACHE: Dict[str, tuple] = {}
+_LEAGUE_CACHE_TS = 0.0
+_LEAGUE_CACHE_TTL = 60.0
+
+
+def _lookup_league(home: str, away: str):
+    """按主客队从 events.db 反查联赛名 (供联赛进球先验/杯赛识别零配置激活).
+
+    查 match_outcomes(历史归档, 含 league) → matches(实时). 命中即返回联赛名;
+    查不到返回 None (调用方保持原行为, 先验不生效, 零回归). 带 60s 缓存.
+    """
+    global _LEAGUE_CACHE_TS
+    import time as _t
+    key = f"{home}|{away}"
+    now = _t.time()
+    if key in _LEAGUE_CACHE and (now - _LEAGUE_CACHE_TS) < _LEAGUE_CACHE_TTL:
+        return _LEAGUE_CACHE[key]
+    lg = None
+    try:
+        import sqlite3, os
+        db = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "events.db")
+        if os.path.exists(db):
+            con = sqlite3.connect(db)
+            cur = con.cursor()
+            for tbl in ("match_outcomes", "matches"):
+                cur.execute(
+                    f"SELECT league FROM {tbl} WHERE home=? AND away=? "
+                    f"AND league IS NOT NULL AND league != '' ORDER BY rowid DESC LIMIT 1",
+                    (home, away),
+                )
+                row = cur.fetchone()
+                if row and row[0]:
+                    lg = row[0]
+                    break
+            con.close()
+    except Exception:
+        pass
+    _LEAGUE_CACHE[key] = lg
+    _LEAGUE_CACHE_TS = now
+    return lg
+
+
 class RankedPredictRequest(BaseModel):
     """概率排名编排器请求 (已接前端 MatchAnalysisModal)."""
     home: str
@@ -2931,7 +3226,8 @@ class RankedPredictRequest(BaseModel):
     ou_line: Optional[float] = None
     over_water: Optional[float] = None
     under_water: Optional[float] = None
-    op_cs: Optional[str] = None  # JSON 串 [['1-1',8.3],...]; 缺省后端自动从 GQ.db 回退
+    op_cs: Optional[str] = None  # JSON 串 [['1-1',8.3],...]; 缺省后端自动从 events.db 回退
+    league: Optional[str] = None  # 联赛(可选); 缺省后端自动从 DB 反查
 
 
 @app.post("/api/predict/ranked")
@@ -2942,9 +3238,11 @@ async def predict_ranked_api(req: RankedPredictRequest):
         op_cs = req.op_cs
         if not op_cs:
             op_cs = _lookup_op_cs(req.home, req.away)
+        # 联赛零配置反查 (与 _live_predict 同源): 让排名编排器也吃到联赛进球先验
+        lg = req.league or _lookup_league(req.home, req.away)
         r = ranked_predict(req.home, req.away, req.oh, req.od, req.oa,
                            ou_line=req.ou_line, ou_over=req.over_water, ou_under=req.under_water,
-                           op_cs=op_cs)
+                           op_cs=op_cs, league=lg)
         return _wrap_data(to_api_contract(r))
     except Exception as e:
         logger.error(f"概率排名预测失败: {e}", exc_info=True)
@@ -3049,6 +3347,280 @@ async def backtest_api():
 
 
 # ══════════════════════════════════════════════════════════════════════
+# 模型对决 (2026-08-28 整合自 harness: 8000 → 9000 统一单端口)
+#   单场四方对比: 本系统(live/static) / GitHub heuristic / 去水基线 / 优化混合(w=0.6)
+#   指标看板: unified_corrected_duel_result.json (AUC/LogLoss/Brier/Acc)
+# ══════════════════════════════════════════════════════════════════════
+_DUEL_WI = None
+_DUEL_LIVE = None
+_DUEL_GH = None
+_DUEL_LOADED = False
+
+
+def _duel_load_models():
+    global _DUEL_WI, _DUEL_LIVE, _DUEL_GH, _DUEL_LOADED
+    if _DUEL_LOADED:
+        return True
+    try:
+        import joblib
+        import numpy as _np
+        sys.path.insert(0, r"C:\Users\ShXAI\Documents\GitHub\shaoxiangAI\agents")
+        from heuristic_predictor import HeuristicPredictor
+        _DUEL_WI = joblib.load(os.path.join(PROJECT_ROOT, "data", "wi_1x2_model.joblib"))
+        _DUEL_LIVE = joblib.load(os.path.join(PROJECT_ROOT, "data", "live_1x2_model.joblib"))
+        _DUEL_GH = HeuristicPredictor()
+        _DUEL_LOADED = True
+        logger.info("[duel] 模型加载成功 (wi/live/heuristic)")
+        return True
+    except Exception as e:
+        logger.warning(f"[duel] 模型加载失败: {e}")
+        return False
+
+
+def _duel_pack(probs):
+    if probs is None:
+        return None
+    import numpy as np
+    labels = ["H", "D", "A"]
+    arg = {"H": "主胜", "D": "平局", "A": "客胜"}
+    i = int(np.argmax(probs))
+    return {"p_home": round(float(probs[0]), 4), "p_draw": round(float(probs[1]), 4),
+            "p_away": round(float(probs[2]), 4), "argmax": labels[i], "argmax_cn": arg[labels[i]]}
+
+
+def _duel_predict(home, draw, away, score, minute, open_home, open_draw, open_away,
+                  ou_line=None, ou_over=None, ou_under=None, cs=None,
+                  home_name=None, away_name=None, league=None):
+    """单场四方对比 (逻辑与 harness/harness_server.py do_predict 一致)。
+    扩展 (2026-08-28, 对齐 NFTB):
+      - 三市场: ou_analysis(市场去水) + cs_analysis(1X2 去水定胜方 + OU 线定总球, 禁 CS 定价)
+      - NFTB 契约: nftb = ranked_predictor 全链路 (result/confidence/probabilities/confidence_tier/
+        analysis 七段/operator_verdict/team_strength) — 与 NFTB /predict 同契约。
+    """
+    import numpy as np
+    import math
+    if not _duel_load_models():
+        return {"error": "duel 模型未加载"}
+    from analysis.live_goal_probe import _dewater_1x2
+    from analysis.live_rollball_features import build_1x2_features
+    from pipeline.william_inter_model import derive_features as wi_derive
+
+    sh = sa = 0
+    if score and "-" in str(score):
+        try:
+            sh, sa = (int(x) for x in str(score).split("-"))
+        except Exception:
+            sh = sa = 0
+    try:
+        fH, fD, fA = float(home), float(draw), float(away)
+    except Exception:
+        return {"error": "odds required"}
+    inplay = minute is not None and int(minute) > 0
+
+    def _baseline(h, d, a):
+        x2 = _dewater_1x2(h, d, a)
+        return [x2[0], x2[1], x2[2]] if x2 else [1 / 3, 1 / 3, 1 / 3]
+
+    if inplay:
+        x2 = _dewater_1x2(fH, fD, fA)
+        if x2 is None:
+            return {"error": "dewater failed"}
+        feats = build_1x2_features(int(minute), sh, sa, x2[0], x2[1], x2[2])
+        sys_p = [float(x) for x in _DUEL_LIVE.predict_proba(np.array([feats], dtype=float))[0]]
+        base = _baseline(fH, fD, fA)
+        opt = (0.6 * np.array(sys_p) + 0.4 * np.array(base))
+        opt = (opt / opt.sum()).tolist()
+        mode = "inplay (live_1x2_model)"
+    else:
+        oh_f = float(open_home) if open_home not in (None, "") else fH
+        od_f = float(open_draw) if open_draw not in (None, "") else fD
+        oa_f = float(open_away) if open_away not in (None, "") else fA
+        feats = wi_derive(oh_f, od_f, oa_f, fH, fD, fA)
+        if feats is None or any(math.isnan(x) for x in feats):
+            sys_p = None
+        else:
+            sys_p = [float(x) for x in _DUEL_WI.predict_proba(np.array([feats], dtype=float))[0]]
+        opt = _baseline(fH, fD, fA)
+        mode = "static (wi_1x2_model)"
+    gh_p = _DUEL_GH.predict_proba(np.zeros((1, 1)), feature_names=[],
+                                  odds_data={"home": fH, "draw": fD, "away": fA}, league_name="")
+    gh_arr = [float(gh_p[0][0]), float(gh_p[0][1]), float(gh_p[0][2])]
+
+    # ── 三市场扩展: OU 大小球方向 (市场去水) ──
+    ou_analysis = None
+    try:
+        if ou_over and ou_under and float(ou_over) > 1 and float(ou_under) > 1:
+            po = (1 / float(ou_over)) / (1 / float(ou_over) + 1 / float(ou_under))
+            ou_analysis = {
+                "line": float(ou_line) if ou_line not in (None, "") else None,
+                "p_over": round(float(po), 4),
+                "direction": "OVER" if po > 0.5 else "UNDER",
+                "verdict": "大球倾向" if po > 0.5 else "小球倾向",
+                "basis": "市场去水隐含 (非模型)",
+            }
+    except Exception:
+        ou_analysis = None
+
+    # ── 三市场扩展: CS 合理比分 (1X2 去水定胜方 + OU 线定总球 + 滚球条件化, 禁 CS 定价) ──
+    # 2026-08-28 修复: 原逻辑完全忽略用户填的 current_score/minute → 输入 1-1 推 4-0 矛盾
+    # 2026-08-28 用户设计: "让球/大小球/胜平负结合, 从数据库匹配波胆, 非预测" — DB 匹配优先
+    cs_analysis = None
+    try:
+        x2 = _dewater_1x2(fH, fD, fA)
+        if x2:
+            labels = ["H", "D", "A"]
+            argcn = {"H": "主胜", "D": "平局", "A": "客胜"}
+            i = int(np.argmax(x2))
+            winner = labels[i]
+            total = None
+            if ou_line not in (None, ""):
+                total = max(1, int(round(float(ou_line))))
+            # ── DB 三盘匹配优先 (实证波胆, 非预测) ──
+            try:
+                from pipeline.cs_db_match import db_match_scoreline
+                _m = db_match_scoreline(h=fH, d=fD, a=fA, ou_line=ou_line,
+                                        ou_over=ou_over, ou_under=ou_under)
+                if _m and _m.get('found'):
+                    _db_top = list(_m['top5'])
+                    # 滚球条件化: 过滤不可能比分 (score 兼容 '2:1'/'2-1')
+                    if inplay and sh is not None and sa is not None:
+                        _cand = [t for t in _db_top
+                                 if int(t['score'].replace(':', '-').split('-')[0]) >= sh
+                                 and int(t['score'].replace(':', '-').split('-')[1]) >= sa]
+                        if _cand:
+                            _db_top = _cand
+                    if _db_top:
+                        score_hint = _db_top[0]['score'].replace(':', '-')
+                        cs_analysis = {
+                            "score": score_hint,
+                            "winner_label": argcn[winner],
+                            "total": total,
+                            "basis": (f"DB 三盘匹配 {_m['n_matched']} 场历史(1X2+OU 去水, 均距 {_m['mean_dist']}) "
+                                      f"真实波胆: " + ", ".join(f"{t['score']}({t['prob']*100:.0f}%)" for t in _db_top[:3]) +
+                                      f" | top1 命中 {_m['top1_hit']*100:.0f}%/top3 {_m['top3_hit']*100:.0f}% | 实证匹配非预测, 禁 CS 定价"),
+                        }
+            except Exception:
+                pass
+            if cs_analysis is None:
+                # 滚球条件化: 已 1-1 不能推 0-X / X-0; 剩余时间缩 λ
+                if inplay and sh is not None and sa is not None:
+                    # 已破: 取最可能维持比分(高频); 可能再进: 按 winner/total 选最小增量
+                    base_scores = []
+                    if winner == "D":
+                        # 平局: 维持当前比分(最可能) + 平其他平分
+                        base_scores.append((sh, sa, 0.5))
+                    else:
+                        # 胜方: 维持比分 0.4 + 最小增量胜方球 0.4 + 大比分扩展 0.2
+                        base_scores.append((sh, sa, 0.4))
+                        win_goal = sh if winner == "H" else sa
+                        other = sa if winner == "H" else sh
+                        base_scores.append((win_goal + 1, other, 0.3))
+                        if total and total > sh + sa:
+                            # 庄家预期总球 > 已进数: 推进到 total-ball
+                            ext_h = sh + max(0, total - sh - sa) if winner == "H" else sh
+                            ext_a = sa + max(0, total - sh - sa) if winner == "A" else sa
+                            base_scores.append((ext_h, ext_a, 0.2))
+                    # 剩余时间衰减 (90' 总分, 剩余越少则变化概率越低)
+                    remain = max(0, 90 - int(minute))
+                    decay = (remain / 90.0) ** 0.5
+                    # 维持概率随时间衰减(比赛继续, 进球概率仍存), 增量概率也衰减
+                    weighted = []
+                    for h, a, p in base_scores:
+                        if h == sh and a == sa:
+                            w = 0.4 + 0.6 * (1 - decay * 0.5)  # 维持 0.4 + 时间衰减的 0.5
+                        else:
+                            w = p * decay
+                        weighted.append((h, a, w))
+                    # 归一化, 取 argmax
+                    tot_w = sum(w for _, _, w in weighted) or 1.0
+                    weighted = [(h, a, w / tot_w) for h, a, w in weighted]
+                    best = max(weighted, key=lambda x: x[2])
+                    score_hint = f"{best[0]}-{best[1]}"
+                    cs_basis = (f"1X2 去水 {argcn[winner]} + OU 线 {total}球定总球 + "
+                                f"滚球条件化(已 {sh}-{sa} @{minute}', 剩余{remain}min) → 维持+最小增量")
+                else:
+                    # 静态(无滚球): 维持简单策略
+                    if winner == "D":
+                        score_hint = f"{total or 1}-{total or 1}" if total else "1-1"
+                    else:
+                        if total:
+                            score_hint = f"{total}-0" if winner == "H" else f"0-{total}"
+                        else:
+                            score_hint = "2-1" if winner == "H" else "1-2"
+                    cs_basis = f"1X2 去水 {argcn[winner]} + OU 线定总球"
+                cs_analysis = {
+                    "score": score_hint,
+                    "winner_label": argcn[winner],
+                    "total": total,
+                    "basis": cs_basis + " (开盘结构诚实锚, 禁 CS 定价)",
+                }
+    except Exception:
+        cs_analysis = None
+
+    # ── NFTB 契约: ranked_predictor 全链路 (result/confidence/analysis 七段/operator/team_strength) ──
+    nftb = None
+    try:
+        from pipeline.ranked_predictor import predict as rp_predict, to_api_contract
+        from pipeline.team_strength import get_strength
+        hn = home_name or "主队"
+        an = away_name or "客队"
+        res = rp_predict(
+            home=hn, away=an, h=fH, d=fD, a=fA,
+            ou_line=float(ou_line) if ou_line not in (None, "") else None,
+            ou_over=float(ou_over) if ou_over not in (None, "") else None,
+            ou_under=float(ou_under) if ou_under not in (None, "") else None,
+            op_cs=cs, league=league,
+        )
+        contract = to_api_contract(res)
+        contract["team_strength"] = get_strength(hn, an)
+        nftb = contract
+    except Exception as e:
+        nftb = {"error": f"ranked_predictor 失败: {e}"}
+
+    return {
+        "mode": mode,
+        "system": _duel_pack(sys_p),
+        "github": _duel_pack(gh_arr),
+        "baseline": _duel_pack(_baseline(fH, fD, fA)),
+        "optimized": _duel_pack(opt),
+        "ou_analysis": ou_analysis,
+        "cs_analysis": cs_analysis,
+        "nftb": nftb,
+    }
+
+
+@app.get("/api/duel/metrics")
+async def duel_metrics_api():
+    """模型对决指标看板 (AUC/LogLoss/Brier/Acc, 来源 unified_corrected_duel_result.json)。"""
+    path = os.path.join(PROJECT_ROOT, "deliverables", "unified_corrected_duel_result.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        return _wrap_data({"ready": True, **data})
+    except Exception as e:
+        return _wrap_data({"ready": False, "note": f"对决指标未生成: {e}"})
+
+
+@app.post("/api/duel/predict")
+async def duel_predict_api(req: dict):
+    """单场四方对比 + 三市场 + NFTB 契约:
+    {home, draw, away, score?, minute?, open_home?, open_draw?, open_away?,
+     ou_line?, ou_over?, ou_under?, cs?, home_name?, away_name?, league?}"""
+    try:
+        out = await asyncio.to_thread(
+            _duel_predict,
+            str(req.get("home", "")), str(req.get("draw", "")), str(req.get("away", "")),
+            str(req.get("score", "")), req.get("minute"), req.get("open_home"),
+            req.get("open_draw"), req.get("open_away"),
+            req.get("ou_line"), req.get("ou_over"), req.get("ou_under"), req.get("cs"),
+            req.get("home_name"), req.get("away_name"), req.get("league"),
+        )
+        return _wrap_data(out)
+    except Exception as e:
+        return _wrap_data({"error": f"duel predict 失败: {e}"})
+
+
+# ══════════════════════════════════════════════════════════════════════
 # V7.1 复盘链路 — 赛事分析缓存 / 赛后修正 / 后端复盘
 #   仅 API + 可导出 CSV, 不做前端页面。所有端点非致命包裹。
 # ══════════════════════════════════════════════════════════════════════
@@ -3130,15 +3702,1628 @@ async def analysis_export_api(date: str = "", league: str = "",
         return Response(content=f"error,{e}\n", media_type="text/csv")
 
 
+@app.get("/api/analysis/scan")
+async def analysis_scan_api(top: int = 12, min_odds: float = 0.0, only_scheduled: bool = False):
+    """扫描实时盘口结构，返回最强信号榜单（依据赔率结构评分，非投注建议）。
+
+    数据源: events.db odds_snapshots，通过 pipeline.analysis_center.run_scan 实时分析。
+    参数:
+      min_odds       — 只看最小赔率≥该值的场次(以小博大, 默认0=不限)
+      only_scheduled — 只看未开赛(scheduled)场次, 排除已开赛(live)小赔率热门
+    返回: {ok, data: {stats, overview, top}}，每条匹配前端 ScanMatch 接口。
+    """
+    if not _ANALYSIS_CENTER_OK:
+        return JSONResponse({"ok": False, "error": "分析中心引擎未加载", "data": None})
+    try:
+        data = _analysis_scan(limit=300, top_n=top, min_odds=min_odds, only_scheduled=only_scheduled)
+        return {"ok": True, "data": data}
+    except Exception as e:
+        logger.error(f"[analysis_scan] 失败: {e}")
+        return JSONResponse({"ok": False, "error": f"扫描失败: {e}", "data": None})
+
+
+@app.get("/api/analysis/three-market")
+async def three_market_api(match_key: str = "", mid: str = ""):
+    """三盘联合分析 (滚球神器 v2 基准) — 胜平负+让球+大小球 联合盘定。
+
+    数据源: match_outcomes (初盘 opening odds, 健康表, 不受 odds_snapshots 坏页影响)。
+    平局信号: draw_module (初盘1X2去水p_d + 类型识别, 全量AUC=0.57/0.579)。
+    返回: {ok, data: analyze_three_market 结果}。无初盘数据返回 available=False。
+    """
+    if not _LIVE_GOAL_OK or _analyze_three_market is None:
+        return JSONResponse({"ok": False, "error": "滚球神器引擎未加载", "data": None})
+    try:
+        mk = match_key.strip() if match_key else ""
+        midv = mid.strip() if mid else ""
+        data = _analyze_three_market(match_key=mk or None, mid=midv or None)
+        return {"ok": True, "data": data}
+    except Exception as e:
+        logger.error(f"[three_market] 失败: {e}")
+        return JSONResponse({"ok": False, "error": f"三盘分析失败: {e}", "data": None})
+
+
+@app.get("/api/analysis/three-market/list")
+async def three_market_list_api(limit: int = 50):
+    """三盘联合分析 — 可选比赛清单 (来自 match_outcomes 初盘, 健康表)。"""
+    if not _LIVE_GOAL_OK or _list_three_market_candidates is None:
+        return JSONResponse({"ok": False, "error": "滚球神器引擎未加载", "data": None})
+    try:
+        data = _list_three_market_candidates(limit=limit)
+        return {"ok": True, "data": data}
+    except Exception as e:
+        logger.error(f"[three_market_list] 失败: {e}")
+        return JSONResponse({"ok": False, "error": f"清单失败: {e}", "data": None})
+
+
+
+@app.get("/api/cold-door")
+async def cold_door_api(match_key: str = "", home: str = "", away: str = "", league: str = ""):
+    """冷门波胆检测 — 赛前CS网格 + 正路盘口交叉验证闭环。
+
+    流程(零终场泄露, 严格赛前特征):
+      1) 取该场赛前冻结CS网格(pre_match_cs.odds_json)。
+      2) 冷门模型 predict_for_grid -> 每比分 市场隐含/公平概率/模型P/edge/冷门候选。
+      3) 正路盘口(analysis_center.cs_top3_from_market) 取常规预期Top分。
+      4) 闭环校验: 冷门候选须 (edge>0 & 长赔方 & 模型P>市场) 且 正路盘口未将其列常规预期
+         -> CONFIRMED(分歧成立) / REJECTED(正路盘口已预期) / NONE。
+    注: 模型 out-of-time 验证显示 edge>0 长赔方命中率0%, 任何 CONFIRMED 仅作研究/护栏信号, 非投注依据。
+    """
+    if not _COLD_OK:
+        return JSONResponse({"ok": False, "error": "冷门模型未加载", "data": None})
+    try:
+        gq = sqlite3.connect(os.path.join(PROJECT_ROOT, "data", "events.db"))
+        grid = None; mk_used = match_key; h = home; a = away; lg = league; ko = ""
+        if match_key:
+            row = gq.execute(
+                "SELECT odds_json,home,away,league,kickoff FROM pre_match_cs "
+                "WHERE match_key LIKE ? ORDER BY frozen_at DESC LIMIT 1", (f"%{match_key}%",)
+            ).fetchone()
+            if row and row[0]:
+                grid = json.loads(row[0]); h, a, lg, ko = row[1], row[2], row[3], row[4]
+        if grid is None and home and away:
+            row = gq.execute(
+                "SELECT odds_json FROM pre_match_cs WHERE home LIKE ? AND away LIKE ? "
+                "ORDER BY frozen_at DESC LIMIT 1", (f"%{home}%", f"%{away}%")
+            ).fetchone()
+            if row and row[0]:
+                grid = json.loads(row[0])
+        gq.close()
+        if grid is None:
+            return {"ok": True, "data": {"found": False,
+                    "message": "该场无赛前CS冻结盘口(pre_match_cs), 无法做冷门检测"}}
+
+        cold = _cold_predict(grid, h or "", a or "", lg or "", "")
+        if cold is None:
+            return {"ok": True, "data": {"found": True, "message": "CS网格去水失败"}}
+
+        # 3) 正路盘口常规预期
+        regular_top = []
+        try:
+            if mk_used:
+                rt = _regular_cs_top3(mk_used)
+                if rt:
+                    regular_top = [r.get("score") for r in rt]
+        except Exception:
+            regular_top = []
+        regular_set = set(regular_top)
+
+        # 4) 闭环校验
+        confirmed = []
+        for s in cold["scores"]:
+            s["regular_top"] = regular_top[:3]
+            if s.get("cold_candidate"):
+                if s["score"] in regular_set:
+                    s["loop_verdict"] = "REJECTED"   # 正路盘口已将其列常规预期 -> 非冷门分歧
+                else:
+                    s["loop_verdict"] = "CONFIRMED"  # 公平>市场 且 正路盘口未预期 -> 分歧成立
+                    confirmed.append(s["score"])
+            else:
+                s["loop_verdict"] = "NONE"
+        n_cold = sum(1 for s in cold["scores"] if s.get("cold_candidate"))
+        verdict = ("检出冷门分歧(待人工复核)" if confirmed
+                   else "未检出冷门edge — 正路盘口已正确定价")
+        return {"ok": True, "data": {
+            "found": True, "match_key": mk_used, "home": h, "away": a,
+            "league": lg, "exp_tot_goals": cold.get("exp_tot_goals"),
+            "regular_top": regular_top[:3],
+            "cold_signals": cold.get("cold_signals", []),
+            "confirmed_cold": confirmed,
+            "n_cold_candidates": n_cold,
+            "loop_status": "CLOSED_OK",
+            "verdict": verdict,
+            "warning": "冷门模型 out-of-time 验证: edge>0 长赔方命中率0%, CONFIRMED 仅作研究/护栏信号, 非投注依据",
+            "scores": cold["scores"],
+        }}
+    except Exception as e:
+        logger.error(f"[cold-door] 失败: {e}")
+        return JSONResponse({"ok": False, "error": f"冷门检测失败: {e}", "data": None})
+
+
+def _is_virtual_league(name: str) -> bool:
+    if not name:
+        return False
+    n = name.strip()
+    if n.startswith("VS-") or "分钟" in n:
+        return True
+    return n in {"瓦尔哈拉杯 2026 (8分钟)", "瓦尔基里杯 2026 (8分钟)", "梦幻对垒"}
+
+
+def _get_cs_grid(con, match_key, kickoff=None):
+    """取一场比赛的 CS 网格：优先 pre_match_cs 冻结盘，否则取 odds_snapshots 最新完整批次。"""
+    row = con.execute(
+        "SELECT odds_json FROM pre_match_cs WHERE match_key=? AND odds_json IS NOT NULL LIMIT 1",
+        (match_key,)
+    ).fetchone()
+    if row:
+        try:
+            grid = json.loads(row[0])
+            if grid and len(grid) >= 5:
+                return grid
+        except Exception:
+            pass
+    # 回退：实时 CS 快照
+    sql = """SELECT CAST(captured_at AS INT) AS sec, selection, odds
+             FROM odds_snapshots WHERE match_key=? AND market='CS'"""
+    params = [match_key]
+    if kickoff:
+        try:
+            kt = datetime.fromisoformat(str(kickoff).replace("Z", "+00:00")).timestamp()
+            sql += " AND captured_at <= ?"
+            params.append(kt)
+        except Exception:
+            pass
+    sql += " ORDER BY sec DESC"
+    rows = con.execute(sql, params).fetchall()
+    batches = {}
+    for sec, sel, odds in rows:
+        if odds is None or odds <= 2.0 or odds > 1000:
+            continue
+        nsel = _norm_cs(sel)          # '0-0'/'0.0' → '0:0'
+        if nsel is None:
+            continue
+        batches.setdefault(sec, {})[nsel] = odds
+    best = None
+    for sec in sorted(batches.keys(), reverse=True):
+        if best is None or len(batches[sec]) > len(best):
+            best = batches[sec]
+        if len(best) >= 5:
+            break
+    return best
+
+
+# ── CS 波胆诱导标记 (庄家破绽检测) ──────────────────────────────
+# 全样本实证基准 (cs_verification, N=5771 已验证比赛):
+#   - 最便宜波胆历史命中率 13.9% (800/5771) → 无脑押最便宜波胆 86% 输
+#   - 真实比分庄家根本未开赔率 65.8% (3800/5771)
+#   - CS 盘口抽水 margin 中位 0.376 / 均值 0.536
+# 结论: CS 盘口是资金引导器, 不是概率映射。低赔簇(普遍<10)是诱导密集区。
+_CS_INDUCE_BASELINE = {
+    "cheapest_hit_rate": 0.139,
+    "true_not_priced_rate": 0.658,
+    "margin_median": 0.376,
+}
+
+import re as _re
+_CS_OTHER_RE = _re.compile(r'^(其他|other|any\s*other|others)$', _re.IGNORECASE)
+_CS_PAIR_RE = _re.compile(r'^(\d{1,3})\s*[-:.]\s*(\d{1,3})$')
+
+def _norm_cs(raw):
+    """本地副本: 波胆比分标签归一为英文冒号 '0:0' (与 gq/db.normalize_cs_score 同义)。"""
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    if _CS_OTHER_RE.match(s):
+        return s
+    m = _CS_PAIR_RE.match(s)
+    if not m:
+        return None
+    return f"{int(m.group(1))}:{int(m.group(2))}"
+
+
+def _cs_induce_analyze(grid: dict, actual_score: str = None) -> dict:
+    """从 CS 网格计算庄家诱导标记。grid: {score: odds}。"""
+    if not grid or len(grid) < 3:
+        return {"has_cs_data": False}
+    # 比分键归一: '0-0'/'0.0' → '0:0' (英文冒号格式)
+    norm_grid = {}
+    for k, v in grid.items():
+        nk = _norm_cs(k)
+        if nk is None:
+            continue
+        norm_grid[nk] = v
+    grid = norm_grid
+    base = _CS_INDUCE_BASELINE
+    # 根据当前比分过滤已不可能的波胆: 当前主队已 sh 球/客队已 sa 球, 最终比分必须 >= 当前。
+    # 过滤后若剩余项不足 3 则回退到不过滤, 避免误杀。
+    # 若当前比分已超出赛前网格最大覆盖(如5-0但网格只到3:4), 诱导标记直接失效。
+    if actual_score:
+        try:
+            ns = _norm_cs(actual_score)
+            if ns and ':' in ns:
+                sh_a, sa_a = map(int, ns.split(':'))
+                # 当前比分超出赛前网格覆盖范围 → 诱导标记失效
+                try:
+                    max_home = max(int(k.split(':')[0]) for k in grid if ':' in k)
+                    max_away = max(int(k.split(':')[1]) for k in grid if ':' in k)
+                    if sh_a > max_home or sa_a > max_away:
+                        return {
+                            "has_cs_data": True,
+                            "n_scores": len(grid),
+                            "overround": round(sum(1.0 / float(v) for v in grid.values() if isinstance(v, (int, float)) and v > 0), 3),
+                            "margin": round(sum(1.0 / float(v) for v in grid.values() if isinstance(v, (int, float)) and v > 0) - 1.0, 3),
+                            "favorite_score": None,
+                            "favorite_odds": None,
+                            "cluster": [],
+                            "induce_level": "NONE",
+                            "induce_reasons": [f"当前比分 {ns} 超出赛前波胆网格覆盖范围(最大 {max_home}:{max_away}), 诱导标记失效"],
+                            "historical_cheapest_hit_rate": base["cheapest_hit_rate"],
+                            "historical_true_not_priced_rate": base["true_not_priced_rate"],
+                            "actual_score": actual_score,
+                            "actual_in_set": False,
+                        }
+                except Exception:
+                    pass
+                filtered = {}
+                for k, v in grid.items():
+                    try:
+                        kh, ka = map(int, k.split(':'))
+                        if kh >= sh_a and ka >= sa_a:
+                            filtered[k] = v
+                    except Exception:
+                        continue
+                if len(filtered) >= 3:
+                    grid = filtered
+        except Exception:
+            pass
+    items = [(k, float(v)) for k, v in grid.items()
+             if isinstance(v, (int, float)) and v > 0]
+    if len(items) < 3:
+        return {"has_cs_data": False}
+    items.sort(key=lambda x: x[1])
+    inv = sum(1.0 / o for _, o in items)
+    overround = inv
+    margin = overround - 1.0
+    favorite_score, favorite_odds = items[0]
+    cluster = [{"score": s, "odds": round(o, 2)} for s, o in items[:5]]
+    reasons = []
+    level = "NONE"
+    if margin > 0.4:
+        level = "RED"
+        reasons.append(f"CS 抽水 {margin*100:.0f}% 极高(庄家净赚>40%)")
+    if favorite_odds < 8:
+        level = "RED"
+        reasons.append(f"最便宜波胆仅 {favorite_odds:.1f}(<8, 极密集诱导区)")
+    elif favorite_odds < 12:
+        if level == "NONE":
+            level = "YELLOW"
+        reasons.append(f"最便宜波胆 {favorite_odds:.1f}(<12, 低赔诱导簇)")
+    if margin > 0.3 and level == "NONE":
+        level = "YELLOW"
+        reasons.append(f"CS 抽水 {margin*100:.0f}% 偏高")
+    actual_in_set = None
+    if actual_score:
+        if actual_score in grid:
+            actual_in_set = True
+            ao = float(grid[actual_score])
+            if ao > favorite_odds * 1.5:
+                reasons.append(f"真实比分 {actual_score} 赔率 {ao:.1f} 远高于最便宜波胆 → 落入高赔漏开区")
+            elif ao > favorite_odds:
+                reasons.append(f"真实比分 {actual_score} 赔率 {ao:.1f} 高于最便宜波胆")
+        else:
+            actual_in_set = False
+            reasons.append(f"真实比分 {actual_score} 庄家根本未开赔率(诱导漏开)")
+    return {
+        "has_cs_data": True,
+        "n_scores": len(items),
+        "overround": round(overround, 3),
+        "margin": round(margin, 3),
+        "favorite_score": favorite_score,
+        "favorite_odds": round(favorite_odds, 2),
+        "cluster": cluster,
+        "induce_level": level,
+        "induce_reasons": reasons,
+        "historical_cheapest_hit_rate": base["cheapest_hit_rate"],
+        "historical_true_not_priced_rate": base["true_not_priced_rate"],
+        "actual_score": actual_score,
+        "actual_in_set": actual_in_set,
+    }
+
+
+@app.get("/api/cs/induce-flag")
+async def cs_induce_flag_api(match_key: str = "", home: str = "", away: str = "",
+                             actual_score: str = ""):
+    """CS 波胆诱导标记 — 检测庄家是否在用低赔波胆簇引导资金。
+
+    数据来源: pre_match_cs 冻结盘 → odds_snapshots(CS) 实时快照(复用 _get_cs_grid 三级回退)。
+    评级:
+      RED    : 抽水>40% 或 最便宜波胆<8 (极密集诱导区)
+      YELLOW : 最便宜波胆<12 或 抽水>30% (低赔诱导簇)
+      NONE   : 无显著诱导信号
+    提示: 该标记仅作"资金流向警示", 非投注依据。
+    """
+    try:
+        match_key = _resolve_mk(match_key)
+        gq = sqlite3.connect(os.path.join(PROJECT_ROOT, "data", "events.db"), timeout=30)
+        gq.execute("PRAGMA busy_timeout=30000")
+        grid = None
+        mk_used = match_key
+        if match_key:
+            grid = _get_cs_grid(gq, match_key)
+        if grid is None and home and away:
+            rows = gq.execute(
+                "SELECT odds_json FROM pre_match_cs WHERE home LIKE ? AND away LIKE ? "
+                "ORDER BY frozen_at DESC LIMIT 1", (f"%{home}%", f"%{away}%")
+            ).fetchone()
+            if rows and rows[0]:
+                try:
+                    g = json.loads(rows[0])
+                    if g and len(g) >= 5:
+                        grid = g
+                        mk_used = f"{home} vs {away}"
+                except Exception:
+                    pass
+        gq.close()
+        if not grid:
+            return {"ok": True, "data": {
+                "found": False, "has_cs_data": False,
+                "match_key": mk_used,
+                "message": "该场未采集波胆赔率(pre_match_cs/odds_snapshots 均无 CS 盘口) — 无法做诱导检测",
+                "historical_cheapest_hit_rate": _CS_INDUCE_BASELINE["cheapest_hit_rate"],
+                "historical_true_not_priced_rate": _CS_INDUCE_BASELINE["true_not_priced_rate"],
+            }}
+        res = _cs_induce_analyze(grid, actual_score or None)
+        res["found"] = True
+        res["match_key"] = mk_used
+        return {"ok": True, "data": res}
+    except Exception as e:
+        logger.error(f"[cs/induce-flag] 失败: {e}")
+        return JSONResponse({"ok": False, "error": f"CS诱导检测失败: {e}", "data": None})
+
+
+# ── CS 信任卡 (结合初盘所有赔率的结构校准分布 + 庄家对照 + 诱导标记) ──
+# 缓存范式对标 live_scores_api(5276): 全局 cache + asyncio.Lock 单飞 + TTL=5s,
+# 根治并发打 7.9GB WAL 库导致的 30s 超时。
+_CS_TRUST_CACHE = {"fetched_at": 0.0, "key": None, "data": None}
+_CS_TRUST_LOCK = None
+
+
+def _gather_opening_odds(gq, match_key: str, home: str, away: str) -> dict:
+    """取初盘 1X2/OU/AH。优先 match_outcomes(op_*), 失败回退 odds_snapshots(最早冻结)。
+    match_outcomes 无 match_key 列, 用 home/away 关联。"""
+    res: dict = {}
+    try:
+        row = None
+        if home and away:
+            row = gq.execute(
+                "SELECT op_1x2_h, op_1x2_d, op_1x2_a, op_ou_line, op_ou_over, op_ou_under, "
+                "op_ah_line, op_ah_home, op_ah_away FROM match_outcomes "
+                "WHERE home LIKE ? AND away LIKE ? ORDER BY kickoff DESC LIMIT 1",
+                (f"%{home}%", f"%{away}%"),
+            ).fetchone()
+        if row:
+            oh, od, oa, oul, ouo, ouu, ahl, ahh, aha = row
+            if oh and od and oa:
+                res["h"], res["d"], res["a"] = float(oh), float(od), float(oa)
+            if oul and ouo and ouu:
+                res["ou_line"], res["ou_over"], res["ou_under"] = float(oul), float(ouo), float(ouu)
+            if ahl and ahh and aha:
+                res["ah_line"], res["ah_home"], res["ah_away"] = float(ahl), float(ahh), float(aha)
+    except Exception:
+        pass
+    # 回退: odds_snapshots 最早冻结的 1X2
+    # 2026-08-27 修复: 原 match_key LIKE + 无时间窗 → 31M 行全表扫 50s(obscure 场卡死 momentum 端点).
+    # 改精确 match_key + 90 天窗口, 命中 idx_odds_snapshot_mk_mkt_ts 索引毫秒级返回.
+    if not (res.get("h") and res.get("d") and res.get("a")):
+        try:
+            mk = match_key or (f"%{home}%" if home else None)
+            if mk:
+                if match_key and "%" not in match_key:
+                    rows = gq.execute(
+                        "SELECT selection, odds FROM odds_snapshots WHERE match_key = ? AND market='1X2' "
+                        "AND captured_at > strftime('%s','now','-90 day') "
+                        "ORDER BY captured_at ASC LIMIT 10", (match_key,)
+                    ).fetchall()
+                else:
+                    rows = gq.execute(
+                        "SELECT selection, odds FROM odds_snapshots WHERE match_key LIKE ? AND market='1X2' "
+                        "AND captured_at > strftime('%s','now','-90 day') "
+                        "ORDER BY captured_at ASC LIMIT 10", (mk,)
+                    ).fetchall()
+                mp = {}
+                for sel, od in rows:
+                    mp[str(sel).lower()] = float(od)
+                if "home" in mp and "draw" in mp and "away" in mp:
+                    res["h"], res["d"], res["a"] = mp["home"], mp["draw"], mp["away"]
+        except Exception:
+            pass
+    # ── OU/AH 开盘回退 (2026-08-28): 临场早盘补采后 odds_snapshots 有完整 OU/AH 线族 ──
+    # 流内自洽取最早完整对(同一条流的 over+under/home+away), OU 选最接近 2.5、AH 最接近 0,
+    # 供三盘 λμ 拟合与 DB 五维结构检索 (fit_sources 1X2 → 1X2+OU+AH)。
+    if match_key:
+        try:
+            def _open_pair(prefix: str, not_likes, ref: float, sels):
+                nl = " AND ".join(f"market NOT LIKE '{p}%'" for p in not_likes)
+                rows = gq.execute(
+                    f"SELECT market, selection, odds FROM odds_snapshots "
+                    f"WHERE match_key=? AND market LIKE ? AND {nl} "
+                    f"AND odds>1.01 AND odds<1000 "
+                    f"AND captured_at > strftime('%s','now','-3 day') "
+                    f"ORDER BY captured_at ASC LIMIT 120", (match_key, prefix + '%')).fetchall()
+                streams = {}
+                for mkt, sel, od in rows:
+                    s = streams.setdefault(mkt, {})
+                    if sel in sels and sel not in s:
+                        s[sel] = float(od)
+                cands = []
+                for mkt, s in streams.items():
+                    if all(k in s for k in sels):
+                        try:
+                            line = float(mkt.split('_')[1])
+                        except Exception:
+                            continue
+                        cands.append((abs(line - ref), line, s))
+                return min(cands)[1:] if cands else None
+            if not (res.get("ou_line") and res.get("ou_over") and res.get("ou_under")):
+                _ou = _open_pair('OU_', ['OU_1H', 'OU_2H'], 2.5, ('over', 'under'))
+                if _ou:
+                    res["ou_line"], _ou_s = _ou
+                    res["ou_over"], res["ou_under"] = _ou_s['over'], _ou_s['under']
+            if not (res.get("ah_line") is not None and res.get("ah_home") and res.get("ah_away")):
+                _ah = _open_pair('AH_', ['AH_1H', 'AH_2H'], 0.0, ('home', 'away'))
+                if _ah:
+                    res["ah_line"], _ah_s = _ah
+                    res["ah_home"], res["ah_away"] = _ah_s['home'], _ah_s['away']
+        except Exception:
+            pass
+    return res
+
+
+async def _cs_trust_card_compute(match_key: str, home: str, away: str, actual_score: str,
+                                 current_score: str = "", minute: int = 0):
+    from pipeline.cs_trust_model import build_trust_card
+    gq = sqlite3.connect(os.path.join(PROJECT_ROOT, "data", "events.db"), timeout=5)
+    gq.execute("PRAGMA busy_timeout=5000")
+    # 从 match_key("主 vs 客") 反解 home/away, 使仅传 match_key 的前端调用也能解析初盘 1X2
+    if (not home or not away) and match_key and " vs " in match_key:
+        _h, _a = match_key.split(" vs ", 1)
+        if not home:
+            home = _h
+        if not away:
+            away = _a
+    try:
+        grid = None
+        mk_used = match_key
+        if match_key:
+            grid = _get_cs_grid(gq, match_key)
+        if grid is None and home and away:
+            rows = gq.execute(
+                "SELECT odds_json FROM pre_match_cs WHERE home LIKE ? AND away LIKE ? "
+                "ORDER BY frozen_at DESC LIMIT 1", (f"%{home}%", f"%{away}%")
+            ).fetchone()
+            if rows and rows[0]:
+                try:
+                    g = json.loads(rows[0])
+                    if g and len(g) >= 5:
+                        grid = g
+                        mk_used = f"{home} vs {away}"
+                except Exception:
+                    pass
+        odds = _gather_opening_odds(gq, match_key, home, away)
+        if not grid and not (odds.get("h") and odds.get("d") and odds.get("a")):
+            return {"ok": True, "data": {
+                "found": False,
+                "message": "该场无初盘 CS 矩阵且无初盘 1X2, 无法构建信任卡",
+                "historical_cheapest_hit_rate": _CS_INDUCE_BASELINE["cheapest_hit_rate"],
+                "historical_true_not_priced_rate": _CS_INDUCE_BASELINE["true_not_priced_rate"],
+            }}
+        # ── 滚球即时盘 (2026-08-28, 用户需求: 波胆跟随开赛后的即时盘口) ──
+        # 开赛后用当前滚盘 OU 反解剩余 λμ 并平移当前比分; 开盘三盘仍传入作强度比与
+        # 对照。滚球判定: 该场存在 minute_at>0 的盘口快照(且调用方传了当前比分)。
+        cur_score_tuple = None
+        live_ou_t = None
+        live_minute = None
+        try:
+            sh = sa = None
+            if current_score:
+                for _sep in ("-", ":"):
+                    if _sep in current_score:
+                        _h_, _a_ = current_score.split(_sep, 1)
+                        sh, sa = int(_h_), int(_a_)
+                        break
+            max_min = gq.execute(
+                "SELECT MAX(minute_at) FROM odds_snapshots WHERE match_key=?", (match_key,)
+            ).fetchone()
+            has_inplay = bool(max_min and max_min[0] and max_min[0] > 0)
+            if sh is not None and sa is not None:
+                live_minute = int(minute) if minute else (int(max_min[0]) if has_inplay else None)
+                if has_inplay or (live_minute or 0) > 0:
+                    cur_score_tuple = (sh, sa)
+            if cur_score_tuple is not None and has_inplay:
+                from analysis.live_goal_probe import _current_inplay_odds
+                _cur = _current_inplay_odds(gq, match_key, live_minute or 1) or {}
+                if _cur.get("ou"):
+                    live_ou_t = tuple(float(x) for x in _cur["ou"])  # (line, over, under)
+        except Exception as _e:
+            logger.warning(f"[cs/trust-card] 滚球即时盘解析失败(回退开盘): {_e}")
+            cur_score_tuple = live_ou_t = live_minute = None
+        card = build_trust_card(
+            cs_grid=grid,
+            h=odds.get("h"), d=odds.get("d"), a=odds.get("a"),
+            ou_line=odds.get("ou_line"), ou_over=odds.get("ou_over"), ou_under=odds.get("ou_under"),
+            ah_line=odds.get("ah_line"), ah_home=odds.get("ah_home"), ah_away=odds.get("ah_away"),
+            con=gq,
+            current_score=cur_score_tuple,
+            live_ou=live_ou_t,
+            live_minute=live_minute,
+        )
+        # ── DB 三盘历史结构匹配 (2026-08-28, 用户口径: 查现有所有数据匹配同赔率结构 → 实证波胆) ──
+        # 用开盘三盘结构做检索键(与库同口径), 滚球时过滤掉低于当前比分的候选。
+        try:
+            from pipeline.cs_db_match import db_match_scoreline
+            dm = db_match_scoreline(h=odds.get("h"), d=odds.get("d"), a=odds.get("a"),
+                                    ou_line=odds.get("ou_line"), ou_over=odds.get("ou_over"),
+                                    ou_under=odds.get("ou_under"),
+                                    ah_line=odds.get("ah_line"), ah_home=odds.get("ah_home"),
+                                    ah_away=odds.get("ah_away"))
+            if dm and dm.get("found"):
+                if cur_score_tuple is not None:
+                    _sh, _sa = cur_score_tuple
+                    _fl = [t for t in dm.get("top5", [])
+                           if int(str(t.get("score", "0:0")).split(":")[0]) >= _sh
+                           and int(str(t.get("score", "0:0")).split(":")[1]) >= _sa]
+                    dm["top5_live_filtered"] = _fl
+                    dm["live_filter"] = f"已过滤低于当前比分 {_sh}:{_sa} 的候选"
+                    if _fl:
+                        dm["score"] = _fl[0]["score"]
+                card["db_match"] = dm
+        except Exception as _e:
+            logger.warning(f"[cs/trust-card] DB 结构匹配失败(跳过): {_e}")
+        card["match_key"] = mk_used
+        if actual_score:
+            card["actual_score"] = actual_score
+        return {"ok": True, "data": card}
+    finally:
+        gq.close()
+
+
+@app.get("/api/cs/trust-card")
+async def cs_trust_card_api(match_key: str = "", home: str = "", away: str = "",
+                             actual_score: str = "", current_score: str = "", minute: int = 0):
+    """CS 信任卡 — 结合初盘所有赔率(1X2+OU+AH+完整CS矩阵)的结构校准分布 + 庄家盘口对照 + 诱导标记。
+
+    形态(决定用户信任生死, 见 reports/cs_inducement_analysis.md):
+      - 全比分概率分布(覆盖100%) + 庄家CS线对比(仅覆盖已列比分)
+      - 主推 vs 结构概率 背离检测 → 诱导信号
+      - 庄家诱导标记 RED/YELLOW/NONE
+    2026-08-28: current_score+minute → 滚球模式(odds_phase=live), 剩余λμ由当前滚球OU
+    即时盘反解并平移当前比分; 并附 db_match(开盘三盘结构 → DB 历史同结构真实波胆)。
+    注意: 本卡为概率估计与盘口对照, 非"AI预测精确比分", 不输出单点答案(trap规避)。
+    缓存: TTL=5s 单飞, 防并发打 WAL 库超时(对标 30s 超时修复)。
+    """
+    global _CS_TRUST_CACHE, _CS_TRUST_LOCK
+    if _CS_TRUST_LOCK is None:
+        _CS_TRUST_LOCK = asyncio.Lock()
+    match_key = _resolve_mk(match_key)
+    cache_key = f"{match_key}|{home}|{away}|{actual_score}|{current_score}|{minute}"
+    now = time.time()
+    if (_CS_TRUST_CACHE["data"] is not None and _CS_TRUST_CACHE.get("key") == cache_key
+            and (now - _CS_TRUST_CACHE["fetched_at"]) < 5.0):
+        return _CS_TRUST_CACHE["data"]
+    async with _CS_TRUST_LOCK:
+        if (_CS_TRUST_CACHE["data"] is not None and _CS_TRUST_CACHE.get("key") == cache_key
+                and (now - _CS_TRUST_CACHE["fetched_at"]) < 5.0):
+            return _CS_TRUST_CACHE["data"]
+        result = await _cs_trust_card_compute(match_key, home, away, actual_score,
+                                              current_score=current_score, minute=minute)
+        _CS_TRUST_CACHE = {"fetched_at": time.time(), "key": cache_key, "data": result}
+        return result
+
+
+# ── 操盘手结论卡 (实时页用: 取初盘1X2 → _live_predict → 蒸馏一行结论) ──
+# 同步重算较贵(会触发 _live_predict 全链路), 必须:
+#   - asyncio.run_in_executor 跑, 不阻塞事件循环(防冻结, 见部署铁律)
+#   - 全局 cache + asyncio.Lock 单飞 + TTL=5s(对标 30s 超时修复, 防并发打 WAL 库)
+_LIVE_OP_CARD_CACHE = {"fetched_at": 0.0, "key": None, "data": None}
+_LIVE_OP_CARD_LOCK = None
+
+
+def _live_operator_card_compute(match_key: str, home: str, away: str, league: str | None):
+    from pipeline.operator_output import distill_operator_card
+    gq = sqlite3.connect(os.path.join(PROJECT_ROOT, "data", "events.db"), timeout=5)
+    gq.execute("PRAGMA busy_timeout=5000")
+    try:
+        odds = _gather_opening_odds(gq, match_key, home, away)
+    finally:
+        gq.close()
+    if not (odds.get("h") and odds.get("d") and odds.get("a")):
+        return {"ok": True, "data": {
+            "found": False,
+            "message": "该场无初盘1X2赔率, 无法蒸馏操盘手结论",
+        }}
+    result = _live_predict(home, away, odds["h"], odds["d"], odds["a"], league=league)
+    card = _distill_operator_card(result)
+    card["match_key"] = match_key or (f"{home} vs {away}" if home and away else None)
+    return {"ok": True, "data": card}
+
+
+@app.get("/api/live/operator-card")
+async def live_operator_card_api(match_key: str = "", home: str = "", away: str = "",
+                                 league: str = None):
+    """操盘手结论卡(实时页) — 取初盘初赔 → _live_predict 全链路 → 蒸馏一行结论。
+
+    返回 distill_operator_card 结构: verdict/stake/confidence/evidence[≤3]/trap_score/decision。
+    缓存: run_in_executor 防事件循环冻结 + 全局 cache + asyncio.Lock 单飞 + TTL=5s。
+    """
+    global _LIVE_OP_CARD_CACHE, _LIVE_OP_CARD_LOCK
+    if _LIVE_OP_CARD_LOCK is None:
+        _LIVE_OP_CARD_LOCK = asyncio.Lock()
+    cache_key = f"{match_key}|{home}|{away}|{league}"
+    now = time.time()
+    if (_LIVE_OP_CARD_CACHE["data"] is not None and _LIVE_OP_CARD_CACHE.get("key") == cache_key
+            and (now - _LIVE_OP_CARD_CACHE["fetched_at"]) < 5.0):
+        return _LIVE_OP_CARD_CACHE["data"]
+    async with _LIVE_OP_CARD_LOCK:
+        if (_LIVE_OP_CARD_CACHE["data"] is not None and _LIVE_OP_CARD_CACHE.get("key") == cache_key
+                and (now - _LIVE_OP_CARD_CACHE["fetched_at"]) < 5.0):
+            return _LIVE_OP_CARD_CACHE["data"]
+        loop = asyncio.get_running_loop()
+        data = await loop.run_in_executor(
+            None, lambda: _live_operator_card_compute(match_key, home, away, league)
+        )
+        _LIVE_OP_CARD_CACHE = {"fetched_at": time.time(), "key": cache_key, "data": data}
+        return data
+
+
+@app.get("/api/cold-door/scan")
+async def cold_door_scan_api(status: str = "live,scheduled", limit: int = 300,
+                              min_odds: float = 12.0, min_edge: float = 0.0,
+                              max_results: int = 100):
+    """批量扫描 live/scheduled 比赛，返回有 CONFIRMED 冷门波胆信号的比赛列表。
+
+    对每场比赛：
+      1) 取 CS 网格（赛前冻结 或 实时 CS 快照）
+      2) 冷门模型 predict_for_grid
+      3) 正路盘口 top3 交叉验证
+      4) 保留 edge>=min_edge & odds>=min_odds & 不在正路 top3 的比分
+    """
+    if not _COLD_OK:
+        return JSONResponse({"ok": False, "error": "冷门模型未加载", "data": []})
+    con = None
+    try:
+        con = sqlite3.connect(os.path.join(PROJECT_ROOT, "data", "events.db"))
+        statuses = [s.strip() for s in status.split(",") if s.strip()]
+        if not statuses:
+            statuses = ["live", "scheduled"]
+        in_clause = ",".join("?" * len(statuses))
+        rows = con.execute(
+            f"""SELECT match_key, home, away, league, kickoff, status,
+                       COALESCE(score_home,0), COALESCE(score_away,0)
+                FROM matches
+                WHERE status IN ({in_clause})
+                  AND league NOT LIKE 'VS-%'
+                  AND league NOT LIKE '%分钟%'
+                  AND league NOT IN ('瓦尔哈拉杯 2026 (8分钟)', '瓦尔基里杯 2026 (8分钟)', '梦幻对垒')
+                ORDER BY status, kickoff DESC
+                LIMIT ?""",
+            (*statuses, limit)
+        ).fetchall()
+
+        results = []
+        scanned = 0
+        for mk, home, away, lg, ko, st, sh, sa in rows:
+            scanned += 1
+            try:
+                grid = _get_cs_grid(con, mk, ko)
+                if not grid or len(grid) < 5:
+                    continue
+                cold = _cold_predict(grid, home or "", away or "", lg or "", ko or "")
+                if not cold:
+                    continue
+                # 正路盘口常规预期
+                regular_top = []
+                try:
+                    rt = _regular_cs_top3(mk)
+                    if rt:
+                        regular_top = [r.get("score") for r in rt]
+                except Exception:
+                    regular_top = []
+                regular_set = set(regular_top)
+
+                confirmed = []
+                for s in cold.get("scores", []):
+                    if s.get("cold_candidate") and s["edge"] >= min_edge and s["odds"] >= min_odds:
+                        if s["score"] not in regular_set:
+                            confirmed.append(s)
+                if not confirmed:
+                    continue
+                confirmed.sort(key=lambda x: x["model_p"], reverse=True)
+                results.append({
+                    "match_key": mk,
+                    "home": home,
+                    "away": away,
+                    "league": lg,
+                    "status": st,
+                    "kickoff": ko,
+                    "current_score": f"{sh}-{sa}" if st == "live" else None,
+                    "exp_tot_goals": cold.get("exp_tot_goals"),
+                    "regular_top": regular_top[:3],
+                    "n_confirmed": len(confirmed),
+                    "confirmed": confirmed[:5],
+                })
+            except Exception as e:
+                logger.warning(f"[cold-door/scan] {mk} 失败: {e}")
+                continue
+
+        results.sort(key=lambda x: (-x["n_confirmed"], -max(s["model_p"] for s in x["confirmed"])))
+        con.close()
+        return {"ok": True, "data": results[:max_results], "count": len(results), "scanned": scanned,
+                "warning": "冷门模型 out-of-time 验证显示 edge>0 长赔方命中率0%，任何 CONFIRMED 信号仅作研究/护栏，非投注依据。"}
+    except Exception as e:
+        logger.error(f"[cold-door/scan] 失败: {e}")
+        if con:
+            try:
+                con.close()
+            except Exception:
+                pass
+        return JSONResponse({"ok": False, "error": f"扫描失败: {e}", "data": []})
+
+
+@app.get("/api/cold-door/matches")
+async def cold_door_matches_api(limit: int = 200):
+    """列出可用于冷门波胆检测的赛前CS冻结场次 (pre_match_cs)。"""
+    try:
+        gq = sqlite3.connect(os.path.join(PROJECT_ROOT, "data", "events.db"))
+        rows = gq.execute(
+            "SELECT match_key,league,kickoff,frozen_at FROM pre_match_cs "
+            "WHERE odds_json IS NOT NULL ORDER BY frozen_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+        gq.close()
+        return {"ok": True, "data": [
+            {"match_key": r[0], "league": r[1], "kickoff": r[2], "frozen_at": r[3]}
+            for r in rows
+        ]}
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": f"列表失败: {e}", "data": []})
+
+
+@app.get("/api/live-goal-probe/matches")
+async def live_goal_probe_matches_api(limit: int = 50, offset: int = 0):
+    """列出当前进行中(live)与未开赛(scheduled)的比赛, 并按破蛋/进球潜力排序, 供滚球破蛋神器选择。
+    支持 offset 分页 (live 场次多时避免被 limit 静默截断)。"""
+    if not _LIVE_GOAL_OK:
+        return JSONResponse({"ok": False, "error": "滚球破蛋模块未加载", "data": {"matches": [], "max_last_seen": None, "total_live": 0, "total_scheduled": 0, "offset": offset, "limit": limit, "server_now": time.time()}})
+    try:
+        out = await asyncio.to_thread(_live_goal_matches, limit=limit, offset=offset)
+        # 过滤非足球(响应层兜底, 不改 _live_goal_matches 内部以免破坏 live_goal_probe 模块)
+        try:
+            if isinstance(out, dict) and isinstance(out.get('matches'), list):
+                out['matches'] = _filter_football_matches(out['matches'])
+        except Exception:
+            pass
+        return {"ok": True, "data": out}
+    except Exception as e:
+        logger.error(f"[live-goal-probe/matches] 失败: {e}")
+        return JSONResponse({"ok": False, "error": f"列表失败: {e}", "data": {"matches": [], "max_last_seen": None, "total_live": 0, "total_scheduled": 0, "offset": offset, "limit": limit, "server_now": time.time()}})
+
+
+@app.get("/api/live-odds/{match_key}")
+async def live_odds_api(match_key: str):
+    """6 维盘口聚合 (滚球实时): 1X2/AH/OU × 全场/半场, 含当前 line/odds + 相对开盘 drift。
+
+    数据源 events.db.odds_snapshots (2026-08-27 雷速已删).
+    market 命名: 1X2 / AH_<line> / OU_<line> (全场), *_1H_<line> (半场), _N 后缀=多庄家.
+    主盘(无后缀 book=0)优先, 无主盘取最新庄家; drift = 最新 odds - 该 line 首次 odds."""
+    try:
+        match_key = _resolve_mk(match_key)
+        import re as _re
+        db = os.path.join(PROJECT_ROOT, "data", "events.db")
+        c = sqlite3.connect(db)
+        m = c.execute("SELECT score_home, score_away, minute, status FROM matches WHERE match_key=?", (match_key,)).fetchone()
+        score = f"{m[0] or 0}-{m[1] or 0}" if m else None
+        minute = m[2] if m else None
+        status = m[3] if m else None
+        rows = c.execute(
+            "SELECT market, selection, odds, line, captured_at FROM odds_snapshots "
+            "WHERE match_key=? AND captured_at > strftime('%s','now','-4 hour')", (match_key,)).fetchall()
+        c.close()
+        # 解析 market → (period, family, line_key, book, selection, odds, ts)
+        P = []
+        for mk, sel, od, ln, ts in rows:
+            name, book = mk, 0
+            mo = _re.match(r'^(.*)_(\d+)$', name)
+            if mo:
+                name, book = mo.group(1), int(mo.group(2))
+            fam = period = None
+            lk = None
+            if name == "1X2":
+                fam, period = "1X2", "full"
+            elif name.startswith("1X2_1H"):
+                fam, period = "1X2", "half"
+            elif name.startswith("AH_1H_"):
+                fam, period, lk = "AH", "half", name[6:]
+            elif name.startswith("AH_"):
+                fam, period, lk = "AH", "full", name[3:]
+            elif name.startswith("OU_1H_"):
+                fam, period, lk = "OU", "half", name[6:]
+            elif name.startswith("OU_"):
+                fam, period, lk = "OU", "full", name[3:]
+            else:
+                continue  # CS/角球/其他家族不进 6 维
+            P.append((period, fam, lk, book, sel, od, ts))
+        if not P:
+            return _wrap_data({"match_key": match_key, "score": score, "minute": minute, "status": status,
+                               "dimensions": [], "count": 0})
+
+        def _cell(period, fam, lk, sel):
+            cands = [p for p in P if p[0] == period and p[1] == fam and p[2] == lk and p[4] == sel]
+            if not cands:
+                return None, None
+            for p in cands:
+                if p[3] == 0:
+                    return p[5], p[6]
+            b = max(cands, key=lambda p: p[6])
+            return b[5], b[6]
+
+        def _drift(period, fam, lk, sel):
+            """最新 odds - 该 line 首次 odds (同 book 主盘优先)."""
+            cands = [p for p in P if p[0] == period and p[1] == fam and p[2] == lk and p[4] == sel]
+            if not cands:
+                return None
+            first = min(cands, key=lambda p: p[6])
+            last = max(cands, key=lambda p: p[6])
+            try:
+                return round(last[5] - first[5], 3)
+            except Exception:
+                return None
+
+        dimensions = []
+        for period, pname in (("full", "全场"), ("half", "半场")):
+            for fam, fname in (("1X2", "独赢"), ("AH", "让球"), ("OU", "大小")):
+                keys = sorted({p[2] for p in P if p[0] == period and p[1] == fam})
+                if not keys:
+                    continue
+                # 滚球多线: 取主盘线(book=0 所在 line), 否则取最新 line
+                main_lk = keys[0]
+                for p in P:
+                    if p[0] == period and p[1] == fam and p[3] == 0:
+                        main_lk = p[2]
+                        break
+                rows_out = []
+                for sel in ("home", "draw", "away", "over", "under"):
+                    v, ts = _cell(period, fam, main_lk, sel)
+                    if v is not None:
+                        rows_out.append({
+                            "selection": sel, "odds": round(v, 2),
+                            "drift": _drift(period, fam, main_lk, sel),
+                        })
+                line_num = None
+                try:
+                    line_num = float(main_lk) if main_lk not in (None, "", "-0.00", "0.00") else 0.0
+                except (TypeError, ValueError):
+                    line_num = None
+                dimensions.append({
+                    "market": f"{fam}_{period}", "name": f"{pname}{fname}",
+                    "line": line_num, "rows": rows_out,
+                })
+        return _wrap_data({"match_key": match_key, "score": score, "minute": minute, "status": status,
+                           "dimensions": dimensions, "count": len(dimensions)})
+    except Exception as e:
+        logger.error(f"[live-odds] {match_key} 失败: {e}")
+        return _wrap_data({"error": str(e), "match_key": match_key, "dimensions": [], "count": 0})
+
+
+# ── 进球触发即时盘口补采 (2026-08-28, 用户诉求: 进球后 OU 即时更新并给出方向) ──
+# 链路: 前端 5s 轮询带最新比分 → probe 端点发现"传入比分 ≠ 库内最后快照比分"(= 进球)
+# → 后台线程立即拉一次乐鱼详情全市场盘口(不受采集器 45s 节流约束) → 5s 后的下一次
+# 轮询即基于进球后新盘口重算方向。per-match 锁防并发, 同比分 60s 防重(水位波动不触发)。
+_GOAL_BACKFILL_LAST: dict = {}
+_GOAL_BACKFILL_LOCKS: dict = {}
+
+
+def _goal_backfill_worker(match_key: str, mid: str, new_score: str):
+    try:
+        from gq import auto_collector as ac
+        dec = ac.fetch_match_odds(str(mid))
+        if dec:
+            gq = sqlite3.connect(os.path.join(PROJECT_ROOT, "data", "events.db"), timeout=5)
+            try:
+                ko_row = gq.execute("SELECT kickoff FROM matches WHERE match_key=?", (match_key,)).fetchone()
+            finally:
+                gq.close()
+            mgt = 0
+            if ko_row and ko_row[0]:
+                try:
+                    from datetime import datetime as _dt
+                    mgt = _dt.fromisoformat(ko_row[0]).timestamp() * 1000.0
+                except Exception:
+                    mgt = 0
+            ac.record_match_odds(dec, {"mid": str(mid), "mgt": mgt})
+            logger.info(f"[goal-backfill] {match_key} 进球({new_score}) → 盘口已即时补采")
+    except Exception as e:
+        logger.warning(f"[goal-backfill] {match_key} 补采失败: {e}")
+
+
+def _maybe_goal_backfill(match_key: str, current_score: str):
+    """进球检测 + fire-and-forget 即时补采。绝对不抛、不阻塞 probe 主响应。"""
+    try:
+        cur = (current_score or "").strip()
+        if not cur or "-" not in cur:
+            return
+        now = time.time()
+        sig = f"{match_key}|{cur}"
+        if now - _GOAL_BACKFILL_LAST.get(sig, 0.0) < 60.0:
+            return
+        gq = sqlite3.connect(os.path.join(PROJECT_ROOT, "data", "events.db"), timeout=5)
+        gq.execute("PRAGMA busy_timeout=3000")
+        try:
+            row = gq.execute(
+                "SELECT score_at FROM odds_snapshots WHERE match_key=? AND score_at != '' "
+                "ORDER BY id DESC LIMIT 1", (match_key,)).fetchone()
+            mid_row = gq.execute("SELECT mid FROM matches WHERE match_key=?", (match_key,)).fetchone()
+        finally:
+            gq.close()
+        last_score = (row[0] if row else "") or ""
+        mid = (mid_row[0] if mid_row else "") or ""
+        if not mid:
+            return
+        norm = lambda s: s.replace(":", "-").replace(" ", "")
+        if norm(last_score) == norm(cur):
+            _GOAL_BACKFILL_LAST[sig] = now   # 比分一致: 记签名防重复查询
+            return
+        # 比分不一致 → 进球事件: 锁该场, 后台补采
+        lock = _GOAL_BACKFILL_LOCKS.setdefault(match_key, threading.Lock())
+        if not lock.acquire(blocking=False):
+            return   # 已有补采在跑
+        _GOAL_BACKFILL_LAST[sig] = now
+        threading.Thread(target=_goal_backfill_worker, args=(match_key, mid, cur),
+                         daemon=True, name=f"goal-bf-{mid}").start()
+    except Exception as e:
+        logger.warning(f"[goal-backfill] 触发失败 {match_key}: {e}")
+
+
+@app.get("/api/live-goal-probe")
+async def live_goal_probe_api(match_key: str, score: str = "0-0", minute: int = 0, is_halftime: bool = False):
+    """滚球破蛋概率仪: 对指定比赛输出半场/全场破蛋概率与信号方向。
+
+    参数:
+      match_key: 比赛键 (如 "主队 vs 客队")
+      score: 当前比分 (默认 0-0)
+      minute: 当前比赛分钟 (默认 0)
+      is_halftime: 是否中场休息(半场结果已定, 不再分析半场破蛋)
+
+    返回:
+      {ok, data: {match_key, current_score, current_minute, half{}, full{}, reasons[], warning}}
+    """
+    if not _LIVE_GOAL_OK:
+        return JSONResponse({"ok": False, "error": "滚球破蛋模块未加载", "data": None})
+    match_key = _resolve_mk(match_key)
+    # 进球触发即时盘口补采 (fire-and-forget, 不阻塞响应; 5s 后的下一次轮询吃到新盘)
+    _maybe_goal_backfill(match_key, score)
+    try:
+        result = await asyncio.to_thread(_live_goal_probe, match_key, current_score=score, current_minute=minute, is_halftime=is_halftime)
+        return {"ok": True, "data": result}
+    except Exception as e:
+        logger.error(f"[live-goal-probe] 失败: {e}")
+        return JSONResponse({"ok": False, "error": f"探测失败: {e}", "data": None})
+
+
+@app.get("/api/live-goal-probe/analyze")
+async def live_goal_probe_analyze_api(match_key: str, score: str = "0-0", minute: int = 0,
+                                       is_halftime: bool = False):
+    """滚球神器 · 决策智能体卡片: 消费模型数据(开盘盘口结构) → 输出 决策/方案/合理比分。
+
+    本地 qwen3 仅作背后推理引擎(系统服务); 卡片展示智能体的「决策和方案」, 非模型闲聊文本。
+    返回 {ok, data:{match_key, has_real_open, score_hint, decision, plan, model_data, agent_used}}
+    """
+    if not match_key:
+        return JSONResponse({"ok": False, "error": "match_key 为空", "data": None})
+    match_key = _resolve_mk(match_key)
+    try:
+        def _worker():
+            from analysis.model_match_analysis import analyze_match_with_model
+            return analyze_match_with_model(match_key, current_score=score,
+                                            current_minute=minute, is_halftime=is_halftime)
+        # 2026-08-27: 25s 超时保护 — 防模型引擎冷加载(首请求 29s)/偶发慢拖死前端 30s 超时。
+        # 超时返回降级(ok=True + 标记), 前端显示"分析超时请重试"而非白屏。
+        try:
+            out = await asyncio.wait_for(asyncio.to_thread(_worker), timeout=25.0)
+        except asyncio.TimeoutError:
+            logger.warning(f"[live-goal-probe/analyze] 超时(25s): {match_key}")
+            return {"ok": True, "data": {
+                "ok": False, "match_key": match_key, "has_real_open": False,
+                "score_hint": None, "decision": None, "plan": "",
+                "model_data": None, "decision_engine": "deterministic",
+                "error": "模型引擎加载中/超时(25s)，请稍后重试", "timeout": True,
+            }}
+        return {"ok": True, "data": out}
+    except Exception as e:
+        logger.error(f"[live-goal-probe/analyze] 失败: {e}")
+        return JSONResponse({"ok": False, "error": f"决策智能体失败: {e}", "data": None})
+
+
+@app.get("/api/live-goal-probe/consensus")
+async def live_goal_probe_consensus_api(
+    match_key: str, score: str = "0-0", minute: int = 0, is_halftime: bool = False,
+    home: str = "", away: str = "", league: str = None,
+    over: float = None, under: float = None, line: float = None,
+    opening_total: float = None, current_total: float = None,
+):
+    """决策仲裁层 (C 完整档): 聚合 决策智能体 / 操盘手卡 / OU破蛋决策 多路信号,
+    产出 signal_consensus / discrepancy / closing_line_value / confidence_interval,
+    供前端仲裁卡消除"多卡互相矛盾"体感。
+
+    内部调用 analyze_match_with_model + _live_operator_card_compute (复用缓存/单飞),
+    可选 over/under 时补 OU discrepancy (devig fair vs implied)。
+    返回 {ok, data:{signal_consensus, discrepancy, closing_line_value, confidence_interval}}。
+    """
+    if not match_key:
+        return JSONResponse({"ok": False, "error": "match_key 为空", "data": None})
+    match_key = _resolve_mk(match_key)
+    try:
+        def _worker():
+            from analysis.model_match_analysis import analyze_match_with_model
+            from analysis.signal_consensus import build_signal_consensus
+            h = home or (match_key.split(" vs ")[0] if " vs " in match_key else "")
+            a = away or (match_key.split(" vs ")[1] if " vs " in match_key else "")
+            analyze_out = analyze_match_with_model(
+                match_key, current_score=score, current_minute=minute, is_halftime=is_halftime
+            )
+            op_raw = _live_operator_card_compute(match_key, h, a, league)
+            operator_card = op_raw.get("data") if isinstance(op_raw, dict) else None
+
+            ou_decision = None
+            # 2026-08-27 滚球锚: line/opening_total 未传时, 用该场【当前滚球 OU 线 + 去水隐含总球】作锚,
+            # 不再用固定 2.5 / 开盘锚 (用户: 锚点使用滚球数据, 不在固定数值)
+            _line = line
+            _open_total = opening_total
+            if _line is None or _open_total is None:
+                try:
+                    _ll, _lt = _resolve_live_ou_anchor(match_key, minute)
+                    if _line is None:
+                        _line = _ll or 2.5
+                    if _open_total is None:
+                        _open_total = _lt
+                except Exception as _e:
+                    logger.warning(f"[consensus] 滚球锚解析失败: {_e}")
+            # 前端未传 OU 实时赔率时, 自取 analyze_out.model_data.live.ou 的真实 over/under 赔率
+            # (诚实边界: 仅用真实市场赔率 devig, 绝不拿模型概率冒充市场概率)
+            # 注意: 用全新局部变量 _ov/_un/_ln/_ct 承载, 避免遮蔽闭包参数 over/under/line/current_total
+            _ov = over
+            _un = under
+            _ln = _line
+            if (_ov is None or _un is None) and analyze_out:
+                try:
+                    _lu = ((analyze_out or {}).get("model_data") or {}).get("live", {}) or {}
+                    _ou = _lu.get("ou") or {}
+                    _o = _ou.get("over_odds")
+                    _u = _ou.get("under_odds")
+                    _l = _ou.get("line")
+                    if _o and _u and _o > 1.0 and _u > 1.0:
+                        _ov, _un = float(_o), float(_u)
+                        if _l:
+                            _ln = float(_l)
+                except Exception as e:
+                    logger.warning(f"[consensus] 自取 live OU 赔率失败: {e}")
+            if _ov is not None and _un is not None:
+                try:
+                    from pipeline.ou_breakegg_decision import decide_ou, derive_model_over_prob
+                    # 未传 current_total 时, 尝试从 score 解析已进球数喂给模型大球概率基线
+                    _ct = current_total
+                    if _ct is None:
+                        try:
+                            _hs, _as = str(score).split("-")[:2]
+                            _ct = float(int(_hs) + int(_as))
+                        except Exception:
+                            _ct = None
+                    # 从 score 解析真实已进主/客, 对齐主端点语义(分支2 剩余期望=隐含期望-已进)
+                    try:
+                        _sh, _sa = (int(x) for x in str(score).split("-")[:2])
+                    except Exception:
+                        _sh = _sa = 0
+                    # 2026-08-28: 初盘三盘 λ 交叉先验 → 即时 OU 模型 P(over) 优先用三盘分布,
+                    # 无三盘数据时退回联赛泊松基线 (cross_score 已含滚球条件化+漂移验证)
+                    mop = None
+                    try:
+                        from pipeline.cross_score import derive_score_cross
+                        import sqlite3 as _sq
+                        from analysis.model_match_analysis import DEFAULT_GQ_PATH
+                        _cc = _sq.connect(DEFAULT_GQ_PATH, timeout=30)
+                        try:
+                            _cs = derive_score_cross(_cc, match_key, score, minute)
+                        finally:
+                            try:
+                                _cc.close()
+                            except Exception:
+                                pass
+                        if _cs and _cs.get('over_prob_at'):
+                            _lk = min(_cs['over_prob_at'].keys(), key=lambda k: abs(k - (_ln or 2.5)))
+                            mop = _cs['over_prob_at'].get(_lk)
+                    except Exception:
+                        mop = None
+                    if mop is None:
+                        mop = derive_model_over_prob(
+                            _ln, current_home=_sh, current_away=_sa,
+                            current_total=_ct, league=league)
+                    drift_evidence = False
+                    if _open_total is not None and _ct is not None:
+                        try:
+                            from analysis.live_goal_probe import anchor_gap_signal
+                            ag = anchor_gap_signal(_open_total, _ct, minute, league)
+                            drift_evidence = bool(ag and ag.get("overshrink"))
+                        except Exception:
+                            drift_evidence = False
+                    ou_decision = decide_ou(
+                        opening_total=_open_total, current_total=_ct,
+                        ou_market={"line": _ln, "over": _ov, "under": _un},
+                        minute=minute, league=league, model_over_prob=mop,
+                        obscure_league=False, cross_book_evidence=False,
+                        drift_evidence=drift_evidence, require_evidence=True,
+                        is_halftime=is_halftime,
+                    )
+                except Exception as e:
+                    logger.warning(f"[consensus] OU discrepancy 计算失败: {e}")
+                    ou_decision = None
+
+            return build_signal_consensus(analyze_out, operator_card, ou_decision)
+
+        data = await asyncio.to_thread(_worker)
+        return {"ok": True, "data": data}
+    except Exception as e:
+        logger.error(f"[live-goal-probe/consensus] 失败: {e}")
+        return JSONResponse({"ok": False, "error": f"仲裁层失败: {e}", "data": None})
+
+
+@app.get("/api/live-goal-probe/momentum")
+async def live_goal_probe_momentum_api(
+    match_key: str, score: str = "0-0", minute: int = 0, is_halftime: bool = False,
+    home: str = "", away: str = "", league: str = None,
+    over: float = None, under: float = None, line: float = None,
+    opening_total: float = None, current_total: float = None,
+    live_home: float = None, live_draw: float = None, live_away: float = None,
+    ah_home: float = None, ah_away: float = None,
+):
+    """动态滚球决策系统 (Live Momentum Trader) 统一裁决卡端点.
+
+    替代原 ModelAnalysisCard + ArbitrationCard 多卡平铺导致的"内容互相矛盾"体感:
+    一次性聚合 决策智能体 / 操盘手 / OU破蛋 / 信号仲裁 / 回测, 输出五部分 JSON
+    (市场校验 / 阶段判定 / 信号仲裁 / 动态价值 / 执行策略).
+
+    复用 consensus 端点同款组装逻辑(analyze + operator_card + ou_decision + 自取真实 OU 赔率),
+    并新增可选 live 1X2 / AH 真实盘口赔率参数(用于更严格的 AH↔1X2 市场对照).
+    返回 {ok, data:{...五部分...}}; 所有建仓措辞标注"分析参考·需人工审批"(IR-20/IR-21).
+    """
+    if not match_key:
+        return JSONResponse({"ok": False, "error": "match_key 为空", "data": None})
+    match_key = _resolve_mk(match_key)
+    try:
+        def _worker():
+            from analysis.model_match_analysis import analyze_match_with_model
+            from analysis.live_momentum_trader import build_momentum_card
+            h = home or (match_key.split(" vs ")[0] if " vs " in match_key else "")
+            a = away or (match_key.split(" vs ")[1] if " vs " in match_key else "")
+            analyze_out = analyze_match_with_model(
+                match_key, current_score=score, current_minute=minute, is_halftime=is_halftime
+            )
+            op_raw = _live_operator_card_compute(match_key, h, a, league)
+            operator_card = op_raw.get("data") if isinstance(op_raw, dict) else None
+
+            # 2026-08-27 滚球锚: line/opening_total 未传时, 用当前滚球 OU 线+去水隐含总球作锚(不用固定数值)
+            _line = line
+            _open_total = opening_total
+            if _line is None or _open_total is None:
+                try:
+                    _ll, _lt = _resolve_live_ou_anchor(match_key, minute)
+                    if _line is None:
+                        _line = _ll or 2.5
+                    if _open_total is None:
+                        _open_total = _lt
+                except Exception as _e:
+                    logger.warning(f"[momentum] 滚球锚解析失败: {_e}")
+
+            # ── 复用 consensus: 自取真实 OU 赔率 + decide_ou ──
+            _ov = over
+            _un = under
+            _ln = _line
+            if (_ov is None or _un is None) and analyze_out:
+                try:
+                    _lu = ((analyze_out or {}).get("model_data") or {}).get("live", {}) or {}
+                    _ou = _lu.get("ou") or {}
+                    _o = _ou.get("over_odds")
+                    _u = _ou.get("under_odds")
+                    _l = _ou.get("line")
+                    if _o and _u and _o > 1.0 and _u > 1.0:
+                        _ov, _un = float(_o), float(_u)
+                        if _l:
+                            _ln = float(_l)
+                except Exception as e:
+                    logger.warning(f"[momentum] 自取 live OU 赔率失败: {e}")
+
+            ou_decision = None
+            if _ov is not None and _un is not None:
+                try:
+                    from pipeline.ou_breakegg_decision import decide_ou, derive_model_over_prob
+                    _ct = current_total
+                    if _ct is None:
+                        try:
+                            _hs, _as = str(score).split("-")[:2]
+                            _ct = float(int(_hs) + int(_as))
+                        except Exception:
+                            _ct = None
+                    try:
+                        _sh, _sa = (int(x) for x in str(score).split("-")[:2])
+                    except Exception:
+                        _sh = _sa = 0
+                    # 2026-08-28: 初盘三盘 λ 交叉先验 → 即时 OU 模型 P(over) 优先用三盘分布,
+                    # 无三盘数据时退回联赛泊松基线 (cross_score 已含滚球条件化+漂移验证)
+                    mop = None
+                    try:
+                        from pipeline.cross_score import derive_score_cross
+                        import sqlite3 as _sq
+                        from analysis.model_match_analysis import DEFAULT_GQ_PATH
+                        _cc = _sq.connect(DEFAULT_GQ_PATH, timeout=30)
+                        try:
+                            _cs = derive_score_cross(_cc, match_key, score, minute)
+                        finally:
+                            try:
+                                _cc.close()
+                            except Exception:
+                                pass
+                        if _cs and _cs.get('over_prob_at'):
+                            _lk = min(_cs['over_prob_at'].keys(), key=lambda k: abs(k - (_ln or 2.5)))
+                            mop = _cs['over_prob_at'].get(_lk)
+                    except Exception:
+                        mop = None
+                    if mop is None:
+                        mop = derive_model_over_prob(
+                            _ln, current_home=_sh, current_away=_sa,
+                            current_total=_ct, league=league)
+                    drift_evidence = False
+                    if _open_total is not None and _ct is not None:
+                        try:
+                            from analysis.live_goal_probe import anchor_gap_signal
+                            ag = anchor_gap_signal(_open_total, _ct, minute, league)
+                            drift_evidence = bool(ag and ag.get("overshrink"))
+                        except Exception:
+                            drift_evidence = False
+                    ou_decision = decide_ou(
+                        opening_total=_open_total, current_total=_ct,
+                        ou_market={"line": _ln, "over": _ov, "under": _un},
+                        minute=minute, league=league, model_over_prob=mop,
+                        obscure_league=False, cross_book_evidence=False,
+                        drift_evidence=drift_evidence, require_evidence=True,
+                        is_halftime=is_halftime,
+                    )
+                except Exception as e:
+                    logger.warning(f"[momentum] OU 决策计算失败: {e}")
+                    ou_decision = None
+
+            # ── 真实盘口赔率 (用于 AH↔1X2 市场对照) ──
+            # 参数显式传入优先; 未传则自取 live 1X2 / AH 真实赔率 (诚实边界: 仅真实市场赔率)
+            live_1x2_odds = None
+            if (live_home and live_draw and live_away
+                    and live_home > 1.0 and live_draw > 1.0 and live_away > 1.0):
+                live_1x2_odds = {"home": live_home, "draw": live_draw, "away": live_away}
+            live_ah_odds = None
+            if ah_home and ah_away and ah_home > 1.0 and ah_away > 1.0:
+                live_ah_odds = {"home": ah_home, "away": ah_away}
+            if live_1x2_odds is None or live_ah_odds is None:
+                try:
+                    import sqlite3
+                    from analysis.model_match_analysis import DEFAULT_GQ_PATH
+                    from analysis.live_goal_probe import _current_inplay_odds, _current_inplay_ah_odds
+                    _con = sqlite3.connect(DEFAULT_GQ_PATH, timeout=30)
+                    try:
+                        if live_1x2_odds is None:
+                            _cur = _current_inplay_odds(_con, match_key, minute)
+                            if _cur and _cur.get("x2"):
+                                _h, _d, _a = _cur["x2"]
+                                live_1x2_odds = {"home": float(_h), "draw": float(_d), "away": float(_a)}
+                        if live_ah_odds is None:
+                            _ah = _current_inplay_ah_odds(_con, match_key, minute)
+                            if _ah:
+                                live_ah_odds = {"home": float(_ah[1]), "away": float(_ah[2])}
+                    finally:
+                        _con.close()
+                except Exception as e:
+                    logger.warning(f"[momentum] 自取 live 1X2/AH 赔率失败: {e}")
+
+            # ── 组装五部分卡 ──
+            return build_momentum_card(
+                analyze_out, operator_card=operator_card, ou_decision=ou_decision,
+                minute=minute, is_halftime=is_halftime, league=league,
+                live_1x2_odds=live_1x2_odds,
+                live_ou_odds=({"over": _ov, "under": _un, "line": _ln}
+                              if (_ov and _un) else None),
+                live_ah_odds=live_ah_odds, opening_total=opening_total,
+            )
+
+        data = await asyncio.wait_for(asyncio.to_thread(_worker), timeout=25)
+        return {"ok": True, "data": data}
+    except asyncio.TimeoutError:
+        logger.error(f"[live-goal-probe/momentum] {match_key} 聚合超时>25s, 降级返回空")
+        return {"ok": False, "error": "动态滚球决策卡聚合超时(该场数据不足, 已降级)", "data": None}
+    except Exception as e:
+        logger.error(f"[live-goal-probe/momentum] 失败: {e}")
+        return JSONResponse({"ok": False, "error": f"动态滚球决策卡失败: {e}", "data": None})
+
+
+@app.get("/api/match/ht-draw-structure")
+async def ht_draw_structure_api(match_key: str):
+    """上半场平局赔率结构诊断: 消费 1X2_1H draw + OU_1H 真实赔率时间序列,
+    输出开盘→临场→HT临界→最新 四档 + 漂移曲线 + 与全场平局关系 + OU_1H 辅助.
+
+    半场 1X2 draw 走低 = 庄家越来越确信上半场比分持平(典型 0-0 僵局).
+    """
+    if not match_key:
+        return JSONResponse({"ok": False, "error": "match_key 为空", "data": None})
+    match_key = _resolve_mk(match_key)
+    try:
+        def _worker():
+            import sqlite3
+            from analysis.model_match_analysis import DEFAULT_GQ_PATH
+            from analysis.ht_draw_odds_structure import ht_draw_odds_diagnosis
+            con = sqlite3.connect(DEFAULT_GQ_PATH, timeout=30)
+            try:
+                return ht_draw_odds_diagnosis(con, match_key)
+            finally:
+                con.close()
+        data = await asyncio.to_thread(_worker)
+        return {"ok": True, "data": data}
+    except Exception as e:
+        logger.error(f"[ht-draw-structure] 失败: {e}")
+        return JSONResponse({"ok": False, "error": f"半场平局结构失败: {e}", "data": None})
+
+
+@app.get("/api/live-goal-probe/backtest")
+async def live_goal_probe_backtest_api(force: int = 0):
+    """滚球破蛋模型回测摘要(历史数据验证 + 风险披露)。
+
+    返回: {ok, data: {method, n_matches_with_odds, half{}, full{}, half_ge1_calibration{}}}
+    force=1 时重算, 否则读取已生成的 JSON 缓存。
+    """
+    import os as _os
+    _json_path = _os.path.join(_os.path.dirname(__file__), "analysis", "live_goal_probe_backtest.json")
+    if force and _LIVE_GOAL_OK and _backtest_live_goal_probe is not None:
+        try:
+            summary = await asyncio.to_thread(_backtest_live_goal_probe)
+            return {"ok": True, "data": summary, "recomputed": True}
+        except Exception as _e:
+            logger.error(f"[live-goal-probe/backtest] 重算失败: {_e}")
+    if _os.path.exists(_json_path):
+        try:
+            with open(_json_path, encoding="utf-8") as _f:
+                return {"ok": True, "data": json.load(_f), "recomputed": False}
+        except Exception as _e:
+            logger.error(f"[live-goal-probe/backtest] 读缓存失败: {_e}")
+    return JSONResponse({"ok": False, "error": "回测数据不可用(请先运行 analysis/backtest_live_goal_probe.py)", "data": None})
+
+
+@app.get("/api/match-minute-stream")
+async def match_minute_stream_api(match_key: str, line: float = None, league: str = None,
+                                   opening_total: float = None, estimate: int = 1):
+    """分钟级数据流: 重建指定比赛的盘口+比分时间线、进球事件、逐分钟剩余破蛋曲线。
+
+    2026-08-21 修复: 默认 estimate=1, 对缺少真实 minute_at 的旧数据用 kickoff+captured_at
+    估算分钟并明确标注 estimated; 真实分钟数据存在时仍优先使用真实数据。
+
+    参数:
+      match_key:      比赛键 (如 "主队 vs 客队")
+      line:           OU 线 (默认 2.5)
+      league:         联赛 (可选, 用于泊松学派先验)
+      opening_total:  开盘隐含总球 (可选; 不传则自动从赛前 OU 反推)
+      estimate:       是否允许分钟估算 (1=是, 0=否; 默认 1)
+
+    返回: {ok, data: {match_key, opening_total, n_snapshots_minute, timeline[], goal_events[],
+                     remaining_break_curve[], has_real_minute_data, has_estimated_minute_data,
+                     data_quality, reason, status}}
+    """
+    if not _MINUTE_STREAM_OK:
+        return JSONResponse({"ok": False, "error": "分钟级数据流模块未加载", "data": None})
+    try:
+        import sqlite3 as _sq
+        def _worker():
+            # 2026-08-27 滚球锚: line/opening_total 未传时用当前滚球 OU 线+隐含总球(不用固定数值)
+            _line = line
+            _open_total = opening_total
+            if _line is None or _open_total is None:
+                try:
+                    _ll, _lt = _resolve_live_ou_anchor(match_key, 0)
+                    if _line is None:
+                        _line = _ll or 2.5
+                    if _open_total is None:
+                        _open_total = _lt
+                except Exception as _e:
+                    logger.warning(f"[minute-stream] 滚球锚解析失败: {_e}")
+            _db_path = os.path.join(PROJECT_ROOT, "data", "events.db")
+            _db = _sq.connect(_db_path, timeout=30)
+            try:
+                    return _get_match_minute_stream(
+                    _db, match_key,
+                    opening_total=_open_total, line=_line, league=league,
+                    estimate=bool(estimate))
+            finally:
+                _db.close()
+        out = await asyncio.to_thread(_worker)
+        return {"ok": True, "data": out}
+    except Exception as _e:
+        logger.error(f"[match-minute-stream] 失败: {_e}")
+        return JSONResponse({"ok": False, "error": f"分钟级数据流失败: {_e}", "data": None})
+
+
+@app.get("/api/live-goal-probe/decision")
+async def live_goal_probe_decision_api(match_key: str, score: str = "0-0", minute: int = 0,
+                                        opening_total: float = None, current_total: float = None,
+                                        league: str = None, line: float = None,
+                                        over: float = None, under: float = None,
+                                        obscure_league: bool = False,
+                                        cross_book: bool = False, require_evidence: bool = True,
+                                        model_over_prob: float = None, is_halftime: bool = False):
+    """滚球 OU 破蛋决策(带护栏): 在破蛋概率仪之上补 devig + 证据闸门 + obscure + 半凯利。
+    模型大球概率优先级: 调用方传 model_over_prob > probe_match 1X2拟合期望 >
+                        市场隐含剩余(current_total-已进) > 联赛泊松基线。
+    漂移证据取自已加载的 analysis.live_goal_probe.anchor_gap_signal (开盘→活盘过度收缩)。
+    返回 {ok, data:{line, over:{verdict,fair_prob,implied_prob,divergence,stake,kelly},
+                     under:{...}, bettable, evidence, obscure_league, n_bet, model_over_prob_used}}。
+    """
+    from pipeline.ou_breakegg_decision import decide_ou, derive_model_over_prob
+    if not _LIVE_GOAL_OK:
+        return JSONResponse({"ok": False, "error": "滚球破蛋模块未加载", "data": None})
+    match_key = _resolve_mk(match_key)
+    try:
+        if over is None or under is None:
+            return JSONResponse({"ok": False, "error": "需提供 over/under 赔率", "data": None})
+
+        def _worker():
+            # 2026-08-27 滚球锚: line/opening_total 未传时用当前滚球 OU 线+隐含总球(不用固定数值)
+            _line = line
+            _open_total = opening_total
+            if _line is None or _open_total is None:
+                try:
+                    _ll, _lt = _resolve_live_ou_anchor(match_key, minute)
+                    if _line is None:
+                        _line = _ll or 2.5
+                    if _open_total is None:
+                        _open_total = _lt
+                except Exception as _e:
+                    logger.warning(f"[decision] 滚球锚解析失败: {_e}")
+            # 漂移证据: 开盘→活盘过度收缩 (anchor_gap_signal overshrink)
+            drift_evidence = False
+            if _open_total is not None and current_total is not None:
+                try:
+                    from analysis.live_goal_probe import anchor_gap_signal
+                    ag = anchor_gap_signal(_open_total, current_total, minute, league)
+                    drift_evidence = bool(ag and ag.get("overshrink"))
+                except Exception:
+                    drift_evidence = False
+            # 模型大球概率: 优先 probe_match 1X2 拟合期望, 回退市场隐含剩余/联赛泊松
+            mop = model_over_prob
+            pr = None
+            if mop is None:
+                try:
+                    sh, sa = (int(x) for x in str(score).split("-"))
+                except Exception:
+                    sh, sa = 0, 0
+                eh = ea = None
+                try:
+                    if _live_goal_probe is not None:
+                        pr = _live_goal_probe(match_key, current_score=score,
+                                             current_minute=minute, league=league,
+                                             is_halftime=is_halftime)
+                        eh = pr.get("expected_home_goals")
+                        ea = pr.get("expected_away_goals")
+                except Exception:
+                    eh = ea = None
+                mop = derive_model_over_prob(
+                    _line, current_home=sh, current_away=sa,
+                    expected_home=eh, expected_away=ea,
+                    current_total=current_total, league=league)
+            res = decide_ou(
+                opening_total=_open_total, current_total=current_total,
+                ou_market={"line": _line, "over": over, "under": under},
+                minute=minute, league=league, model_over_prob=mop,
+                obscure_league=obscure_league, cross_book_evidence=cross_book,
+                drift_evidence=drift_evidence, require_evidence=require_evidence,
+                is_halftime=is_halftime,
+            )
+            res["match_key"] = match_key
+            res["score"] = score
+            res["model_over_prob_used"] = round(mop, 4) if mop is not None else None
+            res["probe_summary"] = (pr.get("summary") if pr else None)
+            return res
+
+        result = await asyncio.to_thread(_worker)
+        return {"ok": True, "data": result}
+    except Exception as e:
+        logger.error(f"[live-goal-probe/decision] 失败: {e}")
+        return JSONResponse({"ok": False, "error": f"决策失败: {e}", "data": None})
+
+
+@app.post("/api/focus")
+async def register_focus_api(req: Request):
+    """滚球破蛋神器 → 采集器: 注册当前可见比赛的 match_key 列表为秒级焦点。
+
+    请求体: {"match_keys": ["主队 vs 客队", ...], "ttl_seconds": 300}
+    写入 gq/focus_matches.json (覆盖写, 与采集器 --focus-file 契约一致); 目录不存在则创建.
+    返回: {"success": true, "count": N}
+
+    采集器每 30s 读取该文件, 把 match_keys 合并进 focus 并秒级(默认3s)轮询赔率快照,
+    从而让前端左侧列表从 45-60s 刷新提速到 3-5s (全量轮仍按 -i 间隔, 不被拖慢).
+    失败静默不抛: 异常返回 success=False, 不中断前端.
+    """
+    try:
+        try:
+            body = await req.json()
+        except Exception:
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        match_keys = body.get("match_keys") or []
+        ttl_seconds = int(body.get("ttl_seconds", 300) or 300)
+        if not isinstance(match_keys, list):
+            match_keys = []
+        # 去空白/去重, 限制数量与单键长度, 防放大式 DoS / 磁盘写满
+        seen = set()
+        cleaned = []
+        for k in match_keys[:100]:
+            s = str(k).strip()
+            if not s or s in seen or len(s) > 200:
+                continue
+            seen.add(s)
+            cleaned.append(s)
+            if len(cleaned) >= 50:
+                break
+        # ttl 兜底并限制在合理范围 (1min ~ 24h)
+        try:
+            ttl_seconds = int(ttl_seconds)
+        except Exception:
+            ttl_seconds = 300
+        ttl_seconds = max(300, min(86400, ttl_seconds))
+        focus_path = os.path.join(PROJECT_ROOT, "gq", "focus_matches.json")
+        focus_dir = os.path.dirname(focus_path)
+        os.makedirs(focus_dir, exist_ok=True)
+        with open(focus_path, "w", encoding="utf-8") as f:
+            json.dump({"match_keys": cleaned, "ttl_seconds": ttl_seconds},
+                      f, ensure_ascii=False, indent=2)
+        return JSONResponse({"success": True, "count": len(cleaned)})
+    except Exception as e:
+        logger.error(f"[api/focus] register failed: {e}")
+        return JSONResponse(status_code=500, content={"success": False, "error": "focus register failed"})
+
+
+@app.get("/api/template-deviation")
+async def template_deviation_api(limit: int = 300, risk_level: str = "ALL"):
+    """模板偏差实时扫描 — 赛事风险评级。
+
+    返回每场当前比赛的模板弱区风险评分（L1赛事分类 + L3盘口异常），
+    供前端 AnalysisCenter 做 risk 映射标注。
+    """
+    if not _TEMPLATE_DEV_OK:
+        return JSONResponse(content=json.dumps({"matches": [], "total": 0, "error": "模板偏差模块未加载"}),
+                            media_type="application/json")
+    try:
+        result = _template_scan(limit=limit, risk_level=risk_level)
+        return {"matches": result.get("matches", []), "total": result.get("count", 0)}
+    except Exception as e:
+        logger.error(f"[template_deviation] 失败: {e}")
+        return JSONResponse(content=json.dumps({"matches": [], "total": 0, "error": str(e)}),
+                            media_type="application/json")
+
+
 # ═══ 联赛赛程 (数据源: 微瑞/乐鱼 live feed) ═══
 # 全局 feed 缓存: league_name -> [FixtureEntry], TTL 60s
 _LEISU_FEED_CACHE: Dict[str, Any] = {"fetched_at": 0.0, "data": None}
 _LEISU_FEED_LOCK = None
-LEISU_FEED_TTL = int(os.getenv("LEISU_FEED_TTL", "20"))
+LEISU_FEED_TTL = int(os.getenv("LEISU_FEED_TTL", "60"))
 
 
 async def _get_leisu_feed() -> Dict[str, Any]:
-    """取/刷新 live feed (带 TTL 缓存 + 异步锁)。失败返回 {error, leagues:{}}。"""
+    """取/刷新实时比赛 feed (stale-while-revalidate: TTL 缓存 + 后台异步刷新, 请求路径永阻塞)。
+
+    2026-08-27: 雷速已删除, 主源 = events.db 采集器数据(ws_collector 秒级推流落库).
+    实现同旧(缓存未过期→直接返回; 过期有旧值→立即返回旧值+后台刷新; 仅冷启动同步等一次).
+    """
     global _LEISU_FEED_CACHE, _LEISU_FEED_LOCK
     if _LEISU_FEED_LOCK is None:
         _LEISU_FEED_LOCK = asyncio.Lock()
@@ -3146,29 +5331,37 @@ async def _get_leisu_feed() -> Dict[str, Any]:
     cached = _LEISU_FEED_CACHE.get("data")
     if cached and (now - _LEISU_FEED_CACHE["fetched_at"]) < LEISU_FEED_TTL:
         return cached
+    # 冷启动(无任何缓存): 只能同步等待这一次
+    if cached is None:
+        return await _refresh_leisu_feed()
+    # 过期但有旧缓存: 立即返回旧值, 后台触发刷新(请求零等待)
+    if not _LEISU_FEED_LOCK.locked():
+        asyncio.create_task(_refresh_leisu_feed())
+    return cached
+
+
+async def _refresh_leisu_feed() -> Dict[str, Any]:
+    """后台/冷启动刷新 feed (2026-08-27 已删除雷速: 主源切 events.db 采集器数据).
+    单飞锁防并发重复构建, 双重检查避免重复工作."""
+    global _LEISU_FEED_CACHE, _LEISU_FEED_LOCK
     async with _LEISU_FEED_LOCK:
-        cached = _LEISU_FEED_CACHE.get("data")
-        if cached and (now - _LEISU_FEED_CACHE["fetched_at"]) < LEISU_FEED_TTL:
-            return cached
-        from pipeline.collectors.leisu_live import build_feed
-        try:
-            # 隔离 leisu 源偶发阻塞(MuMu离线/页面卡): 超过 10s 直接放弃, 立即回退 GQ 兜底, 不再卡死实时端点
-            data = await asyncio.wait_for(asyncio.to_thread(build_feed), timeout=10)
-        except asyncio.TimeoutError:
-            data = {"error": "feed 构建超时(leisu源阻塞>10s), 回退GQ", "leagues": {}}
-        except Exception as e:
-            data = {"error": f"feed 构建失败: {e}", "leagues": {}}
+        now = time.time()
+        c = _LEISU_FEED_CACHE.get("data")
+        if c and (now - _LEISU_FEED_CACHE["fetched_at"]) < LEISU_FEED_TTL:
+            return c  # 已被别的任务刷新好, 直接复用
+        # 2026-08-27: 雷速已删除, 统一走 events.db 采集器数据(ws_collector 秒级推流 + HTTP 列表)
+        data = await asyncio.to_thread(_gq_build_feed)
         _LEISU_FEED_CACHE = {"fetched_at": time.time(), "data": data}
         return data
 
 
-# ── GQ.db 回退源 (当微瑞 feed 不可用/为空时, 用采集器已落库的比赛兜底) ──
-# 铁律: 采集器持续写 GQ.db, 即便微瑞 feed/乐鱼 timeline 全部挂掉, 这里仍有真实的在跑比赛。
+# ── events.db 回退源 (当微瑞 feed 不可用/为空时, 用采集器已落库的比赛兜底) ──
+# 铁律: 采集器持续写 events.db, 即便微瑞 feed/乐鱼 timeline 全部挂掉, 这里仍有真实的在跑比赛。
 # 构造与微瑞 feed 同构的 {"leagues": {league: [fixture_dict, ...]}}, 让 leagues/fixtures 两个端点无缝复用下游逻辑。
 _GQ_FB_CACHE = None
 _GQ_FB_TIME = 0
 def _gq_feed_fallback() -> Dict[str, Any]:
-    """带 60s 缓存的 GQ.db 兜底 feed。返回 {leagues:{...}} 或 {error, leagues:{}}。"""
+    """带 60s 缓存的 events.db 兜底 feed。返回 {leagues:{...}} 或 {error, leagues:{}}。"""
     global _GQ_FB_CACHE, _GQ_FB_TIME
     import time as _t
     now = _t.time()
@@ -3183,9 +5376,9 @@ def _gq_build_feed() -> Dict[str, Any]:
     import sqlite3
     import time as _t
     try:
-        db = os.path.join(PROJECT_ROOT, "data", "GQ.db")
+        db = os.path.join(PROJECT_ROOT, "data", "events.db")
         if not os.path.exists(db):
-            return {"error": "GQ.db 不存在", "leagues": {}}
+            return {"error": "events.db 不存在", "leagues": {}}
         c = sqlite3.connect(db); c.row_factory = sqlite3.Row
         rows = c.execute("""
             SELECT m.match_key, m.home, m.away, m.league, m.kickoff, m.status,
@@ -3295,19 +5488,24 @@ def _gq_build_feed() -> Dict[str, Any]:
             leagues.setdefault(lg, []).append(fx)
         c.close()
         if not leagues:
-            return {"error": "GQ.db 暂无比赛", "leagues": {}}
+            return {"error": "events.db 暂无比赛", "leagues": {}}
         return {"leagues": leagues}
     except Exception as e:
         return {"error": f"GQ 回退构建失败: {e}", "leagues": {}}
 
 def _attach_gq_1x2(fixtures: list) -> list:
-    """对缺 1X2 赔率的 fixture, 从 GQ.db odds_snapshots(market='1X2') 按最新快照补齐。"""
+    """对缺 1X2 赔率的 fixture, 从 events.db odds_snapshots(market='1X2') 按最新快照补齐。
+    兼容 match_key 或 mid 任一字段作为盘口关联键(防止调用方只填 mid 导致全盘口静默丢失)。"""
+    # 统一关联键: 优先 match_key, 回退 mid (live_scores 注入段曾只用 mid)
+    for f in fixtures:
+        if not f.get("match_key") and f.get("mid"):
+            f["match_key"] = f.get("mid")
     need = [f for f in fixtures if f.get("odds_h") in (None, "") and f.get("match_key")]
     if not need:
         return fixtures
     try:
         import sqlite3
-        db = os.path.join(PROJECT_ROOT, "data", "GQ.db")
+        db = os.path.join(PROJECT_ROOT, "data", "events.db")
         keys = [f["match_key"] for f in need]
         c = sqlite3.connect(db)
         q = (f"SELECT match_key, selection, odds FROM odds_snapshots "
@@ -3414,7 +5612,7 @@ def _norm_league(s):
     s = s.replace("联赛", "").replace("杯", "").replace("赛", "")
     return s.lower()
 def _gq_covered_leagues():
-    """返回 GQ.db 已采集(有赔率)的真实联赛归一化集合 (缓存 300s). 空=采集器未覆盖任何→安全返回空."""
+    """返回 events.db 已采集(有赔率)的真实联赛归一化集合 (缓存 300s). 空=采集器未覆盖任何→安全返回空."""
     global _GQ_COVERED_CACHE, _GQ_COVERED_TIME
     import time as _t
     now = _t.time()
@@ -3422,7 +5620,7 @@ def _gq_covered_leagues():
         return _GQ_COVERED_CACHE
     try:
         import sqlite3
-        c = sqlite3.connect(os.path.join(PROJECT_ROOT, "data", "GQ.db"))
+        c = sqlite3.connect(os.path.join(PROJECT_ROOT, "data", "events.db"))
         rows = c.execute("SELECT DISTINCT league FROM matches WHERE league NOT LIKE 'VS-%'").fetchall()
         s = set()
         for (lg,) in rows:
@@ -3492,13 +5690,13 @@ def _fixture_should_show(f):
 
 @app.get("/api/leagues")
 async def leagues_api(days: int = 7):
-    """联赛目录 (动态, 来自微瑞 live feed / GQ.db 回退; 按联赛名分组)。
+    """联赛目录 (动态, 来自微瑞 live feed / events.db 回退; 按联赛名分组)。
 
     days=N: 只保留近 N 天内有赛程的联赛, fixture_count 改为近 N 天的场数(0=全部).
     """
     feed = await _get_leisu_feed()
     if feed.get("error") or not feed.get("leagues"):
-        feed = _gq_feed_fallback()
+        feed = await asyncio.to_thread(_gq_feed_fallback)
     if feed.get("error"):
         return _wrap_data({"error": feed["error"], "categories": [], "total_leagues": 0})
     leagues = feed["leagues"]
@@ -3528,7 +5726,7 @@ async def leagues_api(days: int = 7):
         leagues = {n: fx for n, fx in filtered.items() if fx}  # 剔除近 N 天无场次的联赛
     entries = [
         {"sport_key": name, "name": name, "available": True, "fixture_count": len(fx)}
-        for name, fx in leagues.items()
+        for name, fx in leagues.items() if is_football(name)
     ]
     entries.sort(key=lambda e: -e["fixture_count"])
     categories = [{"category": "实时赛事", "leagues": entries}]
@@ -3628,7 +5826,7 @@ async def league_fixtures_api(sport_key: str):
     """
     feed = await _get_leisu_feed()
     if feed.get("error") or not feed.get("leagues"):
-        feed = _gq_feed_fallback()
+        feed = await asyncio.to_thread(_gq_feed_fallback)
     if feed.get("error"):
         return _wrap_data({"error": feed["error"], "fixtures": []})
     leagues = feed["leagues"]
@@ -3642,7 +5840,7 @@ async def league_fixtures_api(sport_key: str):
             if not mk: continue
             db_sh = f.get("score_home") if isinstance(f.get("score_home"), int) else 0
             db_sa = f.get("score_away") if isinstance(f.get("score_away"), int) else 0
-            drift_g = _gq_drift_infer_goals(mk, f.get("league"))
+            drift_g = await asyncio.to_thread(_gq_drift_infer_goals, mk, f.get("league"))
             if drift_g:
                 # 漂移推断只作「DB无真实比分(0-0)」时的兜底补充, 绝不覆盖已有真实分
                 if db_sh == 0 and db_sa == 0:
@@ -3659,9 +5857,9 @@ async def league_fixtures_api(sport_key: str):
         snap_info = _capture_initial_odds(f)
         enriched.append({**f, "_snapshot": snap_info})
         _auto_record_result(f)  # Req3: 静默自动记录 (仅结束态落盘)
-    # 仅显示应展示的比赛: 有赔率 或 已结束(封盘带赛果)。
+    # 仅显示应展示的比赛: 有赔率 / 已结束(封盘带赛果) / 未开赛(赛程页必须展示未来赛程)。
     # 失败开放: 若过滤后为空(该联赛全无赔率且无赛果)则保留全部, 防 UI 空白。
-    covered = [f for f in enriched if _fixture_should_show(f)]
+    covered = [f for f in enriched if _fixture_should_show(f) or f.get("match_state") in (0, "0")]
     if covered:
         out = covered
         hidden = len(enriched) - len(covered)
@@ -3693,11 +5891,11 @@ async def all_fixtures_api(days: int = 7):
     返回扁平 fixtures 数组(含 sport_key/league 标注), drift 仅在无真实分时兜底.
     """
     # SSoT 修正(2026-07-31): 旧逻辑 leisu OR GQ —— 当 leisu 返回部分脏数据(78 场无开赛时间)时,
-    # GQ.db 真实比赛的 172+ 场被整体丢弃 → 前端"赛事不全". 改为:
-    #   GQ.db 已采集比赛作基准全集(采集器持续写入, 覆盖全量真实在跑/将跑比赛)
+    # events.db 真实比赛的 172+ 场被整体丢弃 → 前端"赛事不全". 改为:
+    #   events.db 已采集比赛作基准全集(采集器持续写入, 覆盖全量真实在跑/将跑比赛)
     #   + 微瑞 leisu 实时 feed 叠加"进行中"的比分/分钟/状态(leisu 实时性更好)
     #   + 给基准补 1X2/AH/OU 赔率(否则前端永远不显示赔率、无法点分析)
-    gq_fb = _gq_feed_fallback()
+    gq_fb = await asyncio.to_thread(_gq_feed_fallback)
     gq_leagues = gq_fb.get("leagues", {}) if not gq_fb.get("error") else {}
     now = time.time()
     lo, hi = now - 1 * 86400, now + days * 86400
@@ -3724,7 +5922,7 @@ async def all_fixtures_api(days: int = 7):
             if _in_window(_ff.get("commence_time")):
                 gq_flat.append(_ff)
     if gq_flat:
-        gq_flat = _attach_gq_1x2(gq_flat)
+        gq_flat = await asyncio.to_thread(_attach_gq_1x2, gq_flat)
     base: Dict[str, dict] = {f"{f.get('home')}|{f.get('away')}": f for f in gq_flat}
     # 2) leisu 实时叠加 (失败/空则跳过, 不阻断基准)
     try:
@@ -3759,13 +5957,14 @@ async def all_fixtures_api(days: int = 7):
                 db_sh = f.get("score_home") if isinstance(f.get("score_home"), int) else 0
                 db_sa = f.get("score_away") if isinstance(f.get("score_away"), int) else 0
                 if db_sh == 0 and db_sa == 0:
-                    dg = _gq_drift_infer_goals(mk, f.get("league"))
+                    dg = await asyncio.to_thread(_gq_drift_infer_goals, mk, f.get("league"))
                     if dg:
                         f["score_home"], f["score_away"] = dg[0], dg[1]
                         f["score_inferred"] = True
             out.append(f)
         except Exception:
             continue
+    out = _filter_football_matches(out)
     return _wrap_data({"fixtures": out, "count": len(out), "days": days})
 
 
@@ -3953,15 +6152,17 @@ def _lookup_multibook_consensus(home: str, away: str):
 
 
 def _get_operator_signals(home: str, away: str,
-                          live_h: float = None, live_d: float = None, live_a: float = None):
-    """从 GQ.db 取开盘赔率 + live 赔率, 调用操盘手逆转模型输出信号。
+                          live_h: float = None, live_d: float = None, live_a: float = None,
+                          home_goals: int = None, away_goals: int = None, elapsed: int = None):
+    """从 events.db 取开盘赔率 + live 赔率, 调用操盘手逆转模型输出信号。
     若前端未传赔率 → None. 若无盘中开盘价 → 用 live 赔率做零漂移基准(仍输出模型分数).
+    home_goals/away_goals/elapsed: in-play 比分与分钟(可选), 传入后逆转信号按翻盘可行性缩放。
     """
     if not live_h or not live_d or not live_a:
         return None
     try:
         import sqlite3
-        db = os.path.join(PROJECT_ROOT, "data", "GQ.db")
+        db = os.path.join(PROJECT_ROOT, "data", "events.db")
         oh, od_d, oa = live_h, live_d, live_a  # 默认零漂移
         if os.path.exists(db):
             conn = sqlite3.connect(db); conn.row_factory = sqlite3.Row
@@ -3981,7 +6182,10 @@ def _get_operator_signals(home: str, away: str,
                 oh, od_d, oa = od_map['home'], od_map['draw'], od_map['away']
 
         from pipeline.operator_signals import operator_signal
-        return operator_signal(oh=oh, od=od_d, oa=oa, ch=live_h, cd=live_d, ca=live_a)
+        cur_score = f"{home_goals}-{away_goals}" if (home_goals is not None and away_goals is not None) else "0-0"
+        cur_min = int(elapsed) if elapsed is not None else 0
+        return operator_signal(oh=oh, od=od_d, oa=oa, ch=live_h, cd=live_d, ca=live_a,
+                               current_score=cur_score, current_minute=cur_min)
     except Exception:
         return None
 
@@ -4008,6 +6212,7 @@ async def get_snapshot_history(mid: str, limit: int = 20):
     return _wrap_data({"mid": mid, "snapshots": snaps, "count": len(snaps)})
 
 
+
 # ═══ 实时比分 ═══
 _GQ_OPENING_CACHE = {}
 
@@ -4017,7 +6222,7 @@ def _gq_opening_odds(match_keys):
     if missing:
         try:
             import sqlite3, os
-            db = os.path.join(PROJECT_ROOT, "data", "GQ.db")
+            db = os.path.join(PROJECT_ROOT, "data", "events.db")
             c = sqlite3.connect(db)
             q = ("SELECT s.match_key, s.selection, s.odds FROM odds_snapshots s "
                  "JOIN (SELECT match_key, MIN(captured_at) AS fc FROM odds_snapshots "
@@ -4054,7 +6259,7 @@ def _gq_best_ah_ou(match_keys):
     if missing:
         try:
             import sqlite3, os
-            db = os.path.join(PROJECT_ROOT, "data", "GQ.db")
+            db = os.path.join(PROJECT_ROOT, "data", "events.db")
             c = sqlite3.connect(db)
             q = ("SELECT match_key, market, selection, line, odds, captured_at "
                  "FROM odds_snapshots "
@@ -4135,7 +6340,7 @@ def _gq_drift_infer_goals(match_key, league=None):
         return None
     try:
         import sqlite3, os
-        db = os.path.join(PROJECT_ROOT, "data", "GQ.db")
+        db = os.path.join(PROJECT_ROOT, "data", "events.db")
         if not os.path.exists(db):
             return None
         c = sqlite3.connect(db); c.row_factory = sqlite3.Row
@@ -4178,31 +6383,39 @@ def _gq_drift_infer_goals(match_key, league=None):
 
 
 def _gq_live_scores(limit: int = 50):
-    """GQ.db 实时比赛回退 (leisu_live_scores 未采集时)。
+    """events.db 实时比赛回退 (leisu_live_scores 未采集时)。
 
     返回与 leisu get_live_matches 同构的列表, 供 LiveScores 前端消费。
     仅取 status='live' (进行中) 比赛; 无 AH/OU 盘口(line=None) 时前端显示 '——'。
     kickoff 转 ISO 供前端 stateOf 滞后兜底判定。
     附带 opening_h/d/a (初盘, 固定不变) + odds_h/d/a (滚动, 实时)。
-    比分优先用 GQ.db matches.score, 若 drift 强烈反向移动 → 推断有进球, 取 max(db, inferred).
+    比分优先用 events.db matches.score, 若 drift 强烈反向移动 → 推断有进球, 取 max(db, inferred).
     """
     try:
         import sqlite3, os
-        db = os.path.join(PROJECT_ROOT, "data", "GQ.db")
+        db = os.path.join(PROJECT_ROOT, "data", "events.db")
         if not os.path.exists(db):
             return []
         c = sqlite3.connect(db); c.row_factory = sqlite3.Row
         import time as _time
+        from datetime import datetime as _dt, timezone as _tz, timedelta as _td
         cutoff = _time.time() - 10800  # 修BUG#3: 4h→3h(含中场+补时+缓冲, 超过基本已结束)
+        # 修复: 纳入"实际已开赛但 status 仍=scheduled 滞后"的比赛(开赛 0~180min 窗口),
+        # 否则盘口快照已采到、前端却看不到这场新比赛(开赛前~10分钟不同步窗口, 用户报"盘口有新比赛但列表没有")。
+        # mststi 仍由下方 kickoff 时间逻辑动态判定(开赛未来→0 / >130min→-1 / 否则→1), 不硬编码。
+        _gmt8 = _dt.now(_tz(_td(hours=8)))
+        _now_iso = _gmt8.strftime('%Y-%m-%d %H:%M')   # kickoff 为 GMT+8 naive 分钟级字符串
+        _cut_ko = (_gmt8 - _td(minutes=180)).strftime('%Y-%m-%d %H:%M')
         rows = c.execute("""
             SELECT match_key, home, away, league, kickoff, status,
                    score_home, score_away, minute, mid, last_seen
             FROM matches
-            WHERE league NOT LIKE 'VS-%' AND status='live'
-              AND last_seen > ?
+            WHERE league NOT LIKE 'VS-%' AND last_seen > ?
+              AND (status = 'live'
+                   OR (status = 'scheduled' AND kickoff < ? AND kickoff >= ?))
             ORDER BY last_seen DESC
             LIMIT ?
-        """, (cutoff, max(int(limit), 300))).fetchall()
+        """, (cutoff, _now_iso, _cut_ko, max(int(limit), 300))).fetchall()
         keys = [r['match_key'] for r in rows]
         odds_map = {}
         if keys:
@@ -4315,11 +6528,73 @@ def _apply_drift_score(f: dict) -> bool:
     return False
 
 
+@app.get("/api/matches/state")
+async def matches_state_api(slim: int = 1, days: int = 7):
+    """WS1 统一比赛状态权威合并锚点.
+
+    修复(2026-08-13): 此前缺失此端点, 前端 api.ts getMatchStates 每5s 调它 → 404,
+    WS1 重合并层形同虚设, 前端只能靠 all-fixtures 自带 match_state 筛(僵尸场难剔除)。
+
+    逻辑: 取 days 窗口内全部比赛(与 /api/live-scores 同源: 雷速 feed + GQ fallback),
+    逐场用 pipeline.match_state.enrich_match_state 计算权威 match_state + _resolved_status,
+    返回精简锚点供前端 5s 轮询合并. 不注入比分/赔率(那是 live-scores 职责), 只给状态判定.
+    """
+    try:
+        from pipeline.match_state import enrich_match_state
+        now = datetime.now(timezone.utc)
+        feed = await _get_leisu_feed()
+        if feed.get("error") or not feed.get("leagues"):
+            feed = await asyncio.to_thread(_gq_feed_fallback)
+        if feed.get("error"):
+            return _wrap_data({"fixtures": [], "count": 0})
+        fixtures = []
+        cutoff = datetime.now() - timedelta(days=days)
+        for lg, fx_list in feed["leagues"].items():
+            for f in (fx_list if isinstance(fx_list, list) else []):
+                ko = f.get("commence_time") or f.get("kickoff")
+                if days and ko:
+                    try:
+                        ko_dt = datetime.fromisoformat(ko.replace("Z", "+00:00")).replace(tzinfo=None)
+                        if ko_dt < cutoff:
+                            continue
+                    except Exception:
+                        pass
+                en = enrich_match_state(f, now)
+                fixtures.append({
+                    "home": en.get("home"),
+                    "away": en.get("away"),
+                    "match_state": en.get("match_state"),
+                    "_resolved_status": en.get("_resolved_status"),
+                })
+        return _wrap_data({"fixtures": fixtures, "count": len(fixtures)})
+    except Exception as e:
+        return _wrap_error("matches_state_error", str(e), status=500)
+
+
+_LIVE_SCORES_RESULT_CACHE = {"fetched_at": 0.0, "data": None}
+_LIVE_SCORES_RESULT_LOCK = None
+
 @app.get("/api/live-scores")
 async def live_scores_api(limit: int = 5000):
+    """实时比分 (带 TTL=3s 单飞缓存, 根治并发打 7.9GB WAL 库退化导致的 30s 超时)。"""
+    global _LIVE_SCORES_RESULT_CACHE, _LIVE_SCORES_RESULT_LOCK
+    if _LIVE_SCORES_RESULT_LOCK is None:
+        _LIVE_SCORES_RESULT_LOCK = asyncio.Lock()
+    now = time.time()
+    if _LIVE_SCORES_RESULT_CACHE["data"] is not None and (now - _LIVE_SCORES_RESULT_CACHE["fetched_at"]) < 3.0:
+        return _LIVE_SCORES_RESULT_CACHE["data"]
+    async with _LIVE_SCORES_RESULT_LOCK:
+        if _LIVE_SCORES_RESULT_CACHE["data"] is not None and (now - _LIVE_SCORES_RESULT_CACHE["fetched_at"]) < 3.0:
+            return _LIVE_SCORES_RESULT_CACHE["data"]
+        result = await _live_scores_compute(limit)
+        _LIVE_SCORES_RESULT_CACHE = {"fetched_at": time.time(), "data": result}
+        return result
+
+
+async def _live_scores_compute(limit: int = 5000):
     """实时比分 (与 fixtures 端点同源: 雷速 feed + GQ drift 修正)。
 
-    早期版本回退 GQ.db status='live' (仅乐鱼覆盖的 ~50 场), 与主列表 fixtures(雷速 feed, ~360 场)
+    早期版本回退 events.db status='live' (仅乐鱼覆盖的 ~50 场), 与主列表 fixtures(雷速 feed, ~360 场)
     数据源/覆盖不一致 → 前端 5s 轮询按 home|away 匹配时仅 ~10% 命中, 其余进行中比赛比分停滞/缺失
     (即"前端比分没匹配好")。现统一为与 league_fixtures_api 完全相同的 feed 源 + drift 修正,
     使 key/覆盖/比分三者一致, 匹配率→~100%。
@@ -4327,7 +6602,7 @@ async def live_scores_api(limit: int = 5000):
     try:
         feed = await _get_leisu_feed()
         if feed.get("error") or not feed.get("leagues"):
-            feed = _gq_feed_fallback()
+            feed = await asyncio.to_thread(_gq_feed_fallback)
         if feed.get("error"):
             return _wrap_data({"matches": [], "count": 0})
         matches = []
@@ -4335,12 +6610,35 @@ async def live_scores_api(limit: int = 5000):
             for f in (fx_list if isinstance(fx_list, list) else []):
                 try:
                     ms = f.get("match_state")
-                    # 严格仅保留真正进行中: 整数且>0, 同时排除 bool(True)污染
-                    if not (isinstance(ms, int) and not isinstance(ms, bool) and ms > 0):
+                    # 仅保留真正进行中: match_state 1-5 (整数), 或 feed 状态落后但 minute>0
+                    minute = f.get("match_minute")
+                    minute_num = None
+                    if minute is not None and minute != "" and minute != "PA":
+                        try:
+                            minute_num = float(minute) if isinstance(minute, (int, float)) else float(str(minute))
+                        except (ValueError, TypeError):
+                            minute_num = None
+                    is_live = (isinstance(ms, int) and not isinstance(ms, bool) and 1 <= ms <= 5)
+                    # 兜底: state=0 但开赛已过 10-180min → 视为进行中 (前端 stateOf 同源)
+                    if not is_live:
+                        ko_str = f.get("commence_time") or f.get("kickoff") or ""
+                        if ko_str:
+                            try:
+                                ko_dt = datetime.fromisoformat(ko_str.replace("Z", "+00:00"))
+                                elapsed_min = (datetime.utcnow() - ko_dt.replace(tzinfo=None)).total_seconds() / 60
+                                # 修复: 兜底窗口下探到开赛即生效(0<el<180), 覆盖"刚开赛0~10min但feed状态滞后"的新比赛,
+                                # 否则前端看不到这场已在进行的新比赛(用户报"盘口有但列表没有")
+                                if 0 < elapsed_min < 180:
+                                    is_live = True
+                            except (ValueError, TypeError):
+                                pass
+                    # 排除已结束(-1)和异常(>=6)
+                    if not is_live or (isinstance(ms, int) and not isinstance(ms, bool) and (ms < 0 or ms >= 6)):
                         continue  # 仅进行中
-                    _apply_drift_score(f)
+                    await asyncio.to_thread(_apply_drift_score, f)
                     matches.append({
                         "mid": f.get("match_key") or f.get("id"),
+                        "match_key": f.get("match_key"),
                         "home": f.get("home"), "away": f.get("away"),
                         "league": f.get("league"),
                         "mststi": ms, "match_state": ms,
@@ -4361,7 +6659,121 @@ async def live_scores_api(limit: int = 5000):
                 except Exception:
                     continue
         # 有比分的排前面, 提升有效信息密度
+        # ── GQ 比分 merge: 根治实时比分滞后 (2026-08-26) ──
+        # 旧逻辑仅在 leisu 比分为 None 时兜底, 导致 leisu 180s 缓存里的陈旧比分
+        # 反被保留(主源滞后≈3分钟). 新逻辑: events.db 近期(<120s)有更新的同场,
+        # 其比分/分钟覆盖 leisu 陈旧值 → 重叠场滞后从 ≤180s 降到 GQ 自身 5-30s 粒度.
+        try:
+            import sqlite3 as _sq, time as _t
+            _now = _t.time()
+            _gq = _sq.connect(os.path.join(PROJECT_ROOT, "data", "events.db"))
+            _gq_rows = _gq.execute(
+                "SELECT home, away, score_home, score_away, minute, last_seen "
+                "FROM matches WHERE status='live' AND score_home IS NOT NULL"
+            ).fetchall()
+            _gq.close()
+            # 同 home|away 可能多行, 取 last_seen 最新的一行
+            _gq_map = {}
+            for r in _gq_rows:
+                k = f"{r[0]}|{r[1]}"
+                if k not in _gq_map or (r[5] or 0) > (_gq_map[k][5] or 0):
+                    _gq_map[k] = r
+            for _m in matches:
+                _key = f"{_m['home']}|{_m['away']}"
+                _g = _gq_map.get(_key)
+                if not _g:
+                    continue
+                _gq_age = _now - (float(_g[5]) if _g[5] else 0)
+                _gq_recent = _gq_age <= 120  # GQ 近期活跃 → 其比分比 180s leisu 缓存更可信
+                _gq_score = (_g[2], _g[3])
+                _gq_goals = (_g[2] or 0) + (_g[3] or 0)  # GQ 总进球数
+                _leisu_score = (_m.get("score_home"), _m.get("score_away"))
+                # 1) leisu 无比分 → 直接补 GQ (原兜底逻辑)
+                if _m.get("score_home") is None:
+                    _m["score_home"] = _g[2]
+                    _m["score_away"] = _g[3]
+                # 2) GQ 近期且自身记录到进球(goals>0)、与 leisu 分歧 → GQ 检测到 leisu 漏报的进球, 覆盖.
+                #    ⚠ 安全闸(防"假0-0"): GQ 的 0-0 绝不覆盖 leisu 的非零真实比分——
+                #    避免 GQ 比分解析滞后但时间戳新鲜时, 把 leisu 的 2-1 误改成 0-0 (绿色live标+全场00平局).
+                #    仅当 GQ 确实记录到进球(>0)才允许覆盖 leisu; 0-0 只作为 leisu 也为 0-0 时的共存值.
+                elif _gq_recent and _gq_goals > 0 and _gq_score != _leisu_score:
+                    _m["score_home"] = _g[2]
+                    _m["score_away"] = _g[3]
+                # 3) 分钟: leisu 为空且 GQ 近期有值 → 补权威分钟 (修复 leisu minute 不落地)
+                if not _m.get("match_minute") and _g[4] is not None and _g[4] != "" and _gq_recent:
+                    _m["match_minute"] = _g[4]
+        except Exception:
+            pass
         matches.sort(key=lambda m: ((m.get("score_home") or 0) + (m.get("score_away") or 0)), reverse=True)
+
+        # ── 直接注入 events.db 有比分的 live 比赛 (雷速 feed 和 GQ 覆盖不同联赛, 互相不重叠) ──
+        try:
+            import sqlite3 as _sq
+            _gqdb = os.path.join(PROJECT_ROOT, "data", "events.db")
+            if os.path.exists(_gqdb):
+                _gq = _sq.connect(_gqdb)
+                # 修复: 纳入"实际已开赛但 status 仍=scheduled 滞后"的比赛(开赛 0~180min, 盘口已采到),
+                # 否则 GQ 有盘口/前端却看不到这场新比赛(开赛前~10min不同步窗口, 用户报"盘口有新比赛但列表没有").
+                # mststi 在下方注入时硬编码 1 (进行中), 仅用于已确认开赛的比赛.
+                from datetime import datetime as _dt2, timezone as _tz2, timedelta as _td2
+                _g8 = _dt2.now(_tz2(_td2(hours=8)))
+                _now_iso = _g8.strftime('%Y-%m-%d %H:%M')
+                _cut_ko = (_g8 - _td2(minutes=180)).strftime('%Y-%m-%d %H:%M')
+                _gq_rows = _gq.execute(
+                    "SELECT match_key, home, away, league, score_home, score_away, minute, kickoff, last_seen"
+                    " FROM matches WHERE score_home IS NOT NULL AND last_seen > ?"
+                    " AND (status = 'live'"
+                    "      OR (status = 'scheduled' AND kickoff < ? AND kickoff >= ?))",
+                    (time.time() - 10800, _now_iso, _cut_ko)
+                ).fetchall()
+                _gq_keys = [r[0] for r in _gq_rows]
+                # 当前 1X2 赔率: 取 odds_snapshots 最新一条(与 _gq_live_scores 同口径),
+                # 修复"前端有比赛却无盘口"导致 盘口比赛数目≠前端比赛数目 的不匹配
+                _odds_map = {}
+                if _gq_keys:
+                    _od = _gq.execute(
+                        "SELECT match_key, selection, odds FROM odds_snapshots "
+                        "WHERE match_key IN (%s) AND market='1X2'" % ','.join('?' * len(_gq_keys)), _gq_keys
+                    ).fetchall()
+                    for _mk, _sel, _o in _od:
+                        _odds_map.setdefault(_mk, {})[_sel] = _o
+                _gq.close()
+                # 初盘 + AH/OU 用既有缓存辅助函数(各自开连接), 与 _gq_live_scores 一致
+                _opening_map = _gq_opening_odds(_gq_keys)
+                _ah_ou_map = _gq_best_ah_ou(_gq_keys)
+                _existing = {f"{m['home']}|{m['away']}" for m in matches}
+                for _r in _gq_rows:
+                    _home, _away = _r[1], _r[2]
+                    if f"{_home}|{_away}" in _existing:
+                        continue
+                    _mk = _r[0]
+                    _om = _odds_map.get(_mk, {})
+                    _op = _opening_map.get(_mk)
+                    _ao = _ah_ou_map.get(_mk) or {}
+                    matches.append({
+                        "mid": _mk, "match_key": _mk, "home": _home, "away": _away, "league": _r[3],
+                        "mststi": 1, "match_state": 1,
+                        "score_home": _r[4], "score_away": _r[5],
+                        "score_inferred": False, "match_minute": str(_r[6] or ""),
+                        "mlet": None, "events": [], "snapshot_at": time.time(), "is_live": True,
+                        "odds_h": _om.get("home"), "odds_d": _om.get("draw"), "odds_a": _om.get("away"),
+                        "opening_h": (_op or {}).get("h"), "opening_d": (_op or {}).get("d"), "opening_a": (_op or {}).get("a"),
+                        "ah_line": _ao.get("ah_line"), "ah_home": _ao.get("ah_home"), "ah_away": _ao.get("ah_away"),
+                        "ou_line": _ao.get("ou_line"), "ou_over": _ao.get("ou_over"), "ou_under": _ao.get("ou_under"),
+                        "ah_op_home": _ao.get("ah_op_home"), "ah_op_away": _ao.get("ah_op_away"),
+                        "ou_op_over": _ao.get("ou_op_over"), "ou_op_under": _ao.get("ou_op_under"),
+                        "commence_time": _r[7],
+                    })
+        except Exception:
+            pass
+        # 关键修复(2026-08-15): 回退 feed(乐鱼/GQ) 的 fixture 本身不含盘口字段,
+        # 统一从 odds_snapshots 补齐 1X2 当前/初盘 + AH/OU, 否则"前端有比赛却无盘口"
+        # → 盘口比赛数目(带赔率) ≠ 前端比赛数目(展示场次) 的不匹配。
+        try:
+            _attach_gq_1x2(matches)
+        except Exception:
+            pass
+        matches = _filter_football_matches(matches)
         if limit and len(matches) > limit:
             matches = matches[:limit]
         return _wrap_data({"matches": matches, "count": len(matches)})
@@ -4371,10 +6783,35 @@ async def live_scores_api(limit: int = 5000):
 
 @app.get("/api/live-score/{mid}")
 async def live_score_history_api(mid: str, limit: int = 60):
-    """某 mid 的比分时序 (快照历史)。"""
+    """某 mid 的比分时序 (快照历史)。
+    2026-08-27: 雷速已删, 改查 events.db.odds_snapshots(score_at/minute_at 秒级落库)."""
     try:
-        from pipeline.leisu_live_scores import get_match_score_history
-        history = get_match_score_history(mid, limit=limit)
+        import sqlite3 as _sq
+        db = os.path.join(PROJECT_ROOT, "data", "events.db")
+        c = _sq.connect(db)
+        mk_row = c.execute("SELECT match_key FROM matches WHERE mid=?", (mid,)).fetchone()
+        if not mk_row or not mk_row[0]:
+            c.close()
+            return _wrap_data({"mid": mid, "history": [], "count": 0})
+        rows = c.execute("""
+            SELECT captured_at, score_at, minute_at FROM odds_snapshots
+            WHERE match_key=? AND score_at IS NOT NULL AND score_at != ''
+            ORDER BY captured_at DESC LIMIT ?
+        """, (mk_row[0], limit)).fetchall()
+        c.close()
+        history = []
+        for ts, sa, ma in rows:
+            sh = sa_ = None
+            if sa and "-" in sa:
+                parts = sa.split("-")
+                try:
+                    sh, sa_ = int(parts[0]), int(parts[1])
+                except (ValueError, IndexError):
+                    continue
+            history.append({
+                "ts": ts, "score_home": sh, "score_away": sa_,
+                "match_minute": ma, "mststi": None,
+            })
         return _wrap_data({"mid": mid, "history": history, "count": len(history)})
     except Exception as e:
         return _wrap_data({"error": str(e), "history": [], "count": 0})
@@ -4387,12 +6824,9 @@ LIVE_UPDATE_TTL = float(os.getenv("LEISU_LIVE_UPDATE_TTL", "5"))
 
 
 async def _get_leisu_feed_fresh():
-    """强制重新 build feed (绕开 60s cache), 给 live-update 用。"""
-    from pipeline.collectors import leisu_live
-    leisu_live._CACHED_FEED = None
-    leisu_live._CACHE_TIME = 0
-    from pipeline.collectors.leisu_live import build_feed
-    return await asyncio.to_thread(build_feed)
+    """强制重新构建 feed (绕开 60s cache), 给 live-update 用。
+    2026-08-27: 雷速已删, 直接重建 events.db feed."""
+    return await asyncio.to_thread(_gq_build_feed)
 
 
 @app.get("/api/live-update/{mid}")
@@ -4773,75 +7207,16 @@ async def terminal_matches_api():
         return _wrap_data({"error": f"获取失败: {e}", "matches": [], "total": 0})
 
 
-# ═══════════════════════════════════════════════
-# 量化模拟系统 (演示, 不依赖 DB/模型)
-# ═══════════════════════════════════════════════
-class QuantDemoStepRequest(BaseModel):
-    mode: str = "sim"          # sim=模拟盘自动结算; live=仅生成待确认订单
-
-
-class QuantDemoConfirmRequest(BaseModel):
-    oid: str
-
-
-@app.get("/api/quant-demo/status")
-async def quant_demo_status():
-    """演示系统全量状态快照 (账户/曲线/策略/待确认/持仓)."""
-    from quant_demo.engine import get_engine
-    return _wrap_data(get_engine().snapshot())
-
-
-@app.post("/api/quant-demo/step")
-async def quant_demo_step(req: QuantDemoStepRequest):
-    """跑下一场比赛: 生成多策略信号 + pending 订单."""
-    from quant_demo.engine import get_engine
-    return _wrap_data(get_engine().step(mode=req.mode))
-
-
-@app.post("/api/quant-demo/auto-sim")
-async def quant_demo_auto_sim():
-    """自动模拟整批 (演示自动操作闭环)."""
-    from quant_demo.engine import get_engine
-    return _wrap_data(get_engine().auto_sim())
-
-
-@app.post("/api/quant-demo/confirm-all")
-async def quant_demo_confirm_all():
-    """一键确认全部 pending 订单 (模拟盘结算)."""
-    from quant_demo.engine import get_engine
-    return _wrap_data(get_engine().confirm_all())
-
-
-@app.post("/api/quant-demo/confirm-one")
-async def quant_demo_confirm_one(req: QuantDemoConfirmRequest):
-    """确认单笔 pending 订单."""
-    from quant_demo.engine import get_engine
-    return _wrap_data(get_engine().confirm_one(req.oid))
-
-
-@app.post("/api/quant-demo/toggle")
-async def quant_demo_toggle(req: StrategyToggleRequest):
-    """启用/停用策略."""
-    from quant_demo.engine import get_engine
-    return _wrap_data(get_engine().toggle_strategy(req.strategy_id, req.enabled))
-
-
-@app.post("/api/quant-demo/reset")
-async def quant_demo_reset():
-    """重置演示账户."""
-    from quant_demo.engine import get_engine
-    return _wrap_data(get_engine().reset())
-
 
 def _gq_lookup_1x2(home: str, away: str):
-    """GQ.db 按 home/away 查 1X2 最新盘口 (obscure 联赛的主数据源)。
+    """events.db 按 home/away 查 1X2 最新盘口 (obscure 联赛的主数据源)。
 
     返回 {"h":float,"d":float,"a":float,"league":str} 或 None。
     仅当三方盘口齐全且为正时才返回, 否则 None(交给上层其他回退)。
     """
     try:
         import sqlite3, os
-        db = os.path.join(PROJECT_ROOT, "data", "GQ.db")
+        db = os.path.join(PROJECT_ROOT, "data", "events.db")
         if not os.path.exists(db):
             return None
         c = sqlite3.connect(db)
@@ -4869,13 +7244,17 @@ def _gq_lookup_1x2(home: str, away: str):
         return None
 
 
+# 操盘手结论蒸馏层 (2026-08-22): 把 _live_predict 巨响应压成一行结论 + 三层支撑
+from pipeline.operator_output import distill_operator_card as _distill_operator_card
+
+
 @app.post("/api/terminal/analyze")
 async def terminal_analyze_api(req: TerminalAnalyzeRequest):
     """赛事分析 — 直接用盘口赔率(与赛事列表同源), 不调 The Odds API.
 
     赔率来源优先级:
       1. 前端直接传入 (odds_h/d/a, 点击卡片时带, 零查询零延迟)
-      2. GQ.db 按 home/away 查 1X2 (obscure 联赛主源, 覆盖 list 未带赔率的场)
+      2. events.db 按 home/away 查 1X2 (obscure 联赛主源, 覆盖 list 未带赔率的场)
       3. live_odds_raw 表模糊匹配 (按 home/away 查最近一条多庄记录, 主流联赛)
     完全去掉 The Odds API 调用 — 赛事列表有什么赔率, 分析就用什么.
     """
@@ -4888,12 +7267,12 @@ async def terminal_analyze_api(req: TerminalAnalyzeRequest):
 
         if not (oh and od and oa and oh > 0 and od > 0 and oa > 0):
             # 前端未传赔率 → 回退链:
-            #   (a) GQ.db 按 home/away 查 1X2 (obscure 联赛主源, 覆盖 list 未带赔率的场)
+            #   (a) events.db 按 home/away 查 1X2 (obscure 联赛主源, 覆盖 list 未带赔率的场)
             #   (b) live_odds_raw 模糊匹配最近一条多庄记录 (主流联赛)
             gq = _gq_lookup_1x2(req.home, req.away)
             if gq:
                 oh, od, oa = gq["h"], gq["d"], gq["a"]
-                # GQ 单庄 → 无 cross-book, extra_books 留 None (诚实: 单庄无 edge)
+                # GQ 单源 → 无 cross-book, extra_books 留 None (需跨庄验证edge才接盘)
                 if gq.get("league"):
                     league_name = gq["league"]
             else:
@@ -5003,6 +7382,7 @@ async def terminal_analyze_api(req: TerminalAnalyzeRequest):
             "books_count": vl.get("books_count", 0),
             "draw_alert": result.get("draw_signal", {}).get("draw_alert"),
             "operator_view": result.get("operator_view"),
+            "operator_card": _distill_operator_card(result),  # 2026-08-22 新增: 一行结论蒸馏层(治"分析太复杂/操盘手识别不了")
             "oip": result.get("oip"),
             "sub_markets": result.get("sub_markets"),
             "inplay": result.get("inplay"),  # In-play 条件概率信息
@@ -5012,7 +7392,8 @@ async def terminal_analyze_api(req: TerminalAnalyzeRequest):
             "strategy_tier": result.get("strategy_tier"),         # 信号溯源标签: obscure/main/cup
             "cs_drift_signal": (result.get("oip") or {}).get("cs_drift_signal"),  # 顺人性盘读数(初盘→中场收盘 drift, 全联赛纯赔率信号)
             "multibook_consensus": _lookup_multibook_consensus(req.home, req.away),  # 多庄 sharp/retail 共识(leisu 数据可用时)
-            "operator_signals": _get_operator_signals(req.home, req.away, req.odds_h, req.odds_d, req.odds_a),  # 操盘手逆转信号
+            "operator_signals": _get_operator_signals(req.home, req.away, req.odds_h, req.odds_d, req.odds_a,
+                                                       home_goals=req.home_goals, away_goals=req.away_goals, elapsed=req.elapsed),  # 操盘手逆转信号(已按比分条件化)
         }
         safe_card = _json_safe(card)
         return _wrap_data(safe_card)
@@ -5218,173 +7599,116 @@ async def history_snapshot_api(payload: dict):
         return {"error": str(e)}
 
 
-# ═══ SPA fallback — 必须注册在所有显式路由之后 ═══
+# ═══ 多盘口综合历史匹配 (Multi-Market Matcher) ═══
+@app.get("/api/multi-market-match")
+async def multi_market_match_api(
+    h: float, d: float, a: float,
+    ah_line: float | None = None, ah_h: float | None = None, ah_a: float | None = None,
+    ou_line: float | None = None, ou_over: float | None = None, ou_under: float | None = None,
+    top_k: int = 50,
+):
+    """综合 1X2+AH+OU+CS 加权历史匹配。
 
-
-# ════════════════════════════════════════════════════════════════════
-# 量化自动投注模拟系统 — /api/quant/*
-# 委托给 quant_engine.get_engine() 单例 (内存态, 不落 DB)
-# ════════════════════════════════════════════════════════════════════
-try:
-    from quant_engine import get_engine as _get_quant_engine
-    from quant_engine.market_feeder import parse_single_match as _parse_single
-    _QUANT_OK = True
-except Exception as _qe:
-    _QUANT_OK = False
-    logger.warning(f"quant_engine 未就绪: {_qe}")
-
-
-_PORTFOLIO_JSON = os.path.join(PROJECT_ROOT, "data", "portfolio_metrics.json")
-
-
-@app.get("/api/portfolio")
-async def portfolio_api():
-    """返回 portfolio_manager 的完整快照 (资金曲线+持仓+绩效指标).
-
-    由 python scripts/live_pilot_guardian.py --portfolio 生成.
+    返回:
+      - results: top-K MatchResult 列表
+      - aggregate: OutcomeAggregate (H/D/A实际率 / ROI / OU / AH方向)
+      - corpus_stats: 语料统计
     """
-    try:
-        if not os.path.exists(_PORTFOLIO_JSON):
-            return {"error": "未运行过 portfolio 回测. 执行: python scripts/live_pilot_guardian.py --portfolio", "available": False}
-        # 尝试多种编码 (Windows中文系统默认GBK, Linux默认UTF-8)
-        for enc in ("utf-8", "gbk", "utf-8-sig"):
-            try:
-                with open(_PORTFOLIO_JSON, "r", encoding=enc) as f:
-                    return json.load(f)
-            except (UnicodeDecodeError, json.JSONDecodeError):
-                continue
-        raise ValueError(f"无法解码 {_PORTFOLIO_JSON}, 尝试了 utf-8/gbk")
-    except Exception as e:
-        raise HTTPException(500, f"读取 portfolio_metrics.json 失败: {e}")
+    import json as _json
+    from pipeline.multi_market_match import (
+        MatchTarget, query_similar, aggregate_outcomes, load_full_corpus, corpus_stats, _sanitize,
+    )
+    df = load_full_corpus()
+    st = corpus_stats(df)
+
+    # 尝试从CS real-time 快照中取 top-3 CS
+    cs_scores, cs_odds = [], []
+    if ah_line is not None:
+        import sqlite3
+        try:
+            c = sqlite3.connect(os.path.join(PROJECT_ROOT, "data", "events.db"))
+            cs_rows = c.execute(
+                "SELECT selection, odds FROM odds_snapshots WHERE market='CS' AND odds > 2.0 "
+                "ORDER BY captured_at DESC LIMIT 10"
+            ).fetchall()
+            c.close()
+            cs_scores, cs_odds = [r[0] for r in cs_rows[:3]], [r[1] for r in cs_rows[:3]]
+        except Exception:
+            pass
+
+    target = MatchTarget(
+        h_1x2=h, d_1x2=d, a_1x2=a,
+        ah_line=ah_line, ah_h=ah_h, ah_a=ah_a,
+        ou_line=ou_line, ou_over=ou_over, ou_under=ou_under,
+        cs_top3_scores=cs_scores, cs_top3_odds=cs_odds,
+    )
+    results = query_similar(target, df=df, top_k=top_k)
+    agg = aggregate_outcomes(results, target)
+
+    return _json.loads(_json.dumps(_sanitize({
+        "corpus": {"n_total": st.n_total, "n_4market": st.n_4market,
+                   "n_ah": st.n_ah_present, "n_cs": st.n_cs_present,
+                   "top_leagues": st.leagues},
+        "target": {"h": h, "d": d, "a": a, "ah_line": ah_line, "ou_line": ou_line},
+        "n_matched": len(results),
+        "results": [r.__dict__ for r in results[:10]],  # 只返回前10详细
+        "aggregate": {
+            "n_matched": agg.n_matched, "avg_dist": agg.avg_total_dist,
+            "h_rate": agg.h_rate, "d_rate": agg.d_rate, "a_rate": agg.a_rate,
+            "imp_h": agg.imp_h, "imp_d": agg.imp_d, "imp_a": agg.imp_a,
+            "roi_h": agg.roi_h, "roi_d": agg.roi_d, "roi_a": agg.roi_a,
+            "ou_over_rate": agg.ou_over_rate, "ah_home_win_rate": agg.ah_home_win_rate,
+            "top_leagues": agg.top_leagues,
+            "detail_rows": agg.detail_rows,
+        },
+    })))
 
 
-@app.get("/api/quant/snapshot")
-async def quant_snapshot_api():
-    """账户 + 资金曲线 + 持仓 + 待确认 + 信号流 + 策略 (前端主数据源)."""
-    if not _QUANT_OK:
-        raise HTTPException(500, "quant_engine 未就绪")
-    return _wrap_data(_get_quant_engine().get_snapshot())
-
-
-@app.post("/api/quant/scan/auto")
-async def quant_scan_auto_api(req: Request):
-    """启动/停止自动扫描, 或手动跑一个周期. action: cycle/on/off."""
-    if not _QUANT_OK:
-        raise HTTPException(500, "quant_engine 未就绪")
-    body = await req.json() if req.headers.get("content-type", "").startswith("application/json") else {}
-    action = body.get("action", "cycle")
-    eng = _get_quant_engine()
-    if action == "on":
-        eng.auto_mode = True
-        return _wrap_data({"ok": True, "auto_mode": True})
-    if action == "off":
-        eng.auto_mode = False
-        return _wrap_data({"ok": True, "auto_mode": False})
-    limit = int(body.get("limit", 20))
-    mode = body.get("mode", "sim")
-    return _wrap_data(eng.run_scan_cycle(limit=limit, mode=mode))
-
-
-@app.post("/api/quant/scan/step")
-async def quant_scan_step_api(req: Request):
-    """手动跑一个扫描周期."""
-    if not _QUANT_OK:
-        raise HTTPException(500, "quant_engine 未就绪")
-    body = await req.json() if req.headers.get("content-type", "").startswith("application/json") else {}
-    limit = int(body.get("limit", 20))
-    return _wrap_data(_get_quant_engine().run_scan_cycle(limit=limit))
-
-
-@app.post("/api/quant/scan/single")
-async def quant_scan_single_api(req: Request):
-    """手动输入单场赔率 → 全市场价值扫描 (对应图片场景).
-
-    Body: {home, away, h, d, a, league?, score_odds?, total_goals_odds?,
-            handicap_odds?, ou_odds?}
-    """
-    if not _QUANT_OK:
-        raise HTTPException(500, "quant_engine 未就绪")
-    body = await req.json()
-    try:
-        m = _parse_single(
-            home=body["home"], away=body["away"],
-            h=float(body["h"]), d=float(body["d"]), a=float(body["a"]),
-            league=body.get("league", ""),
-            score_odds=body.get("score_odds"),
-            total_goals_odds=body.get("total_goals_odds"),
-            handicap_odds=body.get("handicap_odds"),
-            ou_odds=body.get("ou_odds"),
-        )
-    except (KeyError, ValueError, TypeError) as ex:
-        raise HTTPException(400, f"参数错误: {ex}")
-    return _wrap_data(_get_quant_engine().analyze_single(m))
-
-
-@app.post("/api/quant/history/replay")
-async def quant_history_replay_api(req: Request):
-    """历史回放 — 用真实可结算数据重放 → 资金曲线."""
-    if not _QUANT_OK:
-        raise HTTPException(500, "quant_engine 未就绪")
-    body = await req.json() if req.headers.get("content-type", "").startswith("application/json") else {}
-    n = int(body.get("n_matches", 100))
-    return _wrap_data(_get_quant_engine().simulate_history(n_matches=n))
-
-
-@app.post("/api/quant/order/confirm-all")
-async def quant_order_confirm_all_api():
-    """一键确认全部待结算订单."""
-    if not _QUANT_OK:
-        raise HTTPException(500, "quant_engine 未就绪")
-    eng = _get_quant_engine()
-    settled = []
-    for o in list(eng.pending):
-        r = eng.confirm_order(o.oid)
-        if r.get("ok"):
-            settled.append(r["order"])
-    return _wrap_data({"ok": True, "settled": settled, "account": eng.pf.stats()})
-
-
-class QuantConfirmRequest(BaseModel):
-    oid: str = Field(..., min_length=1)
-    actual: str = "D"
-
-
-@app.post("/api/quant/order/confirm")
-async def quant_order_confirm_api(request: Request):
-    """确认单笔订单 (live 模式人工闸). body: {oid, actual?}."""
-    if not _QUANT_OK:
-        raise HTTPException(500, "quant_engine 未就绪")
+# ═══ 乐鱼实时价值投注信号 (LIVE 落地) ═══
+# 2026-08-12 反推复盘: 此前该端点从未注册 handler → 前端 POST 命中 SPA GET-only 兜底 → 405,
+# 导致全链路 PASS 实为工程故障. 补齐 POST handler 让信号跑通.
+@app.post("/api/leyu/value-signal")
+async def leyu_value_signal_api(request: Request):
+    """乐鱼实时价值投注信号. evaluate 如实 PASS(分歧≈0时), 不再 405."""
     try:
         body = await request.json()
     except Exception:
-        return _wrap_error("invalid_json", "请求体不是合法 JSON", status=400)
+        body = {}
+    home = body.get("home", "")
+    away = body.get("away", "")
+    oh = body.get("odds_h"); od = body.get("odds_d"); oa = body.get("odds_a")
+    league = body.get("league", "")
+    ah_line = body.get("ah_line"); ah_home = body.get("ah_home"); ah_away = body.get("ah_away")
+    ou_line = body.get("ou_line"); ou_over = body.get("ou_over")
+    use_sharp = bool(body.get("use_sharp", False))
+    if not (home and away and oh and od and oa):
+        return {"decision": "PASS", "reason": "missing odds/home/away", "signals": []}
+    from pipeline.leyu_value_signal import evaluate
+    import asyncio
     try:
-        req = QuantConfirmRequest(**body)
-    except ValidationError as e:
-        return _wrap_error("validation_error", "参数校验失败", details=e.errors(), status=422)
-    return _wrap_data(_get_quant_engine().confirm_order(req.oid, req.actual))
+        res = await asyncio.to_thread(
+            evaluate, home, away, float(oh), float(od), float(oa),
+            league=league, ah_line=ah_line, ah_home=ah_home, ah_away=ah_away,
+            ou_line=ou_line, ou_over=ou_over, use_sharp=use_sharp)
+    except Exception as _e:
+        return {"decision": "ERROR", "reason": str(_e), "signals": []}
+    return res
 
 
-@app.post("/api/quant/strategy/toggle")
-async def quant_strategy_toggle_api(req: Request):
-    """切换策略开关. body: {strategy_id, enabled}."""
-    if not _QUANT_OK:
-        raise HTTPException(500, "quant_engine 未就绪")
-    body = await req.json() if req.headers.get("content-type", "").startswith("application/json") else {}
-    sid = body.get("strategy_id", "")
-    enabled = bool(body.get("enabled", True))
-    return _wrap_data(_get_quant_engine().toggle_strategy(sid, enabled))
+# ═══ 自主巡航 Agent 告警 — 前端轮询展示(最新在前) ═══
+@app.get("/api/agent/alerts")
+async def agent_alerts_api(limit: int = 50):
+    """返回最近 N 条 Agent 告警(内存队列, Agent 后台循环产生)。"""
+    try:
+        from agent_cruise import get_recent_alerts
+        alerts = get_recent_alerts(limit)
+        return _wrap_data({"alerts": alerts, "count": len(alerts)})
+    except Exception as e:
+        return _wrap_data({"alerts": [], "count": 0, "error": str(e)})
 
 
-@app.post("/api/quant/reset")
-async def quant_reset_api(req: Request):
-    """重置账户."""
-    if not _QUANT_OK:
-        raise HTTPException(500, "quant_engine 未就绪")
-    body = await req.json() if req.headers.get("content-type", "").startswith("application/json") else {}
-    bankroll = float(body.get("bankroll", 0)) if body.get("bankroll") else None
-    _get_quant_engine().reset(init_bankroll=bankroll)
-    return _wrap_data({"ok": True, "snapshot": _get_quant_engine().get_snapshot()})
+# ═══ SPA fallback — 必须注册在所有显式路由之后 ═══
+
 
 
 if os.path.exists(FRONTEND_DIR):
@@ -5393,12 +7717,6 @@ if os.path.exists(FRONTEND_DIR):
         """SPA fallback — 仅对前端路由返回 index.html; API/WS 未匹配返回 404 JSON 防前端白屏"""
         if full_path.startswith(("api/", "ws/", "docs", "openapi.json", "redoc")):
             raise HTTPException(status_code=404, detail=f"未找到 API 路径: /{full_path}")
-        # 量化终端独立页面
-        if full_path == "quant_terminal.html" or full_path == "quant":
-            from fastapi.responses import FileResponse
-            qt = os.path.join(FRONTEND_DIR, "quant_terminal.html")
-            if os.path.exists(qt):
-                return FileResponse(qt, headers={"Cache-Control": "no-cache"})
         index_path = os.path.join(FRONTEND_DIR, "index.html")
         if os.path.exists(index_path):
             from fastapi.responses import FileResponse

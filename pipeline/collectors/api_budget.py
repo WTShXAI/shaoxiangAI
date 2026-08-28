@@ -277,8 +277,161 @@ class ApiBudgetGuard:
             pass
 
 
+# ── 自适应预算调度 ──
+
+# 核心联赛 sport_key (12个, 与 config/api_budget.yaml adaptive.core_league_keys 同步)
+CORE_LEAGUE_KEYS = frozenset([
+    "soccer_epl",
+    "soccer_spain_la_liga",
+    "soccer_italy_serie_a",
+    "soccer_germany_bundesliga",
+    "soccer_france_ligue_one",
+    "soccer_efl_champ",
+    "soccer_england_league1",
+    "soccer_england_league2",
+    "soccer_germany_bundesliga2",
+    "soccer_france_ligue_two",
+    "soccer_portugal_primeira_liga",
+    "soccer_netherlands_eredivisie",
+    "soccer_scotland_premiership",
+])
+
+
+class AdaptiveBudgetScheduler:
+    """自适应 API 预算调度器
+
+    核心逻辑:
+      1. 核心联赛（5大+英冠英甲乙+德乙+法乙+葡超+荷甲+苏超=12个）缓存4小时
+      2. 全量联赛每天凌晨拉一次 (1次/天)
+      3. 开赛前24h加密: 任何比赛开赛前24h内，缓存降低到1小时
+      4. 月末保护: 每月25号后检查剩余额度，若<100则全量降级为每12小时
+      5. 熔断: 日消耗达250次时自动暂停，次日恢复
+
+    接口:
+      schedule_next_fetch(league_key, kickoff_time) → 返回建议的缓存TTL秒数
+    """
+
+    def __init__(self, guard: Optional[ApiBudgetGuard] = None):
+        self._guard = guard or get_guard()
+        cfg = _load_config()
+        adp = cfg.get("adaptive", {})
+        self.core_ttl = int(adp.get("core_league_ttl", 14400))
+        self.prematch_ttl = int(adp.get("prematch_ttl", 3600))
+        self.full_scan_hour = int(adp.get("full_scan_utc_hour", 3))
+        self.eom_day = int(adp.get("eom_protection_day", 25))
+        self.eom_remaining = int(adp.get("eom_remaining_threshold", 100))
+        self.eom_ttl = int(adp.get("eom_degraded_ttl", 43200))
+        self.cb_limit = int(adp.get("circuit_breaker_limit", 250))
+        self.cb_ttl = int(adp.get("circuit_breaker_ttl", 86400))
+        # 可用配置覆盖核心联赛列表
+        yml_keys = adp.get("core_league_keys")
+        if yml_keys and isinstance(yml_keys, list):
+            self._core_keys = frozenset(yml_keys)
+        else:
+            self._core_keys = CORE_LEAGUE_KEYS
+
+    @property
+    def core_league_keys(self) -> frozenset:
+        return self._core_keys
+
+    def is_core_league(self, league_key: str) -> bool:
+        return league_key in self._core_keys
+
+    def schedule_next_fetch(self, league_key: str,
+                            kickoff_time=None) -> int:
+        """返回建议的缓存 TTL 秒数, 调用方以此决定下次何时刷新。
+
+        Args:
+            league_key: sport_key (e.g. "soccer_epl")
+            kickoff_time: datetime 或 ISO 字符串, 可选
+
+        Returns:
+            int: 建议缓存 TTL 秒数
+        """
+        # 1) 熔断: 日消耗达上限 → 暂停
+        daily_used = self._guard.daily_used()
+        if daily_used >= self.cb_limit:
+            logger.warning(
+                f"[AdaptiveScheduler] 熔断触发: 日消耗 {daily_used}/{self.cb_limit}, "
+                f"所有拉取暂停至次日")
+            return self.cb_ttl
+
+        # 2) 月末保护
+        now_utc = datetime.now(timezone.utc)
+        remaining = self._guard.peek_remaining()
+        if (now_utc.day >= self.eom_day
+                and remaining is not None
+                and remaining < self.eom_remaining):
+            logger.info(
+                f"[AdaptiveScheduler] 月末保护: D{now_utc.day}, "
+                f"剩余 {remaining} < {self.eom_remaining}, "
+                f"全量降级为 {self.eom_ttl // 3600}h")
+            return self.eom_ttl
+
+        # 3) 开赛前24h内 → 1h (优先级高于核心联赛)
+        if kickoff_time is not None:
+            ko_dt = self._parse_kickoff(kickoff_time)
+            if ko_dt is not None:
+                hours_to_ko = (ko_dt - now_utc).total_seconds() / 3600
+                if 0 < hours_to_ko <= 24:
+                    return self.prematch_ttl
+
+        # 4) 核心联赛 → 4h
+        if league_key in self._core_keys:
+            return self.core_ttl
+
+        # 5) 非核心联赛: 每日定时全量扫 (默认 UTC 3:00)
+        scan_hour = self.full_scan_hour
+        next_scan = now_utc.replace(hour=scan_hour, minute=0, second=0, microsecond=0)
+        if now_utc.hour >= scan_hour:
+            from datetime import timedelta
+            next_scan += timedelta(days=1)
+        return max(3600, int((next_scan - now_utc).total_seconds()))
+
+    def _parse_kickoff(self, ko):
+        """解析开赛时间为 timezone-aware UTC datetime。"""
+        if isinstance(ko, datetime):
+            if ko.tzinfo is None:
+                return ko.replace(tzinfo=timezone.utc)
+            return ko.astimezone(timezone.utc)
+        try:
+            s = str(ko).replace("Z", "+00:00")
+            if "T" in s:
+                return datetime.fromisoformat(s).astimezone(timezone.utc)
+            return datetime.strptime(
+                s[:19], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        except Exception:
+            return None
+
+    def status(self) -> Dict[str, Any]:
+        """返回调度器状态快照。"""
+        used = self._guard.daily_used()
+        rem = self._guard.peek_remaining()
+        now = datetime.now(timezone.utc)
+        eom_active = (
+            now.day >= self.eom_day
+            and rem is not None
+            and rem < self.eom_remaining
+        )
+        return {
+            "daily_used": used,
+            "daily_cap": self._guard.daily_cap,
+            "circuit_breaker_hit": used >= self.cb_limit,
+            "circuit_breaker_limit": self.cb_limit,
+            "remaining_quota": rem,
+            "eom_protection_active": eom_active,
+            "eom_day_threshold": self.eom_day,
+            "eom_remaining_threshold": self.eom_remaining,
+            "core_ttl_hours": self.core_ttl / 3600,
+            "prematch_ttl_minutes": self.prematch_ttl / 60,
+            "full_scan_hour_utc": self.full_scan_hour,
+            "core_league_count": len(self._core_keys),
+        }
+
+
 # 便捷单例 (同进程内复用, 但状态仍在磁盘)
 _guard_instance: Optional[ApiBudgetGuard] = None
+_scheduler_instance: Optional[AdaptiveBudgetScheduler] = None
 
 
 def get_guard() -> ApiBudgetGuard:
@@ -286,3 +439,10 @@ def get_guard() -> ApiBudgetGuard:
     if _guard_instance is None:
         _guard_instance = ApiBudgetGuard()
     return _guard_instance
+
+
+def get_scheduler() -> AdaptiveBudgetScheduler:
+    global _scheduler_instance
+    if _scheduler_instance is None:
+        _scheduler_instance = AdaptiveBudgetScheduler()
+    return _scheduler_instance

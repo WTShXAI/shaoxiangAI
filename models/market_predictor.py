@@ -100,13 +100,184 @@ class DriftAnalysis:
         }
 
 # ═══════════════════════════════════════════════════════════════
-# 市场状态预测器
+# 多头自注意力模块 (v2: JEPA 注意力架构升级, 2026-08-11)
+# ═══════════════════════════════════════════════════════════════
+
+class MultiHeadSelfAttention:
+    """多头自注意力 — 纯 NumPy 实现, 零依赖。
+
+    在嵌入空间中让 Predictor 学习"哪些维度彼此关联":
+      - 赔率维度相关的市场结构 (H/D/A 概率耦合)
+      - 时序上的跨维度依赖 (实力差距 ↔ 不确定性 ↔ 庄家态度)
+
+    LeCun JEPA 视角:
+      注意力机制让 Predictor 学习"嵌入空间中哪些部分彼此影响"，
+      这对应庄家世界模型中"各市场因子间的结构关系"。
+    """
+
+    def __init__(self, embed_dim: int = 16, num_heads: int = 4,
+                 dropout: float = 0.0, seed: int = 42):
+        assert embed_dim % num_heads == 0, \
+            f"embed_dim ({embed_dim}) 必须能被 num_heads ({num_heads}) 整除"
+        self.embed_dim = embed_dim
+        self.num_heads = num_heads
+        self.head_dim = embed_dim // num_heads
+        self.scale = np.sqrt(self.head_dim)
+
+        rng = np.random.RandomState(seed)
+        # Q, K, V 投影矩阵
+        self.W_q = rng.randn(embed_dim, embed_dim) * 0.02
+        self.W_k = rng.randn(embed_dim, embed_dim) * 0.02
+        self.W_v = rng.randn(embed_dim, embed_dim) * 0.02
+        self.W_o = rng.randn(embed_dim, embed_dim) * 0.02
+
+        # 偏置
+        self.b_q = np.zeros(embed_dim)
+        self.b_k = np.zeros(embed_dim)
+        self.b_v = np.zeros(embed_dim)
+        self.b_o = np.zeros(embed_dim)
+
+        self.dropout = dropout
+
+    def _softmax(self, x: np.ndarray, axis: int = -1) -> np.ndarray:
+        """稳定 softmax"""
+        x_max = np.max(x, axis=axis, keepdims=True)
+        exp_x = np.exp(x - x_max)
+        return exp_x / (np.sum(exp_x, axis=axis, keepdims=True) + 1e-8)
+
+    def forward(self, x: np.ndarray) -> np.ndarray:
+        """
+        Multi-Head Self-Attention 前向传播.
+
+        Args:
+            x: (embed_dim,) 或 (seq_len, embed_dim)
+
+        Returns:
+            相同 shape 的输出
+        """
+        was_1d = x.ndim == 1
+        if was_1d:
+            x = x.reshape(1, -1)
+
+        seq_len, d = x.shape
+        assert d == self.embed_dim
+
+        # 线性投影
+        Q = x @ self.W_q + self.b_q   # (seq_len, d)
+        K = x @ self.W_k + self.b_k
+        V = x @ self.W_v + self.b_v
+
+        # 重塑为多头: (seq_len, num_heads, head_dim)
+        Q = Q.reshape(seq_len, self.num_heads, self.head_dim)
+        K = K.reshape(seq_len, self.num_heads, self.head_dim)
+        V = V.reshape(seq_len, self.num_heads, self.head_dim)
+
+        # 注意力分数: (num_heads, seq_len, seq_len)
+        attn_scores = np.einsum('qhd,khd->hqk', Q, K) / self.scale
+        attn_weights = self._softmax(attn_scores, axis=-1)
+
+        # 加权聚合: (seq_len, num_heads, head_dim)
+        attn_out = np.einsum('hqk,khd->qhd', attn_weights, V)
+
+        # 拼接多头
+        concat = attn_out.reshape(seq_len, self.embed_dim)
+
+        # 输出投影
+        out = concat @ self.W_o + self.b_o
+
+        if was_1d:
+            return out.reshape(-1)
+        return out
+
+    def get_attention_weights(self, x: np.ndarray) -> np.ndarray:
+        """返回注意力权重矩阵 (用于可解释性分析)。
+
+        Returns:
+            (num_heads, seq_len, seq_len) 注意力权重
+        """
+        was_1d = x.ndim == 1
+        if was_1d:
+            x = x.reshape(1, -1)
+
+        seq_len = x.shape[0]
+        Q = (x @ self.W_q + self.b_q).reshape(seq_len, self.num_heads, self.head_dim)
+        K = (x @ self.W_k + self.b_k).reshape(seq_len, self.num_heads, self.head_dim)
+        attn_scores = np.einsum('qhd,khd->hqk', Q, K) / self.scale
+        return self._softmax(attn_scores, axis=-1)
+
+
+class AttentionPredictor:
+    """基于注意力的嵌入空间预测器。
+
+    架构: LayerNorm → MultiHeadSelfAttention → Residual → LayerNorm → FFN → Residual
+
+    这比线性 W·z+b 更强大，因为:
+      1. 自注意力: 学习嵌入维度间的结构依赖
+      2. 残差连接: 允许学习"微小修正"(δ) 而非完整重构
+      3. LayerNorm: 稳定训练/推理, 防止激活漂移
+    """
+
+    def __init__(self, embed_dim: int = 16, num_heads: int = 4,
+                 ffn_dim: int = 64, seed: int = 42):
+        self.embed_dim = embed_dim
+        self.attention = MultiHeadSelfAttention(embed_dim, num_heads, seed=seed)
+
+        rng = np.random.RandomState(seed + 1)
+        # FFN: embed_dim → ffn_dim → embed_dim
+        self.W1 = rng.randn(embed_dim, ffn_dim) * 0.02
+        self.b1 = np.zeros(ffn_dim)
+        self.W2 = rng.randn(ffn_dim, embed_dim) * 0.02
+        self.b2 = np.zeros(embed_dim)
+
+        # LayerNorm 参数 (可学习 scale/shift)
+        self.ln1_gamma = np.ones(embed_dim)
+        self.ln1_beta = np.zeros(embed_dim)
+        self.ln2_gamma = np.ones(embed_dim)
+        self.ln2_beta = np.zeros(embed_dim)
+
+    def _layer_norm(self, x: np.ndarray, gamma: np.ndarray, beta: np.ndarray,
+                    eps: float = 1e-6) -> np.ndarray:
+        mean = np.mean(x, axis=-1, keepdims=True)
+        var = np.var(x, axis=-1, keepdims=True)
+        return gamma * (x - mean) / np.sqrt(var + eps) + beta
+
+    def _relu(self, x: np.ndarray) -> np.ndarray:
+        return np.maximum(0, x)
+
+    def forward(self, z_t: np.ndarray) -> np.ndarray:
+        """
+        ẑ_{t+1} = Predictor(z_t)
+
+        注意力架构的 JEPA 解读:
+          - 自注意力让 Predictor 发现嵌入空间中哪些维度彼此驱动
+          - 残差连接让 Predictor 学习 "从 z_t 到 z_{t+1} 的修正 δ"
+          - FFN 对注意力输出做非线性变换, 捕捉高阶相互作用
+        """
+        # Pre-LN + Attention + Residual
+        normed = self._layer_norm(z_t, self.ln1_gamma, self.ln1_beta)
+        attn_out = self.attention.forward(normed)
+        residual1 = z_t + attn_out
+
+        # Pre-LN + FFN + Residual
+        normed2 = self._layer_norm(residual1, self.ln2_gamma, self.ln2_beta)
+        ffn_out = self._relu(normed2 @ self.W1 + self.b1) @ self.W2 + self.b2
+        residual2 = residual1 + ffn_out
+
+        return residual2
+
+    def get_attention_map(self, z_t: np.ndarray) -> np.ndarray:
+        """返回注意力权重矩阵 (可解释性)。"""
+        return self.attention.get_attention_weights(z_t)
+
+
+# ═══════════════════════════════════════════════════════════════
+# 市场状态预测器 (v2: 支持 attention)
 # ═══════════════════════════════════════════════════════════════
 
 class MarketStatePredictor:
     """
     嵌入空间 Predictor — 预测市场的下一个嵌入状态
-    
+
     庄家作为"世界模型"，在嵌入空间中运行以下循环:
       1. 编码当前状态:     z_t = Encoder(odds_t)
       2. 预测下一状态:     ẑ_{t+1} = Predictor(z_t)
@@ -114,71 +285,79 @@ class MarketStatePredictor:
       4. 计算预测误差:     e_t = z_{t+1} - ẑ_{t+1}
       5. 修正预测器:       Predictor ← Predictor - η·∇L(e_t)
       6. 调盘 = 使 odds_{t+1} 接近 Encoder^{-1}(ẑ_{t+1})
-    
+
     关键洞察:
       赔率漂移不是"庄家在想什么"，而是"庄家世界模型的预测误差修正过程"。
       我们观察到的赔率变化 = Encoder^{-1}(Predictor(z_t) + Δ_correction_t)
     """
-    
-    def __init__(self, embed_dim: int = 16, 
+
+    def __init__(self, embed_dim: int = 16,
                  predictor_type: str = 'linear'):
         """
         Args:
             embed_dim: 嵌入维度
             predictor_type: 预测器类型
-              - 'linear': z_{t+1} = W·z_t + b (基础)
-              - 'mlp': z_{t+1} = MLP(z_t) (非线性)
+              - 'linear':    z_{t+1} = W·z_t + b (基础, 657K 参数)
+              - 'mlp':       z_{t+1} = W2·ReLU(W1·z_t + b1) + b2 (非线性)
+              - 'attention': z_{t+1} = AttentionPredictor(z_t) (多头自注意力, v2 新增)
               - 'rnn_style': z_{t+1} = RNN(z_t, h_t) (序列)
         """
         self.embed_dim = embed_dim
         self.predictor_type = predictor_type
-        
-        # 初始化线性预测器权重 (概念性)
+
+        # 初始化线性预测器权重 (概念性, linear/mlp 使用)
         rng = np.random.RandomState(123)
         self.W = rng.randn(embed_dim, embed_dim) * 0.01
         self.b = np.zeros(embed_dim)
-        
+
+        # 注意力预测器 (新架构)
+        self._attn_predictor = None
+        if predictor_type == 'attention':
+            self._attn_predictor = AttentionPredictor(
+                embed_dim=embed_dim, num_heads=4,
+                ffn_dim=embed_dim * 4, seed=42,
+            )
+
+        # MLP 参数 (当 predictor_type='mlp')
+        if predictor_type == 'mlp':
+            self.W1_mlp = rng.randn(embed_dim, embed_dim * 2) * 0.02
+            self.b1_mlp = np.zeros(embed_dim * 2)
+            self.W2_mlp = rng.randn(embed_dim * 2, embed_dim) * 0.02
+            self.b2_mlp = np.zeros(embed_dim)
+
         # 预测历史 (用于学习)
         self.prediction_history: List[Tuple[np.ndarray, np.ndarray]] = []
-    
+
+        # 性能指标
+        self._total_error = 0.0
+        self._n_predictions = 0
+
+    @property
+    def params_count(self) -> int:
+        """参数数量估算"""
+        if self.predictor_type == 'attention' and self._attn_predictor:
+            # QKV: 3*d² + O: d² + FFN: 2*d*4d + LN: 4*d
+            d = self.embed_dim
+            return 4 * d * d + 8 * d * d + 4 * d
+        return self.embed_dim * self.embed_dim + self.embed_dim  # linear
+
     def predict(self, z_t: np.ndarray) -> np.ndarray:
         """
         预测下一个嵌入状态
-        
+
         ẑ_{t+1} = Predictor(z_t)
-        
-        庄家世界模型的核心函数:
-          给定当前市场状态的嵌入表征，
-          预测市场状态将如何演化。
-        
-        在理想情况下 (无新信息):
-          ẑ_{t+1} ≈ z_t  (市场状态应该稳定)
-        
-        在实际情况下:
-          ẑ_{t+1} = z_t + δ  (预期会有微小漂移)
         """
-        if self.predictor_type == 'linear':
-            return self.W @ z_t + self.b
+        if self.predictor_type == 'attention' and self._attn_predictor is not None:
+            return self._attn_predictor.forward(z_t)
         elif self.predictor_type == 'mlp':
-            # 简化MLP: W2·ReLU(W1·z_t + b1) + b2
-            # 实际使用时用完整MLP
-            return self.W @ z_t + self.b
+            hidden = np.maximum(0, z_t @ self.W1_mlp + self.b1_mlp)
+            return hidden @ self.W2_mlp + self.b2_mlp
         else:
             return self.W @ z_t + self.b
-    
+
     def predict_n_steps(self, z_0: np.ndarray, n: int) -> List[np.ndarray]:
         """
         多步滚动预测 — 世界模型"预演"比赛走向
-        
-        z_0 → ẑ_1 = P(z_0) → ẑ_2 = P(ẑ_1) → ... → ẑ_n
-        
-        庄家在开盘时已经在嵌入空间中预演了整场比赛期间的市场演化。
-        这对应 LeCun 世界模型的核心: "在行动前预演后果"。
-        
-        应用:
-          - 预演赔率终盘位置
-          - 评估"如果不干预，赔率会漂到哪"
-          - 发现庄家的"目标嵌入"(稳定点)
         """
         trajectory = [z_0.copy()]
         z = z_0.copy()
@@ -186,65 +365,60 @@ class MarketStatePredictor:
             z = self.predict(z)
             trajectory.append(z.copy())
         return trajectory
-    
+
     def prediction_error(self, z_t: np.ndarray, z_next: np.ndarray) -> float:
         """
         计算预测误差 (世界模型的"惊讶"程度)
-        
+
         e = ||z_{t+1} - ẑ_{t+1}|| / ||z_t||
-        
-        大误差 = 发生了预测器未预料到的事件 (信息冲击)
-        小误差 = 市场按预期演化 (庄家世界模型准确)
         """
         pred = self.predict(z_t)
         error = np.linalg.norm(z_next - pred)
-        # 归一化
         norm = np.linalg.norm(z_t) + 1e-8
         return float(error / norm)
-    
-    def update(self, z_t: np.ndarray, z_next: np.ndarray, 
+
+    def update(self, z_t: np.ndarray, z_next: np.ndarray,
                learning_rate: float = 0.01):
         """
-        Predictor的在线学习更新
-        
-        庄家收到新信息后的贝叶斯更新:
-          P' ← P - η·∇L(z_next, P(z_t))
-        
-        这里用简化梯度下降模拟。
+        Predictor的在线学习更新 (简化梯度下降)
         """
         pred = self.predict(z_t)
         error = z_next - pred
-        # 简化参数更新: W ← W + η·error·z_t^T
-        self.W += learning_rate * np.outer(error, z_t)
-        self.b += learning_rate * error
+
+        if self.predictor_type in ('linear', 'mlp'):
+            self.W += learning_rate * np.outer(error, z_t)
+            self.b += learning_rate * error
+
         self.prediction_history.append((z_t.copy(), z_next.copy()))
-    
-    def find_stable_point(self, z_0: np.ndarray, 
+        self._total_error += float(np.linalg.norm(error))
+        self._n_predictions += 1
+
+    @property
+    def mean_prediction_error(self) -> float:
+        """平均预测误差"""
+        if self._n_predictions == 0:
+            return 0.0
+        return self._total_error / self._n_predictions
+
+    def find_stable_point(self, z_0: np.ndarray,
                           max_steps: int = 50,
                           tol: float = 1e-4) -> np.ndarray:
         """
-        寻找 Predictor 的稳定点 (固定点)
-        
-        z* 满足: P(z*) = z*
-        
-        庄家世界模型的"吸引子":
-          - 稳定点是市场在没有新信息时的自然归宿
-          - 庄家开盘时瞄准的就是这个稳定点
-          - 实际终盘偏离稳定点 = 新信息的累积效应
-        
-        博弈论意义:
-          如果终盘嵌入 z_close ≈ z_stable → 没有意外信息
-          如果 z_close 远离 z_stable → 发生了庄家未预见的事件
+        寻找 Predictor 的稳定点 (固定点): z* 满足 P(z*) = z*
         """
         z = z_0.copy()
-        trajectory = [z.copy()]
         for _ in range(max_steps):
             z_new = self.predict(z)
             if np.linalg.norm(z_new - z) < tol:
                 break
             z = z_new
-            trajectory.append(z.copy())
         return z
+
+    def get_attention_weights(self, z_t: np.ndarray) -> Optional[np.ndarray]:
+        """返回注意力权重 (仅 attention 模式可用, 用于可解释性)。"""
+        if self._attn_predictor is not None:
+            return self._attn_predictor.get_attention_map(z_t)
+        return None
 
 # ═══════════════════════════════════════════════════════════════
 # 赔率漂移动力学分析器

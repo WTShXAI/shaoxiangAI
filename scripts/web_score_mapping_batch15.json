@@ -1,0 +1,27 @@
+[
+  {
+    "mid": "5565581",
+    "sh": 0,
+    "sa": 0,
+    "ht_sh": 0,
+    "ht_sa": 0,
+    "source": "offsidescores/statshub/halascore/livestreaming 俄乙A Gold",
+    "note": "卡卢加 0-0 莫斯科罗迪纳B队 (HT 0-0)"
+  },
+  {
+    "mid": "5565607",
+    "sh": 1,
+    "sa": 0,
+    "ht_sh": 0,
+    "ht_sa": 0,
+    "source": "sportschedule.tv/22bet/offsidescores/halascore 俄乙A Gold",
+    "note": "布良斯克戴拿模 1-0 新西伯利亚 (HT 0-0, 79' Gribov)"
+  },
+  {
+    "mid": "5599786",
+    "sh": 1,
+    "sa": 2,
+    "source": "scores24.live/TheyScored 俄乙A Gold",
+    "note": "基洛夫迪纳摩 1-2 迪那摩海参崴 (HT 未知)"
+  }
+]
