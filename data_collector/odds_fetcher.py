@@ -160,8 +160,11 @@ def get_odds(home, away, date=None):
         return result
     
     # 4. Estimate from FIFA rankings
-    from config.fifa_rankings_2026 import load_rankings
-    rankings = load_rankings()
+    try:
+        from config.fifa_rankings_2026 import load_rankings
+        rankings = load_rankings()
+    except ImportError:
+        rankings = {}
     rh = rankings.get(home, 50)
     ra = rankings.get(away, 50)
     

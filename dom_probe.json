@@ -1,0 +1,13 @@
+{
+  "total": 7658,
+  "samples": [
+    {
+      "tag": "DIV",
+      "cls": "absolute-wrap",
+      "mid": "5458300"
+    }
+  ],
+  "withMidAttr": 1,
+  "cardCount": 35,
+  "firstCardHTML": "<div id=\"mid-5483159\" class=\"list-match-card relative-position is-football csid-1\" style=\"height: 334px; max-height: 334px;\"><div style=\"position: absolute; color: red; z-index: 2; right: 0px; display: none;\">5483159-1-L4 -1-1784195935035</div><!----></div>"
+}

@@ -1,0 +1,97 @@
+classDiagram
+    class Config {
+        +str gq_db_path
+        +str log_level
+        +str redis_url
+        +bool queue_enabled
+        +float roi_delta_threshold
+        +int busy_timeout_ms
+        +int wal_checkpoint_min
+        +load() Config
+    }
+    class ErrorEnvelope {
+        +bool ok
+        +Any data
+        +ErrorDetail error
+    }
+    class ErrorDetail {
+        +str code
+        +str message
+    }
+    class Source {
+        <<enum>>
+        LEYU
+        LEISU
+        UNIFIED
+        DISPUTED
+    }
+    class SignalOutput {
+        +str match_id
+        +str signal_type
+        +float value
+        +float roi
+        +Source source
+        +float confidence
+        +str verdict
+        +str basis
+    }
+    class GQConnectionManager {
+        -ConnectionPool _read_pool
+        -Connection _writer
+        +init_db() void
+        +get_reader() Connection
+        +get_writer() Connection
+        +check_integrity() bool
+        +backup(path) void
+        +restore(path) void
+    }
+    class CollectorStep {
+        <<interface>>
+        +str name
+        +StepResult run(Context ctx)
+    }
+    class CollectorRound {
+        +List~CollectorStep~ steps
+        +List~StepResult~ run_all(Context ctx)
+    }
+    class StepResult {
+        +str step
+        +bool ok
+        +str error_msg
+        +str trace_id
+    }
+    class LowWaterStateMachine {
+        -State _state
+        +feed(opening_price) void
+        +decide() Verdict
+    }
+    class Verdict {
+        <<enum>>
+        NEUTRAL
+        VALUE
+        TRAP
+    }
+    class CircuitBreaker {
+        +bool allow()
+        +record_failure() void
+        +record_success() void
+    }
+    class SafeLog {
+        +log(msg) void
+        +info(msg) void
+        +error(msg) void
+    }
+    class StructuredLogger {
+        +info(msg, **kw) void
+        +error(msg, **kw) void
+    }
+
+    ErrorEnvelope "1" *-- "1" ErrorDetail : contains
+    SignalOutput "1" --> "1" Source : has
+    SignalOutput "1" --> "1" Verdict : verdict
+    LowWaterStateMachine "1" --> "1" Verdict : produces
+    CollectorRound "1" *-- "many" CollectorStep : runs
+    CollectorRound "1" --> "many" StepResult : yields
+    CollectorStep ..> SafeLog : uses
+    GQConnectionManager ..> Config : reads
+    CircuitBreaker ..> Config : reads

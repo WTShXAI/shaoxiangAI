@@ -1,0 +1,89 @@
+[
+  {
+    "url": "https://api.wnbtmel.com/yewu11/v1/w/structureMatchBaseInfoByMidsPB?t=1784190331152",
+    "data_type": "list",
+    "data_len": 12,
+    "idfields": {
+      "ov": 6
+    }
+  },
+  {
+    "url": "https://api.wnbtmel.com/yewu11/v1/w/getMatchBaseInfoByOddsPB?t=1784190331856",
+    "data_type": "list",
+    "data_len": 1,
+    "idfields": {
+      "obv": 234,
+      "ov": 234
+    }
+  },
+  {
+    "url": "https://api.u92tiil.com/yewu11/v1/w/getMatchBaseInfoByOddsPB?t=1784190334497",
+    "data_type": "list",
+    "data_len": 1,
+    "idfields": {
+      "obv": 234,
+      "ov": 234
+    }
+  },
+  {
+    "url": "https://api.u92tiil.com/yewu11/v1/w/structureMatchBaseInfoByMidsPB?t=1784190338357",
+    "data_type": "list",
+    "data_len": 12,
+    "idfields": {
+      "ov": 5
+    }
+  },
+  {
+    "url": "https://api.u92tiil.com/yewu11/v1/w/getMatchBaseInfoByOddsPB?t=1784190339059",
+    "data_type": "list",
+    "data_len": 1,
+    "idfields": {
+      "obv": 371,
+      "ov": 371
+    }
+  },
+  {
+    "url": "https://api.u92tiil.com/yewu11/v1/w/getMatchBaseInfoByOddsPB?t=1784190341514",
+    "data_type": "list",
+    "data_len": 1,
+    "idfields": {
+      "obv": 371,
+      "ov": 371
+    }
+  },
+  {
+    "url": "https://api.u92tiil.com/yewu11/v1/w/getMatchBaseInfoByOddsPB?t=1784190343896",
+    "data_type": "list",
+    "data_len": 1,
+    "idfields": {
+      "obv": 371,
+      "ov": 371
+    }
+  },
+  {
+    "url": "https://api.u92tiil.com/yewu11/v1/w/structureMatchBaseInfoByMidsPB?t=1784190347550",
+    "data_type": "list",
+    "data_len": 2,
+    "idfields": {
+      "ov": 1
+    }
+  },
+  {
+    "url": "https://api.u92tiil.com/yewu11/v1/w/getMatchBaseInfoByOddsPB?t=1784190347549",
+    "data_type": "list",
+    "data_len": 1,
+    "idfields": {
+      "obv": 371,
+      "ov": 371
+    }
+  },
+  {
+    "url": "https://api.u92tiil.com/yewu11/v1/w/getMatchBaseInfoByOddsPB?t=1784190349951",
+    "data_type": "list",
+    "data_len": 1,
+    "idfields": {
+      "obv": 371,
+      "ov": 371
+    }
+  }
+]

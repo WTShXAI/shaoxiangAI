@@ -1,0 +1,78 @@
+%% ① 采集 → 入库 → API → 前端 全链路（per-step 隔离）
+sequenceDiagram
+    participant C as CollectorRound
+    participant S1 as Step:Fetch
+    participant S2 as Step:Parse
+    participant S3 as Step:Persist(live-flip)
+    participant DB as GQConnectionManager
+    participant API as FastAPI+ErrorEnvelope
+    participant FE as Frontend(api client)
+    participant EB as ErrorBoundary
+
+    C->>S1: run(ctx) [try/except per step]
+    S1-->>C: StepResult(ok=true)
+    C->>S2: run(ctx)
+    S2-->>C: StepResult(ok=true)
+    C->>S3: run(ctx)
+    S3->>DB: get_writer().execute(INSERT live)
+    DB-->>S3: ok
+    S3-->>C: StepResult(ok=true)
+    Note over C: 任一步失败仅记 StepResult(ok=false), 不 return, 后续步骤照常执行
+
+    FE->>API: GET /api/matches/live
+    API->>DB: get_reader().execute(SELECT)
+    DB-->>API: rows
+    API-->>FE: {ok:true, data:[...]}
+    FE->>FE: render LiveScores (live 标识, 不漏显)
+    Note over FE,EB: 异常时中间件返回 {ok:false,error:{code,message:str}};<br/>api client 转安全 string; ErrorBoundary 兜底, 永不白屏
+
+%% ② 一次 API 请求经统一异常中间件的错误处理流（REQ-03）
+sequenceDiagram
+    participant Client
+    participant MW as ErrorEnvelopeMiddleware
+    participant CB as CircuitBreaker
+    participant H as Handler(predict/db)
+    participant EX as Executor(线程/进程池)
+
+    Client->>MW: POST /predict
+    MW->>CB: allow()?
+    alt 熔断打开
+        CB-->>MW: false
+        MW-->>Client: {ok:false, error:{code:"SERVICE_UNAVAILABLE", message:"circuit open"}}
+    else 放行
+        MW->>EX: submit(blocking_predict)
+        EX->>H: 执行模型推理
+        alt 抛异常
+            H-->>MW: raise Exception(obj_or_str)
+            MW->>MW: message = to_str(e)
+            MW-->>Client: {ok:false, error:{code:"INTERNAL", message:"<string>"}}
+        else 成功
+            H-->>MW: result
+            MW-->>Client: {ok:true, data:result}
+        end
+    end
+
+%% ③ 滚球破蛋神器时间窗口 / λ 口径正确流程（REQ-08，6 层修复）
+sequenceDiagram
+    participant Feed as 分钟级 feed 事件
+    participant KG as KickoffGate
+    participant CM as CleanMinute
+    participant LW as LambdaEngine
+    participant DC as DirectionCorrector
+    participant OUT as SignalOutput
+
+    Feed->>KG: on_minute_event(minute, prices)
+    KG->>KG: 是否已开赛? (opened_at 已 set)
+    alt 未开赛
+        KG-->>OUT: 跳过(不输出破蛋信号)
+    else 已开赛
+        KG->>CM: clean(event)
+        CM->>CM: 去污染: 过滤非比赛时钟/补时异常分钟
+        CM->>LW: compute_lambda(cleaned_minute)
+        LW->>LW: λ 单一口径(不再双λ分流); 用 OU 诚实锚去水概率
+        LW->>DC: raw_direction
+        DC->>DC: 方向校正(活盘低水=赔付管理≠概率终点; 键名对齐)
+        DC->>OUT: verdict + basis
+        OUT->>OUT: 附 source + confidence (REQ-13)
+    end
+    Note over Feed,OUT: 6层修复: 死变量移除/λ单口径/分钟去污染/方向校正/键名对齐/kickoff闸门

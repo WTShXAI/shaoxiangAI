@@ -1,0 +1,64 @@
+{
+  "cv_at": "2026-07-26T02:59:25.638531",
+  "n_total": 30000,
+  "n_train": 24000,
+  "n_test": 6000,
+  "reversal_rate": 0.484,
+  "models": {
+    "outcome_3class": {
+      "accuracy": 0.4785,
+      "f1_macro": 0.4571
+    },
+    "reversal_detector": {
+      "auc": 0.6654,
+      "accuracy": 0.6162
+    },
+    "operator_reliability": {
+      "auc": 0.6596,
+      "acc": 0.6118
+    }
+  },
+  "ensemble": {
+    "baselines": {
+      "outcome": 0.4785,
+      "reversal": 0.3833,
+      "reliability": 0.3095
+    },
+    "meta_accuracy": 0.4435,
+    "lift_vs_best": -0.035
+  },
+  "top_features": [
+    [
+      "imp_cD",
+      1919.0
+    ],
+    [
+      "shift_d",
+      1818.0
+    ],
+    [
+      "imp_oD",
+      1780.0
+    ],
+    [
+      "drift_d",
+      1469.0
+    ],
+    [
+      "spread_c",
+      1426.0
+    ],
+    [
+      "sigma_trap",
+      1410.0
+    ],
+    [
+      "drift_mag",
+      1382.0
+    ],
+    [
+      "drift_a",
+      1324.0
+    ]
+  ]
+}

@@ -29,9 +29,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc g++ libgomp1 curl \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Python 依赖 ──
-COPY requirements.txt .
-RUN pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com -r requirements.txt 2>&1
+# ── Python 依赖 (生产精简版: 剔除 PySide6 桌面 GUI, 保留 torch 预测能力) ──
+# 说明: 原 requirements.txt 含 PySide6, 在 headless slim 镜像安装会失败且体积巨大;
+#       deploy/requirements.prod.txt 已剔除, 后端/采集器运行时不依赖 PySide6 (grep 已验证).
+COPY deploy/requirements.prod.txt ./requirements.prod.txt
+RUN pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com -r requirements.prod.txt 2>&1
 
 # 复制运行时目录 (仅保留实际存在的目录, 2026-07-11 审计)
 COPY pipeline/ ./pipeline/
