@@ -1,13 +1,5 @@
 import axios from 'axios'
-import type {
-  ApiResponse,
-  FixturesResponse,
-  LeaguesResponse,
-  LeagueFixturesResponse,
-  LiveScoreMatch,
-  LiveScoresResponse,
-  ScoreHistoryEntry,
-} from '@/types'
+import type { ApiResponse } from '@/types'
 import { useAppStore } from '@/store'
 
 // ── 运行时客户端 (单一真相源) ──
@@ -53,161 +45,122 @@ bridgeApi.interceptors.request.use((config) => {
   return config
 })
 
-// ============================================
-// 联赛赛程服务 (34联赛) — bridge_service:9000
-// ============================================
-export const leagueScheduleService = {
-  // 获取联赛目录 (按分类分组); days=N 只保留近 N 天内(默认 7)有赛程的联赛
-  getLeagues: (days: number = 7) =>
-    bridgeApi.get<ApiResponse<LeaguesResponse>>(`/api/leagues?days=${days}`),
-  // 获取指定联赛赛程 (sport_key 含中文, 必须 encodeURIComponent)
-  getFixtures: (sportKey: string) =>
-    bridgeApi.get<ApiResponse<LeagueFixturesResponse>>(`/api/leagues/${encodeURIComponent(sportKey)}/fixtures`),
-  // 全量赛程聚合 (一次返回所有联赛 fixtures, 避免前端逐联赛并发触发全局限流导致赛事不全)
-  getAllFixtures: (days: number = 7) =>
-    bridgeApi.get<ApiResponse<any>>(`/api/all-fixtures?days=${days}`),
+
+// Bridge 标准响应包 (后端真实返回 shape: {ok, data, error?}, 与历史遗留 ApiResponse 不同)
+export interface BridgeResponse<T> {
+  ok: boolean
+  data: T
+  error?: string
 }
 
 // ============================================
-// 赛果查询服务 — bridge_service:9000  /api/match-results
-// 数据源 football_data.db (matches + historical_matches UNION)
+// 滚球破蛋神器 — bridge_service:9000 /api/live-goal-probe*
+// 走统一 axios 客户端: 自动注入 VITE_API_KEY / auth, 支持 VITE_BRIDGE_URL 远程部署.
 // ============================================
-export interface MatchResult {
-  home: string; away: string; league: string; date: string
-  home_score: number; away_score: number; result: string
-  ht_h: number | null; ht_a: number | null; source: string
-}
-export const matchResultService = {
-  getResults: (params?: { league?: string; q?: string; date_from?: string; date_to?: string; limit?: number }) =>
-    bridgeApi.get<ApiResponse<{ results: MatchResult[]; total: number }> | { error: string; results: never[] }>('/api/match-results', { params }),
-}
-
-// ============================================
-// 实时比分服务 — bridge_service:9000  /api/live-scores(++) — 已有端点
-// 数据源 live_scores DB 表; 5s TTL 单场刷新端点专为前端实时轮询设计
-// ============================================
-export const liveScoreService = {
-  /** 最近 180s 内更新的全部进行中比赛 (mststi>0), 含实时赔率 */
-  getLiveMatches: (limit: number = 5000) =>
-    bridgeApi.get<ApiResponse<LiveScoresResponse>>('/api/live-scores', { params: { limit } }),
-  /** 单场比分时序快照 (用于折线图/事件回放) */
-  getScoreHistory: (mid: string, limit: number = 60) =>
-    bridgeApi.get<ApiResponse<{ mid: string; history: ScoreHistoryEntry[]; count: number }>>(
-      `/api/live-score/${encodeURIComponent(mid)}`, { params: { limit } }),
-  /** 单场实时刷新 (5s TTL 缓存, 进球后 5-15s 反映到 UI) */
-  getLiveUpdate: (mid: string, force: boolean = false) =>
-    bridgeApi.get<ApiResponse<any>>(`/api/live-update/${encodeURIComponent(mid)}`, { params: { force } }),
-}
-
-// ============================================
-// 量化投注系统 (真实数据) — bridge_service:9000  /api/quant/*
-// 真实行情(live_odds_raw/odds_features) + 全市场扫描 + 历史回放 + 策略层
-// ============================================
-export interface ScanSingleRequest {
-  home: string; away: string; h: number; d: number; a: number; league?: string
-  score_odds?: Record<string, number>
-  total_goals_odds?: Record<string, number>
-  handicap_odds?: { line: number; home: number; draw: number; away: number }
-  ou_odds?: { line: number; over: number; under: number }
-}
-export const quantService = {
-  snapshot: () => bridgeApi.get<ApiResponse<any>>('/api/quant/snapshot'),
-  scanCycle: (mode: string = 'sim', limit: number = 20) =>
-    bridgeApi.post<ApiResponse<any>>('/api/quant/scan/auto', { action: 'cycle', mode, limit }),
-  autoMode: (on: boolean) =>
-    bridgeApi.post<ApiResponse<any>>('/api/quant/scan/auto', { action: on ? 'on' : 'off' }),
-  scanSingle: (data: ScanSingleRequest) =>
-    bridgeApi.post<ApiResponse<any>>('/api/quant/scan/single', data),
-  historyReplay: (nMatches: number = 100) =>
-    bridgeApi.post<ApiResponse<any>>('/api/quant/history/replay', { n_matches: nMatches }),
-  confirmAll: () => bridgeApi.post<ApiResponse<any>>('/api/quant/order/confirm-all'),
-  confirmOne: (oid: string, actual: string = 'D') =>
-    bridgeApi.post<ApiResponse<any>>('/api/quant/order/confirm', { oid, actual }),
-  toggleStrategy: (strategyId: string, enabled: boolean) =>
-    bridgeApi.post<ApiResponse<any>>('/api/quant/strategy/toggle', { strategy_id: strategyId, enabled }),
-  reset: (bankroll?: number) =>
-    bridgeApi.post<ApiResponse<any>>('/api/quant/reset', bankroll ? { bankroll } : {}),
-}
-
-// ── 回测组合绩效 (live_pilot_guardian --portfolio) ──
-export const portfolioService = {
-  /** 获取组合管理器完整快照: 资金曲线+持仓+绩效指标 */
-  snapshot: () => bridgeApi.get<{
-    sharpe_ratio?: number
-    max_drawdown_pct?: number
-    calmar_ratio?: number
-    win_rate_pct?: number
-    profit_loss_ratio?: number
-    expected_value?: number
-    total_trades?: number
-    total_roi_pct?: number
-    portfolio_snapshot?: {
-      initial_equity: number
-      current_equity: number
-      total_roi_pct: number
-      positions: any[]
-      equity_curve: { timestamp: string; equity: number; pnl: number; note: string }[]
-    }
-  }>('/api/portfolio'),
-}
-
-// ============================================
-// 赛事终端服务 — bridge_service:9000  /api/terminal/*
-// 赛事列表 + 全链路分析(_live_predict 11 层编排)
-// ============================================
-export const terminalService = {
-  /** 当天可决策赛事列表 (live_odds_raw, ≥2 庄) */
-  getMatches: () => bridgeApi.get<ApiResponse<any>>('/api/terminal/matches'),
-  /** 全链路分析 — 直接用盘口赔率(赛事列表同源), 不调 The Odds API
-   *  @param liveScore 可选 in-play 当前比分, 传入时后端启用条件 Poisson 裁剪 */
-  analyze: async (home: string, away: string, sportKey: string = 'soccer_fifa_world_cup',
-            odds?: { h: number; d: number; a: number },
-            handicap?: { ah_line?: number | string; ah_home?: number; ah_away?: number;
-                         ou_line?: number | string; ou_over?: number; ou_under?: number },
-            liveScore?: { homeGoals?: number; awayGoals?: number; elapsed?: number }) => {
-    const body: Record<string, any> = { home, away, sport_key: sportKey }
-    if (odds) Object.assign(body, { odds_h: odds.h, odds_d: odds.d, odds_a: odds.a })
-    if (handicap) Object.assign(body, {
-      ah_line: handicap.ah_line, ah_home: handicap.ah_home, ah_away: handicap.ah_away,
-      ou_line: handicap.ou_line, ou_over: handicap.ou_over, ou_under: handicap.ou_under,
-    })
-    if (liveScore) Object.assign(body, {
-      home_goals: liveScore.homeGoals, away_goals: liveScore.awayGoals, elapsed: liveScore.elapsed,
-    })
-    const resp = await bridgeApi.post<ApiResponse<any>>('/api/terminal/analyze', body)
-    // 赛事模型路由回填: model_type / model_calibrated_on 由后端 _live_predict 单一真相源给出,
-    // 前端绝不自己分类, 仅透传展示 (ApiResponse.data = _live_predict result dict)。
-    const payload = (resp.data as any)?.data
-    if (payload) {
-      useAppStore.getState().setModelType((payload as any).model_type ?? null)
-      useAppStore.getState().setModelCalibratedOn((payload as any).model_calibrated_on ?? null)
-    }
-    return resp
-  },
-  /** 实时赔率匹配 (三级回退: live_odds_raw → The Odds API → 提示) */
-  getMatchOdds: (home: string, away: string) =>
-    bridgeApi.get<ApiResponse<any>>('/api/match-odds', { params: { home, away } }),
-  /** HTTP 降级版赔率摄入 (浏览器插件 DOM 抓取 → 喂进 live_odds_raw) */
-  ingest: (data: { home: string; away: string; source?: string; h: number; d: number; a: number; score?: string; minute?: number }) =>
-    bridgeApi.post<ApiResponse<any>>('/api/terminal/ingest', data),
+export const liveGoalProbeService = {
+  /** 当前进行中比赛列表, 后端已按破蛋/进球潜力排序。支持 offset 分页 (live 场次多时避免被截断) */
+  getMatches: (limit: number = 50, offset: number = 0) =>
+    bridgeApi.get<BridgeResponse<{ matches: any[]; max_last_seen: number | null; server_now: number | null; total_live: number; total_scheduled: number; offset: number; limit: number }>>('/api/live-goal-probe/matches', { params: { limit, offset }, timeout: 60000 }),
+  /** 对指定比赛输出半场/全场破蛋概率与信号方向 */
+  getProbe: (match_key: string, score: string, minute: number, is_halftime: boolean = false) =>
+    bridgeApi.get<BridgeResponse<any>>('/api/live-goal-probe', { params: { match_key, score, minute, is_halftime }, timeout: 60000 }),
+  /** 6 维盘口聚合 (滚球实时): 1X2/AH/OU × 全场/半场, 含当前 line/odds + 相对开盘 drift */
+  getLiveOdds: (match_key: string) =>
+    bridgeApi.get<BridgeResponse<any>>(`/api/live-odds/${encodeURIComponent(match_key)}`, { timeout: 60000 }),
+  /** 历史回测摘要 (风险披露) */
+  getBacktest: () =>
+    bridgeApi.get<BridgeResponse<any>>('/api/live-goal-probe/backtest'),
+  /** 操盘手结论卡(实时页) — 取初盘1X2 → _live_predict → 蒸馏一行结论 */
+  getLiveOperatorCard: (match_key: string, home?: string, away?: string, league?: string) =>
+    bridgeApi.get<BridgeResponse<any>>('/api/live/operator-card', {
+      params: { match_key, home: home || undefined, away: away || undefined, league: league || undefined },
+    }),
+  /** CS 波胆诱导标记 — 检测庄家是否用低赔波胆簇引导资金 */
+  getInduceFlag: (match_key: string, actual_score?: string) =>
+    bridgeApi.get<BridgeResponse<any>>('/api/cs/induce-flag', {
+      params: { match_key, actual_score: actual_score || undefined },
+    }),
+  /** CS 信任卡 — 结构校准分布 + 庄家盘口对照 + 诱导标记; current_score+minute → 滚球即时盘模式 */
+  getCsTrustCard: (match_key: string, current_score?: string, minute?: number) =>
+    bridgeApi.get<BridgeResponse<any>>('/api/cs/trust-card', {
+      params: {
+        match_key,
+        current_score: current_score || undefined,
+        minute: minute || undefined,
+      },
+    }),
+  /** 分钟级数据流: 盘口+比分时间线 / 进球事件 / 逐分钟剩余破蛋曲线 */
+  getMinuteStream: (match_key: string, line: number = 2.5, league?: string, opening_total?: number) =>
+    bridgeApi.get<BridgeResponse<any>>('/api/match-minute-stream', {
+      params: { match_key, line, league: league || undefined, opening_total: opening_total ?? undefined },
+      timeout: 60000,
+    }),
+  /** 把当前可见比赛注册为采集器秒级焦点 (前端不读返回, 失败静默) */
+  registerFocus: (match_keys: string[], ttl_seconds: number = 60) =>
+    bridgeApi.post<BridgeResponse<{ success: boolean; count: number }>>(
+      '/api/focus',
+      { match_keys, ttl_seconds },
+    ),
+  /** 自主巡航 Agent 告警列表(最新在前) — 后台 Agent 循环产生 */
+  getAgentAlerts: (limit: number = 50) =>
+    bridgeApi.get<BridgeResponse<any>>('/api/agent/alerts', { params: { limit } }),
+  /** 决策智能体卡片: 消费模型数据(开盘盘口结构) → 输出 决策/方案/合理比分。
+   *  本地 qwen3 仅作背后推理引擎; 卡片展示智能体的「决策和方案」, 非模型闲聊。 */
+  getAnalyze: (match_key: string, score: string = '0-0', minute: number = 0, is_halftime: boolean = false) =>
+    bridgeApi.get<BridgeResponse<any>>('/api/live-goal-probe/analyze', {
+      params: { match_key, score, minute, is_halftime },
+      timeout: 60000,
+    }),
+  /** 决策仲裁层 (C 完整档): 聚合 决策智能体/操盘手卡/OU决策 多路信号,
+   *  产出 signal_consensus / discrepancy / closing_line_value / confidence_interval。
+   *  over/under 可选, 传入则补 OU discrepancy(devig fair vs implied)。 */
+  getConsensus: (
+    match_key: string, score: string = '0-0', minute: number = 0, is_halftime: boolean = false,
+    home?: string, away?: string, league?: string,
+    over?: number, under?: number, line: number = 2.5,
+    opening_total?: number, current_total?: number,
+  ) =>
+    bridgeApi.get<BridgeResponse<any>>('/api/live-goal-probe/consensus', {
+      params: {
+        match_key, score, minute, is_halftime,
+        home: home || undefined, away: away || undefined, league: league || undefined,
+        over: over ?? undefined, under: under ?? undefined, line,
+        opening_total: opening_total ?? undefined, current_total: current_total ?? undefined,
+      },
+      timeout: 60000,
+    }),
+  /** 动态滚球决策系统 (Live Momentum Trader) 统一裁决卡:
+   *  聚合 决策智能体/操盘手/OU决策/信号仲裁/回测 五部分, 消除"多卡互相矛盾"体感。
+   *  替代原 ModelAnalysisCard + ArbitrationCard。所有建仓措辞标注"分析参考·需人工审批"。
+   *  live_home/live_draw/live_away 与 ah_home/ah_away 为可选真实盘口赔率(用于 AH↔1X2 市场对照)。 */
+  getMomentum: (
+    match_key: string, score: string = '0-0', minute: number = 0, is_halftime: boolean = false,
+    home?: string, away?: string, league?: string,
+    over?: number, under?: number, line: number = 2.5,
+    opening_total?: number, current_total?: number,
+    live_home?: number, live_draw?: number, live_away?: number,
+    ah_home?: number, ah_away?: number,
+  ) =>
+    bridgeApi.get<BridgeResponse<any>>('/api/live-goal-probe/momentum', {
+      params: {
+        match_key, score, minute, is_halftime,
+        home: home || undefined, away: away || undefined, league: league || undefined,
+        over: over ?? undefined, under: under ?? undefined, line,
+        opening_total: opening_total ?? undefined, current_total: current_total ?? undefined,
+        live_home: live_home ?? undefined, live_draw: live_draw ?? undefined,
+        live_away: live_away ?? undefined, ah_home: ah_home ?? undefined, ah_away: ah_away ?? undefined,
+      },
+      timeout: 60000,
+    }),
+  /** 模型对决 — 单场四方对比 (本系统/GitHub/去水基线/优化混合 w=0.6) */
+  getDuelPredict: (body: {
+    home: number; draw: number; away: number;
+    score?: string; minute?: number;
+    open_home?: number; open_draw?: number; open_away?: number;
+  }) =>
+    bridgeApi.post<BridgeResponse<any>>('/api/duel/predict', body),
+  /** 模型对决指标看板 (AUC/LogLoss/Brier/Acc) */
+  getDuelMetrics: () =>
+    bridgeApi.get<BridgeResponse<any>>('/api/duel/metrics'),
 }
 
-// ============================================
-// 概率排名编排器 — bridge_service:9000  /api/predict/ranked
-// 三市场 (1X2/OU/CS) 各自锚定操盘手赔率去水 → 跨市场按概率降序统一排名 (OU不特权)
-// 前端 MatchAnalysisModal 并行调用, 渲染"概率排名总览"面板 (analysis/markets/combined_top)
-// 仅取 home/away + 1X2 + OU; 操盘手CS赔率(op_cs)由后端自动从 GQ.db 回退
-// ============================================
-export const rankedService = {
-  predict: (home: string, away: string,
-            odds: { h: number; d: number; a: number },
-            handicap?: { ou_line?: number | string; ou_over?: number; ou_under?: number }) => {
-    const body: Record<string, any> = { home, away, oh: odds.h, od: odds.d, oa: odds.a }
-    if (handicap) {
-      if (handicap.ou_line != null && handicap.ou_line !== '') body.ou_line = Number(handicap.ou_line)
-      if (handicap.ou_over != null) body.over_water = handicap.ou_over
-      if (handicap.ou_under != null) body.under_water = handicap.ou_under
-    }
-    return bridgeApi.post<ApiResponse<any>>('/api/predict/ranked', body)
-  },
-}

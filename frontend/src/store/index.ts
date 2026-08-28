@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { User, Alert, SystemHealth, MetricsSummary, PredictionStats } from '@/types'
+import type { User, Alert, SystemHealth, MetricsSummary, PredictionStats, PortfolioResponse, SignalItem, PositionItem, EquityCurvePoint } from '@/types'
 // ============================================
 // 应用状态
 // ============================================
@@ -34,6 +34,15 @@ interface AppState {
   setModelType: (modelType: 'cup' | 'league' | null) => void
   modelCalibratedOn: string | null
   setModelCalibratedOn: (modelCalibratedOn: string | null) => void
+  // ── Paper Trading 交易面板 ──
+  portfolio: PortfolioResponse | null
+  setPortfolio: (portfolio: PortfolioResponse | null) => void
+  signals: SignalItem[]
+  setSignals: (signals: SignalItem[]) => void
+  tradingLoading: boolean
+  setTradingLoading: (loading: boolean) => void
+  tradingError: string | null
+  setTradingError: (error: string | null) => void
 }
 export const useAppStore = create<AppState>((set, get) => ({
   sidebarCollapsed: false,
@@ -61,5 +70,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   setModelType: (modelType) => set({ modelType }),
   modelCalibratedOn: null,
   setModelCalibratedOn: (modelCalibratedOn) => set({ modelCalibratedOn }),
+  // ── Paper Trading 交易面板 ──
+  portfolio: null as PortfolioResponse | null,
+  setPortfolio: (portfolio) => set({ portfolio }),
+  signals: [] as SignalItem[],
+  setSignals: (signals) => set({ signals }),
+  tradingLoading: false,
+  setTradingLoading: (tradingLoading) => set({ tradingLoading }),
+  tradingError: null as string | null,
+  setTradingError: (tradingError) => set({ tradingError }),
 }))
 // (已清理：预测大厅相关死切片)

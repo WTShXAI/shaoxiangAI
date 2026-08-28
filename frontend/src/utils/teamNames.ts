@@ -360,38 +360,20 @@ const TEAM_MAP: Record<string, string> = {
 }
 
 /**
- * 把球队名翻译成中文. 找不到翻译时回退原文.
- * 匹配规则: 完整匹配 -> 去掉"FC/CF/IF/BK"等后缀模糊匹配.
+ * 球队名: 原样返回 token 字符, 不做任何翻译/改写.
+ *
+ * 2026-08-24 用户铁律: "token 返回什么字符, 就映射什么名称".
+ * GQ token 已直接返回中文队名(如 奥林匹克FC / 烈焰骑士FC), 任何二次翻译
+ * 表(TEAM_MAP)都会引入错配/幻觉(如把 obscure 联赛队名译成不存在的队).
+ * 故 localizeTeam 改为透传, 永不改写. TEAM_MAP 保留仅供人工参考, 不再参与渲染.
  */
 export function localizeTeam(name: string | undefined | null): string {
+  // 仅做空值/空白兜底, 其余原样返回 token 字符
   if (!name) return ''
-  const trimmed = name.trim()
-  if (!trimmed) return ''
-
-  // 1) 完整匹配
-  if (TEAM_MAP[trimmed]) return TEAM_MAP[trimmed]
-
-  // 2) 大小写不敏感
-  const lower = trimmed.toLowerCase()
-  for (const k of Object.keys(TEAM_MAP)) {
-    if (k.toLowerCase() === lower) return TEAM_MAP[k]
-  }
-
-  // 3) 去掉常见后缀再匹配
-  const stripped = trimmed.replace(/\s+(FC|CF|IF|BK|SC|AC|SS|CD|UD|SD)$/i, '').trim()
-  if (stripped !== trimmed && TEAM_MAP[stripped]) return TEAM_MAP[stripped]
-  for (const k of Object.keys(TEAM_MAP)) {
-    if (k.toLowerCase() === stripped.toLowerCase()) return TEAM_MAP[k]
-  }
-
-  // 4) 原文
-  return trimmed
+  return name.trim()
 }
 
-/** 反向查找: 中文 -> 英文 (用于后端API查询) */
+/** 反向查找: 中文 -> 英文. 翻译表已停用, 返回 undefined (调用方须自行兜底原文). */
 export function toEnglishName(zh: string): string | undefined {
-  for (const [en, cn] of Object.entries(TEAM_MAP)) {
-    if (cn === zh) return en
-  }
   return undefined
 }

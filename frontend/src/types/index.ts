@@ -324,6 +324,9 @@ export interface FixtureEntry {
   score_away?: number
   score_inferred?: boolean  // drift 推断比分, 非 leyu 直接推送
   match_minute?: string | number
+  // 权威活源确认: 该场出现在 /api/live-scores (GQ/feed 实时活源) 中, 后端已判定为进行中。
+  // stateOf 对 liveConfirmed 场跳过"开赛>150min 强制判死"等时间启发式, 避免加时/点球/feed 滞后真活比赛被误隐藏。
+  liveConfirmed?: boolean
   kickoff_countdown?: string
   kickoff_ms?: number
   bookmakers_count?: number
@@ -410,107 +413,6 @@ export interface ApiResponse<T> {
 
 
 // ============================================
-// 量化投注系统类型 (真实数据驱动)
-// ============================================
-export interface QuantAccount {
-  init_bankroll: number
-  equity: number
-  peak: number
-  return_pct: number
-  bets: number
-  wins: number
-  losses: number
-  win_rate: number
-  pnl_total: number
-  max_drawdown_pct: number
-  sharpe: number
-}
-export interface QuantStrategy {
-  id: string
-  name: string
-  desc: string
-  enabled: boolean
-}
-export interface QuantPosition {
-  oid: string
-  home: string
-  away: string
-  direction: string
-  odds: number
-  stake: number
-  win: boolean
-  pnl: number
-  equity_after: number
-}
-export interface QuantOrder {
-  oid: string
-  mid: string
-  home: string
-  away: string
-  market: string
-  selection: string
-  direction: string
-  odds: number
-  stake: number
-  equity_before: number
-  model_prob: number
-  edge_pct: number
-  ev_pct: number
-  confidence: number
-  mode: string
-  strategy_id?: string
-  strategy_name?: string
-  created_at: string
-  settled: boolean
-  win?: boolean | null
-  pnl?: number | null
-  equity_after?: number | null
-}
-export interface QuantSignal {
-  ts: string
-  level: string  // order/settle/loss/scan/replay/analyze/info
-  msg: string
-  [key: string]: any
-}
-export interface OptionValuation {
-  market: string
-  selection: string
-  odds: number | null
-  model_prob: number
-  market_prob: number | null
-  edge_pct: number
-  ev_pct: number
-  kelly_half: number
-  decision: string  // BET/EVAL/SCAN/PASS
-}
-export interface ScanResult {
-  mid: string
-  home: string
-  away: string
-  league: string
-  is_multi_book: boolean
-  expected_goals?: { lh: number; la: number; total: number } | null
-  top_scores?: { score: string; prob: number }[] | null
-  options: OptionValuation[]
-  bet_candidates: OptionValuation[]
-  n_options: number
-  n_bets: number
-  best_option: OptionValuation | null
-}
-export interface QuantSnapshot {
-  account: QuantAccount
-  equity_curve: { step: number; equity: number; bankroll?: number; note?: string }[]
-  positions: QuantPosition[]
-  pending: QuantOrder[]
-  recent_orders: QuantOrder[]
-  signals: QuantSignal[]
-  recent_scans: ScanResult[]
-  strategies: QuantStrategy[]
-  auto_mode: boolean
-  bet_count: number
-}
-
-// ============================================
 // 赛事终端类型 (全链路分析 _live_predict 输出)
 // ============================================
 export interface TerminalMatch {
@@ -571,6 +473,17 @@ export interface OperatorView {
   stake_hint?: string
   trap?: { score?: number; level?: string; tags?: string[] }
 }
+
+/** 操盘手结论蒸馏卡 (terminal/analyze 返回的 operator_card, 一行结论 + 三层支撑)
+ *  设计目标: 操盘手看一句话就知道买不买, 不陷进 6 层嵌套巨响应。 */
+export interface OperatorCard {
+  verdict: string            // 一行结论 (人话, 不藏字段)
+  stake: string             // 注码建议
+  confidence: number        // 0-1 粗略置信
+  evidence: string[]        // ≤3 条支撑, 每条一句
+  trap_score: number | null // 陷阱评分 0-100 (越高越危险)
+  decision: string | null   // BET / PASS / ...
+}
 /** 单条策略方向信号 (面板提示级, 不改 verdict / 不自动下注) */
 export interface StrategySignal {
   name: string
@@ -584,7 +497,15 @@ export interface StrategySignal {
 /** _live_predict 决策卡片 (terminal/analyze 返回) */
 export interface TerminalDecisionCard {
   fixture: { home: string; away: string; commence_time: string; sport_key: string }
-  odds: { oh: number; od: number; oa: number }
+  /** 便捷字段 (部分调用方直接 card.home / card.away) */
+  home?: string
+  away?: string
+  odds: { oh: number; od: number; oa: number
+    /** 让球多档 (l5u: 恢复自回收站的 MatchAnalysisModal 使用) */
+    ah_team?: { line: number; home_odds: number; away_odds: number }[]
+    /** 大小球多档 */
+    ou_team?: { line: number; over_odds: number; under_odds: number }[]
+  }
   market_prob: { h: number; d: number; a: number }
   overround?: number
   direction: string
@@ -598,6 +519,8 @@ export interface TerminalDecisionCard {
   books_count: number
   draw_alert: boolean
   operator_view?: OperatorView
+  /** 操盘手结论蒸馏卡 (2026-08-22 新增, 治"分析太复杂/操盘手识别不了") */
+  operator_card?: OperatorCard
   sub_markets?: { ou?: any; draw?: any; correct_score?: any }
   oip?: {
     lambda_h: number; lambda_a: number
@@ -612,6 +535,10 @@ export interface TerminalDecisionCard {
     ou_line?: number | string | null
     /** 市场结构波胆三角定位 (OU×AH×1X2×CS 取交集) */
     cs_triangulation?: CsTriangulation | null
+    /** CS 赔率时间线 (恢复自回收站的 MatchAnalysisModal 使用) */
+    cs_odds_timeline?: any
+    /** CS 跟单信号 (庄家资金引导方向) */
+    cs_follow_signal?: any
   }
   handicap?: any
   value_layer?: any
@@ -652,6 +579,8 @@ export interface TerminalDecisionCard {
     spread_change: number
     signals: string[]
     delta: { h: number; d: number; a: number }
+    /** 低可靠度标记 (恢复自回收站的 MatchAnalysisModal 使用) */
+    reliability_low?: boolean
   } | null
   error?: string
 }
@@ -704,4 +633,94 @@ export interface ScoreHistoryEntry {
   score_away: number
   match_minute: string | number
   mststi: number
+}
+
+// ═══ Paper Trading 交易面板类型 ═══
+
+/** 单条持仓 */
+export interface PositionItem {
+  bet_id: number
+  home_team: string
+  away_team: string
+  league?: string
+  bet_side: BetSide
+  odds: number
+  stake_amount: number
+  status: 'pending' | 'won' | 'lost'
+  pnl?: number
+  placed_at?: string
+  settled_at?: string
+}
+
+/** 资金曲线点 */
+export interface EquityCurvePoint {
+  date: string
+  equity: number
+}
+
+/** GET /api/trading/portfolio 响应 */
+export interface PortfolioResponse {
+  total_equity: number
+  today_pnl: number
+  today_pnl_pct?: number
+  positions: PositionItem[]
+  equity_curve: EquityCurvePoint[]
+  total_trades: number
+  win_rate: number
+  peak_equity: number
+  max_drawdown: number
+  max_drawdown_pct?: number
+}
+
+/** 交易信号卡片 */
+export interface SignalItem {
+  signal_id: string
+  home_team: string
+  away_team: string
+  league: string
+  direction: BetSide
+  odds: number
+  stake_suggestion: number
+  edge_pct: number
+  ev_pct: number
+  kelly_half?: number
+  confidence?: number
+  risk_tag?: string
+}
+
+/** GET /api/trading/signals 响应 */
+export interface SignalsResponse {
+  signals: SignalItem[]
+  updated_at: string
+}
+
+/** POST /api/trading/place 请求/响应 */
+export interface PlaceOrderRequest {
+  signal_id: string
+  home_team: string
+  away_team: string
+  league?: string
+  bet_side: BetSide
+  odds: number
+  stake_amount?: number
+}
+
+export interface PlaceOrderResponse {
+  bet_id: number
+  bet_side: BetSide
+  odds: number
+  stake_amount: number
+  potential_pnl: number
+  message?: string
+  error?: string
+}
+
+/** POST /api/trading/settle/{bet_id} 响应 */
+export interface SettleResponse {
+  bet_id: number
+  actual_result: BetSide
+  pnl: number
+  status: 'won' | 'lost'
+  settled_at: string
+  error?: string
 }
