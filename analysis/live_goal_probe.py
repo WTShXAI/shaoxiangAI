@@ -1094,7 +1094,10 @@ def predict_fulltime_outcome(odds, current_score='0-0', current_minute=0, con=No
     x2 = _dewater_1x2(odds.get('1X2__home'), odds.get('1X2__draw'), odds.get('1X2__away'))
 
     # OU 隐含总球
-    ou_pairs = []
+    # 2026-08-30: 优先未破线(line > 当前总球) — 已破线 over≈1.0x 是赛前残留帧。
+    # 全部被滤掉时(高比分半场的窗口内可能只剩残留线)回退全部, 避免误走
+    # "OU 盘口缺失"提前返回丢掉 expected_score。
+    _ou_pairs_all = []
     for key in odds:
         if key.startswith('OU_') and not key.startswith('OU_1H') and not key.startswith('OU_2H') and key.endswith('__over'):
             lk = key[:-6]
@@ -1106,7 +1109,8 @@ def predict_fulltime_outcome(odds, current_score='0-0', current_minute=0, con=No
             ov = odds.get(f'{lk}__over')
             un = odds.get(f'{lk}__under')
             if ov and un:
-                ou_pairs.append((line, ov, un))
+                _ou_pairs_all.append((line, ov, un))
+    ou_pairs = [p for p in _ou_pairs_all if p[0] > (sh + sa) - 0.01] or _ou_pairs_all
     implied_total = _implied_total_from_pairs(ou_pairs)
 
     # AH 让球方向
@@ -1192,6 +1196,16 @@ def predict_fulltime_outcome(odds, current_score='0-0', current_minute=0, con=No
             _dyn_note = _cal_note
         _consistency_flag = lambda_consistency_flag(_hp, _ap, sh, sa)
         lh, la = _hp * _rem, _ap * _rem   # 剩余进球期望(后验 λ(t))
+        # ── 市场剩余总球锚限幅 (2026-08-30, HT重放实证) ──
+        # IR-07 后验 λ 对大比分领先场超调(实测 曼联U21 HT 4-0 → 预测 8-1, 实际 5-0;
+        # 12场HT重放 比分精确仅1/12)。主客拆分(方向)保留后验, 总量用即时盘隐含
+        # 剩余总球限幅(±60%), 后验只允许在市场锚附近修正, 不允许数量级超调。
+        _t_rem_mkt = max(0.0, (implied_total if implied_total else 2.5) - (sh + sa))
+        _post_rem = lh + la
+        if _t_rem_mkt > 0.2 and _post_rem > 0.05:
+            _scale = min(1.6, max(0.6, _t_rem_mkt / _post_rem))
+            lh *= _scale
+            la *= _scale
         idx = int(np.argmax([_ph, _pd, _pa]))
         direction = ['主胜', '平', '客胜'][idx]
         conf = [_ph, _pd, _pa][idx]
