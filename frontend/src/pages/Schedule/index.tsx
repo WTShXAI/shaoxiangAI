@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import PageHeader from '@/components/layout/PageHeader'
-import DuelManual from '@/components/DuelManual'
 import CSTrustCard from '@/components/CSTrustCard'
-import { liveGoalProbeService } from '@/services/api'
+import { liveGoalProbeService, terminalService } from '@/services/api'
 
 interface LiveMatch {
   match_key: string
@@ -104,6 +103,59 @@ interface ProbeData {
 
 const POLL_INTERVAL = 5000 // 5 秒轮询(与当前采集频率匹配)
 
+// ═══ 2026-08-29 复原(方案A) 适配层 ═══
+// /api/terminal/analyze 返回的是 _live_predict 全链路结果 (方向/OIP比分/OU/决策同响应),
+// 与重建后接的 /api/live-goal-probe/analyze (score_hint) 字段不同。此处做单一适配,
+// 把前者映射成 score_hint 形状, 使渲染层零改动。
+//   · 比分 ← oip.top3_scores (OIP 泊松比分模型)
+//   · 方向 ← direction (反抽水取赔率 argmax, 一级信号)
+//   · 决策 ← decision / decision_text (价值层 EV 判定, PASS=全方向负EV)
+function adaptLivePredict(raw: any, currentScore?: string): any {
+  if (!raw || raw.error) return null
+  const norm = (s: any) => String(s ?? '').replace(':', '-')
+  const dirOf = (s: any): 'home' | 'draw' | 'away' | null => {
+    const p = norm(s).split('-')
+    const h = parseInt(p[0] ?? '0', 10)
+    const a = parseInt(p[1] ?? '0', 10)
+    if (Number.isNaN(h) || Number.isNaN(a)) return null
+    return h > a ? 'home' : a > h ? 'away' : 'draw'
+  }
+  const top: string[] = Array.isArray(raw?.oip?.top3_scores) ? raw.oip.top3_scores : []
+  const probs: number[] = Array.isArray(raw?.oip?.top3_prob) ? raw.oip.top3_prob : []
+  const top3 = top.map((s, i) => ({ score: norm(s), prob: probs[i] ?? 0 }))
+  const score = top3[0]?.score || null
+  // 方向冲突: 主推比分方向与当前比分领先方相反 → 诚实标注分歧(非错误)
+  const dScore = dirOf(score)
+  const dCur = dirOf(currentScore)
+  const rollConflict = !!(dScore && dCur && currentScore && dScore !== dCur)
+  // 2026-08-30: top1 = 当前比分时, 不再称为"主推"以免视觉错觉(模型仅表示"最可能不变")
+  const top1EqualsCurrent = !!(score && currentScore && norm(score) === norm(currentScore))
+  const ou = raw?.sub_markets?.ou
+  return {
+    ...raw,                                    // 保留 _live_predict 原始字段供其它卡片复用
+    score_hint: {
+      score,
+      score_opening: top3[1]?.score ?? null,
+      top3,
+      top3_opening: top3,
+      winner_label: raw?.direction ?? null,
+      basis: raw?.decision_text || '',
+      opening_basis: `模型 ${raw?.model_type ?? '-'} · 校准 ${raw?.model_calibrated_on ?? '-'}`,
+      roll_verification: ou
+        ? `OU ${ou.ou_line}: 模型 P(over)=${Number(ou.model_p_over ?? 0).toFixed(3)} vs 市场 ${Number(ou.market_p_over ?? 0).toFixed(3)}`
+        : null,
+      roll_conflict: rollConflict,
+      opening_conflict: false,
+      lead_prior_note: null,
+      found: !!score,
+      // 2026-08-30: 比分分析器三级判定 (定方向/软加权/观望) 原样透传
+      score_analysis: raw?.score_analysis ?? null,
+      // 2026-08-30: top1 等于当前比分时改措辞, 避免"主推=当前比分"的视觉错觉
+      top1_equals_current: top1EqualsCurrent,
+    },
+  }
+}
+
 // ═══ 实时比赛计时(锚定 kickoff GMT+8, 与实时比分页同源, 误差<1分钟) ═══
 // 之前锚定采集库 minute 字段(全量轮询 60s), 误差可逼近 1 分钟; 改为以开赛时间(kickoff)
 // 为固定基准, 用本地时钟实时推算, 误差仅=网络/时钟抖动(秒级)。
@@ -141,12 +193,11 @@ const MAX_MIN = 125
 function resolveDisplayMinute(m: LiveMatch, now: number, refTime: number): number | null {
   const feedMin = m.minute != null ? m.minute : null
   const kickoffMin = computeLiveMinute(m.kickoff, now, null)
-  const fresh = (m.last_seen ? now - m.last_seen * 1000 : 1e12) < 30 * 60 * 1000
   if (feedMin != null) {
+    // 2026-08-30 对齐采集器: m.minute 已是后端 resolve_true_minute 精算值(扣中场),
+    // 只做本地增量推进; 删掉旧的"卡45用不扣中场的 kickoff 覆盖"逻辑(会把正确的
+    // 45 换成错误的 60)。
     let v = feedMin + (refTime > 0 ? (now - refTime) / 60000 : 0)
-    if (Math.abs(feedMin - 45) < 1 && fresh && kickoffMin != null && kickoffMin > 50 && kickoffMin <= MAX_MIN) {
-      v = kickoffMin
-    }
     return Math.min(MAX_MIN, Math.max(0, v))
   }
   return kickoffMin != null ? Math.min(MAX_MIN, Math.max(0, kickoffMin)) : null
@@ -242,7 +293,7 @@ function formatKickoffShort(kickoff: string | null | undefined): string {
   return hm.length >= 5 ? hm.slice(0, 5) : hm
 }
 
-function MatchListItem({ m, selected, onClick, onDuel, now, fetchTime }: { m: LiveMatch; selected: boolean; onClick: () => void; onDuel: (m: LiveMatch) => void; now: number; fetchTime: number }) {
+function MatchListItem({ m, selected, onClick, now, fetchTime }: { m: LiveMatch; selected: boolean; onClick: () => void; now: number; fetchTime: number }) {
   // 以 feed 的 minute 为真实比赛时间锚点，本地每秒平滑递增；kickoff 仅在 minute 缺失时兜底。
   // 低级联赛/延迟开球/比赛中断时，kickoff 挂钟时间会比有效比赛时间快，minute 更接近乐鱼显示。
   // 修正(2026-08-15): GQ feed 对 obscure 联赛的 minute 常在中场 45' 后卡死不再更新，
@@ -281,13 +332,6 @@ function MatchListItem({ m, selected, onClick, onDuel, now, fetchTime }: { m: Li
       <div className="flex items-center justify-between mt-1.5">
         <div className={`text-[13px] font-mono font-bold ${isGoalless ? 'text-amber-300' : 'text-ink-secondary'}`}>{m.score}</div>
         <div className="flex items-center gap-1">
-          <button
-            onClick={(e) => { e.stopPropagation(); onDuel(m) }}
-            className="px-1.5 py-0.5 rounded text-[9px] font-semibold border border-field-500/40 bg-field-500/15 text-field-300 hover:bg-field-500/30 transition-colors"
-            title="跳转手动预测并自动回填该场赔率/比分/时间"
-          >
-            ▶ 预测
-          </button>
           <MiniBadge side="半" signal={m.half_signal} direction={m.half_direction} />
           <MiniBadge side="全" signal={m.full_signal} direction={m.full_direction} />
         </div>
@@ -296,14 +340,45 @@ function MatchListItem({ m, selected, onClick, onDuel, now, fetchTime }: { m: Li
   )
 }
 
-function SideCard({ title, side }: { title: string; side: ProbeSide }) {
-  const overActive = side.direction === 'OVER'
-  const underActive = side.direction === 'UNDER'
+// ── 模型来源色点 (2026-08-30 用户需求: 红蓝绿区分结果来源) ──
+//   红 = 模型预测(_live_predict 的比分/方向/OU)
+//   蓝 = 市场/庄家客观读数(赔率、去水概率、跟随盘口)
+//   绿 = 滚球实时(probe 破蛋、降盘漂移)
+const SOURCE_COLORS = {
+  model: '#f87171',   // 红
+  market: '#60a5fa',  // 蓝
+  live: '#4ade80',    // 绿
+} as const
+type SourceKind = keyof typeof SOURCE_COLORS
+const SOURCE_LABEL: Record<SourceKind, string> = {
+  model: '模型预测(_live_predict)',
+  market: '市场/庄家读数',
+  live: '滚球实时(probe)',
+}
+
+function SourceDot({ kind }: { kind: SourceKind }) {
+  return (
+    <span
+      className="inline-block w-2 h-2 rounded-full shrink-0 align-middle"
+      style={{ backgroundColor: SOURCE_COLORS[kind] }}
+      title={SOURCE_LABEL[kind]}
+    />
+  )
+}
+
+function SideCard({ title, side, currentTotal }: { title: string; side: ProbeSide; currentTotal?: number | null }) {
+  // 2026-08-30: 当前总球已达 line 时,"小球"已无意义(盘口已死), 关闭绿色高亮 + 标注。
+  // 例: 当前 0-3, line 1.5/2.5 → 总球 3 已超 → 终场只可能"大", 不再标"推荐方向"。
+  const lineDead = currentTotal != null && side.line != null && currentTotal >= side.line
+  const overActive = !lineDead && side.direction === 'OVER'
+  const underActive = !lineDead && side.direction === 'UNDER'
   const isPrior = side.data_source === 'league_prior'  // 2026-08-28: 区分即时盘口 vs 联赛先验兜底
   return (
     <div className={`rounded-xl border p-4 ${isPrior ? 'border-amber-500/30 bg-amber-500/[0.04]' : 'border-surface-border/40 bg-surface-dark/30'}`}>
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[13px] font-semibold text-ink-primary">{title}</span>
+        <span className="text-[13px] font-semibold text-ink-primary flex items-center gap-1.5">
+          <SourceDot kind="live" />{title}
+        </span>
         <div className="flex items-center gap-1.5">
           {isPrior && (
             <span className="px-1.5 py-0.5 rounded text-[9px] font-mono border border-amber-500/40 bg-amber-500/15 text-amber-300">
@@ -339,6 +414,12 @@ function SideCard({ title, side }: { title: string; side: ProbeSide }) {
           水位差 Δ={side.delta.toFixed(2)} · 目标总进球 ≥ {side.target_total}
         </div>
       )}
+      {/* 2026-08-30: 当前总球已超盘口 → "小球"无意义(盘口已死), 关闭方向 + 诚实标注 */}
+      {lineDead && side.line != null && currentTotal != null && (
+        <div className="mt-2 text-[10px] text-ink-muted/80">
+          ⚠ 当前总球 <b className="text-ink-secondary">{currentTotal}</b> 已达 line {side.line} → 盘口已死, 推荐方向关闭
+        </div>
+      )}
       {/* 2026-08-28: 诚实标注无即时盘口时的原因(WS 推流未到/联赛无 OU) */}
       {isPrior && side.no_odds_reason && (
         <div className="mt-2 text-[10px] text-amber-300/80">
@@ -364,8 +445,8 @@ function FulltimeOutcomeCard({ ft, fallbackScore }: { ft: FulltimeOutcome | null
   return (
     <div className="rounded-xl border border-field-500/40 bg-field-500/[0.06] p-4">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[13px] font-semibold text-ink-primary">
-          终场结果读数 <span className="text-[10px] text-ink-muted font-normal">(跟随盘口)</span>
+        <span className="text-[13px] font-semibold text-ink-primary flex items-center gap-1.5">
+          <SourceDot kind="market" />终场结果读数 <span className="text-[10px] text-ink-muted font-normal">(跟随盘口)</span>
         </span>
         {confPct != null && (
           <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold border border-field-500/40 bg-field-500/15 text-field-300">
@@ -453,7 +534,7 @@ function LineDropCard({ ld }: { ld: LineDropData | null | undefined }) {
   if (!ld) {
     return (
       <div className="rounded-xl border border-surface-border/40 bg-surface-dark/30 p-4">
-        <div className="text-[12px] font-semibold text-ink-primary mb-1">降盘漂移观察</div>
+        <div className="text-[12px] font-semibold text-ink-primary mb-1 flex items-center gap-1.5"><SourceDot kind="live" />降盘漂移观察</div>
         <div className="text-[11px] text-ink-muted">暂无盘口轨迹数据 (需历史 OU 快照)</div>
       </div>
     )
@@ -462,7 +543,7 @@ function LineDropCard({ ld }: { ld: LineDropData | null | undefined }) {
     return (
       <div className="rounded-xl border border-surface-border/40 bg-surface-dark/30 p-4">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[12px] font-semibold text-ink-primary">降盘漂移观察</span>
+          <span className="text-[12px] font-semibold text-ink-primary flex items-center gap-1.5"><SourceDot kind="live" />降盘漂移观察</span>
           <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold border bg-surface-border/30 text-ink-muted border-surface-border/30">
             无降盘
           </span>
@@ -484,7 +565,7 @@ function LineDropCard({ ld }: { ld: LineDropData | null | undefined }) {
   return (
     <div className="rounded-xl border border-amber-500/40 bg-amber-500/[0.06] p-4">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[12px] font-semibold text-amber-200">降盘漂移观察 ⚠ 非买入信号</span>
+        <span className="text-[12px] font-semibold text-amber-200 flex items-center gap-1.5"><SourceDot kind="live" />降盘漂移观察 ⚠ 非买入信号</span>
         <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold border bg-amber-500/20 text-amber-200 border-amber-500/40">
           降 {ld.drop?.toFixed(2)} 球
         </span>
@@ -528,29 +609,11 @@ export default function SchedulePage() {
   const [consensus, setConsensus] = useState<any>(null)
   const [trustCard, setTrustCard] = useState<any>(null)
   const [induce, setInduce] = useState<any>(null)
-  const [duel, setDuel] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [lastUpdate, setLastUpdate] = useState<number | null>(null)
   const [maxLastSeen, setMaxLastSeen] = useState<number | null>(null)
   const [backtest, setBacktest] = useState<any>(null)
-  const [mode, setMode] = useState<'schedule' | 'duel'>('schedule')
-  const [duelInitial, setDuelInitial] = useState<any>(null)
-
-  // 点击"▶ 预测": 切到手动预测 tab, 自动回填该场 即时盘/初盘/比分/分钟/OU/CS/队名/联赛
-  const goDuel = useCallback((m: LiveMatch) => {
-    setDuelInitial({
-      home: m.odds_h, draw: m.odds_d, away: m.odds_a,
-      openHome: m.opening_h, openDraw: m.opening_d, openAway: m.opening_a,
-      score: m.score, minute: m.minute ?? undefined,
-      homeName: m.home, awayName: m.away,
-      league: m.league,
-      ouLine: m.ou_line, ouOver: m.ou_over, ouUnder: m.ou_under,
-      ouOpLine: m.ou_op_line, ouOpOver: m.ou_op_over, ouOpUnder: m.ou_op_under,
-      csTop: m.cs_top ?? undefined,
-    })
-    setMode('duel')
-  }, [])
   const [now, setNow] = useState<number>(() => Date.now())
   const [search, setSearch] = useState('')
   const [onlyGoalless, setOnlyGoalless] = useState(false)
@@ -587,53 +650,52 @@ export default function SchedulePage() {
     }
   }, [])
 
+  // 2026-08-29 复原(方案A) 适配层:
+  //   /api/terminal/analyze(_live_predict) 是全链路模型 —— 方向/OIP比分/OU/决策在
+  //   同一个响应里, 字段与重建后接的 /api/live-goal-probe/analyze(score_hint) 不同。
+  //   这里做**单一适配**把前者映射成 score_hint 形状, 渲染层不动。
+  //   比分取自 oip.top3_scores (OIP 泊松比分模型), 方向取自 direction (市场 argmax)。
   const fetchProbe = useCallback(async (m: LiveMatch) => {
     setLoading(true)
     try {
-      // 比赛分钟封顶 125: 仅当数据新鲜且 feed 卡45时回推 kickoff(避免僵尸算出 270+),
-      // 其余按 feed 分钟, 且结果硬性封顶。
-      const kickoffMinProbe = computeLiveMinute(m.kickoff, Date.now(), null)
-      let liveMin = m.minute ?? 0
-      if (m.minute != null && Math.abs(m.minute - 45) < 1 && kickoffMinProbe != null && kickoffMinProbe > 50 && kickoffMinProbe <= 125) {
-        liveMin = kickoffMinProbe
-      } else if (m.minute == null && kickoffMinProbe != null) {
-        liveMin = Math.min(MAX_MIN, Math.max(0, kickoffMinProbe))
-      }
-      liveMin = Math.min(MAX_MIN, Math.max(0, liveMin))
-      const min = Math.round(liveMin)
-      // 并行拉取 6 个模型 (赛程列表=全功能): 基础分析/合理比分/动态决策/信号仲裁/CS 三栏/庄家诱导
-      const [probeRes, analRes, momRes, conRes, trustRes, indRes] = await Promise.all([
+      // 比赛分钟对齐采集器(2026-08-30 修复):
+      //   后端 list_live_matches 已用 resolve_true_minute 精算分钟 —— kickoff 真实时钟
+      //   + **扣除中场 15 分钟** + feed 45/90 只当半场标识。所以前端**直接用 m.minute**。
+      //   旧逻辑用 computeLiveMinute(墙钟, 不扣中场) 重算, 开赛 60 分钟会算出 60,
+      //   而后端正确值是 45; 且"卡45就用 kickoff 覆盖"会把正确的 45 换成错误的 60。
+      const liveMin = m.minute != null ? m.minute : 0
+      const min = Math.round(Math.min(MAX_MIN, Math.max(0, liveMin)))
+      // 2026-08-29 复原(方案A): 模型只接 /api/terminal/analyze 的 _live_predict 单一真相源。
+      //   重建后接的 /api/live-goal-probe/analyze(cross_score) 实测不可信 → 换回。
+      //   momentum / consensus / trust-card / induce-flag / duel 按用户拍板暂不接入。
+      // ① 破蛋读数(滚球实时) ② 全链路分析(_live_predict)
+      const _sp = (m.score || '0-0').split('-')
+      const _hg = parseInt(_sp[0] ?? '0', 10) || 0
+      const _ag = parseInt(_sp[1] ?? '0', 10) || 0
+      const [probeRes, analRes] = await Promise.all([
         liveGoalProbeService.getProbe(m.match_key, m.score, min).then((r) => r.data).catch(() => null),
-        liveGoalProbeService.getAnalyze(m.match_key, m.score, min, false).then((r) => (r as any)?.data?.data ?? (r as any)?.data).catch(() => null),
-        liveGoalProbeService.getMomentum(m.match_key, m.score, min, false, m.home, m.away, m.league, m.ou_over, m.ou_under, m.ou_line ?? 2.5).then((r) => (r as any)?.data ?? r).catch(() => null),
-        liveGoalProbeService.getConsensus(m.match_key, m.score, min, false, m.home, m.away, m.league, m.ou_over, m.ou_under, m.ou_line ?? 2.5).then((r) => (r as any)?.data ?? r).catch(() => null),
-        // 双层解包: 端点返回 {ok, data: card}, axios .data 一层 → .data.data 才是 card
-        liveGoalProbeService.getCsTrustCard(m.match_key, m.score, min > 0 ? min : undefined).then((r) => (r as any)?.data?.data ?? (r as any)?.data).catch(() => null),
-        // live 场不传 actual_score(当前比分非终场, 8/22 铁律), 仅终场回检用
-        liveGoalProbeService.getInduceFlag(m.match_key).then((r) => (r as any)?.data?.data ?? (r as any)?.data).catch(() => null),
+        // sportKey 传空串: 后端会按队名自动反查真实联赛。
+        // ⚠ 绝不能传默认 'soccer_fifa_world_cup' —— 后端据此判定 WC 并改用
+        //   goal_scale=1.35(世界杯校准), 对普通联赛会系统性高估总进球。
+        terminalService.analyze(
+          m.home, m.away, '',
+          (m.odds_h && m.odds_d && m.odds_a) ? { h: m.odds_h, d: m.odds_d, a: m.odds_a } : undefined,
+          { ou_line: m.ou_line ?? undefined, ou_over: m.ou_over ?? undefined, ou_under: m.ou_under ?? undefined },
+          min > 0 ? { homeGoals: _hg, awayGoals: _ag, elapsed: min } : undefined,
+        ).then((r) => (r as any)?.data?.data ?? (r as any)?.data).catch(() => null),
       ])
-      // 第 7 个: 模型对决 (四方对比, 需要实时 1X2 + 开盘 1X2)
-      let duelRes: any = null
-      if (m.odds_h && m.odds_d && m.odds_a) {
-        duelRes = await liveGoalProbeService.getDuelPredict({
-          home: m.odds_h, draw: m.odds_d, away: m.odds_a,
-          score: m.score, minute: min > 0 ? min : undefined,
-          open_home: m.opening_h ?? undefined, open_draw: m.opening_d ?? undefined,
-          open_away: m.opening_a ?? undefined,
-        }).then((r) => (r as any)?.data?.data ?? (r as any)?.data).catch(() => null)
-      }
       if (probeRes) {
         if (!probeRes.ok) throw new Error(probeRes.error || '探测失败')
         setProbe(probeRes.data)
       } else {
         setProbe(null)
       }
-      setAnal(analRes || null)
-      setMomentum(momRes || null)
-      setConsensus(conRes || null)
-      setTrustCard(trustRes?.found === false ? null : (trustRes || null))
-      setInduce(indRes || null)
-      setDuel(duelRes || null)
+      setAnal(adaptLivePredict(analRes, m.score) || null)
+      // 暂未接入的模型置空 (用户拍板: 其它模型先不接赛程页)
+      setMomentum(null)
+      setConsensus(null)
+      setTrustCard(null)
+      setInduce(null)
       setError('')
     } catch (e: any) {
       setError(e?.response?.data?.error || e?.message || '探测失败')
@@ -684,29 +746,15 @@ export default function SchedulePage() {
 
   return (
     <div className="min-h-screen p-4 md:p-6">
-      <PageHeader title="赛程列表" subtitle="全比赛 · 点比赛自动跑 7 个模型（破蛋 / 合理比分 / 动态决策 / 信号仲裁 / CS 信任卡 / 庄家诱导 / 模型对决）" />
+      <PageHeader title="赛程列表" subtitle="全比赛 · 点比赛自动跑分析模型（全链路 _live_predict + 滚球破蛋 probe）" />
 
-      {/* 顶部菜单: 赛程列表 | 手动预测对比 */}
-      <div className="mt-4 flex items-center gap-1 rounded-lg bg-surface-dark/50 border border-surface-border/40 p-1 w-fit">
-        {(['schedule', 'duel'] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            className={`px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors ${
-              mode === m ? 'bg-field-500/20 text-field-300 border border-field-500/30' : 'text-ink-muted hover:text-ink-primary'
-            }`}
-          >
-            {m === 'schedule' ? '赛程列表' : '手动预测对比'}
-          </button>
-        ))}
+      {/* 颜色图例 (2026-08-30): 红=模型预测 / 蓝=市场读数 / 绿=滚球实时 */}
+      <div className="mt-3 flex items-center gap-4 text-[11px] text-ink-muted">
+        <span className="flex items-center gap-1.5"><SourceDot kind="model" />模型预测(_live_predict)</span>
+        <span className="flex items-center gap-1.5"><SourceDot kind="market" />市场/庄家读数</span>
+        <span className="flex items-center gap-1.5"><SourceDot kind="live" />滚球实时(probe)</span>
       </div>
 
-      {mode === 'duel' ? (
-        <div className="mt-4 max-w-[1000px]">
-          <DuelManual initial={duelInitial} />
-        </div>
-      ) : (
-      <>
       {/* 2026-08-28: 删除原"概率警报仪"黄色全级常驻警告 (采集器在跑+数据齐全时不应报警);
          回测/概率层说明保留在详情区(终场读数卡·置信度)  */}
 
@@ -753,7 +801,6 @@ export default function SchedulePage() {
                 fetchTime={lastUpdate ?? 0}
                 selected={selected?.match_key === m.match_key}
                 onClick={() => setSelected(m)}
-                onDuel={goDuel}
               />
             ))}
             {filteredMatches.length === 0 && (
@@ -804,8 +851,8 @@ export default function SchedulePage() {
                   </div>
                 </div>
                 {probe?.fav_odds && (
-                  <div className="mt-3 text-[11px] text-ink-muted">
-                    1X2 热门赔率: <span className="font-mono text-ink-secondary">{probe.fav_odds.toFixed(2)}</span>
+                  <div className="mt-3 text-[11px] text-ink-muted flex items-center gap-1.5">
+                    <SourceDot kind="market" />1X2 热门赔率: <span className="font-mono text-ink-secondary">{probe.fav_odds.toFixed(2)}</span>
                   </div>
                 )}
               </div>
@@ -814,7 +861,14 @@ export default function SchedulePage() {
               {(() => {
                 const sh: any = anal?.score_hint
                 const cur = selected?.score ?? ''
-                const contradict = !!(sh?.score && cur && sh.score !== cur)
+                // 2026-08-29 修复: 原 `sh.score !== cur` **字符串全等**比较 → 滚球阶段
+                //   几乎恒为真(模型推的是终场比分, 当然 ≠ 当前比分), 红色警告变成常态噪音,
+                //   且文案称 sh.score "未接 in-play 比分" 是事实错误 —— sh.score 恰恰是
+                //   ② 滚球修正主推(已条件化), 未接 in-play 的是 sh.score_opening。
+                //   改用后端语义标记 roll_conflict (主推方向与当前比分领先方相反) 判定,
+                //   仅在**真反向**时报警; 无该字段(旧响应)时回退原逻辑。
+                const contradict = !!(sh?.roll_conflict ?? (sh?.score && cur && sh.score !== cur))
+                const openingConflict = !!sh?.opening_conflict
                 if (!sh) return (
                   <div className="text-[11px] text-ink-muted bg-white/[0.03] rounded-lg p-2">
                     无合理比分（本场无真实开盘赔率，无法推导）
@@ -829,16 +883,40 @@ export default function SchedulePage() {
                     <div className="flex items-center justify-between mb-2">
                       <span className={`text-[12px] font-semibold flex items-center gap-1.5 ${contradict ? 'text-danger-300' : 'text-ember-300'}`}>
                         {contradict && <span className="text-danger-400">⚠</span>}
+                        <SourceDot kind="model" />
                         合理比分（开盘结构诚实锚）
                       </span>
                       <span className="text-[10px] text-ink-muted">30px · 仿 19:1x 原始版本</span>
                     </div>
-                    {/* 矛盾警告置顶 (一眼看到) */}
+                    {/* 矛盾警告置顶 (一眼看到) — 仅在方向真相反时 */}
                     {contradict && (
                       <div className="mb-2 text-[11px] text-danger-300 bg-danger-500/10 border border-danger-500/30 rounded-md px-2.5 py-1.5 leading-snug">
-                        ⚠ 当前滚球已 <b>{cur}</b>，合理比分 <b>{sh.score}</b> 来自开盘盘口、未接 in-play 比分——请以滚球为准，勿当赛果预测。
+                        ⚠ 当前滚球 <b>{cur}</b> 的领先方与模型主推 <b>{sh.score}</b> <b>方向相反</b>——
+                        模型跟随当前市场定价，未把领先方当既定结果（IR-25: 领先后收缩假设已两次证伪）。此处为<b>分歧提示</b>，非赛果预测。
                       </div>
                     )}
+                    {/* 三级判定 (2026-08-30): 定方向/软加权/观望 */}
+                    {sh.score_analysis && (() => {
+                      const sa = sh.score_analysis
+                      const lv = sa['级别']
+                      const dir = sa['方向']
+                      const conf = sa['置信度']
+                      const note = sa['分歧标注']
+                      const dirCN = dir === 'home' ? '主胜' : dir === 'away' ? '客胜' : dir === 'draw' ? '平局' : null
+                      const lvStyle = lv === '定方向'
+                        ? 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10'
+                        : lv === '软加权'
+                          ? 'text-amber-300 border-amber-500/40 bg-amber-500/10'
+                          : 'text-ink-muted border-surface-border/40 bg-surface-dark/40'
+                      return (
+                        <div className="mb-2 text-[11px] flex items-center gap-2 flex-wrap">
+                          <span className={`px-1.5 py-0.5 rounded font-semibold border ${lvStyle}`}>{lv}</span>
+                          {dirCN && <span>方向 <b className="text-ink-primary">{dirCN}</b></span>}
+                          <span className="text-ink-muted">置信度 {Math.round((conf ?? 0) * 100)}%</span>
+                          {note && <span className="text-amber-300">{note}</span>}
+                        </div>
+                      )
+                    })()}
                     <div className="flex items-baseline gap-3">
                       <span className="text-[30px] leading-none font-bold text-ember-400 font-mono">{sh.score}</span>
                       {sh.winner_label && <span className="text-xs text-ink-secondary">{sh.winner_label}</span>}
@@ -852,14 +930,29 @@ export default function SchedulePage() {
                     {/* 双比分推荐: ①初盘+即时结构 ②滚球修正 (2026-08-28) */}
                     {(sh.score_opening || sh.opening_basis) && (
                       <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-                        <div className="rounded-lg border border-frost-500/20 bg-frost-500/[0.04] px-2.5 py-1.5">
+                        <div className={`rounded-lg border px-2.5 py-1.5 ${
+                          openingConflict
+                            ? 'border-danger-500/40 bg-danger-500/[0.06]'
+                            : 'border-frost-500/20 bg-frost-500/[0.04]'
+                        }`}>
                           <div className="text-[9px] text-frost-300 mb-0.5">① 初盘+即时结构</div>
                           <div className="text-[13px] font-mono font-bold text-ink-primary">{sh.score_opening ?? '—'}</div>
                           {sh.opening_basis && <div className="text-[9px] text-ink-muted">{sh.opening_basis}</div>}
+                          {/* 初盘结论与实时比分反向 → 明确标注, 不再裸显示造成误导 */}
+                          {openingConflict && (
+                            <div className="text-[9px] text-danger-300 mt-0.5">⚠ 与当前比分反向（初盘结论，非推荐）</div>
+                          )}
                         </div>
                         <div className="rounded-lg border border-ember-500/20 bg-ember-500/[0.04] px-2.5 py-1.5">
-                          <div className="text-[9px] text-ember-300 mb-0.5">② 滚球修正 (主推)</div>
+                          <div className="text-[9px] text-ember-300 mb-0.5">
+                            ② 滚球修正 ({sh.top1_equals_current ? 'top1 = 当前比分' : '主推'})
+                          </div>
                           <div className="text-[13px] font-mono font-bold text-ember-400">{sh.score}</div>
+                          {sh.top1_equals_current && (
+                            <div className="text-[9px] text-ink-muted mt-0.5">
+                              模型最可能维持该比分（不预测改变），非终场预测
+                            </div>
+                          )}
                           {sh.roll_verification && <div className="text-[9px] text-ink-muted">{sh.roll_verification}</div>}
                         </div>
                       </div>
@@ -879,8 +972,8 @@ export default function SchedulePage() {
               {probe && (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <SideCard title="半场破蛋" side={probe.half} />
-                    <SideCard title="全场破蛋" side={probe.full} />
+                    <SideCard title="半场破蛋" side={probe.half} currentTotal={selected?.score ? selected.score.split('-').reduce((a: number, x: string) => a + (parseInt(x, 10) || 0), 0) : null} />
+                    <SideCard title="全场破蛋" side={probe.full} currentTotal={selected?.score ? selected.score.split('-').reduce((a: number, x: string) => a + (parseInt(x, 10) || 0), 0) : null} />
                   </div>
 
                   <FulltimeOutcomeCard
@@ -992,49 +1085,6 @@ export default function SchedulePage() {
                   {/* CS 信任卡 (2026-08-28 重建 8/25 三栏形态: 结构/庄家/历史 + DB同结构匹配 + 滚球即时盘) */}
                   <CSTrustCard trustCard={trustCard} induce={induce} />
 
-                  {/* 模型对决 (2026-08-28 整合自 8000 harness → 9000) */}
-                  {duel && (
-                    <div className="rounded-xl border border-field-500/40 bg-field-500/[0.05] p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[12px] font-semibold text-field-300">模型对决 · 单场四方对比</span>
-                        <span className="text-[10px] text-ink-muted">{duel.mode ?? ''}</span>
-                      </div>
-                      <div className="space-y-2">
-                        {(
-                          [
-                            ['本系统', duel.system],
-                            ['GitHub', duel.github],
-                            ['去水基线', duel.baseline],
-                            ['优化混合', duel.optimized],
-                          ] as [string, any][]
-                        ).map(([name, p]) => (
-                          <div key={name} className="flex items-center gap-2">
-                            <span className="text-[10px] text-ink-muted w-14 shrink-0">{name}</span>
-                            <div className="flex-1 grid grid-cols-3 gap-1">
-                              {['主', '平', '客'].map((lbl, i) => {
-                                const v = p ? (i === 0 ? p.p_home : i === 1 ? p.p_draw : p.p_away) : null
-                                const pct = v != null ? Math.round(v * 100) : 0
-                                const isMax = p && p.argmax === (['H', 'D', 'A'][i])
-                                return (
-                                  <div key={lbl} className="relative h-5 rounded bg-white/[0.04] overflow-hidden">
-                                    <div className={`absolute inset-y-0 left-0 ${isMax ? 'bg-field-400/60' : 'bg-white/[0.08]'}`} style={{ width: `${pct}%` }} />
-                                    <span className="absolute inset-0 flex items-center justify-center text-[9px] font-mono">
-                                      {lbl} {v != null ? `${pct}%` : '—'}
-                                    </span>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                            <span className="text-[10px] text-ink-secondary w-10 text-right shrink-0">{p?.argmax_cn ?? '—'}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="text-[10px] text-ink-muted mt-2">
-                        优化混合 = 0.6·滚球模型 + 0.4·去水基线（时序 holdout 锁定，滚球 AUC 0.8217 最优）· 历史指标见对决看板
-                      </div>
-                    </div>
-                  )}
-
                   <div className="rounded-xl border border-surface-border/40 bg-surface-dark/30 p-4">
                     <div className="text-[12px] font-semibold text-ink-primary mb-2">判读理由</div>
                     <ul className="space-y-1.5">
@@ -1087,8 +1137,6 @@ export default function SchedulePage() {
           </details>
         )}
       </div>
-      </>
-      )}
     </div>
   )
 }

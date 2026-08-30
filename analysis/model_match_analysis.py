@@ -535,6 +535,14 @@ def analyze_match_with_model(match_key, current_score="0-0", current_minute=0,
                 'top3': _cs.get('top3'),
                 'top3_opening': _cs.get('top3_opening'),
                 'roll_verification': _cs.get('roll_verification'),
+                # 2026-08-29: 与实时比分的方向冲突标记 (波胆反向根因修复 Fix-3)。
+                #   opening_conflict: 初盘结论方向与当前比分领先方相反
+                #   roll_conflict:    主推比分方向与当前比分领先方相反
+                #   前端据此区分"真反向"(报警) 与"模型推终场≠当前比分"(正常, 不报警)。
+                'opening_conflict': bool(_cs.get('opening_conflict')),
+                'roll_conflict': bool(_cs.get('roll_conflict')),
+                # 2026-08-29 方向3: 领先方先验校正说明 (None=未生效, 如赛前/平局/样本不足)
+                'lead_prior_note': _cs.get('lead_prior_note'),
             }
     except Exception:
         score_hint = None

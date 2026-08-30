@@ -2248,8 +2248,27 @@ def _live_predict(home, away, oh, od, oa,
     # P1b② 队名归一化 -> 英文 canonical, 供 OIP 与平局共识使用 (调用方没传 home_norm 也兜底)
     home_canon = _normalize_team_p1b(home_norm or home)
     away_canon = _normalize_team_p1b(away_norm or away)
+    # 2026-08-30 修复 λ 反推缺陷(根源): solve_oip 用独立泊松硬匹配平局概率,
+    #   势均力敌(平局率>0.25)时方程无解 → λ 被压到 1.76(应 2.6+), 低 32%。
+    #   改用 OU 盘口(诚实锚)反推 implied_total, 交给 predict_score 锚定 λ_total。
+    # 2026-08-30 二次修正(半场回测 1781 场): OU 锚定仅对**赛前(比分未知)**成立——
+    #   赛前比分未知, OU 是唯一诚实锚, solve_oip 压 λ 是缺陷(博多 0-0@45 判小错);
+    #   但**半场/滚球(比分已定)**时, 市场滚球 1X2 已反映领先/落后, 此时 solve_oip
+    #   反推 λ 反而更准(半场 top1 22.46% vs OU锚定 21.45%, top3 52.05% vs 50.59%)。
+    #   故: 有比分传入(in-play) → 回退 solve_oip; 赛前 → OU 锚定。
+    _is_inplay = home_goals is not None and away_goals is not None
+    _implied_total = None
+    if (not _is_inplay) and ou_line and over_water and under_water:
+        try:
+            _po = (1.0 / float(over_water)) / (1.0 / float(over_water) + 1.0 / float(under_water))
+            _implied_total = float(ou_line) + 2.0 * (_po - 0.5)
+            if not (1.0 < _implied_total < 6.0):
+                _implied_total = None   # 异常值回退 solve_oip
+        except Exception:
+            _implied_total = None
     r = predict_score(home_canon, away_canon, oh, od, oa,
-                      goal_scale=WC_OIP_GOAL_SCALE if is_cup else GENERAL_OIP_GOAL_SCALE)
+                      goal_scale=WC_OIP_GOAL_SCALE if is_cup else GENERAL_OIP_GOAL_SCALE,
+                      implied_total=_implied_total)
     M = r["matrix"]; mg = M.shape[0] - 1
 
     # ── 联赛/赛事进球水平先验 (2026-08-12: 独立特征+校准+零回归) ──
@@ -2914,6 +2933,26 @@ def _live_predict(home, away, oh, od, oa,
                 s['suppressed'] = True
                 s['suppress_reason'] = '与防平信号冲突, 回测实际平局率+2~4pp高于基线, 采信防平'
 
+    # ── 2026-08-30 比分分析器三级判定 (定方向/软加权/观望) ──
+    # 用户拍板: 比分分析器不是预测器; 方向服从市场 + 领先方。
+    # 输出 {级别, 方向, 置信度, 概率分布, 分歧标注} 到 result.score_analysis。
+    from pipeline.score_analyzer import analyze_score as _analyze_score
+    _market_dir = {0: "home", 1: "draw", 2: "away"}[best[1]]
+    _lead_side, _lead_goals = None, 0
+    if home_goals is not None and away_goals is not None:
+        try:
+            _diff = int(home_goals) - int(away_goals)
+            if _diff > 0:
+                _lead_side, _lead_goals = "home", _diff
+            elif _diff < 0:
+                _lead_side, _lead_goals = "away", -_diff
+        except Exception:
+            pass
+    _score_dist = {f"{h}-{a}": p for (h, a), p in zip(top5, top5_prob)}
+    _score_analysis = _analyze_score(
+        _market_dir, (ph, pd, pa), _lead_side, _lead_goals,
+        int(elapsed or 0), _score_dist)
+
     result = {
         "home": home, "away": away,
         "odds": {"oh": oh, "od": od, "oa": oa},
@@ -2963,6 +3002,8 @@ def _live_predict(home, away, oh, od, oa,
                            if league_scoring else round(oip_raw_total, 3)),
         "expected_total_raw": round(oip_raw_total, 3),
         "league_scoring": league_scoring,
+        # 2026-08-30 比分分析器三级判定结果 (定方向/软加权/观望)
+        "score_analysis": _score_analysis,
     }
 
     # ── V7.1 复盘链路: 赛前分析快照落库 (非致命, 失败仅 log, 绝不影响主预测返回) ──
@@ -3345,279 +3386,6 @@ async def backtest_api():
     except Exception as e:
         return _wrap_data({"error": f"读取回测数据失败: {e}"})
 
-
-# ══════════════════════════════════════════════════════════════════════
-# 模型对决 (2026-08-28 整合自 harness: 8000 → 9000 统一单端口)
-#   单场四方对比: 本系统(live/static) / GitHub heuristic / 去水基线 / 优化混合(w=0.6)
-#   指标看板: unified_corrected_duel_result.json (AUC/LogLoss/Brier/Acc)
-# ══════════════════════════════════════════════════════════════════════
-_DUEL_WI = None
-_DUEL_LIVE = None
-_DUEL_GH = None
-_DUEL_LOADED = False
-
-
-def _duel_load_models():
-    global _DUEL_WI, _DUEL_LIVE, _DUEL_GH, _DUEL_LOADED
-    if _DUEL_LOADED:
-        return True
-    try:
-        import joblib
-        import numpy as _np
-        sys.path.insert(0, r"C:\Users\ShXAI\Documents\GitHub\shaoxiangAI\agents")
-        from heuristic_predictor import HeuristicPredictor
-        _DUEL_WI = joblib.load(os.path.join(PROJECT_ROOT, "data", "wi_1x2_model.joblib"))
-        _DUEL_LIVE = joblib.load(os.path.join(PROJECT_ROOT, "data", "live_1x2_model.joblib"))
-        _DUEL_GH = HeuristicPredictor()
-        _DUEL_LOADED = True
-        logger.info("[duel] 模型加载成功 (wi/live/heuristic)")
-        return True
-    except Exception as e:
-        logger.warning(f"[duel] 模型加载失败: {e}")
-        return False
-
-
-def _duel_pack(probs):
-    if probs is None:
-        return None
-    import numpy as np
-    labels = ["H", "D", "A"]
-    arg = {"H": "主胜", "D": "平局", "A": "客胜"}
-    i = int(np.argmax(probs))
-    return {"p_home": round(float(probs[0]), 4), "p_draw": round(float(probs[1]), 4),
-            "p_away": round(float(probs[2]), 4), "argmax": labels[i], "argmax_cn": arg[labels[i]]}
-
-
-def _duel_predict(home, draw, away, score, minute, open_home, open_draw, open_away,
-                  ou_line=None, ou_over=None, ou_under=None, cs=None,
-                  home_name=None, away_name=None, league=None):
-    """单场四方对比 (逻辑与 harness/harness_server.py do_predict 一致)。
-    扩展 (2026-08-28, 对齐 NFTB):
-      - 三市场: ou_analysis(市场去水) + cs_analysis(1X2 去水定胜方 + OU 线定总球, 禁 CS 定价)
-      - NFTB 契约: nftb = ranked_predictor 全链路 (result/confidence/probabilities/confidence_tier/
-        analysis 七段/operator_verdict/team_strength) — 与 NFTB /predict 同契约。
-    """
-    import numpy as np
-    import math
-    if not _duel_load_models():
-        return {"error": "duel 模型未加载"}
-    from analysis.live_goal_probe import _dewater_1x2
-    from analysis.live_rollball_features import build_1x2_features
-    from pipeline.william_inter_model import derive_features as wi_derive
-
-    sh = sa = 0
-    if score and "-" in str(score):
-        try:
-            sh, sa = (int(x) for x in str(score).split("-"))
-        except Exception:
-            sh = sa = 0
-    try:
-        fH, fD, fA = float(home), float(draw), float(away)
-    except Exception:
-        return {"error": "odds required"}
-    inplay = minute is not None and int(minute) > 0
-
-    def _baseline(h, d, a):
-        x2 = _dewater_1x2(h, d, a)
-        return [x2[0], x2[1], x2[2]] if x2 else [1 / 3, 1 / 3, 1 / 3]
-
-    if inplay:
-        x2 = _dewater_1x2(fH, fD, fA)
-        if x2 is None:
-            return {"error": "dewater failed"}
-        feats = build_1x2_features(int(minute), sh, sa, x2[0], x2[1], x2[2])
-        sys_p = [float(x) for x in _DUEL_LIVE.predict_proba(np.array([feats], dtype=float))[0]]
-        base = _baseline(fH, fD, fA)
-        opt = (0.6 * np.array(sys_p) + 0.4 * np.array(base))
-        opt = (opt / opt.sum()).tolist()
-        mode = "inplay (live_1x2_model)"
-    else:
-        oh_f = float(open_home) if open_home not in (None, "") else fH
-        od_f = float(open_draw) if open_draw not in (None, "") else fD
-        oa_f = float(open_away) if open_away not in (None, "") else fA
-        feats = wi_derive(oh_f, od_f, oa_f, fH, fD, fA)
-        if feats is None or any(math.isnan(x) for x in feats):
-            sys_p = None
-        else:
-            sys_p = [float(x) for x in _DUEL_WI.predict_proba(np.array([feats], dtype=float))[0]]
-        opt = _baseline(fH, fD, fA)
-        mode = "static (wi_1x2_model)"
-    gh_p = _DUEL_GH.predict_proba(np.zeros((1, 1)), feature_names=[],
-                                  odds_data={"home": fH, "draw": fD, "away": fA}, league_name="")
-    gh_arr = [float(gh_p[0][0]), float(gh_p[0][1]), float(gh_p[0][2])]
-
-    # ── 三市场扩展: OU 大小球方向 (市场去水) ──
-    ou_analysis = None
-    try:
-        if ou_over and ou_under and float(ou_over) > 1 and float(ou_under) > 1:
-            po = (1 / float(ou_over)) / (1 / float(ou_over) + 1 / float(ou_under))
-            ou_analysis = {
-                "line": float(ou_line) if ou_line not in (None, "") else None,
-                "p_over": round(float(po), 4),
-                "direction": "OVER" if po > 0.5 else "UNDER",
-                "verdict": "大球倾向" if po > 0.5 else "小球倾向",
-                "basis": "市场去水隐含 (非模型)",
-            }
-    except Exception:
-        ou_analysis = None
-
-    # ── 三市场扩展: CS 合理比分 (1X2 去水定胜方 + OU 线定总球 + 滚球条件化, 禁 CS 定价) ──
-    # 2026-08-28 修复: 原逻辑完全忽略用户填的 current_score/minute → 输入 1-1 推 4-0 矛盾
-    # 2026-08-28 用户设计: "让球/大小球/胜平负结合, 从数据库匹配波胆, 非预测" — DB 匹配优先
-    cs_analysis = None
-    try:
-        x2 = _dewater_1x2(fH, fD, fA)
-        if x2:
-            labels = ["H", "D", "A"]
-            argcn = {"H": "主胜", "D": "平局", "A": "客胜"}
-            i = int(np.argmax(x2))
-            winner = labels[i]
-            total = None
-            if ou_line not in (None, ""):
-                total = max(1, int(round(float(ou_line))))
-            # ── DB 三盘匹配优先 (实证波胆, 非预测) ──
-            try:
-                from pipeline.cs_db_match import db_match_scoreline
-                _m = db_match_scoreline(h=fH, d=fD, a=fA, ou_line=ou_line,
-                                        ou_over=ou_over, ou_under=ou_under)
-                if _m and _m.get('found'):
-                    _db_top = list(_m['top5'])
-                    # 滚球条件化: 过滤不可能比分 (score 兼容 '2:1'/'2-1')
-                    if inplay and sh is not None and sa is not None:
-                        _cand = [t for t in _db_top
-                                 if int(t['score'].replace(':', '-').split('-')[0]) >= sh
-                                 and int(t['score'].replace(':', '-').split('-')[1]) >= sa]
-                        if _cand:
-                            _db_top = _cand
-                    if _db_top:
-                        score_hint = _db_top[0]['score'].replace(':', '-')
-                        cs_analysis = {
-                            "score": score_hint,
-                            "winner_label": argcn[winner],
-                            "total": total,
-                            "basis": (f"DB 三盘匹配 {_m['n_matched']} 场历史(1X2+OU 去水, 均距 {_m['mean_dist']}) "
-                                      f"真实波胆: " + ", ".join(f"{t['score']}({t['prob']*100:.0f}%)" for t in _db_top[:3]) +
-                                      f" | top1 命中 {_m['top1_hit']*100:.0f}%/top3 {_m['top3_hit']*100:.0f}% | 实证匹配非预测, 禁 CS 定价"),
-                        }
-            except Exception:
-                pass
-            if cs_analysis is None:
-                # 滚球条件化: 已 1-1 不能推 0-X / X-0; 剩余时间缩 λ
-                if inplay and sh is not None and sa is not None:
-                    # 已破: 取最可能维持比分(高频); 可能再进: 按 winner/total 选最小增量
-                    base_scores = []
-                    if winner == "D":
-                        # 平局: 维持当前比分(最可能) + 平其他平分
-                        base_scores.append((sh, sa, 0.5))
-                    else:
-                        # 胜方: 维持比分 0.4 + 最小增量胜方球 0.4 + 大比分扩展 0.2
-                        base_scores.append((sh, sa, 0.4))
-                        win_goal = sh if winner == "H" else sa
-                        other = sa if winner == "H" else sh
-                        base_scores.append((win_goal + 1, other, 0.3))
-                        if total and total > sh + sa:
-                            # 庄家预期总球 > 已进数: 推进到 total-ball
-                            ext_h = sh + max(0, total - sh - sa) if winner == "H" else sh
-                            ext_a = sa + max(0, total - sh - sa) if winner == "A" else sa
-                            base_scores.append((ext_h, ext_a, 0.2))
-                    # 剩余时间衰减 (90' 总分, 剩余越少则变化概率越低)
-                    remain = max(0, 90 - int(minute))
-                    decay = (remain / 90.0) ** 0.5
-                    # 维持概率随时间衰减(比赛继续, 进球概率仍存), 增量概率也衰减
-                    weighted = []
-                    for h, a, p in base_scores:
-                        if h == sh and a == sa:
-                            w = 0.4 + 0.6 * (1 - decay * 0.5)  # 维持 0.4 + 时间衰减的 0.5
-                        else:
-                            w = p * decay
-                        weighted.append((h, a, w))
-                    # 归一化, 取 argmax
-                    tot_w = sum(w for _, _, w in weighted) or 1.0
-                    weighted = [(h, a, w / tot_w) for h, a, w in weighted]
-                    best = max(weighted, key=lambda x: x[2])
-                    score_hint = f"{best[0]}-{best[1]}"
-                    cs_basis = (f"1X2 去水 {argcn[winner]} + OU 线 {total}球定总球 + "
-                                f"滚球条件化(已 {sh}-{sa} @{minute}', 剩余{remain}min) → 维持+最小增量")
-                else:
-                    # 静态(无滚球): 维持简单策略
-                    if winner == "D":
-                        score_hint = f"{total or 1}-{total or 1}" if total else "1-1"
-                    else:
-                        if total:
-                            score_hint = f"{total}-0" if winner == "H" else f"0-{total}"
-                        else:
-                            score_hint = "2-1" if winner == "H" else "1-2"
-                    cs_basis = f"1X2 去水 {argcn[winner]} + OU 线定总球"
-                cs_analysis = {
-                    "score": score_hint,
-                    "winner_label": argcn[winner],
-                    "total": total,
-                    "basis": cs_basis + " (开盘结构诚实锚, 禁 CS 定价)",
-                }
-    except Exception:
-        cs_analysis = None
-
-    # ── NFTB 契约: ranked_predictor 全链路 (result/confidence/analysis 七段/operator/team_strength) ──
-    nftb = None
-    try:
-        from pipeline.ranked_predictor import predict as rp_predict, to_api_contract
-        from pipeline.team_strength import get_strength
-        hn = home_name or "主队"
-        an = away_name or "客队"
-        res = rp_predict(
-            home=hn, away=an, h=fH, d=fD, a=fA,
-            ou_line=float(ou_line) if ou_line not in (None, "") else None,
-            ou_over=float(ou_over) if ou_over not in (None, "") else None,
-            ou_under=float(ou_under) if ou_under not in (None, "") else None,
-            op_cs=cs, league=league,
-        )
-        contract = to_api_contract(res)
-        contract["team_strength"] = get_strength(hn, an)
-        nftb = contract
-    except Exception as e:
-        nftb = {"error": f"ranked_predictor 失败: {e}"}
-
-    return {
-        "mode": mode,
-        "system": _duel_pack(sys_p),
-        "github": _duel_pack(gh_arr),
-        "baseline": _duel_pack(_baseline(fH, fD, fA)),
-        "optimized": _duel_pack(opt),
-        "ou_analysis": ou_analysis,
-        "cs_analysis": cs_analysis,
-        "nftb": nftb,
-    }
-
-
-@app.get("/api/duel/metrics")
-async def duel_metrics_api():
-    """模型对决指标看板 (AUC/LogLoss/Brier/Acc, 来源 unified_corrected_duel_result.json)。"""
-    path = os.path.join(PROJECT_ROOT, "deliverables", "unified_corrected_duel_result.json")
-    try:
-        with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-        return _wrap_data({"ready": True, **data})
-    except Exception as e:
-        return _wrap_data({"ready": False, "note": f"对决指标未生成: {e}"})
-
-
-@app.post("/api/duel/predict")
-async def duel_predict_api(req: dict):
-    """单场四方对比 + 三市场 + NFTB 契约:
-    {home, draw, away, score?, minute?, open_home?, open_draw?, open_away?,
-     ou_line?, ou_over?, ou_under?, cs?, home_name?, away_name?, league?}"""
-    try:
-        out = await asyncio.to_thread(
-            _duel_predict,
-            str(req.get("home", "")), str(req.get("draw", "")), str(req.get("away", "")),
-            str(req.get("score", "")), req.get("minute"), req.get("open_home"),
-            req.get("open_draw"), req.get("open_away"),
-            req.get("ou_line"), req.get("ou_over"), req.get("ou_under"), req.get("cs"),
-            req.get("home_name"), req.get("away_name"), req.get("league"),
-        )
-        return _wrap_data(out)
-    except Exception as e:
-        return _wrap_data({"error": f"duel predict 失败: {e}"})
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -7248,6 +7016,47 @@ def _gq_lookup_1x2(home: str, away: str):
 from pipeline.operator_output import distill_operator_card as _distill_operator_card
 
 
+def _infer_drift_intent(home: str, away: str, oh: float, od: float, oa: float):
+    """单庄诱盘识别 (2026-08-30): 从 events.db 查开盘 1X2, 对比当前赔率算 drift,
+    用 reverse_odds_engine.classify_intent 判定 诚实防 vs 诱盘假防。
+
+    ⚠ 诱盘识别**不需要跨庄源**: classify_intent 靠 drift(开盘→当前漂移)三方向模式
+    (H↓D↑A↑=诚实防主 / H↓D↓A↑=诱盘假防主 / ...), 单庄雷速数据有开盘+当前即够。
+    """
+    try:
+        import sqlite3
+        from analysis.live_goal_probe import _open_1x2_from_snapshots
+        con = sqlite3.connect(os.path.join(PROJECT_ROOT, "data", "events.db"), timeout=30)
+        try:
+            o = _open_1x2_from_snapshots(con, f"{home} vs {away}")
+        finally:
+            con.close()
+        if not o or len(o) < 3:
+            return None
+        o_h, o_d, o_a = float(o[0]), float(o[1]), float(o[2])
+        if not (o_h > 1.01 and o_d > 1.01 and o_a > 1.01):
+            return None
+        from pipeline.reverse_odds_engine import OddsInput
+        eng = _get_reverse_engine()
+        inp = OddsInput(open_h=o_h, open_d=o_d, open_a=o_a,
+                        close_h=float(oh), close_d=float(od), close_a=float(oa))
+        intent, conf, pattern = eng.classify_intent(inp)
+        intent_s = intent.value if hasattr(intent, 'value') else str(intent)
+        is_fake = 'fake' in intent_s.lower()
+        return {
+            "intent": intent_s,
+            "intent_confidence": round(conf, 3),
+            "drift_pattern": pattern,
+            "drift_h": round(float(oh) - o_h, 3),
+            "drift_d": round(float(od) - o_d, 3),
+            "drift_a": round(float(oa) - o_a, 3),
+            "is_induce": is_fake,          # 诱盘标记(FAKE_DEF_H/A)
+            "induce_label": "诱盘" if is_fake else ("诚实防" if "honest" in intent_s.lower() else "中性"),
+        }
+    except Exception:
+        return None
+
+
 @app.post("/api/terminal/analyze")
 async def terminal_analyze_api(req: TerminalAnalyzeRequest):
     """赛事分析 — 直接用盘口赔率(与赛事列表同源), 不调 The Odds API.
@@ -7367,6 +7176,22 @@ async def terminal_analyze_api(req: TerminalAnalyzeRequest):
         )
 
         vl = result.get("value_layer", {})
+        # 单庄诱盘识别 (2026-08-30): drift 判 诚实防 vs 诱盘假防, 供前端 + 三级判定降级
+        _drift_intent = _infer_drift_intent(req.home, req.away, oh, od, oa)
+        _score_analysis = result.get("score_analysis")
+        if _drift_intent and _drift_intent.get("is_induce") and _score_analysis:
+            # 诱盘: 市场方向不可信 → 三级判定降级(定方向→软加权, 软加权→观望)并标注
+            _sa = dict(_score_analysis)
+            _sa["诱盘标记"] = _drift_intent
+            _lv = _sa.get("级别")
+            if _lv == "定方向":
+                _sa["级别"] = "软加权"
+                _sa["分歧标注"] = "诱盘信号, 置信度降级一档"
+            elif _lv == "软加权":
+                _sa["级别"] = "观望"
+                _sa["方向"] = None
+                _sa["分歧标注"] = "诱盘信号: 观望, 信息不足以支撑方向判断"
+            _score_analysis = _sa
         card = {
             "fixture": {"home": req.home, "away": req.away,
                         "commence_time": commence, "sport_key": req.sport_key},
@@ -7394,8 +7219,44 @@ async def terminal_analyze_api(req: TerminalAnalyzeRequest):
             "multibook_consensus": _lookup_multibook_consensus(req.home, req.away),  # 多庄 sharp/retail 共识(leisu 数据可用时)
             "operator_signals": _get_operator_signals(req.home, req.away, req.odds_h, req.odds_d, req.odds_a,
                                                        home_goals=req.home_goals, away_goals=req.away_goals, elapsed=req.elapsed),  # 操盘手逆转信号(已按比分条件化)
+            "score_analysis": _score_analysis,     # 比分分析器三级判定(定方向/软加权/观望)
+            "drift_intent": _drift_intent,         # 单庄诱盘识别(诚实防/诱盘假防)
         }
         safe_card = _json_safe(card)
+        # ── 2026-08-30: 分析快照落库 (用户指令: 记录前端所有分析 → 结合赛果回训) ──
+        #   快照方向/比分top3/三级判定/诱盘/置信度, 供赛后 resolve 标注命中 + 回训。
+        #   不可变: 同 (match_key, phase, score) 仅首写; 失败绝不影响分析返回。
+        try:
+            from pipeline.analysis_snapshot import record_snapshot as _rec_snap
+            _oip = result.get("oip") or {}
+            _sa = _score_analysis or {}
+            _phase = "live" if (req.home_goals is not None and req.away_goals is not None) else "pre"
+            _cur_score = (f"{int(req.home_goals)}-{int(req.away_goals)}"
+                          if (req.home_goals is not None and req.away_goals is not None) else "")
+            _top3 = _oip.get("top3_scores")
+            _top3p = _oip.get("top3_prob")
+            _rec_snap(
+                None,
+                match_key=f"{req.home} vs {req.away}",
+                home=req.home, away=req.away, league=league_name,
+                phase=_phase, current_score=_cur_score,
+                current_minute=int(req.elapsed or 0),
+                odds_h=oh, odds_d=od, odds_a=oa,
+                ou_line=ou_line_val, ou_over=req.ou_over, ou_under=req.ou_under,
+                direction=result.get("direction"),
+                market_direction=result.get("direction"),  # 模型方向=市场argmax(赛前无alpha)
+                score_top1=(_top3[0] if _top3 else None),
+                score_top3=([str(s) for s in _top3] if _top3 else None),
+                score_top3_prob=([float(p) for p in _top3p] if _top3p else None),
+                sa_level=_sa.get("级别"),
+                sa_direction=_sa.get("方向"),
+                sa_confidence=_sa.get("置信度"),
+                sa_note=_sa.get("分歧标注"),
+                induce_label=(_drift_intent or {}).get("induce_label"),
+                model_tag="_live_predict",
+            )
+        except Exception as _se:
+            logger.warning(f"[analysis_snapshot] 快照失败(不影响分析): {_se}")
         return _wrap_data(safe_card)
     except Exception as e:
         logger.error(f"终端分析失败: {e}", exc_info=True)

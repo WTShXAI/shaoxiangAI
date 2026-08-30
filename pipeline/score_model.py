@@ -100,7 +100,7 @@ def solve_oip(ph: float, pd: float, pa: float, maxg: int = MAX_GOAL_DEFAULT) -> 
                 bestr, best = r, (lh, la)
     return best
 
-def predict_score(home: str, away: str, oh: float, od: float, oa: float, max_goal: int = MAX_GOAL_DEFAULT, rho: float = 0.0, goal_scale: float = 1.2, temperature: float = CS_PROB_TEMPERATURE) -> Dict[str, Any]:
+def predict_score(home: str, away: str, oh: float, od: float, oa: float, max_goal: int = MAX_GOAL_DEFAULT, rho: float = 0.0, goal_scale: float = 1.2, temperature: float = CS_PROB_TEMPERATURE, implied_total: float | None = None) -> Dict[str, Any]:
     """
     赔率隐含 Poisson 比分预测.
     返回 dict: lh, la(期望进球), p_h/p_d/p_a(胜平负), matrix(比分概率矩阵),
@@ -110,14 +110,27 @@ def predict_score(home: str, away: str, oh: float, od: float, oa: float, max_goa
          不影响 1X2 (p_h/p_d/p_a 来自 deoverround)。walkforward 校准确认
          ρ 对波胆 top3 命中率无影响(最优ρ=0), 故默认不采用, 避免过拟合。
     goal_scale: λ 全局缩放(校准用)。
-         - WC: 1.35 修正OIP对世界杯总进球的系统性低估, 使波胆top3 29.7%→34.4%(+4.7pp)。
-         - 通用联赛: 1.2 (来源 interwetten_odds 140,729行真实赛果 walkforward,
-           2026-07-18): train(2016-2022)选参 gs=1.2 → test(2023-2025)OOS
-           top3=0.3441 vs 基线1.0的0.3378(+0.63pp, 干净泛化)。修正OIP对
-           通用联赛总进球的轻微低估。
+         - WC: 1.35 修正OIP对世界杯总进球的系统性低估。
+         - 通用联赛: 1.2 (interwetten_odds walkforward 校准, 2026-07-18)。
+    implied_total: OU 盘口隐含总进球锚 (2026-08-30 修复 λ 反推缺陷, 见下)。
+
+    ⚠ 2026-08-30 修复 λ 反推缺陷 (根源):
+      旧 solve_oip 用独立泊松硬匹配 P(H)/P(D), 而独立泊松的平局概率上限约 0.25,
+      势均力敌(平局率 0.28~0.33)时方程无解 → λ 被压到 1.76(应 2.6+), 低 32%,
+      导致 0-0 概率虚高 37%、大球概率 8%、滚球判 Under 全错。
+      (实证: 博多格林特 vs 圣吉罗斯 0-0@45' 模型判小, 真实下半场 2-2 进 4 球)
+      修复: 传入 implied_total 时, λ_total 直接锚定 OU 总进球(诚实锚),
+            λ_h/λ_a 用 1X2 的 P(H)/P(A) 比例分配, 不再用平局概率压 λ。
+      未传 implied_total → 回退 solve_oip(兼容旧调用), 但加平局 cap 防压 λ。
     """
     ph, pd, pa = deoverround(oh, od, oa)
-    lh, la = solve_oip(ph, pd, pa, max_goal)
+    if implied_total and implied_total > 1.0:
+        # 锚定 OU 总球 + 主客比例分配 (平局概率由 DC rho 修正, 不压 λ)
+        ratio = ph / (ph + pa) if (ph + pa) > 0 else 0.5
+        lh = implied_total * ratio
+        la = implied_total * (1 - ratio)
+    else:
+        lh, la = solve_oip(ph, pd, pa, max_goal)
     lh, la = lh * goal_scale, la * goal_scale   # WC校准: 修正OIP低估总进球
     M = score_matrix(lh, la, max_goal)
     M = M / M.sum()

@@ -430,6 +430,45 @@ def _score_from_msc(msc):
 
 
 
+# 中场休息时长(分钟) — 与 analysis.live_goal_probe.HALFTIME_BREAK_MIN 保持一致。
+# 墙钟 elapsed 与"真实比赛分钟"的换算基准: 比赛分钟 = elapsed - HT_BREAK_MIN (下半场)。
+HT_BREAK_MIN = 15
+# 终场判定的墙钟阈值(分钟): 45(上半场)+15(中场)+45(下半场)+5(补时余量) = 110
+FT_ELAPSED_MIN = 110
+
+
+def _parse_kickoff(s):
+    """把 matches.kickoff (naive GMT+8) 解析为 Unix 时间戳。
+
+    与 analysis.live_goal_probe._parse_kickoff 同实现, 供 ws_collector 复用
+    (避免 gq 层反向依赖 analysis 层)。
+    """
+    if not s:
+        return None
+    from datetime import datetime, timezone, timedelta
+    try:
+        dt = datetime.fromisoformat(str(s).replace('Z', '+00:00'))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone(timedelta(hours=8)))
+        return dt.timestamp()
+    except Exception:
+        return None
+
+
+def _elapsed_to_minute(elapsed):
+    """墙钟已进行秒数 → 真实比赛分钟 (扣中场休息 15 分钟)。
+
+    分段: 上半场 est<=45 → est ; 中场 45<est<=60 → 45 ; 下半场 est>60 → est-15。
+    与 analysis.live_goal_probe.resolve_true_minute 的中场口径保持一致。
+    """
+    est = max(0, int(elapsed / 60))
+    if est <= 45:
+        return est
+    if est <= 45 + HT_BREAK_MIN:
+        return 45
+    return min(125, est - HT_BREAK_MIN)
+
+
 def _status_minute(mlet, kickoff_ts, now_ts):
     """从 mlet 推断状态(scheduled/live/finished) + 分钟数.
 
@@ -445,7 +484,7 @@ def _status_minute(mlet, kickoff_ts, now_ts):
         # 用 kickoff 估算当前分钟); 尚未开赛 → scheduled。
         if elapsed is not None and elapsed >= 0:
             st = "live"
-            minute = max(0, int(elapsed / 60))
+            minute = _elapsed_to_minute(elapsed)   # 扣中场休息, 与规则4同口径(2026-08-29)
         else:
             st = "scheduled"
             minute = 0
@@ -469,23 +508,43 @@ def _status_minute(mlet, kickoff_ts, now_ts):
     if elapsed is not None and elapsed > 3.5 * 3600:
         st = "finished"
 
-    # 4) mlet 与 kickoff 真实已进行分钟严重背离 → 可能 feed 分钟脏/停滞, 也可能是比赛本身延迟。
-    #    修正: 若 mlet 明确显示仍在进行中(<90), 优先信任 mlet(地面真相), 不因为 wall-clock 已超90分钟就强标 finished;
-    #    仅当 elapsed 超 3.5h 兜底, 或 mlet 本身已进完场区。仍保留对 45' 占位符的特殊处理(见规则5)。
+    # 4) 2026-08-29 重写 (全库 61.8% minute_at 污染的根因就在这里):
+    #      乐鱼 feed 整个上半场恒报 mlet="45"、整个下半场恒报 "90", 是**占位垃圾**,
+    #      实测 events.db 878 万条 minute_at>0 快照里 543 万条 (61.8%) 卡死在 45/90。
+    #      原逻辑把它当"地面真相"进 pass 分支直接采信 → 写进库的就是 45/90。
+    #    新口径 (与 analysis.live_goal_probe.resolve_true_minute 保持一致):
+    #      a) 脏值检测 — ① mlet 恰为 "45"/"90" 且无补时后缀("45+2"/"90+3" 才是真值);
+    #                    ② minute>=45 但 elapsed<45 (开赛不足45min 却报 45+, 必然脏)
+    #      b) 命中脏值 **或** feed 分钟与墙钟背离>10min(feed 停滞) → 用 elapsed 推算
+    #         真实比赛分钟 (扣中场休息 15min):
+    #           上半场 est<=45 → est ; 中场 45<est<=60 → 45 ; 下半场 est>60 → est-15
+    #      c) 都不命中(如 "38" 且墙钟吻合) → 信任 feed 分钟, 支持延迟比赛
+    _fixed_by_elapsed = False
     if elapsed is not None:
         est = max(0, int(elapsed / 60))
-        if minute is not None and abs(est - minute) > 10:
-            if minute < 90 and elapsed < 3.5 * 3600:
-                # 信任 feed 实际比赛分钟(支持延迟比赛), 保持 live
-                pass
-            else:
-                minute = est
-                if est >= 90:
-                    st = "finished"
+        _mlet_s = str(mlet).strip() if mlet else ""
+        _dirty = (bool(re.fullmatch(r"(45|90)", _mlet_s))
+                  or (minute is not None and minute >= 45 and elapsed < 45 * 60))
+        _diverged = (minute is not None and abs(est - minute) > 10)
+        if (_dirty or _diverged) and elapsed < 3.5 * 3600:
+            minute = _elapsed_to_minute(elapsed)
+            _fixed_by_elapsed = True
 
-    # 5) 历史兜底: mlet 卡 45' 但已开赛超60min (与规则4互补, 防 est 边界抖动)
-    if minute == 45 and elapsed is not None and elapsed > 60 * 60:
-        minute = max(90, min(125, int(elapsed / 60)))
+    # 5) 兜底: mlet 卡 45' 但已开赛超 60min (与规则4互补, 防 est 边界抖动)。
+    #    2026-08-29 修正: 原 `max(90, ...)` 把卡 45' 的比赛直接推到 90+, 跳过整个
+    #    下半场 —— 实测 elapsed=61min 时给出 90(真实应为 46)。改扣中场休息推算。
+    if minute == 45 and elapsed is not None and elapsed > 60 * 60 and not _fixed_by_elapsed:
+        minute = max(46, min(125, int(elapsed / 60) - HT_BREAK_MIN))
+
+    # 4b) 终场判定 (2026-08-29 口径修正): 原用**墙钟** `elapsed>=90` 判 finished ——
+    #     墙钟 90 分钟时比赛分钟才 75(要扣中场 15), 会过早翻 finished, 把还在打的
+    #     比赛提前归档。改双判据, 任一满足即 finished:
+    #       ① 墙钟 >= FT_ELAPSED_MIN(110)  → 比赛分钟 >= 95 (含补时余量 5 分钟)
+    #       ② 比赛分钟 >= 95 (真值 feed 报 90+5 及以后)
+    #     注: 完全不依赖 minute_at, 规则3(3.5h) 仍作最终兜底。
+    if st != "finished" and elapsed is not None:
+        if elapsed >= FT_ELAPSED_MIN * 60 or (minute is not None and minute >= 95):
+            st = "finished"
 
     return st, minute
 
@@ -1466,12 +1525,24 @@ class GQCollector:
 
                 # 未满3.5h 的 live 仍可能进行中(含延迟/加时/点球) → 跳过;
                 # 但"已 finished 却丢比分"的僵尸必须尝试恢复, 不走此跳过.
+                # 2026-08-29 修正 (IR-06 僵尸 live 根治):
+                #   原判据是 `age >= 3.5h` 单条件 —— 刚结束的比赛要干等 3.5 小时才归档。
+                #   实测 3 场僵尸 age=3.35h 差 9 分钟卡着不动, 而 minute=110/116/121
+                #   比分早已定(3-1/4-3/1-1), 前端一直当"进行中"展示。
+                #   新增早判: **age >= 2.5h 且 minute >= 90** → finished。
+                #     · minute>=90 是可信终场信号: resolve_true_minute 明确"feed 报 >90
+                #       是真实递增值(补时), 直接采信"; 且 _status_minute 现已写入真实分钟。
+                #     · 2.5h 覆盖加时+点球(最长约 135min), 不会误杀真活比赛。
+                #   两条件**同时**满足才翻; 任一不满足仍走 3.5h 兜底 —— 宁慢不误判。
                 is_finished_null = (row["status"] == "finished"
                                     and row["score_home"] is None
                                     and row["score_away"] is None
                                     and row["mid"])
                 if not is_finished_null and age < 3.5 * 3600:
-                    continue
+                    _mn = row["minute"]
+                    _early_done = (age >= 2.5 * 3600 and _mn is not None and int(_mn) >= 90)
+                    if not _early_done:
+                        continue
 
                 # ── 治本: 已 finished 但 score 丢失(主路径 decoded=None 时只更状态未捕比分) ──
                 # 在 GQ 保留窗口内重拉终比分, 避免永久丢失(状态-比分耦合 bug 修复).
@@ -1511,6 +1582,16 @@ class GQCollector:
                                 f"初盘归档: {row['home']} vs {row['away']} "
                                 f"{sh}-{sa} "
                                 f"[{outcome['result']}] type={outcome['odds_type']}")
+                            # ── 2026-08-30: 分析快照赛果回填 (用户指令: 记录分析→结合赛果回训) ──
+                            #   归档赛果时同步 resolve analysis_snapshot, 标注方向/比分命中。
+                            try:
+                                from pipeline.analysis_snapshot import resolve_snapshot as _res_snap
+                                _n_res = _res_snap(conn_db, row["match_key"])
+                                if _n_res:
+                                    self.log(f"[分析快照回填] {row['home']} vs {row['away']} "
+                                             f"解析 {_n_res} 条分析")
+                            except Exception as _rse:
+                                self.log(f"[分析快照回填] 失败(不影响归档): {_rse}")
                             # ── 赛后机关: 比赛落入复盘即触发自动复核 (事件驱动, 代替每日批量) ──
                             # 优先读赛前固化结论(严格忠于展示); 无则赛后重跑 KNN 兜底。
                             try:

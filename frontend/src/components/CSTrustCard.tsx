@@ -93,12 +93,13 @@ export default function CSTrustCard({ trustCard, induce }: { trustCard: any; ind
         <div className="rounded-lg border border-frost-500/20 bg-surface-card/40 p-2.5">
           <div className="text-[10px] font-semibold text-frost-300 mb-1.5">
             ② 庄家 CS 线 <span className="text-ink-muted font-normal">{trustCard.book_listed_count ? `${trustCard.book_listed_count} 项` : '未开盘'}</span>
+            <span className="text-[9px] text-amber-300/80 font-normal ml-1">(低赔=诱饵, 分流资金)</span>
           </div>
           <div className="space-y-1">
             {bookTop5.map((r) => (
               <div key={r.score} className="text-[10px]">
                 <div className="flex justify-between">
-                  <span className="font-mono text-ink-primary">{r.score}{trustCard.favorite_score === r.score && <span className="text-red-300 ml-1">←主推</span>}</span>
+                  <span className="font-mono text-ink-primary">{r.score}{trustCard.favorite_score === r.score && <span className="text-amber-300 ml-1" title="庄家赔率最低的比分 = 分流资金诱饵, 非推荐(最便宜波胆历史命中仅 13.9%)">←庄家最低赔</span>}</span>
                   <span className="text-frost-300/90 font-mono">{(r.prob * 100).toFixed(1)}%</span>
                 </div>
                 <Bar pct={r.prob} color="bg-frost-400/70" />

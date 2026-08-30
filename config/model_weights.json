@@ -1,0 +1,43 @@
+{
+  "_comment": "赛前模型权重配置。2026-08-30 用户拍板: 滚球在进球后赔率大幅缩水、无实际下注价值, 只有赛前分析有价值 → OIP 权重调到最大(1.0), 直到有新模型**按 promotion_gate 验收通过**才调低。",
+
+  "lambda_source": {
+    "oip_weight": 1.0,
+    "gbm_weight": 0.0,
+    "_note": "λ = w_oip * λ_OIP + w_gbm * λ_GBM。当前 = 纯 OIP。"
+  },
+
+  "ou_source": {
+    "use_gbm_calibrated": true,
+    "_note": "OU 不在此限制内: GBM λ + Platt 校准实测 AUC 0.5774 > 市场 0.5153, 是**已通过验收**的改进, 故 OU 走新链路。校准器 models/ou_calibrator_20260830.joblib。"
+  },
+
+  "promotion_gate": {
+    "_comment": "新模型想调低 oip_weight 必须先过这一关。全部满足才允许改权重。",
+    "primary_metric": "direction_accuracy",
+    "min_lift_pp": 0.5,
+    "min_samples": 2500,
+    "must_not_degrade": ["brier", "logloss"],
+    "evaluation": "时间外切分 + 干净子集(排除假0-0 score_missing=1)",
+    "baseline_recorded": {
+      "date": "2026-08-30",
+      "scene": "滚球(含领先方先验)",
+      "oip_pure": {"direction": 68.7, "top1": 21.9, "top3": 52.9, "brier": 0.7086, "n": 2247},
+      "gbm_pure": {"direction": 64.9, "top1": 20.0, "top3": 51.1, "brier": 0.7197, "n": 2247}
+    }
+  },
+
+  "why_gbm_rejected": {
+    "_comment": "GBM λ 未通过验收的原因, 供后续改进参考。",
+    "root_cause": "λ 系统性偏低约 9% (平均总 λ 2.273 vs OIP 2.500): 正则化收缩 + 训练数据均值偏低",
+    "evidence": "融合呈完全单调: w=0.75→67.7%, w=0.5→66.1%, w=0.25→65.6%, w=0→64.9%; 纯 OIP 68.7% 最优",
+    "possible_fixes": [
+      "在训练时对 λ 做过离散校正(负二项替代泊松)",
+      "训练目标改为分位数而非均值, 减轻收缩",
+      "增大训练样本中高进球联赛的权重, 修正均值偏差",
+      "直接对 λ 做全局缩放校准(实测 ×1.2 可到 66.4%, 仍不及 OIP)"
+    ]
+  },
+
+  "updated_at": "2026-08-30"
+}

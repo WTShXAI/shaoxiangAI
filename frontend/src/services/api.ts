@@ -152,15 +152,40 @@ export const liveGoalProbeService = {
       },
       timeout: 60000,
     }),
-  /** 模型对决 — 单场四方对比 (本系统/GitHub/去水基线/优化混合 w=0.6) */
-  getDuelPredict: (body: {
-    home: number; draw: number; away: number;
-    score?: string; minute?: number;
-    open_home?: number; open_draw?: number; open_away?: number;
-  }) =>
-    bridgeApi.post<BridgeResponse<any>>('/api/duel/predict', body),
-  /** 模型对决指标看板 (AUC/LogLoss/Brier/Acc) */
-  getDuelMetrics: () =>
-    bridgeApi.get<BridgeResponse<any>>('/api/duel/metrics'),
+}
+
+// ============================================
+// 赛事终端服务 — bridge_service:9000 /api/terminal/analyze
+// 全链路分析 (_live_predict 11 层编排)
+// 2026-08-29 复原: 8-27 前端重建前, 赛程页面接的就是这个模型。
+//   重建(commit 0571e07c)后改用 /api/live-goal-probe/analyze (cross_score) 出比分,
+//   实测不可信(干净数据 top1 仅 7.6%) → 用户拍板复原回 _live_predict。
+// 契约: 前端绝不自己分类模型, model_type / model_calibrated_on 由后端单一真相源给出。
+// ============================================
+export const terminalService = {
+  /** 全链路分析 — 直接用盘口赔率(赛事列表同源), 不调 The Odds API
+   *  @param liveScore 可选 in-play 当前比分, 传入时后端启用条件 Poisson 裁剪 */
+  analyze: (
+    home: string,
+    away: string,
+    sportKey: string = 'soccer_fifa_world_cup',
+    odds?: { h: number; d: number; a: number },
+    handicap?: {
+      ah_line?: number | string; ah_home?: number; ah_away?: number
+      ou_line?: number | string; ou_over?: number; ou_under?: number
+    },
+    liveScore?: { homeGoals?: number; awayGoals?: number; elapsed?: number },
+  ) => {
+    const body: Record<string, any> = { home, away, sport_key: sportKey }
+    if (odds) Object.assign(body, { odds_h: odds.h, odds_d: odds.d, odds_a: odds.a })
+    if (handicap) Object.assign(body, {
+      ah_line: handicap.ah_line, ah_home: handicap.ah_home, ah_away: handicap.ah_away,
+      ou_line: handicap.ou_line, ou_over: handicap.ou_over, ou_under: handicap.ou_under,
+    })
+    if (liveScore) Object.assign(body, {
+      home_goals: liveScore.homeGoals, away_goals: liveScore.awayGoals, elapsed: liveScore.elapsed,
+    })
+    return bridgeApi.post<BridgeResponse<any>>('/api/terminal/analyze', body, { timeout: 90000 })
+  },
 }
 

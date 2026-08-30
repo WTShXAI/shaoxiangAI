@@ -370,6 +370,7 @@ class WSCollector:
     def __init__(self):
         self.score = {}      # mid -> "sh-sa"
         self.minute = {}     # mid -> int
+        self._kickoff_cache = {}   # mid -> kickoff_ts (占位分钟修正用, 2026-08-29)
         self.reg = Registry(score_sink=self.score)
         self.last_frame_ts = time.time()
         self.last_refresh_ts = 0.0
@@ -464,18 +465,63 @@ class WSCollector:
         # 2026-08-28 脏值防御: 乐鱼 mmp 偶发推非分钟值(实测 29768964 污染 odds_snapshots.
         # minute_at → 滚球查询 minute_at<=minute 全部失真)。合法比赛分钟 0~130(含 45+/90+),
         # 999=完场标记; 其余视为脏 feed, minute 归 0 不入库。
-        self.minute[mid] = mmp_i if 0 <= mmp_i <= 130 else 0
+        # 2026-08-29 占位分钟修正 (全库 61.8% minute_at 污染根因):
+        #   乐鱼 WS 的 mmp 整个上半场恒推 45、整个下半场恒推 90, 是**占位垃圾**。
+        #   原代码直接采信 → odds_snapshots.minute_at 与 matches.minute 全卡在 45/90
+        #   (实测 events.db 878 万条里 543 万条 = 61.8%)。
+        #   检测 45/90 → 改用 kickoff + 墙钟推算真实比赛分钟 (与 auto_collector.
+        #   _status_minute / analysis.live_goal_probe.resolve_true_minute 同口径);
+        #   真值(如 38/71/93) 直接采信。
+        _mn = mmp_i
+        if mmp_i in (45, 90):
+            _mn = self._true_minute_from_kickoff(mid, mmp_i)
+        self.minute[mid] = _mn if 0 <= _mn <= 130 else 0
         info = self.reg.resolve(mid)
         if not info:
             return
-        st = "finished" if (mmp == "999" or mmp_i >= 90) else ("live" if mmp_i > 0 else "scheduled")
+        # 状态判定: 完场标记 999 优先; 占位值(45/90)用真实分钟判(避免墙钟才 60min
+        # 就被 mmp=90 误判 finished); 真值维持原判据。
+        if mmp == "999":
+            st = "finished"
+        elif mmp_i in (45, 90):
+            st = "finished" if _mn >= 95 else ("live" if _mn > 0 else "scheduled")
+        else:
+            st = "finished" if mmp_i >= 90 else ("live" if mmp_i > 0 else "scheduled")
         try:
             with conn() as c:
                 c.execute("UPDATE matches SET status=?, minute=?, last_seen=? "
                           "WHERE mid=? AND (is_override IS NULL OR is_override=0)",
-                          (st, mmp_i, time.time(), mid))
+                          (st, self.minute[mid], time.time(), mid))
         except Exception:
             pass
+
+    def _true_minute_from_kickoff(self, mid, fallback):
+        """mmp 占位值(45/90) → 用 kickoff + 墙钟推算真实比赛分钟。
+
+        与 gq.auto_collector._elapsed_to_minute 同口径: 上半场=est, 中场=45,
+        下半场=est-HT_BREAK_MIN。kickoff 不可得时返回 fallback(零回归)。
+        """
+        ts = self._kickoff_cache.get(mid)
+        if ts is None:
+            try:
+                with conn() as c:
+                    row = c.execute(
+                        "SELECT kickoff FROM matches WHERE mid=? LIMIT 1", (mid,)).fetchone()
+                if row and row[0]:
+                    ts = ac._parse_kickoff(row[0]) or 0
+                else:
+                    ts = 0
+            except Exception:
+                ts = 0
+            self._kickoff_cache[mid] = ts
+        if not ts:
+            return fallback
+        est = (time.time() - ts) / 60.0
+        if est <= 45:
+            return int(est)
+        if est <= 45 + ac.HT_BREAK_MIN:
+            return 45
+        return min(125, int(est - ac.HT_BREAK_MIN))
 
     def _on_score(self, cd: dict):
         mid = str(cd.get("mid", ""))
@@ -729,9 +775,17 @@ class WSCollector:
             _log(f"[DONE][WARN] 市场样本写出失败: {e}")
 
     def _navigate(self, page, h5: str):
+        # 2026-08-29: 每次导航**重新读一次** .env 的 GQ_H5_URL。
+        #   原实现复用 run() 启动时读取的 h5 变量 → 换号(新 token/sessionId)后
+        #   运行中的采集器永远用旧 URL, 只能靠重启才生效。现改为热读:
+        #   gq/.env 一改, 下一次页面重载(或 IDLE_RELOAD_SEC 无帧触发)即自动 pickup。
+        #   h5 参数退化为"读不到时的兜底值", 保证零回归。
+        h5_live = _load_h5_url() or h5
+        if h5_live != h5:
+            _log(f"[NAV] 检测到 .env 中 GQ_H5_URL 已更新, 本次导航改用新 URL")
         self._reloading = True
         try:
-            page.goto(h5, wait_until="domcontentloaded", timeout=30000)
+            page.goto(h5_live, wait_until="domcontentloaded", timeout=30000)
             self.last_frame_ts = time.time()
             _log("[NAV] H5 已加载, 等待 WS 推送...")
         except Exception as e:
