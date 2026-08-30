@@ -175,33 +175,106 @@ def _parse_score(score):
 
 
 def _open_odds(con, match_key):
-    """开盘三市场: 1X2/OU(over,under)/AH(home,away). 1X2 缺失返回 None."""
-    from analysis.live_goal_probe import (
-        _open_1x2_from_snapshots, _open_total_from_snapshots, _open_ah_from_snapshots,
-    )
-    h, d, a = _open_1x2_from_snapshots(con, match_key)
+    """开盘三市场: 1X2/OU(over,under)/AH(home,away). 1X2 缺失返回 None。
+
+    2026-08-30 SSoT: 优先 match_outcomes.op_* 归档列(与 bridge._gather_opening_odds
+    同源 — 实测 格拉茨风暴B队场快照路径 OU 隐含总球被健全闸门拒绝 → ou_line=None →
+    DB 匹配退化 4 维 → 两卡比分分歧), 归档缺列再回退快照路径。"""
+    ou_line = ou_over = ou_under = None
+    ah_line = ah_h = ah_a = None
+    h = d = a = None
+    try:
+        row = con.execute(
+            "SELECT op_1x2_h, op_1x2_d, op_1x2_a, op_ou_line, op_ou_over, op_ou_under, "
+            "op_ah_line, op_ah_home, op_ah_away FROM match_outcomes "
+            "WHERE match_key=? OR (match_key IS NULL AND 0) LIMIT 1", (match_key,)).fetchone()
+    except Exception:
+        row = None
+    # match_outcomes 无 match_key 列 — 按 matches.home/away 关联归档行
+    if row is None:
+        try:
+            row = con.execute(
+                "SELECT mo.op_1x2_h, mo.op_1x2_d, mo.op_1x2_a, mo.op_ou_line, mo.op_ou_over, "
+                "mo.op_ou_under, mo.op_ah_line, mo.op_ah_home, mo.op_ah_away "
+                "FROM match_outcomes mo JOIN matches m ON m.home = mo.home AND m.away = mo.away "
+                "WHERE m.match_key=? ORDER BY mo.kickoff DESC LIMIT 1", (match_key,)).fetchone()
+        except Exception:
+            row = None
+    if row:
+        h, d, a = (float(x) if x else None for x in row[0:3])
+        if row[3] and row[4] and row[5]:
+            ou_line, ou_over, ou_under = float(row[3]), float(row[4]), float(row[5])
+        if row[6] and row[7] and row[8]:
+            ah_line, ah_h, ah_a = float(row[6]), float(row[7]), float(row[8])
     if not (h and d and a):
-        return None
-    ou_line, _ou_T = _open_total_from_snapshots(
-        con, match_key, 'OU_', exclude_prefixes=['OU_1H', 'OU_2H'], ref_line=2.5)
-    ah_line, ah_h, ah_a = _open_ah_from_snapshots(con, match_key)
-    # OU over/under 赔率: 开盘帧 (从 odds_snapshots 最早帧取, 与 _open_total 同源)
-    ou_over = ou_under = None
-    if ou_line is not None:
+        from analysis.live_goal_probe import _open_1x2_from_snapshots
+        h, d, a = _open_1x2_from_snapshots(con, match_key)
+        if not (h and d and a):
+            return None
+    # 2026-08-30 SSoT: OU/AH 流内自洽回退(与 bridge._gather_opening_odds 同逻辑) —
+    # 进行中场归档列(op_*)尚无行, 快照路径的 _open_total 可能被健全闸门拒绝,
+    # 导致 OU 缺失 → DB 匹配退化 4 维 → 两卡比分分歧(格拉茨风暴B队场实测)。
+    def _stream_open_pair(prefix, not_likes, ref, sels):
+        nl = " AND ".join(f"market NOT LIKE '{p}%'" for p in not_likes)
         try:
             rows = con.execute(
-                "SELECT selection, odds FROM odds_snapshots "
-                "WHERE match_key=? AND market=? ORDER BY captured_at ASC LIMIT 4",
-                (match_key, f"OU_{ou_line:.2f}"),
-            ).fetchall()
-            _d = {}
-            for sel, odds in rows:
-                if odds and 1.01 < odds < 1000.0:
-                    _d.setdefault(sel, odds)
-            ou_over = _d.get('over')
-            ou_under = _d.get('under')
+                f"SELECT market, selection, odds FROM odds_snapshots "
+                f"WHERE match_key=? AND market LIKE ? AND {nl} "
+                f"AND odds>1.01 AND odds<1000 AND captured_at > strftime('%s','now','-3 day') "
+                f"ORDER BY captured_at ASC LIMIT 120", (match_key, prefix + '%')).fetchall()
         except Exception:
-            ou_over = ou_under = None
+            return None
+        streams = {}
+        for mkt, sel, od in rows:
+            s = streams.setdefault(mkt, {})
+            if sel in sels and sel not in s:
+                s[sel] = float(od)
+        cands = []
+        for mkt, s in streams.items():
+            if all(k in s for k in sels):
+                try:
+                    line = float(mkt.split('_')[1])
+                except Exception:
+                    continue
+                cands.append((abs(line - ref), line, s))
+        if not cands:
+            return None
+        _, line, s = min(cands)
+        return (line, s)
+
+    if ou_line is None or ou_over is None:
+        _ou = _stream_open_pair('OU_', ['OU_1H', 'OU_2H'], 2.5, ('over', 'under'))
+        if _ou:
+            ou_line = _ou[0]
+            ou_over, ou_under = _ou[1]['over'], _ou[1]['under']
+    if ah_line is None or ah_h is None:
+        _ah = _stream_open_pair('AH_', ['AH_1H', 'AH_2H'], 0.0, ('home', 'away'))
+        if _ah:
+            ah_line = _ah[0]
+            ah_h, ah_a = _ah[1]['home'], _ah[1]['away']
+    if ou_line is None:
+        from analysis.live_goal_probe import _open_total_from_snapshots
+        ou_line2, _ou_T = _open_total_from_snapshots(
+            con, match_key, 'OU_', exclude_prefixes=['OU_1H', 'OU_2H'], ref_line=2.5)
+        if ou_line2 is not None:
+            ou_line = ou_line2
+            try:
+                rows = con.execute(
+                    "SELECT selection, odds FROM odds_snapshots "
+                    "WHERE match_key=? AND market=? ORDER BY captured_at ASC LIMIT 4",
+                    (match_key, f"OU_{ou_line:.2f}"),
+                ).fetchall()
+                _d = {}
+                for sel, odds in rows:
+                    if odds and 1.01 < odds < 1000.0:
+                        _d.setdefault(sel, odds)
+                ou_over = _d.get('over')
+                ou_under = _d.get('under')
+            except Exception:
+                ou_over = ou_under = None
+    if ah_line is None:
+        from analysis.live_goal_probe import _open_ah_from_snapshots
+        ah_line, ah_h, ah_a = _open_ah_from_snapshots(con, match_key)
     return {
         'h': h, 'd': d, 'a': a,
         'ou_line': ou_line, 'ou_over': ou_over, 'ou_under': ou_under,
@@ -539,23 +612,25 @@ def derive_score_cross(con, match_key, current_score='0-0', current_minute=0):
     # 统一比分 key 为 '-' 格式 (build_trust_card 可能出 '2:0', db_match 出 '2-0')
     our = {k.replace(':', '-'): v for k, v in our.items()}
     emp_note = None
-    # ── 2026-08-30 SSoT 统一: 比分主推改用纯 DB 三盘匹配(0.6DB+0.4结构混合实测把
-    # 赛前 top3 从 55.3% 稀释到 34.8% — 结构分布在比分维度加噪)。结构分布仍保留
-    # 在 our_raw 供开盘锚展示; 滚球过滤/补位在 Phase 2/统一函数中处理。 ──
+    # ── 2026-08-30 SSoT 统一 v2: 比分排名直接消费 unified_scoreline(与 bridge
+    # trust-card db_match 栏同一函数同参) — 消除"两卡不同回退路径导致的比分分歧"
+    # (实测 格拉茨风暴B队 2-1@45': cross Poisson平移→2-2 vs unified邻近补位→2-1)。
+    # 滚球的过滤/补位已在 unified 内完成, Phase 2 的过滤对已过滤分布是幂等无操作。 ──
     try:
-        from pipeline.cs_db_match import db_match_scoreline
-        m = db_match_scoreline(
+        from pipeline.cs_db_match import unified_scoreline
+        m = unified_scoreline(
             h=odds['h'], d=odds['d'], a=odds['a'],
             ou_line=odds['ou_line'], ou_over=odds['ou_over'], ou_under=odds['ou_under'],
             ah_line=odds['ah_line'], ah_home=odds['ah_home'], ah_away=odds['ah_away'],
+            current_score=current_score, current_minute=current_minute,
         )
         if m and m.get('found'):
             db_dist = {}
             for t in m.get('top5', []):
-                db_dist[t['score'].replace(':', '-')] = t['prob']
+                db_dist[t['score']] = t['prob']
             t3 = sum(db_dist.values()) or 1.0
             our = {s: p / t3 for s, p in db_dist.items()}
-            emp_note = f"DB 三盘匹配 {m['n_matched']} 场历史(均距 {m['mean_dist']}) → 真实比分 top1 {m['top1_hit']*100:.0f}%/top3 {m['top3_hit']*100:.0f}% (SSoT·统一比分源)"
+            emp_note = f"DB 三盘匹配 {m['n_matched']} 场历史(均距 {m['mean_dist']}) → 真实比分 top1 {m['top1_hit']*100:.0f}%/top3 {m['top3_hit']*100:.0f}% (SSoT·统一比分源, mode={m.get('mode')})"
     except Exception:
         emp_note = None
     # 实证 ML 次级混合 (DB 匹配不可用时增强)
@@ -639,7 +714,10 @@ def derive_score_cross(con, match_key, current_score='0-0', current_minute=0):
             drift_note = (f"滚球 OU 验证: 开盘线 {drift['open_line']} → 当前 {drift['current_line']}"
                           f" (庄家预期总球{direction} {abs(dlt):.2f} 球)")
             # 下修 → 大比分概率压低 (权重乘小系数)
-            if dlt < 0:
+            # 2026-08-30 SSoT: DB 路径(emp_note 非空 = unified_scoreline 已生效)不再
+            # 重排 — OU 漂移重排与 lead prior 同样扰动 DB 频率排序, 只保留 drift_note
+            # 信息标注; 结构路径(无DB)保留原调整。
+            if dlt < 0 and emp_note is None:
                 tot = sum(candidates.values()) or 1.0
                 adj2 = {}
                 for s, p in candidates.items():
