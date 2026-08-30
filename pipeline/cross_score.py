@@ -777,6 +777,48 @@ def derive_score_cross(con, match_key, current_score='0-0', current_minute=0):
         over_prob_at = {k: round(v, 4) for k, v in over_prob_at.items()}
     except Exception:
         over_prob_at = {}
+    # ── 方向直出 (2026-08-30): 不再让调用方从比分top反推方向 ──
+    # 赛前模式方向上限实测 55.5%(7913场干净档案, 1X2去水argmax — 市场有效性, 物理上限);
+    # 滚球模式用 lead_result_prior 干净频率表(1994场/7614点, 防泄漏split):
+    #   56-85' 领先1球 → 76.3%胜(n=932), 领先2球 → 92%+。
+    # 方向 = lead prior(n≥30, w=n/(n+200)收缩) ⊕ 即时盘去水(0.3权重); 无领先时
+    # 用即时盘/开盘去水。比分分布仍独立输出(top3), 方向不再被 DB 匹配分布稀释。
+    winner_out = None
+    try:
+        _p_hda = None
+        if minute > 0 and sh != sa:
+            _side = 'home' if sh > sa else 'away'
+            _diff = abs(sh - sa)
+            _band = _band_of_minute(minute)
+            _cell = (_load_lead_prior().get('table') or {}).get(f'{_side}|{_diff}|{_band}')
+            if _cell and _cell.get('n', 0) >= 30:
+                _w = _cell['n'] / (_cell['n'] + 200.0)
+                _p_hda = {
+                    'home': _cell.get('home', 0.33), 'draw': _cell.get('draw', 0.33),
+                    'away': _cell.get('away', 0.33),
+                }
+                # 即时盘去水混合(0.7先验+0.3市场)
+                try:
+                    from analysis.live_goal_probe import _current_inplay_odds as _cpo
+                    _cur = _cpo(con, match_key, minute) or {}
+                    if _cur.get('x2'):
+                        _x2 = _cur['x2']
+                        from analysis.live_goal_probe import _dewater_1x2
+                        _dv = _dewater_1x2(*[float(x) for x in _x2])
+                        if _dv:
+                            _p_hda = {k: 0.7 * _p_hda[k] + 0.3 * _dv[i]
+                                      for i, k in enumerate(('home', 'draw', 'away'))}
+                except Exception:
+                    pass
+                # 先验置信权重仅作用于与市场分歧度, 不改变 argmax 选择
+                winner_out = max(_p_hda, key=_p_hda.get)
+        if winner_out is None and odds.get('h') and odds.get('d') and odds.get('a'):
+            _ih, _idd, _ia = 1.0 / odds['h'], 1.0 / odds['d'], 1.0 / odds['a']
+            _s = _ih + _idd + _ia
+            winner_out = max(('home', 'draw', 'away'),
+                             key=lambda k: {'home': _ih, 'draw': _idd, 'away': _ia}[k] / _s)
+    except Exception:
+        winner_out = None
     return {
         'top3': top3,
         'score': top3[0]['score'] if top3 else None,        # 第二比分: 滚球修正 (主推)
@@ -786,7 +828,10 @@ def derive_score_cross(con, match_key, current_score='0-0', current_minute=0):
         'opening_basis': opening_basis,
         'opening_conflict': opening_conflict,               # Fix-3: 初盘结论方向与实时比分领先方相反
         'roll_conflict': roll_conflict,                     # Fix-3: 主推比分方向与实时比分领先方相反
-        'winner_label': None,  # 由调用方补充
+        'winner': winner_out,
+        'winner_label': {'home': '主胜', 'draw': '平', 'away': '客胜'}.get(winner_out),
+        'winner_basis': ('领先方先验(干净频率表)⊕即时盘' if minute > 0 and sh != sa and winner_out
+                         else '开盘1X2去水(市场上限≈55%)'),
         'total': None,
         'lead_prior_note': lead_prior_note,     # 方向3: 领先方先验校正说明 (None=未生效)
         # 条件化+校正后的完整分布 (top20), 供回测/复核用, 前端不消费

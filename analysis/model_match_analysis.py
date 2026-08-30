@@ -524,7 +524,9 @@ def analyze_match_with_model(match_key, current_score="0-0", current_minute=0,
         from pipeline.cross_score import derive_score_cross
         _cs = derive_score_cross(con, match_key, current_score, current_minute)
         if _cs and _cs.get('found') and _cs.get('score'):
-            _win = _infer_winner_from_score(_cs['score'])
+            # 2026-08-30: 方向直出 — 滚球态用领先方先验(干净频率表)⊕即时盘, 不再从
+            # 比分top反推(会被DB匹配分布稀释); 无直出值时回退比分推断。
+            _win = _cs.get('winner') or _infer_winner_from_score(_cs['score'])
             score_hint = {
                 'winner': _win, 'winner_label': {'home': '主胜', 'draw': '平', 'away': '客胜'}.get(_win, '主胜'),
                 'total': None, 'score': str(_cs['score']).replace(':', '-'),
