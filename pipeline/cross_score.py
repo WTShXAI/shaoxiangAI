@@ -539,6 +539,9 @@ def derive_score_cross(con, match_key, current_score='0-0', current_minute=0):
     # 统一比分 key 为 '-' 格式 (build_trust_card 可能出 '2:0', db_match 出 '2-0')
     our = {k.replace(':', '-'): v for k, v in our.items()}
     emp_note = None
+    # ── 2026-08-30 SSoT 统一: 比分主推改用纯 DB 三盘匹配(0.6DB+0.4结构混合实测把
+    # 赛前 top3 从 55.3% 稀释到 34.8% — 结构分布在比分维度加噪)。结构分布仍保留
+    # 在 our_raw 供开盘锚展示; 滚球过滤/补位在 Phase 2/统一函数中处理。 ──
     try:
         from pipeline.cs_db_match import db_match_scoreline
         m = db_match_scoreline(
@@ -550,16 +553,9 @@ def derive_score_cross(con, match_key, current_score='0-0', current_minute=0):
             db_dist = {}
             for t in m.get('top5', []):
                 db_dist[t['score'].replace(':', '-')] = t['prob']
-            # DB 匹配(0.6) + 结构(0.4) 混合
-            merged = {}
-            for s, p in our.items():
-                merged[s] = 0.6 * db_dist.get(s, 0.0) + 0.4 * p
-            for s, p in db_dist.items():
-                merged.setdefault(s, 0.6 * p)
-            t3 = sum(merged.values()) or 1.0
-            merged = {s: p / t3 for s, p in merged.items()}
-            our = merged
-            emp_note = f"DB 三盘匹配 {m['n_matched']} 场历史(均距 {m['mean_dist']}) → 真实比分 top1 {m['top1_hit']*100:.0f}%/top3 {m['top3_hit']*100:.0f}%"
+            t3 = sum(db_dist.values()) or 1.0
+            our = {s: p / t3 for s, p in db_dist.items()}
+            emp_note = f"DB 三盘匹配 {m['n_matched']} 场历史(均距 {m['mean_dist']}) → 真实比分 top1 {m['top1_hit']*100:.0f}%/top3 {m['top3_hit']*100:.0f}% (SSoT·统一比分源)"
     except Exception:
         emp_note = None
     # 实证 ML 次级混合 (DB 匹配不可用时增强)
@@ -626,22 +622,12 @@ def derive_score_cross(con, match_key, current_score='0-0', current_minute=0):
                              f"剩余泊松(λ主{lam_h:.2f}/λ客{lam_a:.2f}, 剩余时间缩放{_ts:.2f})")
             except Exception:
                 keep = {f'{sh}-{sa}': 1.0}   # 兜底: 至少不推荐低于当前比分的比分
-        # 剩余时间缩 λ: 已有比分占权重, 总球预期下调
+        # 2026-08-30 SSoT: DB 经验频率分布不做时间衰减重排(实测重排把滚盘 top1 从
+        # 12.5% 压到 6.2% — DB 的排序本身就是历史频率, 时间衰减是给结构分布设计的)。
+        # 滚球只做两件事: ① 过滤不可能比分 ② 过滤空时平移重构(见上)。
         time_scale = max(0.2, 1.0 - minute / 100.0)
-        base_total = sum((int(s.split('-')[0]) + int(s.split('-')[1])) * p
-                         for s, p in keep.items() if '-' in s and all(x.isdigit() for x in s.split('-')))
         candidates = keep
-        # 已进球 = 剩余进球的先验, 用剩余时间缩放来压低高比分
-        if time_scale < 1.0:
-            scaled = {}
-            for s, p in candidates.items():
-                mh, ma = (int(x) for x in str(s).replace(':', '-').split('-'))
-                extra = (mh - sh) + (ma - sa)   # 还需进几球
-                adj = p * (time_scale ** max(0, extra - 1))   # 多进一球概率按时间衰减
-                scaled[s] = adj
-            tot = sum(scaled.values()) or 1.0
-            candidates = {s: p / tot for s, p in scaled.items()}
-        roll_note = f"滚球条件化: 已 {sh}-{sa} @{minute}', 剩余时间缩放 {time_scale:.2f}, 过滤不可能比分"
+        roll_note = f"滚球条件化: 已 {sh}-{sa} @{minute}', 过滤不可能比分(SSoT·DB排序保留)"
 
     # ── Phase 3: 滚球 OU 漂移验证 ──
     drift = _roll_ou_anchor(con, match_key, minute)
@@ -665,11 +651,13 @@ def derive_score_cross(con, match_key, current_score='0-0', current_minute=0):
                 t2 = sum(adj2.values()) or 1.0
                 candidates = {s: p / t2 for s, p in adj2.items()}
 
-    # ── Phase 3.5: 「领先方最终获胜」经验先验校正 (2026-08-29 方向3) ──
-    # 仅滚球(minute>0)生效。赛前(minute=0)无当前比分, 无领先方概念, 不加权。
+    # ── Phase 3.5: 「领先方最终获胜」经验先验 (2026-08-30 SSoT 调整) ──
+    # 方向已由 winner 直出(lead prior ⊕ 即时盘), 不再对比分分布做方向重排 —
+    # 实测重排把滚盘比分 top1 从 12.5% 压到 6.2%(扰动 DB 频率排序, 只剩副作用)。
+    # note 保留供展示(说明领先方历史胜率), 分布不动。
     lead_prior_note = None
     if minute > 0:
-        candidates, lead_prior_note = _apply_lead_prior(candidates, sh, sa, minute)
+        _dist_unchanged, lead_prior_note = _apply_lead_prior(candidates, sh, sa, minute)
 
     # ── Phase 4: 输出 ──
     # 第一比分: 初盘+即时结构 (未滚球条件化, 全分布 argmax + 即时盘方向校正)

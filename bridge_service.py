@@ -4026,28 +4026,26 @@ async def _cs_trust_card_compute(match_key: str, home: str, away: str, actual_sc
             live_ou=live_ou_t,
             live_minute=live_minute,
         )
-        # ── DB 三盘历史结构匹配 (2026-08-28, 用户口径: 查现有所有数据匹配同赔率结构 → 实证波胆) ──
-        # 用开盘三盘结构做检索键(与库同口径), 滚球时过滤掉低于当前比分的候选。
+        # ── 统一 CS 推荐 (2026-08-30 SSoT): 合理比分卡/信任卡④栏/终场读数回退 全部
+        # 消费 cs_db_match.unified_scoreline 同一函数 — 前端两卡比分零分歧。
+        # 赛前=纯DB三盘匹配; 滚球=比分过滤+平移补位(与 cross_score 同源同参数)。
         try:
-            from pipeline.cs_db_match import db_match_scoreline
-            dm = db_match_scoreline(h=odds.get("h"), d=odds.get("d"), a=odds.get("a"),
-                                    ou_line=odds.get("ou_line"), ou_over=odds.get("ou_over"),
-                                    ou_under=odds.get("ou_under"),
-                                    ah_line=odds.get("ah_line"), ah_home=odds.get("ah_home"),
-                                    ah_away=odds.get("ah_away"))
+            from pipeline.cs_db_match import unified_scoreline
+            _cs_str = ""
+            _mn = 0
+            if cur_score_tuple is not None:
+                _cs_str = f"{cur_score_tuple[0]}-{cur_score_tuple[1]}"
+                _mn = int(live_minute or 0)
+            dm = unified_scoreline(h=odds.get("h"), d=odds.get("d"), a=odds.get("a"),
+                                   ou_line=odds.get("ou_line"), ou_over=odds.get("ou_over"),
+                                   ou_under=odds.get("ou_under"),
+                                   ah_line=odds.get("ah_line"), ah_home=odds.get("ah_home"),
+                                   ah_away=odds.get("ah_away"),
+                                   current_score=_cs_str, current_minute=_mn)
             if dm and dm.get("found"):
-                if cur_score_tuple is not None:
-                    _sh, _sa = cur_score_tuple
-                    _fl = [t for t in dm.get("top5", [])
-                           if int(str(t.get("score", "0:0")).split(":")[0]) >= _sh
-                           and int(str(t.get("score", "0:0")).split(":")[1]) >= _sa]
-                    dm["top5_live_filtered"] = _fl
-                    dm["live_filter"] = f"已过滤低于当前比分 {_sh}:{_sa} 的候选"
-                    if _fl:
-                        dm["score"] = _fl[0]["score"]
                 card["db_match"] = dm
         except Exception as _e:
-            logger.warning(f"[cs/trust-card] DB 结构匹配失败(跳过): {_e}")
+            logger.warning(f"[cs/trust-card] 统一 CS 匹配失败(跳过): {_e}")
         card["match_key"] = mk_used
         if actual_score:
             card["actual_score"] = actual_score

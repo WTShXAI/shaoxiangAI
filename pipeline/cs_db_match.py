@@ -219,3 +219,69 @@ if __name__ == "__main__":
             print(f"  {t['score']}  {t['prob']*100:.1f}%  (n={t['n']})")
         print(f"top1命中 {r['top1_hit']*100:.0f}% / top3 {r['top3_hit']*100:.0f}%")
         print(f"basis: {r['basis']}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 统一 CS 推荐 (2026-08-30 SSoT, 治"前端比分分歧")
+#
+# 评估结论 (5798 场干净赛前样本 + 48 场滚盘 HT 重放, 详见当日会话):
+#   赛前:  DB三盘匹配 top1 15.8%/top3 55.3%  >  0.6DB+0.4结构(13.7/34.8)  >  结构λμ(11.7/30.2)
+#   滚盘:  DB+比分过滤 top1 12.5% 最佳(过滤后候选不足拖累 top3);
+#          cross_score 条件化 top3 35.4% 最佳(平移分布提供近比分候选)。
+# 统一 = DB 核心 + 滚球比分过滤 + 平移补位(候选不足时以当前比分平移 DB 分布补齐 top3)。
+# 赛前/滚盘单一真相源: 合理比分卡主推 / CS信任卡DB栏 / 终场读数回退 全部消费本函数。
+# ═══════════════════════════════════════════════════════════════════════════
+def unified_scoreline(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_under=None,
+                      ah_line=None, ah_home=None, ah_away=None,
+                      current_score='', current_minute=0, top_n=_DEF_N):
+    """统一波胆推荐 (SSoT)。赛前 = DB三盘匹配 top5; 滚球 = 过滤低于当前比分 + 平移补位。
+
+    返回 {found, mode('pre'|'roll'), top5[{score('i-j'), prob, n}], n_matched, mean_dist,
+          basis, live_filter} 或 None。比分 key 统一 '-' 格式。"""
+    m = db_match_scoreline(h=h, d=d, a=a, ou_line=ou_line, ou_over=ou_over, ou_under=ou_under,
+                           ah_line=ah_line, ah_home=ah_home, ah_away=ah_away, top_n=top_n)
+    if not m or not m.get('found'):
+        return None
+    top5 = [{'score': t['score'].replace(':', '-'), 'prob': t['prob'], 'n': t.get('n')}
+            for t in m['top5']]
+
+    sh = sa = None
+    minute = int(current_minute or 0)
+    for _sep in ('-', ':'):
+        if current_score and _sep in str(current_score):
+            try:
+                _h, _a = str(current_score).split(_sep, 1)
+                sh, sa = int(_h), int(_a)
+            except Exception:
+                sh = sa = None
+            break
+
+    # 赛前模式: 原样返回
+    if sh is None or minute <= 0:
+        return {**{k: v for k, v in m.items() if k != 'top5'},
+                'mode': 'pre', 'top5': top5, 'score': top5[0]['score'] if top5 else None,
+                'basis': 'SSoT·赛前: ' + m['basis']}
+
+    # 滚球模式: 过滤不可能比分
+    kept = [t for t in top5
+            if int(t['score'].split('-')[0]) >= sh and int(t['score'].split('-')[1]) >= sa]
+    live_filter = f"已过滤低于当前比分 {sh}-{sa} 的候选"
+    if len(kept) >= 3:
+        return {**{k: v for k, v in m.items() if k != 'top5'},
+                'mode': 'roll', 'top5': kept, 'score': kept[0]['score'],
+                'live_filter': live_filter,
+                'basis': f"SSoT·滚球: DB三盘匹配 {m['n_matched']} 场(均距 {m['mean_dist']}) 真实波胆, {live_filter}"}
+    # 平移补位: 以当前比分为基的邻近候选(当前比分/+1球变体, 按剩余时间衰减)填满 top3。
+    # 不把 DB 比分直接叠加当前比分(会过度加球); DB 分布此时主要贡献方向背景。
+    _rem = max(0.1, 1.0 - minute / 100.0)
+    pads = [(f'{sh}-{sa}', 0.6), (f'{sh+1}-{sa}', 0.25 * _rem * 2), (f'{sh}-{sa+1}', 0.2 * _rem * 2)]
+    merged = {t['score']: t['prob'] for t in kept}
+    for k, w in pads:
+        if k not in merged:
+            merged[k] = w * max(0.05, (top5[0]['prob'] if top5 else 0.1))
+    ranked = sorted(merged.items(), key=lambda x: -x[1])[:5]
+    out5 = [{'score': s, 'prob': round(p, 4)} for s, p in ranked]
+    return {**{k: v for k, v in m.items() if k != 'top5'},
+            'mode': 'roll', 'top5': out5, 'score': out5[0]['score'] if out5 else None,
+            'live_filter': live_filter + ' + 平移补位(DB分布⊕当前比分)',
+            'basis': f"SSoT·滚球: DB匹配 {m['n_matched']} 场, {live_filter}; 候选不足→当前比分平移补位"}
