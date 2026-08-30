@@ -298,7 +298,10 @@ def get_latest_snapshot_odds(con, match_key, markets):
             for key, wts in per_key.items():
                 num = sum(w * o for w, o in wts)
                 den = sum(w for w, _ in wts)
-                res[key] = round(num / den, 4)  # 消指数加权浮点长尾
+                # 2026-08-30 修: 此前写 res[key] (key='home'/'draw'/'away'),
+                # 导致 predict_fulltime_outcome 用 odds.get('1X2__home') 拿不到,
+                # 误报"1X2 盘口缺失"。补 mkt__ 前缀与 OU/AH 分支保持一致。
+                res[f"{mkt}__{key}"] = round(num / den, 4)
     with _odds_snap_cache_lock:
         _odds_snap_cache[ck] = (now, res)
     return res
@@ -544,34 +547,56 @@ def _open_total_from_snapshots(con, match_key, prefix='OU_', exclude_prefixes=No
     if exclude_prefixes:
         not_like = ' AND '.join(f"market NOT LIKE '{p}%'" for p in exclude_prefixes)
         rows = cur.execute(f"""
-            SELECT market, selection, odds FROM odds_snapshots
+            SELECT market, selection, odds, minute_at FROM odds_snapshots
             WHERE match_key=? AND market LIKE ? AND {not_like}
               AND market != 'OU' AND captured_at < ? AND captured_at > ?
             ORDER BY captured_at ASC LIMIT 2000
         """, (match_key, prefix + '%', cap, floor_ts)).fetchall()
     else:
         rows = cur.execute("""
-            SELECT market, selection, odds FROM odds_snapshots
+            SELECT market, selection, odds, minute_at FROM odds_snapshots
             WHERE match_key=? AND market LIKE ? AND market != 'OU'
               AND captured_at < ? AND captured_at > ?
             ORDER BY captured_at ASC LIMIT 2000
         """, (match_key, prefix + '%', cap, floor_ts)).fetchall()
     # 2026-08-28 流内自洽: 开盘配对必须来自同一条流(市场名), 否则 OU_2.50 残盘 over ×
     # OU_2.50_11 变体盘 under 跨流假配对污染 open_total。每条线只取最早(开盘)快照。
-    d = {}  # stream_market -> {'line': float, 'over': ..., 'under': ...}
-    for mkt, sel, odds in rows:
-        if odds is None or odds <= 1.01 or odds > 1000.0:
-            continue
-        line = _extract_line_from_market(mkt)
-        if line is None:
-            continue
-        if not _ok_ou_line_value(line):
-            continue  # 2026-08-28: 角球/组合盘(OU_18.00 等)污染开盘锚过滤
-        s = d.setdefault(mkt, {'line': line})
-        if sel not in s:   # 每条线只取最早(开盘)快照
-            s[sel] = odds
-    cand = [(s['line'], s.get('over'), s.get('under')) for s in d.values()
-            if s.get('over') and s.get('under')]
+    # 2026-08-29 修复 (Bug-2 深根因, 莫斯科斯巴达U19 vs 罗迪那U19 实测):
+    #   GQ 采集器会把半场/终场盘 (minute_at=45/90/112) 的 captured_at 打成**早于**真开盘帧
+    #   (minute_at=0) —— 实测 minute_at=45 的 OU_3.50 captured_at=14:00:31 早于 minute_at=0 的
+    #   OU_3.75 captured_at=14:03:37, 导致按 captured_at ASC 取"最早"时把半场残盘 3.50 当开盘价
+    #   (真开盘是 3.75), 漂移方向整体反号("上修0.50" 实为 "下修0.25")。
+    #   修正: 优先只用 minute_at=0 的开盘帧构建候选; 该批次无可用配对才回退全量(行为不退化)。
+    def _collect(rowset):
+        _d = {}  # stream_market -> {'line': float, 'over': ..., 'under': ...}
+        for item in rowset:
+            mkt, sel, odds = item[0], item[1], item[2]
+            if odds is None or odds <= 1.01 or odds > 1000.0:
+                continue
+            line = _extract_line_from_market(mkt)
+            if line is None:
+                continue
+            if not _ok_ou_line_value(line):
+                continue  # 2026-08-28: 角球/组合盘(OU_18.00 等)污染开盘锚过滤
+            s = _d.setdefault(mkt, {'line': line})
+            if sel not in s:   # 每条线只取最早(开盘)快照
+                s[sel] = odds
+        return [(s['line'], s.get('over'), s.get('under')) for s in _d.values()
+                if s.get('over') and s.get('under')]
+
+    # 动态开盘批 (2026-08-29 补): 严格 minute_at==0 太窄 —— 实测部分比赛真主盘
+    # (OU_2.50) 在 minute_at=1 才出现, minute_at=0 只有小线(OU_0.50 变体盘),
+    # 会把开盘线算成 0.5。改为: 取该场最小 minute_at 作为"开盘帧分钟", 宽限 +1 分钟。
+    # 若最小 minute_at > 5 → 该场根本没有开赛前后快照(全是半场/滚球残盘),
+    # 不切批, 直接回退全量(原行为, 零回归)。
+    _mas = [int(r[3] or 0) for r in rows if len(r) > 3]
+    min_ma = min(_mas) if _mas else None
+    rows_zero = []
+    if min_ma is not None and min_ma <= 5:
+        rows_zero = [r for r in rows if int(r[3] or 0) <= min_ma + 1]
+    cand = _collect(rows_zero) if rows_zero else []
+    if not cand:
+        cand = _collect(rows)   # 回退全量(原行为, 零回归)
     if not cand:
         return None, None
     cand.sort(key=lambda x: abs(x[0] - ref_line))
@@ -683,21 +708,91 @@ def _open_ah_from_snapshots(con, match_key):
     return line, h, a
 
 
+def _inplay_cap_ts(con, match_key, minute):
+    """滚球帧【真实时基】上限: kickoff_ts + elapsed(minute)*60。
+
+    ⚠ 全库铁证 (2026-08-29 实测, 莫斯科斯巴达U19 vs 罗迪那U19 3-1 暴露):
+      events.db 878 万条 minute_at>0 快照里 **543 万条 (61.8%) 卡死在 45/90**
+      (45 独占 432 万 = 49.2%) —— 乐鱼 feed 整个上半场恒报 45、整个下半场恒报 90,
+      是占位垃圾(见 resolve_true_minute docstring, 2026-08-21 已记录, 但漏了这条
+      消费链: 所有 `WHERE minute_at<=? ORDER BY minute_at DESC` 的查询)。
+      后果: 排序键恒定 → 退化成 `ORDER BY id DESC`, **恒取最后写入的终场残盘**,
+      等于拿已知终局倒推预测 —— 致命信息泄漏, 违反 IR-06/IR-30。
+
+    修法: kickoff 与 captured_at 是真实时钟。用 kickoff_ts + elapsed*60 换算
+          captured_at 上限, 把查询收窄到该分钟真实对应的墙钟窗口。
+          elapsed 口径与 resolve_true_minute 一致 (中场休息 15 分钟):
+            minute <= 45 → elapsed = minute
+            minute >  45 → elapsed = minute + HALFTIME_BREAK_MIN
+
+    返回 float 时间戳, 或 None (无法推算 → 调用方回退原逻辑, 保证零回归)。
+    """
+    try:
+        m = int(minute or 0)
+    except Exception:
+        return None
+    if m <= 0 or con is None or not match_key:
+        return None
+    try:
+        row = con.execute(
+            "SELECT kickoff FROM matches WHERE match_key=? LIMIT 1", (match_key,)
+        ).fetchone()
+    except Exception:
+        return None
+    if not row or not row[0]:
+        return None
+    kots = _parse_kickoff(row[0])
+    if not kots:
+        return None
+    elapsed = float(m) if m <= 45 else (float(m) + HALFTIME_BREAK_MIN)
+    return kots + elapsed * 60.0
+
+
 def _current_inplay_odds(con, match_key, minute):
     """取该场滚球(in-play)【当前】盘口: 1X2 home/draw/away + 主 OU 线 over/under/line。
 
     用于决策智能体消费「滚球盘信号」(live 模型推理)。
-    取 minute_at <= minute 的最新 in-play 快照; 若精确分钟无盘, 回退该场最新 in-play 快照。
+    取 minute_at <= minute 的最新 in-play 快照; 若该分钟前无盘, 回退该场【最早】in-play 快照。
+
+    2026-08-29 Bug-3 修复 (莫斯科斯巴达U19 vs 罗迪那U19 3-1 实测):
+      原 fallback 用 ORDER BY minute_at **DESC** —— 当 minute=57 无快照时取到 minute=112
+      **终场残盘** (1X2 1.01/4.87/8.22 主胜已定, OU_4.0 over=4.0), 等于拿已知终局倒推
+      预测, 是致命的信息泄漏。改为 ORDER BY minute_at **ASC** 取最早的 in-play 帧
+      (最接近开赛, 已发生的进球信息最少 → 泄漏最小); 语义上仍诚实标注为回退值。
+
+    2026-08-29 Bug-5 修复 (同场次二次暴露, 全库 61.8% 污染):
+      主查询的 `minute_at<=? ORDER BY minute_at DESC` 在 minute_at 卡死 45/90 的场次
+      **完全失效** —— 排序键恒定, 实际退化成 ORDER BY id DESC, 恒取终场帧。
+      实测: minute=45 与 minute=88 返回**同一帧** (1.28/4.89/8.70), minute=116 返回
+      (1.01/11.42/41.0)。修法: ① 追加 `captured_at <= _inplay_cap_ts()` 真实时基
+      过滤; ② 排序键加 captured_at DESC 二级键(对 minute_at 正常的场次零变化);
+      ③ cap 后无帧则回退不加 cap 的原逻辑, 保证零回归。
+
     返回 {'x2':(h,d,a), 'ou':(line,over,under)} 或 None。
     """
     if con is None or not match_key:
         return None
     cur = con.cursor()
-    ods = "SELECT selection, odds FROM odds_snapshots WHERE match_key=? AND market='1X2' AND minute_at>0 AND minute_at<=? ORDER BY minute_at DESC, id DESC LIMIT 3"
-    rows = cur.execute(ods, (match_key, max(1, minute))).fetchall()
+    cap_ts = _inplay_cap_ts(con, match_key, minute)
+
+    def _q1x2(use_cap):
+        sql = ("SELECT selection, odds FROM odds_snapshots WHERE match_key=? AND market='1X2' "
+               "AND minute_at>0 AND minute_at<=?")
+        ps = [match_key, max(1, minute)]
+        if use_cap and cap_ts:
+            sql += " AND captured_at<=?"
+            ps.append(cap_ts)
+        # Bug-5: captured_at 二级键 —— minute_at 卡死时仍按真实时钟取最新
+        sql += " ORDER BY minute_at DESC, captured_at DESC, id DESC LIMIT 3"
+        return cur.execute(sql, tuple(ps)).fetchall()
+
+    rows = _q1x2(True)
     if not rows:
+        rows = _q1x2(False)   # cap 后无帧(kickoff 缺失/时钟漂移) → 回退, 零回归
+    if not rows:
+        # Bug-3: 取最早 in-play 帧 (ASC), 绝不取终场残盘 (原为 DESC)
         rows = cur.execute(
-            "SELECT selection, odds FROM odds_snapshots WHERE match_key=? AND market='1X2' AND minute_at>0 ORDER BY minute_at DESC, id DESC LIMIT 3",
+            "SELECT selection, odds FROM odds_snapshots WHERE match_key=? AND market='1X2' AND minute_at>0 ORDER BY minute_at ASC, id ASC LIMIT 3",
             (match_key,)).fetchall()
     x2 = {}
     for sel, odds in rows:
@@ -705,16 +800,28 @@ def _current_inplay_odds(con, match_key, minute):
             continue
         if sel not in x2:
             x2[sel] = odds
-    ou_q = ("SELECT market, selection, odds, line FROM odds_snapshots "
-            "WHERE match_key=? AND market LIKE 'OU_%' AND market NOT LIKE 'OU_1H%' AND market NOT LIKE 'OU_2H%' "
-            "AND selection IN ('over','under') AND minute_at>0 AND minute_at<=? "
-            "ORDER BY minute_at DESC, id DESC")
-    ou_rows = cur.execute(ou_q, (match_key, max(1, minute))).fetchall()
+
+    def _qou(use_cap):
+        sql = ("SELECT market, selection, odds, line FROM odds_snapshots "
+               "WHERE match_key=? AND market LIKE 'OU_%' AND market NOT LIKE 'OU_1H%' "
+               "AND market NOT LIKE 'OU_2H%' AND selection IN ('over','under') "
+               "AND minute_at>0 AND minute_at<=?")
+        ps = [match_key, max(1, minute)]
+        if use_cap and cap_ts:
+            sql += " AND captured_at<=?"
+            ps.append(cap_ts)
+        sql += " ORDER BY minute_at DESC, captured_at DESC, id DESC"
+        return cur.execute(sql, tuple(ps)).fetchall()
+
+    ou_rows = _qou(True)
     if not ou_rows:
+        ou_rows = _qou(False)   # Bug-5: 同上, cap 后无帧回退原逻辑
+    if not ou_rows:
+        # Bug-3: 取最早 in-play 帧 (ASC), 绝不取终场残盘 (原为 DESC)
         ou_rows = cur.execute(
             "SELECT market, selection, odds, line FROM odds_snapshots "
             "WHERE match_key=? AND market LIKE 'OU_%' AND market NOT LIKE 'OU_1H%' AND market NOT LIKE 'OU_2H%' "
-            "AND selection IN ('over','under') AND minute_at>0 ORDER BY minute_at DESC, id DESC",
+            "AND selection IN ('over','under') AND minute_at>0 ORDER BY minute_at ASC, id ASC",
             (match_key,)).fetchall()
     ous = {}
     for mkt, sel, odds, line in ou_rows:
@@ -740,24 +847,41 @@ def _current_inplay_ah_odds(con, match_key, minute):
 
     返回 (line, home_odds, away_odds) 或 None。用于「市场 AH↔1X2 一致性」对照,
     与开盘 AH(_open_ah_from_snapshots) 不同: 这里取 minute_at>0 的 live 快照。
+
+    2026-08-29 Bug-3/Bug-5 修复: 与 _current_inplay_odds 同款两个 bug ——
+      ① 原 fallback 用 ORDER BY minute_at DESC → 取终场残盘(信息泄漏), 改 ASC 取最早帧;
+      ② 主查询 minute_at<=? ORDER BY minute_at DESC 在 minute_at 卡死 45/90 的
+         61.8% 场次上退化为 id DESC → 恒取终场帧, 加 captured_at 真实时基上限过滤
+         + captured_at DESC 二级排序键; cap 后无帧回退原逻辑, 零回归。
     """
     if con is None or not match_key:
         return None
     cur = con.cursor()
-    rows = cur.execute(
-        "SELECT market, selection, odds FROM odds_snapshots "
-        "WHERE match_key=? AND market LIKE 'AH_%' "
-        "AND market NOT LIKE 'AH_1H%' AND market NOT LIKE 'AH_2H%' "
-        "AND selection IN ('home','away') AND minute_at>0 AND minute_at<=? "
-        "ORDER BY minute_at DESC, id DESC",
-        (match_key, max(1, minute))).fetchall()
+    cap_ts = _inplay_cap_ts(con, match_key, minute)
+
+    def _qah(use_cap):
+        sql = ("SELECT market, selection, odds FROM odds_snapshots "
+               "WHERE match_key=? AND market LIKE 'AH_%' "
+               "AND market NOT LIKE 'AH_1H%' AND market NOT LIKE 'AH_2H%' "
+               "AND selection IN ('home','away') AND minute_at>0 AND minute_at<=?")
+        ps = [match_key, max(1, minute)]
+        if use_cap and cap_ts:
+            sql += " AND captured_at<=?"
+            ps.append(cap_ts)
+        sql += " ORDER BY minute_at DESC, captured_at DESC, id DESC"
+        return cur.execute(sql, tuple(ps)).fetchall()
+
+    rows = _qah(True)
     if not rows:
+        rows = _qah(False)
+    if not rows:
+        # Bug-3: 取最早 in-play 帧 (ASC), 绝不取终场残盘 (原为 DESC)
         rows = cur.execute(
             "SELECT market, selection, odds FROM odds_snapshots "
             "WHERE match_key=? AND market LIKE 'AH_%' "
             "AND market NOT LIKE 'AH_1H%' AND market NOT LIKE 'AH_2H%' "
             "AND selection IN ('home','away') AND minute_at>0 "
-            "ORDER BY minute_at DESC, id DESC",
+            "ORDER BY minute_at ASC, id ASC",
             (match_key,)).fetchall()
     d = {}
     for mkt, sel, odds in rows:
@@ -1817,6 +1941,11 @@ def probe_core(odds, current_score='0-0', current_minute=0, league=None, con=Non
                 prob -= mom
 
         # clamp
+        # ── 市场分歧闸门 (2026-08-30, 同全场逻辑, 结算数据驱动) ──
+        # OU_1H list 阶段 UNDER 准确率仅 30% vs OVER 74%: 弱信号(|p-0.5|<0.06)且与
+        # 市场去水方向相逆时尊重市场, 模型只在有真实置信时才覆盖。
+        if p_mkt is not None and abs(prob - 0.5) < 0.06 and (prob >= 0.5) != (p_mkt >= 0.5):
+            prob = p_mkt
         ht_prob = max(0.05, min(0.95, prob))
 
         # 杯赛场景置信收缩(2026-08-19): 模型用联赛校准, 对杯赛(尤其强弱悬殊/强强保守)
@@ -1899,10 +2028,19 @@ def probe_core(odds, current_score='0-0', current_minute=0, league=None, con=Non
                 prob = p_mkt_f
                 anchor_f = 'market'
             else:
-                base = cal['ft_base_break_rate'] * (0.5 / line)  # line 越高基线越低
-                base = min(0.9, base)
-                time_pressure = min(1.0, current_minute / 90.0) * 0.20
-                prob = base + time_pressure
+                # 2026-08-30 泊松基线修正: 旧公式 0.72*(0.5/line) 对 line 2.5 只给 14%
+                # (真实 P(大2.5)≈48%) — 严重看小偏置, 是 UNDER 17% 准确率的兜底路径根源。
+                # 改为剩余泊松尾: μ_rem = 2.6×剩余时间占比, P(剩余进球 > line-已进)。
+                # 时间方向也修正: 比赛进行而未破线时, 剩余概率应递减(旧代码反而 +20%)。
+                _mu_rem = 2.6 * max(0.0, 1.0 - current_minute / 90.0)
+                _need = max(0.0, line - total_now)
+                _k = int(_need)
+                _cdf = 0.0
+                _term = 1.0
+                for _i in range(_k + 1):
+                    _cdf += _term
+                    _term *= _mu_rem / (_i + 1) if (_i + 1) else 0.0
+                prob = min(0.9, max(0.05, 1.0 - _cdf * pow(2.718281828, -_mu_rem)))
                 anchor_f = 'rule_fallback'
                 if ouf_pgap is not None and ouf_pgap >= cal['pgap_strong']:
                     prob += 0.20 if ouf_low_is_over else -0.20
@@ -1942,10 +2080,21 @@ def probe_core(odds, current_score='0-0', current_minute=0, league=None, con=Non
                                      f"(实测{_detail['actual']*100:.0f}% vs 隐含{_detail['implied']*100:.0f}%, n={_detail['n']})")
             except Exception:
                 pass
-            # 通用 over-odds 诱盘带(交叉验证稳健): 开盘 over 落 [2.0,2.2) = 庄家诱导大球, 往往平局
+            # 通用 over-odds 诱盘带: 开盘 over 落 [2.0,2.2) = 庄家诱导大球嫌疑
+            # 2026-08-30 数据驱动修正: 原硬帽 prob=min(prob,0.45) 会把市场 52-55% 的盘
+            # 强翻成小球方向 — prediction_ledger 结算实证 list 阶段 UNDER 准确率
+            # 仅 17%(OU)/30%(OU_1H) vs OVER 86%/74%, 方向性硬翻是净伤害(莫斯科斯巴达U19
+            # 5-1 场即例证: 57' 2-0 模型 0.479 推小, 市场盘口升 4.0 看大, 大球打出)。
+            # 改为温和收缩(50% 向 0.5)+保留 trap 标注, 不再强翻方向。
             if ouf_over is not None and 2.0 <= ouf_over < 2.2:
                 ft_inducement = 'trap'
-                prob = min(prob, 0.45)
+                prob = 0.5 + (prob - 0.5) * 0.5
+
+            # ── 市场分歧闸门 (2026-08-30, 结算数据驱动) ──
+            # 弱信号(|p-0.5|<0.06)且方向与市场去水相逆 → 尊重市场(市场 devig 校准良好,
+            # AUC 0.73), 模型只在有真实置信时才覆盖市场。消除"48-49% 推小"类噪声方向。
+            if p_mkt_f is not None and abs(prob - 0.5) < 0.06 and (prob >= 0.5) != (p_mkt_f >= 0.5):
+                prob = p_mkt_f
 
             ft_prob = max(0.05, min(0.95, prob))
             # 杯赛场景置信收缩(2026-08-19): 同上, 全场方向也降置信

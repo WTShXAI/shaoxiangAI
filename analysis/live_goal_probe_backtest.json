@@ -1,171 +1,171 @@
 {
-  "generated_at": "2026-08-15T12:41:20",
+  "generated_at": "2026-08-30T16:31:05",
   "method": "开赛快照(最早 minute_at 盘口) 喂入与线上一致的 probe_core(); 假定 0-0/0 分钟; 无动量项",
-  "n_matches_with_odds": 837,
+  "n_matches_with_odds": 61,
   "half": {
     "label": "半场破蛋 (所选 OU_1H line 的 over/under)",
-    "n_bettable": 39,
-    "direction_accuracy": 0.4103,
-    "roi": -0.359,
+    "n_bettable": 55,
+    "direction_accuracy": 0.4182,
+    "roi": -0.4016,
     "by_signal": {
       "STRONG_BREAK": {
-        "hit": 4,
-        "n": 4,
+        "hit": 1,
+        "n": 1,
         "acc": 1.0
       },
       "STRONG_HOLD": {
         "hit": 6,
-        "n": 23,
-        "acc": 0.2609
+        "n": 13,
+        "acc": 0.4615
       },
       "WEAK_TREND": {
-        "hit": 6,
-        "n": 12,
-        "acc": 0.5
+        "hit": 15,
+        "n": 40,
+        "acc": 0.375
       }
     },
     "model_calibration": {
-      "0.1": {
-        "hit": 16,
-        "n": 21,
-        "rate": 0.7619
-      },
-      "0.6": {
-        "hit": 6,
-        "n": 12,
-        "rate": 0.5
-      }
-    },
-    "market_calibration": {
-      "0.3": {
-        "hit": 6,
-        "n": 6,
-        "rate": 1.0
-      },
-      "0.4": {
-        "hit": 8,
-        "n": 14,
-        "rate": 0.5714
-      },
-      "0.6": {
-        "hit": 9,
-        "n": 15,
-        "rate": 0.6
-      }
-    }
-  },
-  "full": {
-    "label": "全场破蛋 (所选 OU line 的 over/under)",
-    "n_bettable": 827,
-    "direction_accuracy": 0.6578,
-    "roi": 0.0177,
-    "by_signal": {
-      "STRONG_BREAK": {
-        "hit": 16,
-        "n": 19,
-        "acc": 0.8421
-      },
-      "STRONG_HOLD": {
-        "hit": 389,
-        "n": 569,
-        "acc": 0.6837
-      },
-      "WEAK_TREND": {
-        "hit": 139,
-        "n": 239,
-        "acc": 0.5816
-      }
-    },
-    "model_calibration": {
-      "0.0": {
-        "hit": 106,
-        "n": 414,
-        "rate": 0.256
-      },
-      "0.1": {
-        "hit": 4,
-        "n": 14,
-        "rate": 0.2857
-      },
       "0.2": {
-        "hit": 1,
-        "n": 8,
-        "rate": 0.125
+        "hit": 2,
+        "n": 5,
+        "rate": 0.4
       },
       "0.3": {
-        "hit": 69,
-        "n": 133,
-        "rate": 0.5188
+        "hit": 5,
+        "n": 8,
+        "rate": 0.625
       },
       "0.4": {
-        "hit": 105,
-        "n": 174,
-        "rate": 0.6034
+        "hit": 12,
+        "n": 16,
+        "rate": 0.75
       },
       "0.5": {
-        "hit": 12,
-        "n": 21,
-        "rate": 0.5714
+        "hit": 1,
+        "n": 6,
+        "rate": 0.1667
       },
       "0.6": {
-        "hit": 17,
-        "n": 45,
-        "rate": 0.3778
-      },
-      "0.7": {
-        "hit": 12,
-        "n": 13,
-        "rate": 0.9231
-      },
-      "0.9": {
-        "hit": 4,
-        "n": 6,
-        "rate": 0.6667
+        "hit": 10,
+        "n": 19,
+        "rate": 0.5263
       }
     },
     "market_calibration": {
       "0.2": {
         "hit": 5,
-        "n": 59,
-        "rate": 0.0847
+        "n": 8,
+        "rate": 0.625
       },
       "0.3": {
-        "hit": 28,
-        "n": 108,
-        "rate": 0.2593
+        "hit": 3,
+        "n": 7,
+        "rate": 0.4286
       },
       "0.4": {
-        "hit": 68,
-        "n": 245,
-        "rate": 0.2776
+        "hit": 11,
+        "n": 14,
+        "rate": 0.7857
       },
       "0.5": {
-        "hit": 24,
-        "n": 58,
-        "rate": 0.4138
+        "hit": 1,
+        "n": 6,
+        "rate": 0.1667
       },
       "0.6": {
-        "hit": 108,
-        "n": 208,
-        "rate": 0.5192
+        "hit": 8,
+        "n": 16,
+        "rate": 0.5
+      }
+    }
+  },
+  "full": {
+    "label": "全场破蛋 (所选 OU line 的 over/under)",
+    "n_bettable": 60,
+    "direction_accuracy": 0.6333,
+    "roi": -0.038,
+    "by_signal": {
+      "STRONG_BREAK": {
+        "hit": 3,
+        "n": 3,
+        "acc": 1.0
+      },
+      "STRONG_HOLD": {
+        "hit": 0,
+        "n": 1,
+        "acc": 0.0
+      },
+      "WEAK_TREND": {
+        "hit": 33,
+        "n": 53,
+        "acc": 0.6226
+      }
+    },
+    "model_calibration": {
+      "0.4": {
+        "hit": 12,
+        "n": 13,
+        "rate": 0.9231
+      },
+      "0.5": {
+        "hit": 11,
+        "n": 15,
+        "rate": 0.7333
+      },
+      "0.6": {
+        "hit": 21,
+        "n": 25,
+        "rate": 0.84
+      }
+    },
+    "market_calibration": {
+      "0.4": {
+        "hit": 3,
+        "n": 5,
+        "rate": 0.6
+      },
+      "0.5": {
+        "hit": 4,
+        "n": 6,
+        "rate": 0.6667
+      },
+      "0.6": {
+        "hit": 33,
+        "n": 38,
+        "rate": 0.8684
       },
       "0.7": {
-        "hit": 97,
-        "n": 149,
-        "rate": 0.651
+        "hit": 9,
+        "n": 10,
+        "rate": 0.9
       }
     }
   },
   "half_ge1_calibration": {
-    "0.1": {
-      "hit": 16,
-      "n": 21,
-      "rate": 0.7619
+    "0.2": {
+      "hit": 5,
+      "n": 5,
+      "rate": 1.0
+    },
+    "0.3": {
+      "hit": 8,
+      "n": 8,
+      "rate": 1.0
+    },
+    "0.4": {
+      "hit": 14,
+      "n": 16,
+      "rate": 0.875
+    },
+    "0.5": {
+      "hit": 5,
+      "n": 6,
+      "rate": 0.8333
     },
     "0.6": {
-      "hit": 6,
-      "n": 12,
-      "rate": 0.5
+      "hit": 11,
+      "n": 19,
+      "rate": 0.5789
     }
   }
 }
