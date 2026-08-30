@@ -595,7 +595,37 @@ def derive_score_cross(con, match_key, current_score='0-0', current_minute=0):
                 continue
             keep[s] = p
         if not keep:
-            keep = dict(our)  # 过滤空则退回全分布
+            # 2026-08-30 根因修复: 开盘分布全部低于当前比分(领先场常见 — 开盘均衡→
+            # 0-0/1-1 密集而比分已 2-0) → 原回退"未过滤全分布"会主推低于当前比分的
+            # 荒谬比分(实测 克罗斯科瓦利夫卡 73' 2-0 仍主推 1-1)。
+            # 改为平移重构: 剩余进球 = 开盘分布均值 × 剩余时间缩放, 主客比沿用开盘
+            # 强度比, 终场分布 = 当前比分 ⊕ 剩余泊松矩阵 — 主推恒 ≥ 当前比分。
+            try:
+                from pipeline.score_model import score_matrix
+                _wsum = 0.0   # Σ p·(mh+ma)
+                _hsum = 0.0   # Σ p·mh
+                for s, p in our.items():
+                    try:
+                        mh, ma = (int(x) for x in str(s).replace(':', '-').split('-'))
+                    except Exception:
+                        continue
+                    _wsum += (mh + ma) * p
+                    _hsum += mh * p
+                h_share = (_hsum / _wsum) if _wsum > 1e-9 else 0.5
+                _ts = max(0.2, 1.0 - minute / 100.0)
+                rem_total = max(0.15, _wsum * _ts)
+                lam_h = rem_total * h_share
+                lam_a = rem_total * (1.0 - h_share)
+                M = score_matrix(lam_h, lam_a, 6)
+                M = M / M.sum()
+                keep = {}
+                for i in range(M.shape[0]):
+                    for j in range(M.shape[1]):
+                        keep[f'{min(sh + i, 9)}-{min(sa + j, 9)}'] = float(M[i, j])
+                roll_note = (f"滚球重构: 开盘分布全低于当前比分 {sh}-{sa} → 当前比分 ⊕ "
+                             f"剩余泊松(λ主{lam_h:.2f}/λ客{lam_a:.2f}, 剩余时间缩放{_ts:.2f})")
+            except Exception:
+                keep = {f'{sh}-{sa}': 1.0}   # 兜底: 至少不推荐低于当前比分的比分
         # 剩余时间缩 λ: 已有比分占权重, 总球预期下调
         time_scale = max(0.2, 1.0 - minute / 100.0)
         base_total = sum((int(s.split('-')[0]) + int(s.split('-')[1])) * p
