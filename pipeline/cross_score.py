@@ -583,7 +583,7 @@ def _roll_ou_anchor(con, match_key, minute):
         return None
 
 
-def derive_score_cross(con, match_key, current_score='0-0', current_minute=0):
+def derive_score_cross(con, match_key, current_score='0-0', current_minute=0, ou_hint=None):
     """三盘交叉 + 滚球验证 比分识别. 返回 dict 或 None."""
     odds = _open_odds(con, match_key)
     if odds is None:
@@ -622,7 +622,7 @@ def derive_score_cross(con, match_key, current_score='0-0', current_minute=0):
             h=odds['h'], d=odds['d'], a=odds['a'],
             ou_line=odds['ou_line'], ou_over=odds['ou_over'], ou_under=odds['ou_under'],
             ah_line=odds['ah_line'], ah_home=odds['ah_home'], ah_away=odds['ah_away'],
-            current_score=current_score, current_minute=current_minute,
+            current_score=current_score, current_minute=current_minute, ou_hint=ou_hint,
         )
         if m and m.get('found'):
             db_dist = {}

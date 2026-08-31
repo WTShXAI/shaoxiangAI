@@ -151,7 +151,7 @@ DEPRECATED: Dict[str, str] = {
     "pipeline.model_registry (outcome_full18/25feat/top10/reversal_top12)":
         "死链 —— 仅被 model_dispatcher 与训练脚本引用.",
     "pipeline.gq_model (gq_1x2/gq_ou/gq_total)":
-        "零线上引用; 结构信号能力由 M5 承担.",
+        "已清理(2026-08-31): 模块与权重从未落盘, DEPRECATED 删除.",
     "pipeline.gq_dc_model + pricing_template_engine":
         "半死链; 模板能力由 M7 承担.",
     "saved_models/draw_expert_*":

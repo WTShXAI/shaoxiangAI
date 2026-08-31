@@ -231,10 +231,15 @@ if __name__ == "__main__":
 # 统一 = DB 核心 + 滚球比分过滤 + 平移补位(候选不足时以当前比分平移 DB 分布补齐 top3)。
 # 赛前/滚盘单一真相源: 合理比分卡主推 / CS信任卡DB栏 / 终场读数回退 全部消费本函数。
 # ═══════════════════════════════════════════════════════════════════════════
-def unified_scoreline(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_under=None,
+def _unified_impl(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_under=None,
                       ah_line=None, ah_home=None, ah_away=None,
-                      current_score='', current_minute=0, top_n=_DEF_N):
+                      current_score='', current_minute=0, top_n=_DEF_N, ou_hint=None):
     """统一波胆推荐 (SSoT)。赛前 = DB三盘匹配 top5; 滚球 = 过滤低于当前比分 + 平移补位。
+
+    ou_hint: (line, direction) 可选 — 全场破蛋卡(probe full)的 OU 判定, 仅 live_odds
+    数据源有效。应用为软约束: 与 OU 方向矛盾的总球降权 ×0.15(不置零, 保留尾部),
+    保证 CS 推荐与 OU 推荐不互相矛盾(实测 阿尔德什尔 77' 1-1: OU 推大4.25 需总球≥5,
+    CS 却推 3-1 总球4 — 买大4.25 必输的自相矛盾)。
 
     返回 {found, mode('pre'|'roll'), top5[{score('i-j'), prob, n}], n_matched, mean_dist,
           basis, live_filter} 或 None。比分 key 统一 '-' 格式。"""
@@ -285,3 +290,44 @@ def unified_scoreline(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_und
             'mode': 'roll', 'top5': out5, 'score': out5[0]['score'] if out5 else None,
             'live_filter': live_filter + ' + 平移补位(DB分布⊕当前比分)',
             'basis': f"SSoT·滚球: DB匹配 {m['n_matched']} 场, {live_filter}; 候选不足→当前比分平移补位"}
+
+
+def unified_scoreline(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_under=None,
+                      ah_line=None, ah_home=None, ah_away=None,
+                      current_score='', current_minute=0, top_n=_DEF_N, ou_hint=None):
+    """SSoT 统一波胆推荐 (外层包装: 应用 OU 推荐软约束, 详 impl docstring)。"""
+    out = _unified_impl(h=h, d=d, a=a, ou_line=ou_line, ou_over=ou_over, ou_under=ou_under,
+                        ah_line=ah_line, ah_home=ah_home, ah_away=ah_away,
+                        current_score=current_score, current_minute=current_minute, top_n=top_n)
+    if not out or not out.get('found') or not ou_hint:
+        return out
+    try:
+        line, direction = float(ou_hint[0]), str(ou_hint[1]).upper()
+        if direction not in ('OVER', 'UNDER') or not (0.5 <= line <= 10.0):
+            return out
+        demoted = []
+        adj = []
+        for t in out['top5']:
+            try:
+                tot = int(t['score'].split('-')[0]) + int(t['score'].split('-')[1])
+            except Exception:
+                adj.append(t)
+                continue
+            losing = (direction == 'OVER' and tot < line) or (direction == 'UNDER' and tot > line)
+            if losing:
+                demoted.append(t['score'])
+                adj.append({'score': t['score'], 'prob': round(t['prob'] * 0.15, 6), 'n': t.get('n')})
+            else:
+                adj.append(t)
+        if not demoted:
+            return out
+        adj.sort(key=lambda t: -t['prob'])
+        out = dict(out)
+        out['top5'] = adj
+        out['score'] = adj[0]['score'] if adj else None
+        out['ou_align'] = (f"已对齐 OU 推荐 {'大' if direction == 'OVER' else '小'}{line:g}: "
+                           f"矛盾总球降权({','.join(demoted)})")
+        out['basis'] = (out.get('basis') or '') + '; ' + out['ou_align']
+        return out
+    except Exception:
+        return out

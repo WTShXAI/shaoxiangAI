@@ -258,22 +258,18 @@ def build_trust_card(
     ou_line: Optional[float] = None, ou_over: Optional[float] = None, ou_under: Optional[float] = None,
     ah_line: Optional[float] = None, ah_home: Optional[float] = None, ah_away: Optional[float] = None,
     con: Optional[Any] = None,
-    current_score: Optional[Tuple[int, int]] = None,
-    live_ou: Optional[Tuple[float, float, float]] = None,
-    live_1x2: Optional[Tuple[float, float, float]] = None,
-    live_minute: Optional[int] = None,
     max_goal: int = MAX_GOAL,
 ) -> Dict[str, Any]:
-    """构建 CS 信任卡。
+    """构建 CS 信任卡 (08-22 v1 + 08-25 第三栏真实历史频率)。
 
     入参: 初盘各市场赔率 (cs_grid 完整 CS 矩阵 + 1X2 + OU + AH)。
           cs_grid 与 1X2 至少其一可用; 全缺返回 found=False。
-          滚球模式 (2026-08-28, 用户需求"波胆跟随开赛后即时盘"): 传 current_score=(主进,客进)
-          与 live_ou=(线,over,under) 时, λμ 改由【当前滚球 OU 去水】反解剩余总球, 再按
-          初盘 λμ 强度比拆分主客, 最终比分分布 = 剩余分布 ⊕ 当前比分平移。开盘三盘拟合
-          仍照算作对照(odds_phase='live' 标注)。滚球 1X2 指的是最终赛果, 不作为剩余
-          λμ 约束(会失真), 仅透传展示。
-    出参: 结构化信任卡 dict (见返回字段)。
+          con: 真实完赛库连接(match_outcomes), 用于计算每比分线历史实证频率(禁硬编码)。
+    出参: 结构化信任卡 dict ——
+          全比分校准分布(覆盖100%) + 庄家CS线对比 + 主推背离检测(ALIGNED/DIVERGED)
+          + 诱导标记 + trust_score(相对庄家线可信度, 非预测胜率)
+          + 第三栏历史实证(historical_freq / our_top5&book_top5 每行 hist_freq)。
+    注: 纯开盘三盘拟合形态(2026-08-22 建立), 不含滚球即时盘模式。
     """
     # ── 1. 庄家 CS 线分布 + 诱导标记 ──
     book_dist: Dict[str, float] = {}
@@ -314,57 +310,6 @@ def build_trust_card(
         except Exception:
             our_dist = _matrix_to_dist(M_base)
         fit_sources.insert(0, "1X2")
-
-    # ── 2b. 滚球即时盘模式 (2026-08-28, 用户需求"波胆跟随开赛后即时盘") ──
-    # 剩余 λμ 由当前滚球 OU 去水反解(滚球线计的就是剩余进球), 主客拆分比沿用开盘
-    # 三盘拟合的强度比(1X2 滚球盘指最终赛果, 直接当剩余约束会失真), 最终比分分布
-    # = 剩余分布 ⊕ 当前比分平移。开盘拟合结果被滚球版覆盖(即时盘优先, 用户口径)。
-    odds_phase = "opening"
-    live_block = None
-    if current_score is not None and live_ou is not None:
-        try:
-            sh_, sa_ = int(current_score[0]), int(current_score[1])
-            lo_line, lo_over, lo_under = float(live_ou[0]), float(live_ou[1]), float(live_ou[2])
-            if lo_over > 1.01 and lo_under > 1.01:
-                p_over_live = (1.0 / lo_over) / (1.0 / lo_over + 1.0 / lo_under)
-                s_rem = _solve_remaining_total(p_over_live, lo_line)
-                if s_rem is not None and s_rem > 0.02:
-                    lam_ratio, ratio_src = 0.5, "50/50(无初盘)"
-                    try:
-                        _ph, _pd, _pa = deoverround(h, d, a)
-                        _lh0, _la0 = _fit_lambda_mu(_ph, _pd, _pa)
-                        if _lh0 + _la0 > 0.01:
-                            lam_ratio = _lh0 / (_lh0 + _la0)
-                            ratio_src = "开盘λμ强度比"
-                    except Exception:
-                        pass
-                    lam_rem = s_rem * lam_ratio
-                    mu_rem = s_rem * (1.0 - lam_ratio)
-                    M_rem = score_matrix(lam_rem, mu_rem, max_goal)
-                    M_rem = M_rem / M_rem.sum()
-                    # 平移当前比分: 最终比分 = 当前比分 + 剩余进球 (越界归并到上界格)
-                    M_fin = np.zeros_like(M_rem)
-                    for i in range(M_rem.shape[0]):
-                        for j in range(M_rem.shape[1]):
-                            M_fin[min(i + sh_, max_goal), min(j + sa_, max_goal)] += M_rem[i, j]
-                    our_dist = _matrix_to_dist(M_fin)
-                    odds_phase = "live"
-                    fit_sources = [f"LIVE_OU@{lo_line:g}", ratio_src]
-                    live_block = {
-                        "score": f"{sh_}:{sa_}",
-                        "minute": live_minute,
-                        "ou_line": lo_line,
-                        "over_odds": round(lo_over, 2),
-                        "under_odds": round(lo_under, 2),
-                        "p_over": round(p_over_live, 4),
-                        "total_rem": round(s_rem, 3),
-                        "lambda_rem": round(lam_rem, 3),
-                        "mu_rem": round(mu_rem, 3),
-                        "ratio_source": ratio_src,
-                        "method": "滚球OU反解剩余λμ ⊕ 当前比分平移",
-                    }
-        except Exception:
-            live_block = None
 
     if our_dist is None and not book_dist:
         return {"found": False, "message": "该场无初盘 CS 矩阵且无初盘 1X2, 无法构建信任卡"}
@@ -419,9 +364,6 @@ def build_trust_card(
     if induce.get("induce_level") == "RED":
         trust_score += 10  # 庄家明显诱导 → 更该信结构模型
         notes.append("庄家 CS 线呈强诱导特征(高抽水/低赔密集), 建议以结构模型为准")
-    if odds_phase == "live":
-        trust_score = min(100, trust_score + 10)
-        notes.append("滚球模式: 剩余λμ由当前滚球OU即时盘反解并平移当前比分, 非静态开盘拟合")
     if alignment == "DIVERGED":
         notes.append(f"庄家主推 {book_fav['score']} 与结构概率背离 → 警惕诱导盘")
     elif alignment == "ALIGNED":
@@ -432,9 +374,7 @@ def build_trust_card(
     return {
         "found": True,
         "model": "cs_trust_v1",
-        "odds_phase": odds_phase,              # opening / live (2026-08-28: 是否已切滚球即时盘)
-        "live": live_block,                    # 滚球模式详情(比分/分钟/滚球OU/剩余λμ), 开盘模式为 None
-        "fit_sources": fit_sources,           # 实际用到的市场 (滚球模式含 LIVE_OU@线)
+        "fit_sources": fit_sources,           # 实际用到的市场 (1X2 + OU + AH 开盘三盘)
         "our_distribution": our_dist or {},
         "our_top5": our_top5,
         "historical_freq": empirical_freq or {},
