@@ -48,21 +48,21 @@
 [data-theme="light"] {
   color-scheme: light;
   --color-fg: 17 20 24;
-  --color-ink-primary: 17 20 24;
-  --color-ink-secondary: 71 80 94;
-  --color-ink-muted: 120 128 140;
-  --color-ink-disabled: 150 156 168;
-  --color-surface-canvas: 245 246 248;
-  --color-surface-dark: 232 234 238;
+  --color-ink-primary: 22 26 31;
+  --color-ink-secondary: 82 90 103;
+  --color-ink-muted: 134 142 154;
+  --color-ink-disabled: 158 164 176;
+  --color-surface-canvas: 247 248 246;
+  --color-surface-dark: 239 241 238;
   --color-surface-panel: 255 255 255;
   --color-surface-card: 255 255 255;
-  --color-surface-hover: 238 240 243;
-  --color-surface-border: 222 226 232;
+  --color-surface-hover: 243 245 242;
+  --color-surface-border: 228 232 228;
   --color-accent: 21 122 72;
   --color-accent-dark: 17 20 24;
   --color-accent-card: 255 255 255;
-  --color-accent-inner: 236 247 240;
-  --color-accent-dim: 71 80 94;
+  --color-accent-inner: 238 248 242;
+  --color-accent-dim: 82 90 103;
   --color-field-400: 18 130 80;
   --color-field-500: 15 110 68;
   --color-field-600: 12 92 56;
@@ -79,7 +79,16 @@
   --color-danger-400: 200 50 55;
   --color-danger-500: 185 38 44;
   --color-danger-600: 165 30 36;
-  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.06), inset 0 1px 0 0 rgba(255, 255, 255, 0.7);
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 30px -18px rgba(16, 24, 40, 0.18), inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+}
+
+/* 唯美白色主题: 珠光白底 + 极淡极光晕染(绿/蓝/紫), 保持高可读、保留白天黑夜切换 */
+[data-theme="light"] body {
+  background-image:
+    radial-gradient(1100px 560px at 12% -10%, rgba(34, 197, 130, 0.08), transparent 60%),
+    radial-gradient(900px 480px at 100% -6%, rgba(56, 189, 248, 0.07), transparent 55%),
+    radial-gradient(820px 620px at 50% 122%, rgba(167, 139, 250, 0.06), transparent 60%);
+  background-attachment: fixed;
 }
 
 @tailwind base;

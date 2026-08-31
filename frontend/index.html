@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>哨响AI | 足球预测系统 v7.1</title>
+    <meta name="description" content="哨响AI 足球预测系统 — 体育博彩量化分析平台。开盘锚定/临场平衡/滚球调整三段框架，模型矩阵 + 市场锚 + Edge 三件套，诚实边界：分析非预测。" />
+    <meta name="theme-color" content="#0b0f14" />
+    <title>哨响AI | 足球预测系统 v7.4</title>
     <script>
       // 防闪烁: React 挂载前先按 localStorage 定主题
       (function () {
@@ -14,6 +16,24 @@
       })();
     </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+      /* 首屏 loading: JS bundle 加载/解析期间避免白屏 (React 挂载后自动被替换) */
+      #root:empty::before {
+        content: "哨响AI 加载中…";
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        font: 13px/1.5 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: #8a94a6;
+        letter-spacing: 0.05em;
+        background: #0b0f14;
+      }
+      html[data-theme="light"] #root:empty::before {
+        color: #5a6472;
+        background: #f5f6f8;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

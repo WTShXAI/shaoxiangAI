@@ -44,12 +44,11 @@ export default defineConfig({
           if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router')) return 'vendor-react';
           if (id.includes('node_modules/@tanstack')) return 'vendor-query';
           if (id.includes('node_modules/framer-motion')) return 'vendor-motion';
-          // page split — 每个页面独立chunk, 类bocai的按需加载
-          if (id.includes('/pages/LeagueSchedule')) return 'page-league';
+          // page split — 每个页面独立chunk, 类bocai的按需加载 (Schedule 为首页, 留主包保首屏)
           if (id.includes('/pages/LiveScores')) return 'page-live';
-          if (id.includes('/pages/MatchResults')) return 'page-results';
+          if (id.includes('/pages/Timeline')) return 'page-timeline';
+          if (id.includes('/pages/WorldAnalyzer')) return 'page-world';
           // component split
-          if (id.includes('/components/prediction')) return 'comp-prediction';
           if (id.includes('/components/layout')) return 'comp-layout';
         },
       },
