@@ -1,0 +1,266 @@
+{
+  "meta": {
+    "db": "data/GQ.db",
+    "W": 10,
+    "min_move": 0.03,
+    "n_matches_aligned": 2517,
+    "diag": {
+      "no_1x2": 0,
+      "short_1x2": 75,
+      "no_move": 297,
+      "no_ah": 9,
+      "no_ou": 110,
+      "agree": 1357,
+      "disagree": 242,
+      "used_x2": 2132
+    },
+    "note": "无前视: AH/OU 仅用 1X2 第W个tick时间之前的变动; 1/4球线半注拆分清算"
+  },
+  "all": {
+    "X2_ALL": {
+      "n": 2132,
+      "roi": -9.76,
+      "roi_CI": [
+        -15.47,
+        -3.86
+      ],
+      "pos_ev": false,
+      "avg_price": 2.959,
+      "implied_single": 45.2,
+      "win_rate": 41.56
+    },
+    "X2_AGREE": {
+      "n": 1357,
+      "roi": -8.38,
+      "roi_CI": [
+        -16.16,
+        -0.16
+      ],
+      "pos_ev": false,
+      "avg_price": 3.018,
+      "implied_single": 44.32,
+      "win_rate": 40.75
+    },
+    "X2_DISAGREE": {
+      "n": 242,
+      "roi": -14.77,
+      "roi_CI": [
+        -26.98,
+        -3.54
+      ],
+      "pos_ev": false,
+      "avg_price": 2.495,
+      "implied_single": 55.86,
+      "win_rate": 51.24
+    },
+    "X2_AGREE_STRONG": {
+      "n": 961,
+      "roi": -8.01,
+      "roi_CI": [
+        -17.78,
+        2.62
+      ],
+      "pos_ev": false,
+      "avg_price": 3.429,
+      "implied_single": 38.85,
+      "win_rate": 35.59
+    },
+    "AH_AGREE": {
+      "n": 1349,
+      "roi": -3.52,
+      "roi_CI": [
+        -7.75,
+        0.94
+      ],
+      "pos_ev": false,
+      "avg_price": 1.833,
+      "implied_single": 55.08,
+      "win_rate": 48.7
+    },
+    "AH_ALL": {
+      "n": 1583,
+      "roi": -5.91,
+      "roi_CI": [
+        -9.9,
+        -1.76
+      ],
+      "pos_ev": false,
+      "avg_price": 1.827,
+      "implied_single": 55.26,
+      "win_rate": 47.69
+    },
+    "OU_FOLLOW": {
+      "n": 1288,
+      "roi": -3.05,
+      "roi_CI": [
+        -7.71,
+        1.7
+      ],
+      "pos_ev": false,
+      "avg_price": 1.824,
+      "implied_single": 55.26,
+      "win_rate": 50.08
+    },
+    "OU_FADE": {
+      "n": 1288,
+      "roi": -7.57,
+      "roi_CI": [
+        -12.79,
+        -2.48
+      ],
+      "pos_ev": false,
+      "avg_price": 1.969,
+      "implied_single": 51.2,
+      "win_rate": 44.1
+    },
+    "TRIPLE_AGREE": {
+      "n": 323,
+      "roi": 3.88,
+      "roi_CI": [
+        -9.69,
+        18.92
+      ],
+      "pos_ev": false,
+      "avg_price": 2.36,
+      "implied_single": 53.82,
+      "win_rate": 52.32
+    },
+    "X2_AGREE_LOOKAHEAD": {
+      "n": 2120,
+      "roi": 56.59,
+      "roi_CI": [
+        49.64,
+        63.77
+      ],
+      "pos_ev": true,
+      "avg_price": 2.74,
+      "implied_single": 47.15,
+      "win_rate": 66.42
+    }
+  },
+  "clean_ir04": {
+    "X2_ALL": {
+      "n": 1947,
+      "roi": -2.45,
+      "roi_CI": [
+        -8.74,
+        3.81
+      ],
+      "pos_ev": false,
+      "avg_price": 2.968,
+      "implied_single": 45.47,
+      "win_rate": 44.94
+    },
+    "X2_AGREE": {
+      "n": 1230,
+      "roi": -0.4,
+      "roi_CI": [
+        -8.66,
+        8.53
+      ],
+      "pos_ev": false,
+      "avg_price": 3.029,
+      "implied_single": 44.54,
+      "win_rate": 44.31
+    },
+    "X2_DISAGREE": {
+      "n": 226,
+      "roi": -8.73,
+      "roi_CI": [
+        -21.2,
+        4.59
+      ],
+      "pos_ev": false,
+      "avg_price": 2.507,
+      "implied_single": 56.41,
+      "win_rate": 54.87
+    },
+    "X2_AGREE_STRONG": {
+      "n": 872,
+      "roi": -0.24,
+      "roi_CI": [
+        -11.26,
+        10.86
+      ],
+      "pos_ev": false,
+      "avg_price": 3.466,
+      "implied_single": 38.89,
+      "win_rate": 38.53
+    },
+    "AH_AGREE": {
+      "n": 1222,
+      "roi": -3.34,
+      "roi_CI": [
+        -8.19,
+        1.46
+      ],
+      "pos_ev": false,
+      "avg_price": 1.831,
+      "implied_single": 55.13,
+      "win_rate": 49.18
+    },
+    "AH_ALL": {
+      "n": 1441,
+      "roi": -6.29,
+      "roi_CI": [
+        -10.66,
+        -2.02
+      ],
+      "pos_ev": false,
+      "avg_price": 1.825,
+      "implied_single": 55.31,
+      "win_rate": 47.81
+    },
+    "OU_FOLLOW": {
+      "n": 1188,
+      "roi": -4.46,
+      "roi_CI": [
+        -9.22,
+        0.07
+      ],
+      "pos_ev": false,
+      "avg_price": 1.823,
+      "implied_single": 55.3,
+      "win_rate": 49.07
+    },
+    "OU_FADE": {
+      "n": 1188,
+      "roi": -6.1,
+      "roi_CI": [
+        -10.97,
+        -1.02
+      ],
+      "pos_ev": false,
+      "avg_price": 1.969,
+      "implied_single": 51.18,
+      "win_rate": 44.61
+    },
+    "TRIPLE_AGREE": {
+      "n": 298,
+      "roi": 10.06,
+      "roi_CI": [
+        -5.21,
+        26.23
+      ],
+      "pos_ev": false,
+      "avg_price": 2.373,
+      "implied_single": 54.01,
+      "win_rate": 55.7
+    },
+    "X2_AGREE_LOOKAHEAD": {
+      "n": 1938,
+      "roi": 70.31,
+      "roi_CI": [
+        63.27,
+        77.86
+      ],
+      "pos_ev": true,
+      "avg_price": 2.752,
+      "implied_single": 47.33,
+      "win_rate": 72.14
+    }
+  },
+  "pos_ev_clean": [
+    "X2_AGREE_LOOKAHEAD"
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "meta": {
+    "db": "data/GQ.db",
+    "n_results": 10144,
+    "n_tick_matches": 3021
+  },
+  "A_early_W10": {
+    "n_used": 2324,
+    "n_skip": 231,
+    "win_rate": 37.31,
+    "implied_single": 41.05,
+    "roi": -11.45,
+    "roi_CI": [
+      -17.07,
+      -5.52
+    ],
+    "pos_ev": false
+  },
+  "B_early_W20": {
+    "n_used": 2382,
+    "n_skip": 173,
+    "win_rate": 39.17,
+    "implied_single": 42.51,
+    "roi": -11.43,
+    "roi_CI": [
+      -16.89,
+      -5.91
+    ],
+    "pos_ev": false
+  },
+  "D_prematch_W10": {
+    "n_used": 1597,
+    "n_skip": 958,
+    "win_rate": 38.32,
+    "implied_single": 41.19,
+    "roi": -8.17,
+    "roi_CI": [
+      -15.45,
+      -0.81
+    ],
+    "pos_ev": false
+  },
+  "C_full_open_lookahead": {
+    "n_used": 2537,
+    "n_skip": 18,
+    "win_rate": 78.75,
+    "implied_single": 41.45,
+    "roi": 110.71,
+    "roi_CI": [
+      104.29,
+      117.15
+    ],
+    "pos_ev": true
+  },
+  "R_reverse": {
+    "n_used": 2321,
+    "win_rate": 31.84,
+    "roi": -15.3
+  },
+  "pos_ev": [
+    "C"
+  ]
+}

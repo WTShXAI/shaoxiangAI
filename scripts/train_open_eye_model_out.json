@@ -1,0 +1,120 @@
+{
+  "meta": {
+    "db": "D:\\Architecture\\data\\football_data.db",
+    "n_aligned": 8146,
+    "train_n": 6227,
+    "oof_n": 1919,
+    "feat_dim": 23,
+    "parity_max_abs": 0.0,
+    "note": "开盘天眼工件; 存盘后重载复算一致即交付",
+    "eye_open_oos_acc": 50.86,
+    "mirror_reload_acc": 50.86
+  },
+  "signals": {
+    "BASE_MARKET": {
+      "n": 1919,
+      "roi": -4.57,
+      "roi_CI": [
+        -8.64,
+        0.1
+      ],
+      "win_rate": 50.81,
+      "implied": 53.11,
+      "edge_pp": -2.3,
+      "pos_ev": false
+    },
+    "EYE_OPEN_ARGMAX": {
+      "n": 1919,
+      "roi": 10.54,
+      "roi_CI": [
+        5.01,
+        16.04
+      ],
+      "win_rate": 50.86,
+      "implied": 47.42,
+      "edge_pp": 3.44,
+      "pos_ev": true
+    },
+    "EYE_OPEN_RESID": {
+      "n": 1919,
+      "roi": 10.05,
+      "roi_CI": [
+        3.7,
+        16.36
+      ],
+      "win_rate": 44.5,
+      "implied": 40.85,
+      "edge_pp": 3.66,
+      "pos_ev": true
+    },
+    "EYE_OPEN_RESID_002": {
+      "n": 1646,
+      "roi": 13.52,
+      "roi_CI": [
+        7.39,
+        19.63
+      ],
+      "win_rate": 49.88,
+      "implied": 45.13,
+      "edge_pp": 4.74,
+      "pos_ev": true
+    },
+    "EYE_OPEN_RESID_003": {
+      "n": 1612,
+      "roi": 14.67,
+      "roi_CI": [
+        8.73,
+        20.83
+      ],
+      "win_rate": 50.31,
+      "implied": 45.02,
+      "edge_pp": 5.29,
+      "pos_ev": true
+    },
+    "EYE_OPEN_RESID_004": {
+      "n": 1577,
+      "roi": 15.59,
+      "roi_CI": [
+        9.32,
+        22.0
+      ],
+      "win_rate": 50.54,
+      "implied": 44.89,
+      "edge_pp": 5.65,
+      "pos_ev": true
+    }
+  },
+  "mirror_reload": {
+    "EYE_OPEN_ARGMAX": {
+      "n": 1919,
+      "roi": 10.54,
+      "roi_CI": [
+        5.01,
+        16.04
+      ],
+      "win_rate": 50.86,
+      "implied": 47.42,
+      "edge_pp": 3.44,
+      "pos_ev": true
+    },
+    "EYE_OPEN_RESID": {
+      "n": 1919,
+      "roi": 10.05,
+      "roi_CI": [
+        3.7,
+        16.36
+      ],
+      "win_rate": 44.5,
+      "implied": 40.85,
+      "edge_pp": 3.66,
+      "pos_ev": true
+    }
+  },
+  "eye_opened": [
+    "EYE_OPEN_ARGMAX",
+    "EYE_OPEN_RESID",
+    "EYE_OPEN_RESID_002",
+    "EYE_OPEN_RESID_003",
+    "EYE_OPEN_RESID_004"
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "meta": {
+    "db": "D:\\Architecture\\data\\football_data.db",
+    "n_aligned": 9515,
+    "n_oof": 2227,
+    "note": "真天眼=independent_model用odds_open派生特征+13维独立实力; OOF在开盘价下注, 无前视",
+    "eye_open_oos_acc": 50.61,
+    "prod_oos_acc": 52.09
+  },
+  "signals": {
+    "BASE_MARKET": {
+      "n": 2227,
+      "roi": -4.84,
+      "roi_CI": [
+        -9.12,
+        -0.91
+      ],
+      "win_rate": 50.79,
+      "implied": 53.19,
+      "edge_pp": -2.41,
+      "pos_ev": false,
+      "tag": "开盘隐含argmax@open"
+    },
+    "EYE_OPEN_ARGMAX": {
+      "n": 2227,
+      "roi": 12.03,
+      "roi_CI": [
+        7.05,
+        17.48
+      ],
+      "win_rate": 50.61,
+      "implied": 47.03,
+      "edge_pp": 3.57,
+      "pos_ev": true,
+      "tag": "开盘天眼argmax@open"
+    },
+    "EYE_OPEN_RESID": {
+      "n": 2227,
+      "roi": 17.4,
+      "roi_CI": [
+        11.11,
+        23.9
+      ],
+      "win_rate": 45.94,
+      "implied": 40.62,
+      "edge_pp": 5.32,
+      "pos_ev": true,
+      "tag": "开盘天眼残差最大方@open"
+    },
+    "EYE_OPEN_RESID_002": {
+      "n": 1869,
+      "roi": 15.93,
+      "roi_CI": [
+        9.7,
+        22.01
+      ],
+      "win_rate": 50.13,
+      "implied": 44.91,
+      "edge_pp": 5.22,
+      "pos_ev": true,
+      "tag": "开盘天眼残差>=0.02@open"
+    },
+    "EYE_OPEN_RESID_003": {
+      "n": 1841,
+      "roi": 16.29,
+      "roi_CI": [
+        10.32,
+        22.52
+      ],
+      "win_rate": 50.08,
+      "implied": 44.7,
+      "edge_pp": 5.38,
+      "pos_ev": true,
+      "tag": "开盘天眼残差>=0.03@open"
+    },
+    "EYE_OPEN_RESID_004": {
+      "n": 1799,
+      "roi": 17.21,
+      "roi_CI": [
+        11.09,
+        23.18
+      ],
+      "win_rate": 50.19,
+      "implied": 44.44,
+      "edge_pp": 5.76,
+      "pos_ev": true,
+      "tag": "开盘天眼残差>=0.04@open"
+    },
+    "CHEAT_CLOSE_ARGMAX": {
+      "n": 2227,
+      "roi": 13.94,
+      "roi_CI": [
+        8.99,
+        19.2
+      ],
+      "win_rate": 52.09,
+      "implied": 47.25,
+      "edge_pp": 4.84,
+      "pos_ev": true,
+      "tag": "生产模型(收盘派生)@open前视对照"
+    }
+  },
+  "eye_opened": [
+    "EYE_OPEN_ARGMAX",
+    "EYE_OPEN_RESID",
+    "EYE_OPEN_RESID_002",
+    "EYE_OPEN_RESID_003",
+    "EYE_OPEN_RESID_004",
+    "CHEAT_CLOSE_ARGMAX"
+  ]
+}

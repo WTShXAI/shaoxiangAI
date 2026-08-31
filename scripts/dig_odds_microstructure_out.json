@@ -1,0 +1,138 @@
+{
+  "meta": {
+    "db": "data/rollball_training.db",
+    "n": 311749,
+    "th": 0.02,
+    "note": "rb_matches 仅 1X2开收可靠; AH/OU 仅~5k行, 跨市场协调见 GQ odds_changes 深挖"
+  },
+  "part_a_oracle": {
+    "oracle_roi_open": 169.89,
+    "oracle_roi_close": 170.09
+  },
+  "part_b_plate_edge": {
+    "hot": {
+      "n": 121565,
+      "win_rate": 63.76,
+      "implied": 61.37,
+      "edge_pp": 2.39,
+      "roi_open": -4.91
+    },
+    "bal": {
+      "n": 178397,
+      "win_rate": 43.61,
+      "implied": 42.59,
+      "edge_pp": 1.02,
+      "roi_open": -6.31
+    },
+    "cold": {
+      "n": 11787,
+      "win_rate": 35.34,
+      "implied": 35.61,
+      "edge_pp": -0.28,
+      "roi_open": -8.06
+    }
+  },
+  "part_c_1x2_drift": {
+    "主家压低→押H@开盘": {
+      "n": 104137,
+      "win_rate": 49.28,
+      "implied": 43.12,
+      "edge_pp": 6.16,
+      "roi_open": 5.82,
+      "roi_CI": [
+        5.03,
+        6.63
+      ],
+      "pos_ev": true
+    },
+    "客家压低→押A@开盘": {
+      "n": 103748,
+      "win_rate": 34.74,
+      "implied": 30.64,
+      "edge_pp": 4.1,
+      "roi_open": 3.28,
+      "roi_CI": [
+        2.25,
+        4.39
+      ],
+      "pos_ev": true
+    },
+    "平局升(>2%)→押H@开盘": {
+      "n": 56910,
+      "win_rate": 58.0,
+      "implied": 50.39,
+      "edge_pp": 7.61,
+      "roi_open": 5.73,
+      "roi_CI": [
+        4.89,
+        6.57
+      ],
+      "pos_ev": true
+    },
+    "主压低+平升(强主)→押H@开盘": {
+      "n": 54546,
+      "win_rate": 57.91,
+      "implied": 50.11,
+      "edge_pp": 7.8,
+      "roi_open": 6.15,
+      "roi_CI": [
+        5.32,
+        6.99
+      ],
+      "pos_ev": true
+    },
+    "主升(>2%)+客压低→押A@开盘": {
+      "n": 94486,
+      "win_rate": 35.71,
+      "implied": 31.21,
+      "edge_pp": 4.51,
+      "roi_open": 4.85,
+      "roi_CI": [
+        3.78,
+        5.98
+      ],
+      "pos_ev": true
+    }
+  },
+  "part_d_drift_mag": {
+    "微(>-0.5%)": {
+      "n": 111430,
+      "win_rate": 49.55,
+      "implied": 43.62,
+      "edge_pp": 5.93,
+      "roi_open": 5.18,
+      "roi_CI": [
+        4.5,
+        5.93
+      ],
+      "pos_ev": true
+    },
+    "小(-0.5~-2%)": {
+      "n": 0,
+      "skip": true
+    },
+    "中(-2~-5%)": {
+      "n": 0,
+      "skip": true
+    },
+    "大(<-5%)": {
+      "n": 74246,
+      "win_rate": 48.21,
+      "implied": 41.07,
+      "edge_pp": 7.14,
+      "roi_open": 8.89,
+      "roi_CI": [
+        7.91,
+        9.91
+      ],
+      "pos_ev": true
+    }
+  },
+  "pos_ev_signals": [
+    "主家压低→押H@开盘",
+    "客家压低→押A@开盘",
+    "平局升(>2%)→押H@开盘",
+    "主压低+平升(强主)→押H@开盘",
+    "主升(>2%)+客压低→押A@开盘"
+  ]
+}

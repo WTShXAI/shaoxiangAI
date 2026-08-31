@@ -21,7 +21,8 @@ OUT = "D:/Architecture/.edge_agent_profile"
 ROUTES = [
     ("home", "/"),
     ("live", "/live-scores"),
-    ("results", "/match-results"),
+    ("timeline", "/timeline"),
+    ("world", "/world-analyzer"),
 ]
 
 os.makedirs(OUT, exist_ok=True)

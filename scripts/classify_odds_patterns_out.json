@@ -1,0 +1,243 @@
+{
+  "meta": {
+    "db": "data/rollball_training.db",
+    "table": "rb_matches",
+    "n_total": 311749,
+    "plate_rule": "热门方=开盘最低赔方; hot≤1.80, bal(1.80,2.50], cold>2.50",
+    "drift_rule": "热门方 (cl-op)/op; smart≤-0.02, reverse≥+0.02, else stable",
+    "roi_def": "stake=1, 赢回收收盘赔率, 输失1; ROI=mean(回收)-1"
+  },
+  "part_a_plate": {
+    "hot": {
+      "n": 121565,
+      "pct": 38.99,
+      "dist_HDA": [
+        52.67,
+        21.29,
+        26.04
+      ],
+      "fav_is_HDA": [
+        92582,
+        8,
+        28975
+      ],
+      "fav_win_rate": 63.76,
+      "roi_back_fav_closing": -4.57
+    },
+    "bal": {
+      "n": 178397,
+      "pct": 57.22,
+      "dist_HDA": [
+        39.19,
+        28.31,
+        32.5
+      ],
+      "fav_is_HDA": [
+        123213,
+        59,
+        55125
+      ],
+      "fav_win_rate": 43.61,
+      "roi_back_fav_closing": -6.26
+    },
+    "cold": {
+      "n": 11787,
+      "pct": 3.78,
+      "dist_HDA": [
+        34.65,
+        31.08,
+        34.28
+      ],
+      "fav_is_HDA": [
+        7923,
+        155,
+        3709
+      ],
+      "fav_win_rate": 35.34,
+      "roi_back_fav_closing": -8.02
+    }
+  },
+  "part_b_plate_x_drift": {
+    "hot|smart": {
+      "n": 40357,
+      "dist_HDA": [
+        55.23,
+        19.7,
+        25.07
+      ],
+      "modal": "H",
+      "modal_hit": 55.23,
+      "modal_hit_CI": [
+        54.75,
+        55.67
+      ],
+      "roi_back_modal_closing": -6.82,
+      "roi_CI": [
+        -8.13,
+        -5.6
+      ],
+      "profitable": false
+    },
+    "hot|reverse": {
+      "n": 40400,
+      "dist_HDA": [
+        48.77,
+        23.7,
+        27.53
+      ],
+      "modal": "H",
+      "modal_hit": 48.77,
+      "modal_hit_CI": [
+        48.26,
+        49.25
+      ],
+      "roi_back_modal_closing": -5.5,
+      "roi_CI": [
+        -6.66,
+        -4.35
+      ],
+      "profitable": false
+    },
+    "hot|stable": {
+      "n": 40808,
+      "dist_HDA": [
+        53.98,
+        20.5,
+        25.52
+      ],
+      "modal": "H",
+      "modal_hit": 53.98,
+      "modal_hit_CI": [
+        53.51,
+        54.46
+      ],
+      "roi_back_modal_closing": -6.82,
+      "roi_CI": [
+        -8.09,
+        -5.5
+      ],
+      "profitable": false
+    },
+    "bal|smart": {
+      "n": 62936,
+      "dist_HDA": [
+        41.3,
+        27.08,
+        31.62
+      ],
+      "modal": "H",
+      "modal_hit": 41.3,
+      "modal_hit_CI": [
+        40.91,
+        41.67
+      ],
+      "roi_back_modal_closing": -7.08,
+      "roi_CI": [
+        -8.04,
+        -6.12
+      ],
+      "profitable": false
+    },
+    "bal|reverse": {
+      "n": 68946,
+      "dist_HDA": [
+        37.04,
+        29.28,
+        33.68
+      ],
+      "modal": "H",
+      "modal_hit": 37.04,
+      "modal_hit_CI": [
+        36.68,
+        37.39
+      ],
+      "roi_back_modal_closing": -7.97,
+      "roi_CI": [
+        -8.87,
+        -7.07
+      ],
+      "profitable": false
+    },
+    "bal|stable": {
+      "n": 46515,
+      "dist_HDA": [
+        39.5,
+        28.55,
+        31.95
+      ],
+      "modal": "H",
+      "modal_hit": 39.5,
+      "modal_hit_CI": [
+        39.06,
+        39.95
+      ],
+      "roi_back_modal_closing": -7.96,
+      "roi_CI": [
+        -9.03,
+        -6.89
+      ],
+      "profitable": false
+    },
+    "cold|smart": {
+      "n": 3993,
+      "dist_HDA": [
+        36.51,
+        31.15,
+        32.33
+      ],
+      "modal": "H",
+      "modal_hit": 36.51,
+      "modal_hit_CI": [
+        35.04,
+        38.04
+      ],
+      "roi_back_modal_closing": -4.77,
+      "roi_CI": [
+        -9.67,
+        0.89
+      ],
+      "profitable": false
+    },
+    "cold|reverse": {
+      "n": 4420,
+      "dist_HDA": [
+        32.92,
+        31.0,
+        36.09
+      ],
+      "modal": "A",
+      "modal_hit": 36.09,
+      "modal_hit_CI": [
+        34.73,
+        37.56
+      ],
+      "roi_back_modal_closing": -7.41,
+      "roi_CI": [
+        -10.93,
+        -3.55
+      ],
+      "profitable": false
+    },
+    "cold|stable": {
+      "n": 3374,
+      "dist_HDA": [
+        34.71,
+        31.09,
+        34.2
+      ],
+      "modal": "H",
+      "modal_hit": 34.71,
+      "modal_hit_CI": [
+        33.05,
+        36.34
+      ],
+      "roi_back_modal_closing": -8.16,
+      "roi_CI": [
+        -12.56,
+        -3.89
+      ],
+      "profitable": false
+    }
+  },
+  "profitable_cells": []
+}
