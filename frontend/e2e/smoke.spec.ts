@@ -62,6 +62,21 @@ test('实时比分页渲染比赛列表', async ({ page }) => {
   expect(cleanErrors(errors), '实时比分页零 JS 错误').toEqual([])
 })
 
+test('LiveScores 点击分析打开决策弹窗 (拆分回归)', async ({ page }) => {
+  test.slow() // 后端分析链路可能长
+  const errors = trackErrors(page)
+  await page.goto('/live-scores', { waitUntil: 'domcontentloaded', timeout: 30000 })
+  await passAgeGate(page)
+  // 等待有 1X2 赔率比赛的"分析"按钮
+  const analyzeBtn = page.locator('button:has-text("分析")').first()
+  await analyzeBtn.waitFor({ timeout: 20000 })
+  await analyzeBtn.click()
+  // 弹窗出现 (LIVE DECODE 头 + Tab 栏)
+  await expect(page.locator('text=LIVE DECODE').first(), '应打开决策弹窗').toBeVisible({ timeout: 25000 })
+  await expect(page.locator('button:has-text("概率排名主推")').first(), '弹窗应有主推 Tab').toBeVisible({ timeout: 25000 })
+  expect(cleanErrors(errors), '弹窗零 JS 错误').toEqual([])
+})
+
 test('世界级分析器渲染与表单可用', async ({ page }) => {
   test.slow() // 后端分析链路可能长
   const errors = trackErrors(page)
