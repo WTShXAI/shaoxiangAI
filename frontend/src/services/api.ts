@@ -269,6 +269,32 @@ export const liveGoalProbeService = {
 }
 
 // ============================================
+// 4 盘口综合 + 开盘天眼 (2026-08-31 拆分: 原 Schedule 页裸 fetch 迁移至此,
+//   统一走 bridgeApi → 自动注入 auth / VITE_API_KEY / 错误归一化 / 超时控制)
+// ============================================
+export interface ComboAnalyzePayload {
+  home: string; away: string; sport_key?: string
+  odds_h?: number; odds_d?: number; odds_a?: number
+  ou_line?: number; ou_over?: number; ou_under?: number
+}
+export interface OpenEyePayload {
+  home: string; away: string; sport_key?: string
+  odds_h?: number; odds_d?: number; odds_a?: number
+}
+
+/** 4 盘口诚实综合: 胜平负/大小球/让球/波胆 候选信号 (来源开盘赔率+模型) */
+export const bestComboService = {
+  analyze: (payload: ComboAnalyzePayload) =>
+    bridgeApi.post<BridgeResponse<any>>('/api/best-combo/analyze', payload, { timeout: 90000 }),
+}
+
+/** 开盘天眼 +EV 裁判: 独立实力特征 + 盘口, 覆盖门/无edge -> PASS */
+export const openEyeService = {
+  recommend: (payload: OpenEyePayload) =>
+    bridgeApi.post<BridgeResponse<any>>('/api/open-eye/recommend', payload, { timeout: 90000 }),
+}
+
+// ============================================
 // 赛事终端服务 — bridge_service:9000 /api/terminal/analyze
 // 全链路分析 (_live_predict 11 层编排)
 // 2026-08-29 复原: 8-27 前端重建前, 赛程页面接的就是这个模型。

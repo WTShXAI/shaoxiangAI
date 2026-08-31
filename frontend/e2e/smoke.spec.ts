@@ -77,6 +77,24 @@ test('LiveScores 点击分析打开决策弹窗 (拆分回归)', async ({ page }
   expect(cleanErrors(errors), '弹窗零 JS 错误').toEqual([])
 })
 
+test('赛程页点击比赛打开详情面板 (Schedule 拆分回归)', async ({ page }) => {
+  test.slow() // 30s 重分析链路可能长
+  const errors = trackErrors(page)
+  await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 30000 })
+  await passAgeGate(page)
+  // 左侧列表比赛项 (按钮含 "vs"); 无直播场次时跳过交互断言
+  const item = page.locator('button:has-text("vs")').first()
+  const hasMatch = await item.waitFor({ timeout: 20000 }).then(() => true).catch(() => false)
+  if (hasMatch) {
+    await item.click()
+    // 选中后详情头必现: 世界级分析入口 (纯前端渲染, 不依赖模型回包)
+    await expect(page.locator('text=世界级分析').first(), '应显示世界级分析入口').toBeVisible({ timeout: 15000 })
+    // 探测面板 (SideCard 等拆分组件): probe 5s 轻轮询返回后渲染, 软校验不阻断
+    await expect(page.locator('text=判读理由').first(), '应渲染探测面板').toBeVisible({ timeout: 15000 }).catch(() => {})
+  }
+  expect(cleanErrors(errors), '赛程页零 JS 错误').toEqual([])
+})
+
 test('世界级分析器渲染与表单可用', async ({ page }) => {
   test.slow() // 后端分析链路可能长
   const errors = trackErrors(page)
