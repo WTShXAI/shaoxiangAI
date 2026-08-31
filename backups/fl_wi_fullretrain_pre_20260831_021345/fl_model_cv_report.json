@@ -1,0 +1,29 @@
+[
+  {
+    "task": "1x2",
+    "n": 8106,
+    "acc": 0.47520355292376026,
+    "auc": 0.6430603635533927,
+    "logloss": 1.0218447358822274,
+    "baseline_acc": 0.4806584362139918,
+    "model": "D:\\Architecture\\data\\fl_model_1x2.joblib"
+  },
+  {
+    "task": "ou",
+    "n": 6934,
+    "acc": 0.5137662337662338,
+    "auc": 0.5145295099169532,
+    "logloss": 0.7087431727803118,
+    "baseline_acc": 0.4673076923076923,
+    "model": "D:\\Architecture\\data\\fl_model_ou.joblib"
+  },
+  {
+    "task": "ah",
+    "n": 4429,
+    "acc": 0.7650406504065039,
+    "auc": 0.8239564018182375,
+    "logloss": 0.49487028353317264,
+    "baseline_acc": 0.588855421686747,
+    "model": "D:\\Architecture\\data\\fl_model_ah.joblib"
+  }
+]
