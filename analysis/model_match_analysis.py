@@ -520,9 +520,24 @@ def analyze_match_with_model(match_key, current_score="0-0", current_minute=0,
     # 初盘 1X2+OU+AH 三市场交叉拟合 λ/μ → 全比分分布 → 滚球条件化(当前比分/分钟)
     # → 滚球 OU 漂移验证。有初盘三盘时优先, 无则退回原对齐/诊断诚实锚。
     score_hint = None
+    # ── OU 推荐约束 (2026-08-30, 治"OU推大4.25 CS推3-1总球4"自相矛盾) ──
+    # 取全场破蛋卡(probe full, 3s缓存)的有效判定(仅 live_odds 数据源), 作为软约束
+    # 传给 CS 统一推荐: 矛盾总球降权重排。league_prior/无盘口/已破线不约束。
+    _ou_hint = None
+    try:
+        from analysis.live_goal_probe import probe_match as _pm
+        _pr = _pm(match_key, current_score=current_score, current_minute=current_minute,
+                  is_halftime=is_halftime)
+        _fu = (_pr or {}).get('full') or {}
+        if (_fu.get('data_source') == 'live_odds' and _fu.get('line') is not None
+                and _fu.get('direction') in ('OVER', 'UNDER')
+                and _fu.get('signal') not in ('ALREADY_BROKEN',)):
+            _ou_hint = (_fu['line'], _fu['direction'])
+    except Exception:
+        _ou_hint = None
     try:
         from pipeline.cross_score import derive_score_cross
-        _cs = derive_score_cross(con, match_key, current_score, current_minute)
+        _cs = derive_score_cross(con, match_key, current_score, current_minute, ou_hint=_ou_hint)
         if _cs and _cs.get('found') and _cs.get('score'):
             # 2026-08-30: 方向直出 — 滚球态用领先方先验(干净频率表)⊕即时盘, 不再从
             # 比分top反推(会被DB匹配分布稀释); 无直出值时回退比分推断。
