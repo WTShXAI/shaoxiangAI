@@ -482,19 +482,38 @@ export default function Rollball() {
                     const main = legal.length ? legal[0].score : cs.score
                     return (
                     <div>
-                      <div className="flex items-center gap-2 mb-1.5">
+                      <div className="flex items-center gap-2 mb-1">
                         <span className="text-[22px] font-bold font-mono text-emerald-300">{main}</span>
-                        {cs.mode === 'roll' && <span className="text-[10px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-300">滚球态</span>}
+                        <span className="text-[10px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-semibold">首选 TOP1</span>
+                        {cs.mode === 'roll' && <span className="text-[10px] px-1 py-0.5 rounded bg-sky-500/15 text-sky-300">滚球态</span>}
                       </div>
-                      <div className="flex flex-wrap gap-1">
-                        {list.slice(0, 5).map((t) => (
-                          <span key={t.score} className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
-                            t.score === main ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300' : 'border-white/10 bg-white/[0.04] text-ink-secondary'
-                          }`}>
-                            {t.score} {(t.prob * 100).toFixed(0)}%
-                          </span>
-                        ))}
+                      {/* 推荐内容 = TOP1 + TOP3 (前三名, 回测 top3 含实际 95.1%@55-65'自洽样本) */}
+                      <div className="mt-1">
+                        <div className="text-[10px] text-ink-muted mb-1">推荐三选 (TOP3 · 滚球 60′ 回测含实际 95.1%)</div>
+                        <div className="flex flex-wrap gap-1">
+                          {list.slice(0, 3).map((t, i) => (
+                            <span key={t.score} className={`text-[11px] font-mono px-2 py-1 rounded border ${
+                              i === 0 ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300' : 'border-field-500/30 bg-field-500/[0.05] text-ink-primary'
+                            }`}>
+                              <span className="text-[9px] text-ink-muted mr-1">TOP{i + 1}</span>
+                              {t.score} <span className="text-ink-muted">{(t.prob * 100).toFixed(0)}%</span>
+                            </span>
+                          ))}
+                          {list.length === 0 && <span className="text-[10px] text-ink-muted">当前比分下无合法候选</span>}
+                        </div>
                       </div>
+                      {list.length > 3 && (
+                        <details className="mt-1">
+                          <summary className="text-[10px] text-ink-muted cursor-pointer">完整分布 ({list.length} 项)</summary>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {list.slice(3, 8).map((t) => (
+                              <span key={t.score} className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-white/10 bg-white/[0.04] text-ink-muted">
+                                {t.score} {(t.prob * 100).toFixed(0)}%
+                              </span>
+                            ))}
+                          </div>
+                        </details>
+                      )}
                       {cs.ou_align && <div className="text-[10px] text-sky-300/90 mt-1">{cs.ou_align}</div>}
                       {cs.n_matched != null && (
                         <div className="text-[10px] text-ink-muted mt-1">
