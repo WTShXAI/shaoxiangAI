@@ -3774,6 +3774,27 @@ _CS_TRUST_CACHE = {"fetched_at": 0.0, "key": None, "data": None}
 _CS_TRUST_LOCK = None
 
 
+def _aiqiuke_prior_fetch(oh: float, od: float, oa: float, timeout: float = 2.5):
+    """爱球客赛前校准先验 (2026-09-09, 两系统打通 ②): 8790 推理服务。
+    输入收盘三盘赔率 → 输出校准 1X2 概率 (0.7-0.8 区间实际命中 77.4%)。
+    失败静默返回 None (服务未启动/超时均不影响主流程)。"""
+    try:
+        import urllib.request
+        body = json.dumps({'close_h': float(oh), 'close_d': float(od),
+                           'close_a': float(oa)}).encode()
+        req = urllib.request.Request('http://127.0.0.1:8790/predict', data=body,
+                                     headers={'Content-Type': 'application/json'})
+        d = json.load(urllib.request.urlopen(req, timeout=timeout))
+        p = d.get('p1x2') or {}
+        if p.get('h') and p.get('d') and p.get('a'):
+            # 统一键名: 8790 返回 h/d/a → 哨响标准 home/draw/away (消费方 prob_map 同键)
+            return {'home': float(p['h']), 'draw': float(p['d']), 'away': float(p['a']),
+                    'models': (d.get('models') or {}).get('x1x2', 'aiqiuke')}
+    except Exception:
+        pass
+    return None
+
+
 def _gather_opening_odds(gq, match_key: str, home: str, away: str) -> dict:
     """取初盘 1X2/OU/AH。优先 match_outcomes(op_*), 失败回退 odds_snapshots(最早冻结)。
     match_outcomes 无 match_key 列, 用 home/away 关联。"""
@@ -4562,11 +4583,20 @@ async def sixline_analyze_api(match_key: str, score: str = "0-0", minute: int = 
                 _r = _dsc(gq, match_key, cur_score, minute)
                 if _r and _r.get("winner"):
                     dir_label = {"home": "主胜", "draw": "平", "away": "客胜"}[_r["winner"]]
-                    # 方向概率用即时盘去水(滚球态市场已重定价); 无即时盘回退开盘
+                    # 方向概率: 滚球态用即时盘去水; 赛前态融合爱球客校准先验(0.5/0.5)
                     if live_x2:
                         prob_map = {"home": live_x2["p"][0], "draw": live_x2["p"][1], "away": live_x2["p"][2]}
                     else:
                         prob_map = {"home": ph, "draw": pd_, "away": pa}
+                    _prior = None
+                    if minute <= 0:
+                        try:
+                            _prior = _aiqiuke_prior_fetch(odds.get("h"), odds.get("d"), odds.get("a"))
+                        except Exception:
+                            _prior = None
+                    if _prior:
+                        prob_map = {k: 0.5 * prob_map[k] + 0.5 * _prior[k] for k in prob_map}
+                        out["aiqiuke_prior"] = _prior
                     dir_prob = prob_map.get(_r["winner"], max(ph, pd_, pa))
                     out["direction"] = {"winner": _r["winner"], "label": dir_label,
                                         "prob": round(dir_prob, 4), "basis": _r.get("winner_basis")}
@@ -4734,15 +4764,24 @@ async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int =
                 except Exception as _e:
                     logger.warning(f"[rollball] OU: {_e}")
 
-            # ── AH 开盘 (让球卡) ──
+            # ── AH 开盘 + 方向判定 (2026-09-09, 让球优化 ③) ──
+            # beat_book 实证 (n=14530, t=7.6): 主让(公众热门)反买客 ROI+4.1% (n=3778, t=2.7),
+            # 主受让反买主 ROI+5.8% (n=1855, t=2.7) — 让球方向判定 = 反热门规则 ⊕ 去水覆盖。
             if odds.get("ah_line") is not None and odds.get("ah_home") and odds.get("ah_away"):
                 try:
                     p_ah = (1.0 / odds["ah_home"]) / (1.0 / odds["ah_home"] + 1.0 / odds["ah_away"])
                 except Exception:
                     p_ah = None
-                out["opening_ah"] = {"line": odds["ah_line"], "home": odds["ah_home"],
-                                     "away": odds["ah_away"],
-                                     "p_home_cover": round(p_ah, 4) if p_ah else None}
+                _ahv = odds["ah_line"]
+                if _ahv < 0:
+                    _ah_rec, _ah_note = 'away', f'主让{abs(_ahv):g} = 公众热门; beat_book 反买客 历史ROI +4.1% (n=3778, t=2.7)'
+                elif _ahv > 0:
+                    _ah_rec, _ah_note = 'home', f'主受让{_ahv:g} = 客队热门; beat_book 反买主 历史ROI +5.8% (n=1855, t=2.7)'
+                else:
+                    _ah_rec, _ah_note = None, '平手盘, 无反热门结构'
+                out["opening_ah"] = {"line": _ahv, "home": odds["ah_home"],
+                                     "away": odds["ah_away"], "p_home_cover": round(p_ah, 4) if p_ah else None,
+                                     "recommend": _ah_rec, "recommend_note": _ah_note}
 
             # ── CS 统一推荐 (SSoT + OU 约束) ──
             try:

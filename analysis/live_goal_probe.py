@@ -2038,9 +2038,33 @@ def probe_core(odds, current_score='0-0', current_minute=0, league=None, con=Non
             # ── 主锚: 盘口去水隐含概率 (2026-08-18 换锚, 同半场逻辑) ──
             p_mkt_f = _dewatered_over_prob(ouf_over, ouf_under)
             ouf_pgap = abs(p_mkt_f - 0.5) if p_mkt_f is not None else None
+            # ── OU 多线联合 (2026-08-31, A/B 回测 47.1%→60.2%, n≈1000) ──
+            # 单线 pgap 选向在 2.5+ 高线段系统性看小; 数学改进: 全部存活线各自反解
+            # 隐含剩余总球 μ_r (泊松反解), 取中位数 (稳健聚合抗单线异常),
+            # 泊松尾 P(总球 > 所选线 | μ_median) 作为方向概率 — 多线信息全用。
+            _joint_p = None
+            _mus = []
+            for _c in _picked:
+                _ln = float(_c['line'])
+                if total_now >= _ln:
+                    continue
+                try:
+                    from pipeline.dc_model import solve_mu_from_line as _sm
+                    _mu, _ = _sm(_ln, _c['over'], _c['under'])
+                    if 0.1 <= _mu <= 12:
+                        _mus.append(_mu)
+                except Exception:
+                    continue
+            if _mus:
+                try:
+                    from pipeline.dc_model import poisson_sf as _psf
+                    _mu_med = float(np.median(_mus))
+                    _joint_p = float(np.clip(_psf(line - total_now, _mu_med), 0.03, 0.97))
+                except Exception:
+                    _joint_p = None
             if p_mkt_f is not None:
-                prob = p_mkt_f
-                anchor_f = 'market'
+                prob = _joint_p if _joint_p is not None else p_mkt_f
+                anchor_f = 'market_joint' if _joint_p is not None else 'market'
             else:
                 # 2026-08-30 泊松基线修正: 旧公式 0.72*(0.5/line) 对 line 2.5 只给 14%
                 # (真实 P(大2.5)≈48%) — 严重看小偏置, 是 UNDER 17% 准确率的兜底路径根源。

@@ -128,3 +128,27 @@ def mle_delta(lam_pairs, outcomes, lo=-0.6, hi=0.9, iters=60):
             break
     delta = 0.5 * (a + b)
     return delta, nll_dc(delta, lam_pairs, outcomes)
+
+
+# ══════════════════════════════════════════════════════════════
+# OU 多线联合泊松尾 (2026-08-31, OU A/B 回测 47.1%→60.2%)
+# ══════════════════════════════════════════════════════════════
+
+def solve_mu_from_line(line, over, under):
+    """单线去水 p_over → 隐含总球 μ̂ (泊松反解, 0.05 网格)。"""
+    p_over = (1 / over) / (1 / over + 1 / under)
+    best, best_err = 2.5, 1e9
+    for mu in np.arange(0.2, 8.01, 0.05):
+        k = int(line)
+        cdf = sum(math.exp(-mu) * mu ** i / math.factorial(i) for i in range(k + 1))
+        err = abs((1 - cdf) - p_over)
+        if err < best_err:
+            best_err, best = err, mu
+    return best, p_over
+
+
+def poisson_sf(k, mu):
+    """P(X > k), X~Poisson(mu)。"""
+    k = max(0, int(k))
+    cdf = sum(math.exp(-mu) * mu ** i / math.factorial(i) for i in range(k + 1))
+    return max(0.0, 1.0 - cdf)

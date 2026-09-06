@@ -343,28 +343,44 @@ class Registry:
                 try:
                     with conn() as c:
                         row = c.execute(
-                            "SELECT score_home, score_away, ht_score_home, ht_score_away, is_override "
+                            "SELECT score_home, score_away, ht_score_home, ht_score_away, is_override, league, kickoff "
                             "FROM matches WHERE match_key=?", (mk,)).fetchone()
                         if row is None:
                             upsert_match(mk, home, away, league,
                                          kickoff=_kickoff_iso(m.get("mgt")), status=status,
                                          score_home=sh, score_away=sa,
                                          ht_score_home=ht_sh, ht_score_away=ht_sa)
-                        elif not row[4]:
-                            sets, vals = [], []
-                            if sh is not None and row[0] is None:
-                                sets.append("score_home=?"); vals.append(sh)
-                            if sa is not None and row[1] is None:
-                                sets.append("score_away=?"); vals.append(sa)
-                            if ht_sh is not None and row[2] is None:
-                                sets.append("ht_score_home=?"); vals.append(ht_sh)
-                            if ht_sa is not None and row[3] is None:
-                                sets.append("ht_score_away=?"); vals.append(ht_sa)
-                            if sets:
-                                sets.append("last_seen=?")
-                                vals.append(time.time())
-                                vals.append(mk)
-                                c.execute(f"UPDATE matches SET {','.join(sets)} WHERE match_key=?", vals)
+                        else:
+                            existing_league = row[5] or ""
+                            # 2026-09-07 修复: 同名虚拟/模拟盘占位记录霸占 match_key,
+                            # 导致真实联赛同名比赛被吞并。用真实比赛数据整行覆盖虚拟占位。
+                            if not row[4] and existing_league and \
+                                    ac._is_simulated_league(existing_league) and not ac._is_simulated_league(league):
+                                now = time.time()
+                                ko = _kickoff_iso(m.get("mgt"))
+                                c.execute("""UPDATE matches SET
+                                    home=?, away=?, league=?, kickoff=?, status=?,
+                                    score_home=?, score_away=?, ht_score_home=?, ht_score_away=?,
+                                    mid=?, first_seen=?, last_seen=?
+                                    WHERE match_key=?""",
+                                    (home, away, league, ko, status,
+                                     sh, sa, ht_sh, ht_sa,
+                                     mid, now, now, mk))
+                            elif not row[4]:
+                                sets, vals = [], []
+                                if sh is not None and row[0] is None:
+                                    sets.append("score_home=?"); vals.append(sh)
+                                if sa is not None and row[1] is None:
+                                    sets.append("score_away=?"); vals.append(sa)
+                                if ht_sh is not None and row[2] is None:
+                                    sets.append("ht_score_home=?"); vals.append(ht_sh)
+                                if ht_sa is not None and row[3] is None:
+                                    sets.append("ht_score_away=?"); vals.append(ht_sa)
+                                if sets:
+                                    sets.append("last_seen=?")
+                                    vals.append(time.time())
+                                    vals.append(mk)
+                                    c.execute(f"UPDATE matches SET {','.join(sets)} WHERE match_key=?", vals)
                         c.execute("UPDATE matches SET mid=? WHERE match_key=?", (mid, mk))
                     if sh is not None and self.score_sink is not None:
                         self.score_sink[mid] = f"{sh}-{sa}"
