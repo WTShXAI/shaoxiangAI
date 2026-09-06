@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import PageHeader from '@/components/layout/PageHeader'
+import MatchAnalysisModal from '@/pages/LiveScores/MatchAnalysisModal'
+import { worldAnalyzerService, goldenEyeService, timelineService } from '@/services/api'
 
 /**
  * 滚球分析仪表盘 (2026-08-30) — 四市场(胜平负/让球/大小球/比分) + 实时进度。
@@ -62,6 +64,12 @@ export default function Rollball() {
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
   const [search, setSearch] = useState('')
+  const [tab, setTab] = useState<'overview' | 'deep' | 'world' | 'ge' | 'timeline'>('overview')
+  const [worldData, setWorldData] = useState<any>(null)
+  const [worldErr, setWorldErr] = useState('')
+  const [geData, setGeData] = useState<any>(null)
+  const [geErr, setGeErr] = useState('')
+  const [tlData, setTlData] = useState<any>(null)
   const timer = useRef<number | null>(null)
 
   const loadMatches = useCallback(async () => {
@@ -101,6 +109,72 @@ export default function Rollball() {
   useEffect(() => {
     if (sel) loadAnalyze(sel)
   }, [sel, loadAnalyze])
+
+  // ── 融合 Tab: 世界分析器 / 黄金神瞳 / 时间线 ──
+  const loadWorld = useCallback(async (m: any) => {
+    if (!m) return
+    setWorldData(null); setWorldErr('')
+    try {
+      const p: any = { home: m.home, away: m.away, league: m.league, kickoff: m.kickoff }
+      if (m.odds_h) { p.h = m.odds_h; p.d = m.odds_d; p.a = m.odds_a }
+      if (m.ou_line) { p.ou_line = m.ou_line; p.ou_over = m.ou_over; p.ou_under = m.ou_under }
+      const r = await worldAnalyzerService.analyze(p)
+      setWorldData((r as any)?.data ?? r)
+    } catch (e: any) { setWorldErr(e?.message || '分析失败') }
+  }, [])
+
+  const loadGoldenEye = useCallback(async (m: any) => {
+    if (!m) return
+    setGeData(null); setGeErr('')
+    try {
+      const r = await goldenEyeService.analyze({ home: m.home, away: m.away })
+      setGeData((r as any)?.data ?? r)
+    } catch (e: any) { setGeErr(e?.message || '分析失败') }
+  }, [])
+
+  const loadTimeline = useCallback(async () => {
+    try {
+      const r = await timelineService.getToday()
+      setTlData((r as any)?.data ?? r)
+    } catch { setTlData(null) }
+  }, [])
+
+  useEffect(() => {
+    if (!sel) return
+    if (tab === 'world') loadWorld(sel)
+    if (tab === 'ge') loadGoldenEye(sel)
+    if (tab === 'timeline') loadTimeline()
+  }, [sel, tab, loadWorld, loadGoldenEye, loadTimeline])
+
+  // 通用数据面板: 标量键值 + 数组/对象摘要 (结构未知的服务响应统一展示)
+  function DataPanel({ data, depth = 0 }: { data: any; depth?: number }) {
+    if (data == null) return <span className="text-ink-muted">—</span>
+    if (typeof data !== 'object') return <span className="text-ink-primary font-mono">{String(data)}</span>
+    if (Array.isArray(data)) {
+      return (
+        <div className="space-y-1">
+          {data.slice(0, 12).map((v, i) => (
+            <div key={i} className="pl-2 border-l border-surface-border/40">
+              <span className="text-[10px] text-ink-muted mr-1.5">#{i + 1}</span>
+              <DataPanel data={v} depth={depth + 1} />
+            </div>
+          ))}
+          {data.length > 12 && <div className="text-[10px] text-ink-muted">…共 {data.length} 项</div>}
+        </div>
+      )
+    }
+    const entries = Object.entries(data).filter(([, v]) => v != null)
+    return (
+      <div className="space-y-0.5">
+        {entries.slice(0, 24).map(([k, v]) => (
+          <div key={k} className="flex gap-2 text-[11px]">
+            <span className="text-ink-muted shrink-0 w-32 truncate" title={k}>{k}</span>
+            <span className="min-w-0"><DataPanel data={v} depth={depth + 1} /></span>
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   // 开赛延迟窗 + 分钟校准 (2026-08-31 用户需求):
   //   ① 开赛「延迟 3 分钟」后才加入列表(kickoff+3min ≤ now), 未开赛/刚开赛不显示
@@ -230,8 +304,77 @@ export default function Rollball() {
                 )}
               </div>
 
+              {/* 融合 Tab 栏 */}
+              <div className="flex items-center gap-1 rounded-lg bg-surface-dark/50 border border-surface-border/40 p-1 w-fit flex-wrap">
+                {([
+                  ['overview', '总览 · 四市场'],
+                  ['deep', '全链路 7 模型'],
+                  ['world', '世界分析器'],
+                  ['ge', '黄金神瞳'],
+                  ['timeline', '时间线'],
+                ] as const).map(([id, label]) => (
+                  <button
+                    key={id}
+                    onClick={() => setTab(id)}
+                    className={`px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors ${
+                      tab === id ? 'bg-field-500/20 text-field-300 border border-field-500/30' : 'text-ink-muted hover:text-ink-primary'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {tab === 'deep' && sel && (
+                <MatchAnalysisModal
+                  home={sel.home}
+                  away={sel.away}
+                  sportKey="soccer"
+                  league={sel.league}
+                  kickoff={sel.kickoff}
+                  matchKey={sel.match_key}
+                  matchState={sel.minute != null && sel.minute > 0 ? 'live' : 'scheduled'}
+                  liveScore={(() => {
+                    const [h, a] = String(sel.score || '0-0').split('-').map((x: string) => parseInt(x, 10) || 0)
+                    return { homeGoals: h, awayGoals: a, elapsed: calibMinute(sel) }
+                  })()}
+                  onClose={() => setTab('overview')}
+                />
+              )}
+
+              {tab === 'world' && (
+                <div className="rounded-xl border border-surface-border/40 bg-surface-dark/30 p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[12px] font-semibold text-ink-secondary">世界分析器 · 市场锚 + 模型矩阵 + Edge</span>
+                    <button onClick={() => loadWorld(sel)} className="text-[11px] px-2 py-1 rounded border border-surface-border/40 text-ink-secondary hover:text-ink-primary">重新分析</button>
+                  </div>
+                  {worldErr && <div className="text-[11px] text-rose-300">{worldErr}</div>}
+                  {!worldData && !worldErr && <div className="text-[11px] text-ink-muted">分析中…</div>}
+                  {worldData != null && <DataPanel data={worldData} />}
+                </div>
+              )}
+
+              {tab === 'ge' && (
+                <div className="rounded-xl border border-surface-border/40 bg-surface-dark/30 p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[12px] font-semibold text-ink-secondary">黄金神瞳 · 天眼/世界级/赛程OU/比分分布 三镜头</span>
+                    <button onClick={() => loadGoldenEye(sel)} className="text-[11px] px-2 py-1 rounded border border-surface-border/40 text-ink-secondary hover:text-ink-primary">重新分析</button>
+                  </div>
+                  {geErr && <div className="text-[11px] text-rose-300">{geErr}</div>}
+                  {!geData && !geErr && <div className="text-[11px] text-ink-muted">分析中…</div>}
+                  {geData != null && <DataPanel data={geData} />}
+                </div>
+              )}
+
+              {tab === 'timeline' && (
+                <div className="rounded-xl border border-surface-border/40 bg-surface-dark/30 p-4 space-y-2">
+                  <span className="text-[12px] font-semibold text-ink-secondary">时间线 · 当日赛程</span>
+                  {tlData != null ? <DataPanel data={tlData} /> : <div className="text-[11px] text-ink-muted">加载中…</div>}
+                </div>
+              )}
+
               {/* 方向总判定 */}
-              {d.direction?.label && (
+              {tab === 'overview' && d.direction?.label && (
                 <div className={`rounded-xl border p-3 ${d.direction.conflict ? 'border-amber-500/40 bg-amber-500/[0.05]' : 'border-emerald-500/40 bg-emerald-500/[0.06]'}`}>
                   <span className="text-[12px] text-ink-secondary">终场方向判定: </span>
                   <span className={`text-[14px] font-bold ${d.direction.conflict ? 'text-amber-300' : 'text-emerald-300'}`}>
@@ -242,7 +385,7 @@ export default function Rollball() {
               )}
 
               {/* 四市场 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${tab === 'overview' ? '' : 'hidden'}`}>
                 {/* 胜平负 */}
                 <Card title="胜平负 1X2 (开盘 vs 即时)" accent="border-sky-500/30">
                   {opX2 && (
