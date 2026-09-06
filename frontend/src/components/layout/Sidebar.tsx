@@ -8,9 +8,6 @@ import { APP_VERSION } from '@/config/version'
 const navItems = [
   { to: '/', label: '赛程列表', icon: ScheduleIcon },
   { to: '/live-scores', label: '实时比分', icon: LiveScoreIcon },
-  { to: '/timeline', label: '时间线', icon: TimelineIcon },
-  { to: '/world-analyzer', label: '世界分析器', icon: AnalyzerIcon },
-  { to: '/golden-eye', label: '黄金神瞳', icon: GoldenEyeIcon },
   { to: '/rollball', label: '滚球分析', icon: RollballIcon },
 ]
 
@@ -118,21 +115,7 @@ function LiveScoreIcon() {
   )
 }
 
-function TimelineIcon() {
-  return (
-    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 0a.75.75 0 01-.75-.75V6.75a.75.75 0 01.75-.75h16.5a.75.75 0 01.75.75v4.5a.75.75 0 01-.75.75m-16.5 0a.75.75 0 00-.75.75v4.5c0 .414.336.75.75.75h16.5a.75.75 0 00.75-.75v-4.5a.75.75 0 00-.75-.75m-8.25-6v6m0 0v6" />
-    </svg>
-  )
-}
 
-function AnalyzerIcon() {
-  return (
-    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l4.5-4.5 3 3 5.25-5.25m0 0V9m0-2.25H16.5M4.5 19.5h15A1.5 1.5 0 0021 18V6a1.5 1.5 0 00-1.5-1.5h-15A1.5 1.5 0 003 6v12a1.5 1.5 0 001.5 1.5z" />
-    </svg>
-  )
-}
 
 function RollballIcon() {
   return (
@@ -143,11 +126,3 @@ function RollballIcon() {
   )
 }
 
-function GoldenEyeIcon() {
-  return (
-    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12s3.75-7.5 9.75-7.5 9.75 7.5 9.75 7.5-3.75 7.5-9.75 7.5S2.25 12 2.25 12z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  )
-}

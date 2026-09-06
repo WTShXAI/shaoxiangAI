@@ -10,9 +10,6 @@ import Skeleton from '@/components/shared/Skeleton'
 // /world-analyzer → 世界级分析器 (GET /api/world-analyze, 市场锚+模型矩阵+Edge三件套)
 const Schedule = lazy(() => import('@/pages/Schedule'))
 const LiveScores = lazy(() => import('@/pages/LiveScores'))
-const Timeline = lazy(() => import('@/pages/Timeline'))
-const WorldAnalyzer = lazy(() => import('@/pages/WorldAnalyzer'))
-const GoldenEye = lazy(() => import('@/pages/GoldenEye'))
 const Rollball = lazy(() => import('@/pages/Rollball'))
 
 const PageFallback = () => (
@@ -32,9 +29,6 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: withSuspense(<Schedule />) },
       { path: 'live-scores', element: withSuspense(<LiveScores />) },
-      { path: 'timeline', element: withSuspense(<Timeline />) },
-      { path: 'world-analyzer', element: withSuspense(<WorldAnalyzer />) },
-      { path: 'golden-eye', element: withSuspense(<GoldenEye />) },
       { path: 'rollball', element: withSuspense(<Rollball />) },
       { path: '*', element: <Navigate to="/" replace /> },
     ],
