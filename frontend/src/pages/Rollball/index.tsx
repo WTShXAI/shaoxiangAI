@@ -64,7 +64,9 @@ export default function Rollball() {
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
   const [search, setSearch] = useState('')
-  const [tab, setTab] = useState<'overview' | 'deep' | 'world' | 'ge' | 'timeline'>('overview')
+  const [tab, setTab] = useState<'overview' | 'deep' | 'world' | 'ge' | 'timeline' | 'sixline'>('overview')
+  const [sixData, setSixData] = useState<any>(null)
+  const [sixErr, setSixErr] = useState('')
   const [worldData, setWorldData] = useState<any>(null)
   const [worldErr, setWorldErr] = useState('')
   const [geData, setGeData] = useState<any>(null)
@@ -139,12 +141,27 @@ export default function Rollball() {
     } catch { setTlData(null) }
   }, [])
 
+  const loadSixline = useCallback(async (m: any) => {
+    if (!m) return
+    setSixData(null); setSixErr('')
+    try {
+      const [h, a] = String(m.score || '0-0').split('-')
+      const q = `match_key=${encodeURIComponent(m.match_key)}&score=${encodeURIComponent(m.score || '0-0')}&minute=${calibMinute(m)}`
+      const r = await fetch(`/api/sixline/analyze?${q}`)
+      const j = await r.json()
+      if (j?.ok) setSixData(j.data)
+      else setSixErr(j?.error || '分析失败')
+      void h; void a
+    } catch (e: any) { setSixErr(e?.message || '网络错误') }
+  }, [])
+
   useEffect(() => {
     if (!sel) return
     if (tab === 'world') loadWorld(sel)
     if (tab === 'ge') loadGoldenEye(sel)
     if (tab === 'timeline') loadTimeline()
-  }, [sel, tab, loadWorld, loadGoldenEye, loadTimeline])
+    if (tab === 'sixline') loadSixline(sel)
+  }, [sel, tab, loadWorld, loadGoldenEye, loadTimeline, loadSixline])
 
   // 通用数据面板: 标量键值 + 数组/对象摘要 (结构未知的服务响应统一展示)
   function DataPanel({ data, depth = 0 }: { data: any; depth?: number }) {
@@ -312,6 +329,7 @@ export default function Rollball() {
                   ['world', '世界分析器'],
                   ['ge', '黄金神瞳'],
                   ['timeline', '时间线'],
+                  ['sixline', '六行框架'],
                 ] as const).map(([id, label]) => (
                   <button
                     key={id}
@@ -340,6 +358,28 @@ export default function Rollball() {
                   })()}
                   onClose={() => setTab('overview')}
                 />
+              )}
+
+              {tab === 'sixline' && (
+                <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/[0.04] p-4 space-y-2">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-[12px] font-semibold text-indigo-300">六行分析框架 · 概率判断而非必中</span>
+                    <button onClick={() => sel && loadSixline(sel)} className="text-[11px] px-2 py-1 rounded border border-surface-border/40 text-ink-secondary hover:text-ink-primary">重新分析</button>
+                  </div>
+                  {sixErr && <div className="text-[11px] text-rose-300">{sixErr}</div>}
+                  {!sixData && !sixErr && <div className="text-[11px] text-ink-muted">分析中…</div>}
+                  {sixData?.lines?.map((ln: any) => (
+                    <div key={ln.no} className="rounded-lg border border-surface-border/30 bg-surface-card/40 px-3 py-2">
+                      <span className="text-[10px] font-mono text-indigo-300 mr-2">行{ln.no}</span>
+                      <span className="text-[12px] text-ink-primary">{ln.text}</span>
+                    </div>
+                  ))}
+                  {sixData?.conclusion && (
+                    <div className="text-[10px] text-ink-muted/70">
+                      每场自动入台账(sixline_log), 赛后结算方向/比分池命中 — 支持 100+ 场复盘
+                    </div>
+                  )}
+                </div>
               )}
 
               {tab === 'world' && (

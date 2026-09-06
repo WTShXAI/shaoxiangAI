@@ -239,7 +239,7 @@ def _open_odds(con, match_key):
                 cands.append((abs(line - ref), line, s))
         if not cands:
             return None
-        _, line, s = min(cands)
+        _, line, s = min(cands, key=lambda t: t[0])
         return (line, s)
 
     if ou_line is None or ou_over is None:

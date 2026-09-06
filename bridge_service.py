@@ -4375,6 +4375,271 @@ async def live_goal_probe_api(match_key: str, score: str = "0-0", minute: int = 
 
 
 
+
+
+@app.get("/api/sixline/analyze")
+async def sixline_analyze_api(match_key: str, score: str = "0-0", minute: int = 0):
+    """六行分析框架 (2026-09-09, 用户流程产品化):
+      ① 欧赔隐含概率  ② 亚盘是否支持欧赔方向  ③ 大小球与预期进球是否矛盾
+      ④ 基本面/伤停/战意是否验证盘赔  ⑤ 临场变化是否强化或反转
+      ⑥ 概率 + 比分池 + 风险点
+    同时入 sixline_log 台账(赛后结算, 支撑 100+ 场复盘)。"""
+    match_key = _resolve_mk(match_key)
+    sh = sa = None
+    try:
+        for _sep in ("-", ":"):
+            if _sep in (score or ""):
+                _h, _a = score.split(_sep, 1)
+                sh, sa = int(_h), int(_a)
+                break
+    except Exception:
+        sh = sa = None
+    minute = int(minute or 0)
+
+    def _worker():
+        nonlocal sh, sa
+        gq = sqlite3.connect(os.path.join(PROJECT_ROOT, "data", "events.db"), timeout=8)
+        gq.execute("PRAGMA busy_timeout=8000")
+        out = {"match_key": match_key, "lines": [], "risks": []}
+        try:
+            mrow = gq.execute("SELECT home, away, league, kickoff, score_home, score_away FROM matches WHERE match_key=?",
+                              (match_key,)).fetchone()
+            home, away = (mrow[0], mrow[1]) if mrow else ("", "")
+            if mrow:
+                out.update({"home": home, "away": away, "league": mrow[2], "kickoff": mrow[3]})
+                if sh is None and mrow[4] is not None:
+                    sh, sa = int(mrow[4]), int(mrow[5] or 0)
+            cur_score = f"{sh}-{sa}" if sh is not None else (score or "0-0")
+
+            # ── 盘口: 开盘 + 即时 ──
+            odds = _gather_opening_odds(gq, match_key, "", "")
+            from analysis.live_goal_probe import (
+                _current_inplay_odds, _current_inplay_ah_odds, _dewater_1x2)
+            live_x2 = None
+            try:
+                cur = _current_inplay_odds(gq, match_key, max(1, minute)) or {}
+                if cur.get("x2") and all(x > 1.01 for x in cur["x2"]):
+                    p = _dewater_1x2(*[float(x) for x in cur["x2"]])
+                    if p:
+                        live_x2 = {"odds": [round(float(x), 2) for x in cur["x2"]],
+                                   "p": [round(float(x), 4) for x in p]}
+            except Exception:
+                live_x2 = None
+
+            # ── ① 欧赔隐含概率 ──
+            if not (odds.get("h") and odds.get("d") and odds.get("a")):
+                return {"ok": True, "data": {"match_key": match_key,
+                         "lines": [{"no": 1, "text": "无开盘欧赔, 无法执行六行框架"}], "risks": [],
+                         "conclusion": None, "found": False}}
+            ph, pd_, pa = _dewater_1x2(odds["h"], odds["d"], odds["a"])
+            fav = ("home", "主胜") if ph >= max(pd_, pa) else                   (("draw", "平局") if pd_ >= pa else ("away", "客胜"))
+            l1 = (f"欧赔隐含(去水): 主胜 {ph*100:.0f}% / 平 {pd_*100:.0f}% / 客胜 {pa*100:.0f}% "
+                  f"(开盘 {odds['h']:.2f}/{odds['d']:.2f}/{odds['a']:.2f})"
+                  + (f"; 即时盘 {live_x2['odds'][0]:.2f}/{live_x2['odds'][1]:.2f}/{live_x2['odds'][2]:.2f}" if live_x2 else ""))
+            out["lines"].append({"no": 1, "key": "1x2", "text": l1,
+                                 "data": {"ph": round(ph, 4), "pd": round(pd_, 4), "pa": round(pa, 4),
+                                          "fav": fav[0], "fav_label": fav[1],
+                                          "live": live_x2}})
+
+            # ── ② 亚盘验证 ──
+            ah_line = odds.get("ah_line")
+            ah_home = odds.get("ah_home")
+            ah_away = odds.get("ah_away")
+            l2, ah_verdict = None, "neutral"
+            try:
+                if ah_line is not None and ah_home and ah_away:
+                    p_ah_home = (1 / ah_home) / (1 / ah_home + 1 / ah_away)
+                    ah_side = "主让" if ah_line < 0 else ("主受让" if ah_line > 0 else "平手")
+                    # 穿盘信心: 让球方隐含 vs 独赢隐含 — 让1球但主胜隐含<=40% → 信心不足
+                    if ah_line < 0 and ph < 0.42:
+                        ah_verdict = "weak"
+                        l2 = (f"亚盘{ah_side}{abs(ah_line):g} (主 {ah_home:.2f}/客 {ah_away:.2f}) — "
+                              f"让{abs(ah_line):g}球但主胜隐含仅 {ph*100:.0f}%, 穿盘信心不足, "
+                              f"受让方向(客+{abs(ah_line):g})更稳")
+                    elif ah_line > 0 and pa < 0.42:
+                        ah_verdict = "weak"
+                        l2 = (f"亚盘主受让{ah_line:g} (主 {ah_home:.2f}/客 {ah_away:.2f}) — "
+                              f"主胜隐含 {pa*100:.0f}% 信心不足, 反向保护")
+                    else:
+                        ah_verdict = "supports"
+                        l2 = (f"亚盘{ah_side}{abs(ah_line):g} (主 {ah_home:.2f}/客 {ah_away:.2f}) — "
+                              f"盘口深度与欧赔方向匹配, 支持{fav[1]}")
+                else:
+                    l2 = "无开盘让球盘"
+            except Exception:
+                l2 = "让球盘解读失败"
+            out["lines"].append({"no": 2, "key": "ah", "text": l2, "verdict": ah_verdict})
+
+            # ── ③ 大小球 vs 预期进球 ──
+            ou_line = odds.get("ou_line")
+            ou_over = odds.get("ou_over")
+            ou_under = odds.get("ou_under")
+            l3, ou_tag = None, None
+            if ou_line and ou_over and ou_under:
+                p_over = (1 / ou_over) / (1 / ou_over + 1 / ou_under)
+                tag = "略防小" if ou_under < ou_over else ("开放" if ou_over < ou_under else "均衡")
+                band = "高线" if ou_line >= 3.25 else ("中线" if ou_line >= 2.5 else "低线")
+                exp_band = "2-3 球" if 2.25 <= ou_line <= 3.25 else ("3-4 球" if ou_line > 3.25 else "1-2 球")
+                ou_tag = tag
+                l3 = (f"大小{band} {ou_line:g}: 大 {ou_over:.2f} / 小 {ou_under:.2f} ({tag}), "
+                      f"预期总球 {exp_band} 附近")
+            else:
+                l3 = "无开盘大小球盘"
+            out["lines"].append({"no": 3, "key": "ou", "text": l3 or "", "tag": ou_tag,
+                                 "data": {"line": ou_line, "over": ou_over, "under": ou_under}})
+
+            # ── ④ 基本面/伤停/战意 ──
+            l4_parts = []
+            try:
+                mm = gq.execute("SELECT injuries_home, injuries_away, news, preview FROM match_meta WHERE match_key=?",
+                                (match_key,)).fetchone()
+                if mm:
+                    inj_h = json.loads(mm[0]) if mm[0] else []
+                    inj_a = json.loads(mm[1]) if mm[1] else []
+                    news = mm[2]
+                    prev = json.loads(mm[3]) if mm[3] else {}
+                    if inj_h or inj_a:
+                        l4_parts.append(f"伤停: 主{len(inj_h)}人/客{len(inj_a)}人")
+                    if isinstance(prev, dict) and prev:
+                        first_side = list(prev.values())[0] if prev else []
+                        if first_side:
+                            iv = first_side[0].get("intervalDay")
+                            if iv is not None:
+                                l4_parts.append(f"赛程间隔 {iv} 天")
+                    if news:
+                        l4_parts.append("有相关新闻(详情见内容采集)")
+            except Exception:
+                pass
+            if not l4_parts:
+                l4_parts.append("无可用基本面/伤停数据 — 本行诚实降级, 不伪装验证")
+            out["lines"].append({"no": 4, "key": "fundamental", "text": "; ".join(l4_parts)})
+
+            # ── ⑤ 临场变化 ──
+            l5_parts = []
+            reinforce = "neutral"
+            if live_x2 and odds.get("h"):
+                for s_i, (o_open, o_now) in enumerate(zip(
+                        (odds["h"], odds["d"], odds["a"]), live_x2["odds"])):
+                    drift = (o_now / o_open - 1.0) * 100
+                    if abs(drift) >= 4:
+                        side = ["主胜", "平", "客胜"][s_i]
+                        l5_parts.append(f"{side} {'降' if drift < 0 else '升'}水 {abs(drift):.0f}%")
+                if not l5_parts:
+                    l5_parts.append("盘口变化 <4%, 无显著临场异动")
+            else:
+                l5_parts.append("无即时盘对比(未开赛或无滚球帧)")
+            out["lines"].append({"no": 5, "key": "drift", "text": "; ".join(l5_parts)})
+
+            # ── ⑥ 结论: 方向概率 + 比分池 + 风险点 ──
+            risks = []
+            if pd_ >= 0.25:
+                risks.append("平局不可排除")
+            if ah_verdict == "weak":
+                risks.append("穿盘信心不足")
+            if sh is not None and sa is not None and minute < 20 and sh + sa > 0:
+                risks.append("早进球可能改变盘路")
+            score_pool = []
+            try:
+                from pipeline.cs_db_match import unified_scoreline
+                from pipeline.cross_score import derive_score_cross
+                _ou_hint = None
+                if ou_line and p_over is not None and p_over != 0.5:
+                    _ou_hint = (ou_line, "OVER" if p_over >= 0.5 else "UNDER")
+                _cs_sc = cur_score
+                dm = unified_scoreline(h=odds.get("h"), d=odds.get("d"), a=odds.get("a"),
+                                       ou_line=odds.get("ou_line"), ou_over=odds.get("ou_over"),
+                                       ou_under=odds.get("ou_under"),
+                                       ah_line=odds.get("ah_line"), ah_home=odds.get("ah_home"),
+                                       ah_away=odds.get("ah_away"),
+                                       current_score=_cs_sc, current_minute=minute, ou_hint=_ou_hint)
+                if dm and dm.get("found"):
+                    score_pool = [t["score"] for t in dm.get("top5", [])[:3]]
+                    out["cs_mode"] = dm.get("mode")
+            except Exception as _e:
+                logger.warning(f"[sixline] 比分池: {_e}")
+            try:
+                from pipeline.cross_score import derive_score_cross as _dsc
+                _r = _dsc(gq, match_key, cur_score, minute)
+                if _r and _r.get("winner"):
+                    dir_label = {"home": "主胜", "draw": "平", "away": "客胜"}[_r["winner"]]
+                    # 方向概率用即时盘去水(滚球态市场已重定价); 无即时盘回退开盘
+                    if live_x2:
+                        prob_map = {"home": live_x2["p"][0], "draw": live_x2["p"][1], "away": live_x2["p"][2]}
+                    else:
+                        prob_map = {"home": ph, "draw": pd_, "away": pa}
+                    dir_prob = prob_map.get(_r["winner"], max(ph, pd_, pa))
+                    out["direction"] = {"winner": _r["winner"], "label": dir_label,
+                                        "prob": round(dir_prob, 4), "basis": _r.get("winner_basis")}
+                    if _r.get("roll_conflict"):
+                        risks.append("模型方向与当前领先方分歧")
+            except Exception as _e:
+                logger.warning(f"[sixline] 方向: {_e}")
+            # 风险: 比分池与 OU 方向矛盾检查
+            if score_pool and ou_line and p_over is not None:
+                avg_tot = sum(int(s.split("-")[0]) + int(s.split("-")[1]) for s in score_pool) / len(score_pool)
+                if p_over >= 0.60 and avg_tot <= ou_line:
+                    risks.append(f"比分池均总球 {avg_tot:.1f} 与大{ou_line:g}方向矛盾(已由 OU 对齐降权)")
+            l6 = (f"结论: {'客不败' if (fav[0] == 'away' or pa >= pd_) and fav[0] != 'home' else ('主不败' if fav[0] == 'home' else '胜负均势')}, "
+                  f"方向 {out.get('direction', {}).get('label', fav[1])}({(out.get('direction', {}).get('prob') or 0)*100:.0f}%), "
+                  f"比分池 {'/'.join(score_pool[:3]) if score_pool else '—'}. "
+                  f"风险: {('; '.join(risks)) if risks else '无显著风险标记'}.")
+            out["lines"].append({"no": 6, "key": "conclusion", "text": l6})
+            out["conclusion"] = {"direction": out.get("direction"),
+                                 "score_pool": score_pool, "risks": risks, "text": l6}
+            out["found"] = True
+
+            # ── 台账 ──
+            try:
+                gq.execute("""CREATE TABLE IF NOT EXISTS sixline_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, match_key TEXT, league TEXT,
+                    kickoff TEXT, minute INTEGER, cur_score TEXT,
+                    direction TEXT, direction_prob REAL, score_pool TEXT, risks TEXT,
+                    lines_json TEXT, created_at REAL, settled_at REAL,
+                    actual_score TEXT, dir_hit INTEGER, pool_hit INTEGER)""")
+                exist = gq.execute(
+                    "SELECT 1 FROM sixline_log WHERE match_key=? AND created_at > ?",
+                    (match_key, time.time() - 3600)).fetchone()
+                if not exist:
+                    gq.execute(
+                        "INSERT INTO sixline_log (match_key, league, kickoff, minute, cur_score, "
+                        "direction, direction_prob, score_pool, risks, lines_json, created_at) "
+                        "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                        (match_key, out.get("league"), out.get("kickoff"), minute, cur_score,
+                         (out.get("direction") or {}).get("winner"),
+                         (out.get("direction") or {}).get("prob"),
+                         json.dumps(score_pool), json.dumps(risks, ensure_ascii=False),
+                         json.dumps(out["lines"], ensure_ascii=False), time.time()))
+                # 结算过期记录
+                for (rid, lmk, dr, sp) in gq.execute(
+                        "SELECT id, match_key, direction, score_pool FROM sixline_log "
+                        "WHERE settled_at IS NULL").fetchall():
+                    mm = gq.execute("SELECT status, score_home, score_away FROM matches WHERE match_key=?",
+                                    (lmk,)).fetchone()
+                    if not mm or mm[0] != 'finished' or mm[1] is None:
+                        continue
+                    act_dir = 'home' if mm[1] > mm[2] else ('draw' if mm[1] == mm[2] else 'away')
+                    try:
+                        pool = json.loads(sp or '[]')
+                    except Exception:
+                        pool = []
+                    gq.execute("UPDATE sixline_log SET settled_at=?, actual_score=?, dir_hit=?, pool_hit=? WHERE id=?",
+                               (time.time(), f"{mm[1]}-{mm[2]}", 1 if act_dir == dr else 0,
+                                1 if f"{mm[1]}-{mm[2]}" in pool else 0, rid))
+            except Exception as _e:
+                logger.warning(f"[sixline] 台账: {_e}")
+            return out
+        finally:
+            gq.close()
+
+    try:
+        result = await asyncio.to_thread(_worker)
+        return {"ok": True, "data": result}
+    except Exception as e:
+        logger.error(f"[sixline] 失败: {e}")
+        return JSONResponse({"ok": False, "error": str(e), "data": None})
+
+
+
 @app.get("/api/rollball/analyze")
 async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int = 0):
     """滚球分析仪表盘聚合端点 — 一次返回 四市场(1X2/AH/OU/CS) + 实时进度 + 进球轨迹。
