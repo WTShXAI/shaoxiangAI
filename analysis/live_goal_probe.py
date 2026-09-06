@@ -3034,16 +3034,33 @@ def list_live_matches(limit=50, offset=0):
         """).fetchall()
         ko_min, ko_max = now, now + 48 * 3600
         ls_min = now - 24 * 3600
+        # 2026-09-06 修复: 采集器状态更新滞后导致大量"已开赛却仍 status='scheduled'"的场次
+        # 被列表遗漏。在 Python 侧用 kickoff 墙钟检测, 开赛 3-150 分钟的 scheduled 回补到 live。
+        stuck_live_rows = []
         sched_filtered = []
         for r in sched_rows:
             ko = _parse_kickoff(r[7])
-            if ko is None or not (ko_min < ko <= ko_max):
+            if ko is None:
                 continue
             if not r[8] or r[8] < ls_min:
+                continue
+            elapsed_min = (now - ko) / 60.0
+            # 已开赛但状态未翻 live → 当 live 处理(避开完赛僵尸 >150min)
+            if 3 < elapsed_min <= 150:
+                stuck_live_rows.append(r)
+                continue
+            if not (ko_min < ko <= ko_max):
                 continue
             sched_filtered.append(r)
         sched_filtered.sort(key=lambda r: _parse_kickoff(r[7]) or 0)  # kickoff 升序=越近越前
         sched_filtered = sched_filtered[:limit]
+        # 把卡死 scheduled 的场次并入 live 池(后续统一算信号/排序/分页)
+        live_rows.extend(stuck_live_rows)
+        # 仍受 raw_cap 数量级约束: 若 live 过多, _lightweight_signals_batch 成本会涨, 但 raw_cap 设计为 3*limit,
+        # 极端情况用 last_seen 新近度截断, 避免一次性 burst。
+        if len(live_rows) > raw_cap:
+            live_rows.sort(key=lambda r: (r[8] or 0), reverse=True)
+            live_rows = live_rows[:raw_cap]
 
         def row_to_base(r, is_scheduled):
             feed_minute = r[6] if r[6] is not None else 0
