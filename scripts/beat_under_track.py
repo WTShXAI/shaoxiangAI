@@ -1,0 +1,155 @@
+# -*- coding: utf-8 -*-
+"""beat_under 策略追踪 (2026-09-09, 两系统打通 ③)
+
+爱球客 beat_book 的验证结论: 乐鱼 OU 大球隐含被钉在 ~50%, 实际大球率显著偏低
+→ 「始终 back 小球」历史 ROI +6.7% (t=6.7, n=8897, 唯一统计显著的系统性机会)。
+
+本脚本把该策略纳入哨响台账做**持续实盘检验**(先验证后使用):
+  - 每日跑一次: 对未来 48h 内开赛、有 OU 盘的场, 记录「back 小球」虚拟建议
+  - 已过期建议自动按赛果结算 (total < line 赢, = line 走水, > line 输)
+  - 只记录不下单 — 与 9/3 纯分析诊断拍板一致
+
+用法:
+  .venv/Scripts/python.exe scripts/beat_under_track.py            # 记录+结算
+  .venv/Scripts/python.exe scripts/beat_under_track.py --report   # 输出成绩单
+
+盘口来源: odds_snapshots 该场最活跃 OU 线最新帧(与滚球分析页同源)。
+"""
+import os
+import sqlite3
+import sys
+import time
+from datetime import datetime
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB = os.path.join(ROOT, 'data', 'events.db')
+
+
+def _open():
+    con = sqlite3.connect(DB, timeout=15)
+    con.execute('PRAGMA busy_timeout=10000')
+    return con
+
+
+def _ensure_table(con):
+    con.execute("""CREATE TABLE IF NOT EXISTS beat_under_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        match_key TEXT NOT NULL,
+        league TEXT, kickoff TEXT,
+        market TEXT DEFAULT 'OU',
+        side TEXT DEFAULT 'under',
+        line REAL, odds REAL,
+        book_odds_total REAL,
+        note TEXT,
+        created_at REAL,
+        settled_at REAL,
+        actual_goals REAL,
+        settle REAL,             -- +1 赢 / 0 走水 / -1 输 (per unit)
+        correct INTEGER)""")
+    con.commit()
+
+
+def _active_ou_line(con, match_key):
+    """该场最活跃 OU 线的最新帧 (与 get_latest_snapshot_odds 同源口径, 流内自洽)。"""
+    rows = con.execute(
+        "SELECT market, selection, odds, captured_at FROM odds_snapshots "
+        "WHERE match_key=? AND market LIKE 'OU_%' AND market NOT LIKE 'OU_1H%' "
+        "AND market NOT LIKE 'OU_2H%' AND odds>1.01 AND odds<1000 "
+        "ORDER BY captured_at DESC LIMIT 200", (match_key,)).fetchall()
+    streams = {}
+    for mkt, sel, o, ts in rows:
+        streams.setdefault(mkt, []).append((ts, sel, o))
+    best = None
+    for mkt, srows in streams.items():
+        try:
+            line = float(mkt.split('_')[1])
+        except Exception:
+            continue
+        if not (0.5 <= line <= 10.0):
+            continue
+        first = {}
+        for ts, sel, o in srows:          # srows 已按时间倒序, 首见即最新
+            first.setdefault(sel, (o, ts))
+        if 'over' in first and 'under' in first:
+            latest = max(first['over'][1], first['under'][1])
+            if best is None or latest > best[0]:
+                best = (latest, line, first['over'][0], first['under'][0])
+    if best:
+        return best[1], best[2], best[3]
+    return None
+
+
+def record(con):
+    now = time.time()
+    rows = con.execute(
+        "SELECT match_key, league, kickoff FROM matches "
+        "WHERE status='scheduled' AND kickoff IS NOT NULL AND kickoff != '' "
+        "AND kickoff > datetime('now') AND kickoff <= datetime('now', '+48 hours') "
+        "AND (is_override IS NULL OR is_override=0)").fetchall()
+    n = 0
+    for mk, lg, ko in rows:
+        dup = con.execute("SELECT 1 FROM beat_under_log WHERE match_key=?", (mk,)).fetchone()
+        if dup:
+            continue
+        got = _active_ou_line(con, mk)
+        if not got:
+            continue
+        line, over, under = got
+        con.execute(
+            "INSERT INTO beat_under_log (match_key, league, kickoff, line, odds, "
+            "book_odds_total, note, created_at) VALUES (?,?,?,?,?,?,?,?)",
+            (mk, lg, ko, line, under, round(over, 2),
+             'back 小球 (beat_book: 小球被系统性低估, 历史 ROI+6.7%)', now))
+        n += 1
+    con.commit()
+    return n
+
+
+def settle(con):
+    rows = con.execute(
+        "SELECT id, match_key, line FROM beat_under_log WHERE settled_at IS NULL").fetchall()
+    n = 0
+    for rid, mk, line in rows:
+        m = con.execute(
+            "SELECT status, score_home, score_away FROM matches WHERE match_key=?", (mk,)).fetchone()
+        if not m or m[0] != 'finished' or m[1] is None or m[2] is None:
+            continue
+        total = int(m[1]) + int(m[2])
+        st = 'win' if total < line else ('push' if total == line else 'lose')
+        settle = 1.0 if st == 'win' else (0.0 if st == 'push' else -1.0)
+        con.execute(
+            "UPDATE beat_under_log SET settled_at=?, actual_goals=?, settle=?, correct=? WHERE id=?",
+            (time.time(), total, settle, 1 if st == 'win' else 0, rid))
+        n += 1
+    con.commit()
+    return n
+
+
+def report(con):
+    r = con.execute(
+        "SELECT count(*), sum(settle=1), sum(settle=0), sum(settle=-1), avg(settle) "
+        "FROM beat_under_log WHERE settled_at IS NOT NULL").fetchone()
+    if not r or not r[0]:
+        print('尚无已结算建议')
+        return
+    n, w, p, l, avg = r
+    print(f'beat_under 已结算 {n} 条: 赢 {w} / 走水 {p} / 输 {l} | 单位收益 {avg:.3f} '
+          f'(等额 ROI {avg*100:+.1f}%)')
+
+
+def main():
+    con = _open()
+    _ensure_table(con)
+    if '--report' in sys.argv:
+        report(con)
+        return
+    con2 = _open()
+    added = record(con2)
+    settled = settle(con2)
+    con2.close()
+    print(f'[beat_under] 新记录 {added} 场, 结算 {settled} 条')
+    report(con)
+
+
+if __name__ == '__main__':
+    main()
