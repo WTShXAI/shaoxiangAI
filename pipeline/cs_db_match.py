@@ -65,7 +65,7 @@ def _load_library(force=False):
         t0 = time.time()
         SQL = """SELECT home, away, kickoff, op_1x2_h, op_1x2_d, op_1x2_a,
                         op_ou_over, op_ou_under, op_ah_home, op_ah_away,
-                        score_home, score_away
+                        score_home, score_away, mid
                  FROM match_outcomes
                  WHERE is_valid=1 AND score_home IS NOT NULL AND score_away IS NOT NULL
                    AND (op_1x2_h IS NOT NULL OR op_ou_over IS NOT NULL)"""
@@ -88,7 +88,7 @@ def _load_library(force=False):
                     seen_ev.add((r[0], r[1], r[2]))
         except Exception:
             pass
-        feats, scores, n_disc = [], [], 0
+        feats, scores, mids, n_disc = [], [], [], 0
         for r in rows:
             x3 = _devig3(r[3], r[4], r[5])
             pou = _devig2(r[6], r[7]) if r[6] and r[7] else None
@@ -109,6 +109,7 @@ def _load_library(force=False):
                 f = [pou, pah]
                 n_disc += 1
             feats.append(f)
+            mids.append(r[12] if len(r) > 12 else None)
             sh, sa = min(int(r[10]), _MAXG), min(int(r[11]), _MAXG)
             scores.append((sh, sa))
         # 统一维度: 填 NaN, 查询时按 NaN 维度排除 (带掩码)
@@ -117,7 +118,7 @@ def _load_library(force=False):
         for i, f in enumerate(feats):
             F[i, :len(f)] = f
         _LIB = {
-            "feat": F, "scores": scores, "n": len(scores),
+            "feat": F, "scores": scores, "mids": mids, "n": len(scores),
             "n_discard_1x2less": n_disc,
             "maxd": maxd, "loaded_at": t0, "load_sec": round(time.time() - t0, 2),
         }
@@ -127,7 +128,7 @@ def _load_library(force=False):
 
 def db_match_scoreline(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_under=None,
                        ah_line=None, ah_home=None, ah_away=None, top_n=_DEF_N,
-                       max_goal=_MAXG):
+                       max_goal=_MAXG, exclude_mid=None):
     """三盘结构 → DB 匹配 → 真实波胆分布.
 
     返回 {top5, n_matched, mean_dist, min_dist, basis, found} 或 None.
@@ -164,6 +165,12 @@ def db_match_scoreline(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_un
         d2 += np.where(m, diff * diff, 0.0)
     dists = np.sqrt(d2)
     valid = dists < 1.0   # 距离>=1.0 视为完全不同盘 (2026-08-28 训练调优: thresh=1.0)
+    if exclude_mid:
+        # 2026-09-09 自身排除: 检索库含查询场自身(距离0)会泄漏真实比分到 top 邻居
+        mks = lib.get('mids')
+        if mks is not None:
+            excl = np.array([str(m) == str(exclude_mid) for m in mks])
+            valid = valid & (~excl)
     dists[~valid] = np.inf
     idx = np.argsort(dists)[:top_n]
     idx = idx[np.isfinite(dists[idx])]
