@@ -1,0 +1,112 @@
+{
+  "score": 100.0,
+  "correct": 160,
+  "total": 160,
+  "passed": true,
+  "mistakes": [],
+  "per_case": [
+    {
+      "case": "c1",
+      "hits": 8,
+      "total": 8
+    },
+    {
+      "case": "c2",
+      "hits": 8,
+      "total": 8
+    },
+    {
+      "case": "c3",
+      "hits": 8,
+      "total": 8
+    },
+    {
+      "case": "c4",
+      "hits": 8,
+      "total": 8
+    },
+    {
+      "case": "c5",
+      "hits": 8,
+      "total": 8
+    },
+    {
+      "case": "c6",
+      "hits": 8,
+      "total": 8
+    },
+    {
+      "case": "c7",
+      "hits": 8,
+      "total": 8
+    },
+    {
+      "case": "c8",
+      "hits": 8,
+      "total": 8
+    },
+    {
+      "case": "c9",
+      "hits": 8,
+      "total": 8
+    },
+    {
+      "case": "c10",
+      "hits": 8,
+      "total": 8
+    },
+    {
+      "case": "c11",
+      "hits": 8,
+      "total": 8
+    },
+    {
+      "case": "c12",
+      "hits": 8,
+      "total": 8
+    },
+    {
+      "case": "c13",
+      "hits": 8,
+      "total": 8
+    },
+    {
+      "case": "c14",
+      "hits": 8,
+      "total": 8
+    },
+    {
+      "case": "c15",
+      "hits": 8,
+      "total": 8
+    },
+    {
+      "case": "c16",
+      "hits": 8,
+      "total": 8
+    },
+    {
+      "case": "c17",
+      "hits": 8,
+      "total": 8
+    },
+    {
+      "case": "c18",
+      "hits": 8,
+      "total": 8
+    },
+    {
+      "case": "c19",
+      "hits": 8,
+      "total": 8
+    },
+    {
+      "case": "c20",
+      "hits": 8,
+      "total": 8
+    }
+  ],
+  "gate": "必须 100 分才放行 real-case 实操 (用户指令)",
+  "n_cases": 20,
+  "n_dims": 8
+}

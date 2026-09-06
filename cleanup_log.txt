@@ -1,0 +1,40 @@
+﻿=== cleanup run 2026-09-04 18:53:59 ===
+MOVED: D:\Architecture\archive -> C:\Users\ShXAI\AppData\Local\Temp\aiqiuke_leftover_20260904_185359\archive
+--- verify: D:\Architecture top level ---
+   [dir]  .codebuddy
+   [dir]  .edge_agent_profile
+   [dir]  .experts
+   [dir]  .git
+   [dir]  .github
+   [dir]  .venv
+   [dir]  .vite
+   [dir]  .vscode
+   [dir]  .workbuddy
+   [dir]  .zcode
+   [dir]  analysis
+   [dir]  backups
+   [dir]  bookmaker_sim
+   [dir]  browser_extension
+   [dir]  config
+   [dir]  core
+   [dir]  data
+   [dir]  data_collector
+   [dir]  deliverables
+   [dir]  deploy
+   [dir]  docs
+   [dir]  frontend
+   [dir]  gq
+   [dir]  logs
+   [dir]  models
+   [dir]  odds_db
+   [dir]  pipeline
+   [dir]  reports
+   [dir]  saved_models
+   [dir]  scripts
+   [dir]  tests
+   [dir]  分析报告
+--- verify: aiqiuke dir present? ---
+   D:\Architecture\aiqiuke exists = False
+--- verify: archive dir present? ---
+   D:\Architecture\archive exists = False
+--- temp target ---

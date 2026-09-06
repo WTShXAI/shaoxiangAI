@@ -1,0 +1,60 @@
+# 哨响AI - 版本基准指标
+# ========================
+
+v3_2:
+  accuracy: 0.592
+  draw_f1: 0.504
+  auc: 0.814
+  description: "Stacking(XGB+Ridge+Heuristic), 72维特征, argmax判型"
+
+v4_0:
+  accuracy: 0.5655
+  draw_f1: 0.512
+  auc: 0.826
+  description: "Stacking(LGBM+XGB+OddsExpert+Heuristic+NN), 72维, DE×1.0"
+
+v4_1:
+  accuracy: 0.6243
+  draw_f1: 0.520
+  auc: 0.815
+  description: "Stacking DE×0.25 + DrawCW×1.10 + 阈值判型0.32, OOF 2023+"
+
+v5_2:
+  accuracy: 0.471
+  draw_f1: 0.769
+  draw_recall: 1.000
+  description: "D-Gate v5.2.14 五层判型 + JEPA v5.0 + Tournament Dynamics"
+
+jepa_v5:
+  params: 657000
+  lite_params: 167000
+  accuracy: 0.333
+  draw_f1: 0.364
+  description: "JEPA World Model v5.0 - 未校准状态"
+
+# ── v7.5 ML 增强 (2026-08-11, ml-engineer) ──
+dgate_v55:
+  version: "5.5"
+  previous: "DGateLayerStub (永久中性)"
+  draw_alert_threshold: 0.24
+  draw_alert_booster: 0.22
+  draw_f1: 0.415
+  draw_precision: 0.280
+  draw_recall: 0.798
+  calibration_samples: 39381
+  description: "D-Gate v5.5: 市场隐含平局概率 + 跨庄共识 + 盘口矛盾检测, 基于 IW 31.5万场 walk-forward 校准"
+
+tactical_v2:
+  version: "2.0"
+  previous: "硬编码5支球队名"
+  coverage: 0.75
+  previous_coverage: 0.31
+  description: "tactical_modifier v2: tier差距×战术风格关键词分类器, 75%覆盖(原31%), 零硬编码"
+
+jepa_attention:
+  version: "v5.1-attn"
+  params: 3136
+  previous_params: 272
+  prediction_error_vs_linear: "-87.2%"
+  multi_step_stable: true
+  description: "JEPA Attention Predictor: MultiHeadSelfAttention(4头) + Pre-LN Transformer, 多步推演稳定(原线性坍缩)"

@@ -1,0 +1,222 @@
+{
+  "extreme|big_away_lead": {
+    "spread_zone": "extreme",
+    "scoreline": "big_away_lead",
+    "total": 3304,
+    "pct_H": 0.0,
+    "pct_D": 0.0,
+    "pct_A": 1.0,
+    "dominant": "A",
+    "confidence": 1.0,
+    "entropy": -0.0
+  },
+  "extreme|big_home_lead": {
+    "spread_zone": "extreme",
+    "scoreline": "big_home_lead",
+    "total": 10766,
+    "pct_H": 1.0,
+    "pct_D": 0.0,
+    "pct_A": 0.0,
+    "dominant": "H",
+    "confidence": 1.0,
+    "entropy": -0.0
+  },
+  "extreme|draw": {
+    "spread_zone": "extreme",
+    "scoreline": "draw",
+    "total": 3128,
+    "pct_H": 0.0,
+    "pct_D": 1.0,
+    "pct_A": 0.0,
+    "dominant": "D",
+    "confidence": 1.0,
+    "entropy": -0.0
+  },
+  "extreme|slim_away": {
+    "spread_zone": "extreme",
+    "scoreline": "slim_away",
+    "total": 2060,
+    "pct_H": 0.0,
+    "pct_D": 0.0,
+    "pct_A": 1.0,
+    "dominant": "A",
+    "confidence": 1.0,
+    "entropy": -0.0
+  },
+  "extreme|slim_home": {
+    "spread_zone": "extreme",
+    "scoreline": "slim_home",
+    "total": 4627,
+    "pct_H": 1.0,
+    "pct_D": 0.0,
+    "pct_A": 0.0,
+    "dominant": "H",
+    "confidence": 1.0,
+    "entropy": -0.0
+  },
+  "moderate|big_away_lead": {
+    "spread_zone": "moderate",
+    "scoreline": "big_away_lead",
+    "total": 19468,
+    "pct_H": 0.0,
+    "pct_D": 0.0,
+    "pct_A": 1.0,
+    "dominant": "A",
+    "confidence": 1.0,
+    "entropy": -0.0
+  },
+  "moderate|big_home_lead": {
+    "spread_zone": "moderate",
+    "scoreline": "big_home_lead",
+    "total": 27937,
+    "pct_H": 1.0,
+    "pct_D": 0.0,
+    "pct_A": 0.0,
+    "dominant": "H",
+    "confidence": 1.0,
+    "entropy": -0.0
+  },
+  "moderate|draw": {
+    "spread_zone": "moderate",
+    "scoreline": "draw",
+    "total": 39083,
+    "pct_H": 0.0,
+    "pct_D": 1.0,
+    "pct_A": 0.0,
+    "dominant": "D",
+    "confidence": 1.0,
+    "entropy": -0.0
+  },
+  "moderate|slim_away": {
+    "spread_zone": "moderate",
+    "scoreline": "slim_away",
+    "total": 25866,
+    "pct_H": 0.0,
+    "pct_D": 0.0,
+    "pct_A": 1.0,
+    "dominant": "A",
+    "confidence": 1.0,
+    "entropy": -0.0
+  },
+  "moderate|slim_home": {
+    "spread_zone": "moderate",
+    "scoreline": "slim_home",
+    "total": 31895,
+    "pct_H": 1.0,
+    "pct_D": 0.0,
+    "pct_A": 0.0,
+    "dominant": "H",
+    "confidence": 1.0,
+    "entropy": -0.0
+  },
+  "tight|big_away_lead": {
+    "spread_zone": "tight",
+    "scoreline": "big_away_lead",
+    "total": 9240,
+    "pct_H": 0.0,
+    "pct_D": 0.0,
+    "pct_A": 1.0,
+    "dominant": "A",
+    "confidence": 1.0,
+    "entropy": -0.0
+  },
+  "tight|big_home_lead": {
+    "spread_zone": "tight",
+    "scoreline": "big_home_lead",
+    "total": 9715,
+    "pct_H": 1.0,
+    "pct_D": 0.0,
+    "pct_A": 0.0,
+    "dominant": "H",
+    "confidence": 1.0,
+    "entropy": -0.0
+  },
+  "tight|draw": {
+    "spread_zone": "tight",
+    "scoreline": "draw",
+    "total": 20956,
+    "pct_H": 0.0,
+    "pct_D": 1.0,
+    "pct_A": 0.0,
+    "dominant": "D",
+    "confidence": 1.0,
+    "entropy": -0.0
+  },
+  "tight|slim_away": {
+    "spread_zone": "tight",
+    "scoreline": "slim_away",
+    "total": 13806,
+    "pct_H": 0.0,
+    "pct_D": 0.0,
+    "pct_A": 1.0,
+    "dominant": "A",
+    "confidence": 1.0,
+    "entropy": -0.0
+  },
+  "tight|slim_home": {
+    "spread_zone": "tight",
+    "scoreline": "slim_home",
+    "total": 14632,
+    "pct_H": 1.0,
+    "pct_D": 0.0,
+    "pct_A": 0.0,
+    "dominant": "H",
+    "confidence": 1.0,
+    "entropy": -0.0
+  },
+  "wide|big_away_lead": {
+    "spread_zone": "wide",
+    "scoreline": "big_away_lead",
+    "total": 7743,
+    "pct_H": 0.0,
+    "pct_D": 0.0,
+    "pct_A": 1.0,
+    "dominant": "A",
+    "confidence": 1.0,
+    "entropy": -0.0
+  },
+  "wide|big_home_lead": {
+    "spread_zone": "wide",
+    "scoreline": "big_home_lead",
+    "total": 19629,
+    "pct_H": 1.0,
+    "pct_D": 0.0,
+    "pct_A": 0.0,
+    "dominant": "H",
+    "confidence": 1.0,
+    "entropy": -0.0
+  },
+  "wide|draw": {
+    "spread_zone": "wide",
+    "scoreline": "draw",
+    "total": 14832,
+    "pct_H": 0.0,
+    "pct_D": 1.0,
+    "pct_A": 0.0,
+    "dominant": "D",
+    "confidence": 1.0,
+    "entropy": -0.0
+  },
+  "wide|slim_away": {
+    "spread_zone": "wide",
+    "scoreline": "slim_away",
+    "total": 8982,
+    "pct_H": 0.0,
+    "pct_D": 0.0,
+    "pct_A": 1.0,
+    "dominant": "A",
+    "confidence": 1.0,
+    "entropy": -0.0
+  },
+  "wide|slim_home": {
+    "spread_zone": "wide",
+    "scoreline": "slim_home",
+    "total": 15231,
+    "pct_H": 1.0,
+    "pct_D": 0.0,
+    "pct_A": 0.0,
+    "dominant": "H",
+    "confidence": 1.0,
+    "entropy": -0.0
+  }
+}

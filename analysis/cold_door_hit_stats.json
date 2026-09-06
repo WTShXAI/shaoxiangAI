@@ -1,0 +1,45 @@
+{
+  "n_matches": 5536,
+  "n_in_grid": 1822,
+  "n_score_rows": 71034,
+  "flb_in_grid": [
+    {
+      "bucket": "A:<5",
+      "pred_mass": 0.2165,
+      "emp_mass": 0.2547,
+      "ratio": 1.176
+    },
+    {
+      "bucket": "B:5-8",
+      "pred_mass": 0.2533,
+      "emp_mass": 0.2667,
+      "ratio": 1.053
+    },
+    {
+      "bucket": "C:8-12",
+      "pred_mass": 0.1987,
+      "emp_mass": 0.2108,
+      "ratio": 1.061
+    },
+    {
+      "bucket": "D:12-20",
+      "pred_mass": 0.1189,
+      "emp_mass": 0.1169,
+      "ratio": 0.983
+    },
+    {
+      "bucket": "E:20-40",
+      "pred_mass": 0.0762,
+      "emp_mass": 0.0708,
+      "ratio": 0.929
+    },
+    {
+      "bucket": "F:>=40",
+      "pred_mass": 0.1364,
+      "emp_mass": 0.0801,
+      "ratio": 0.588
+    }
+  ],
+  "last10_coverage_pct": 1.0,
+  "note": "FLB仅在真实比分在网格内的子集计算；近10场覆盖率低，本数据集不可作稳定特征"
+}

@@ -1,0 +1,100 @@
+{
+  "H1": {
+    "total_matches": 311749,
+    "fav_actual_winrate_all": 0.6397149629990794,
+    "fav_open_implied_all": 0.4965147309214825,
+    "fav_close_implied_all": 0.49681018962318596,
+    "roi_bet_all_favorites_at_open": -0.058902450368699344,
+    "avg_open_fav_odds_all": 1.9329968339909889,
+    "drift_shorter": {
+      "n": 114606,
+      "winrate": 0.6840566811510741,
+      "avg_open_fav_odds": 1.9353533846395565,
+      "roi_bet_fav_at_open_when_shortened": 0.04402544369411254
+    },
+    "drift_longer": {
+      "n": 197143,
+      "winrate": 0.6139375985959431,
+      "avg_open_fav_odds": 1.9316268901253641,
+      "roi_bet_fav_at_open_when_lengthened": -0.11873797192899371
+    },
+    "by_band": {
+      "1.2-1.4": {
+        "n": 23322,
+        "fav_actual_winrate": 0.8269230769230769,
+        "fav_open_implied": 0.7118743416030311,
+        "roi_bet_all_fav_at_open": -0.038077780636288416,
+        "shorter_n": 7945,
+        "shorter_winrate": 0.867526746381372,
+        "shorter_roi": 0.031382001258693615,
+        "longer_n": 15377,
+        "longer_winrate": 0.8059439422514144,
+        "longer_roi": -0.07396631332510073
+      },
+      "1.4-1.7": {
+        "n": 57342,
+        "fav_actual_winrate": 0.7297879390324719,
+        "fav_open_implied": 0.5960833553646291,
+        "roi_bet_all_fav_at_open": -0.05169491821012839,
+        "shorter_n": 21971,
+        "shorter_winrate": 0.7745664739884393,
+        "shorter_roi": 0.036647398843911994,
+        "longer_n": 35371,
+        "longer_winrate": 0.7019733680133443,
+        "longer_roi": -0.10656950609255167
+      },
+      "1.7-2.2": {
+        "n": 122676,
+        "fav_actual_winrate": 0.6269237666699273,
+        "fav_open_implied": 0.4761448219930301,
+        "roi_bet_all_fav_at_open": -0.055015977045124176,
+        "shorter_n": 46913,
+        "shorter_winrate": 0.6739283354294119,
+        "shorter_roi": 0.047277513695607176,
+        "longer_n": 75763,
+        "longer_winrate": 0.5978181962171508,
+        "longer_roi": -0.11835684964951088
+      },
+      "2.2-3.5": {
+        "n": 100099,
+        "fav_actual_winrate": 0.537877501273739,
+        "fav_open_implied": 0.3875625593954527,
+        "roi_bet_all_fav_at_open": -0.07442511913204897,
+        "shorter_n": 35603,
+        "shorter_winrate": 0.5854843692947224,
+        "shorter_roi": 0.049176193017443026,
+        "longer_n": 64496,
+        "longer_winrate": 0.5115976184569586,
+        "longer_roi": -0.14265535847186073
+      },
+      "3.5-99": {
+        "n": 13,
+        "fav_actual_winrate": 0.11538461538461539,
+        "fav_open_implied": 0.427805782045948,
+        "roi_bet_all_fav_at_open": -1.0,
+        "shorter_n": 13,
+        "shorter_winrate": 0.11538461538461539,
+        "shorter_roi": -1.0,
+        "longer_n": 0,
+        "longer_winrate": null,
+        "longer_roi": null
+      }
+    }
+  },
+  "H2": {
+    "matches_with_both_lines": 226,
+    "base_rate_full_under": 0.2168141592920354,
+    "given_1h_over_n": 132,
+    "given_1h_over_full_under": 0.09848484848484848,
+    "given_1h_over_full_over": 0.8636363636363636,
+    "lift": -0.11832931080718692,
+    "note": "样本小(~271), 仅方向性; 用 opening line 解析自 market 名; 严格 > 判定 over"
+  },
+  "H3_proxy": {
+    "proxy_note": "本库无滚球 live 1X2 历史(仅3行 inplay), H3 以 开盘→即时 漂移代理",
+    "fav_winrate_when_open_underpriced_shortened": 0.6840566811510741,
+    "fav_winrate_when_open_overpriced_lengthened": 0.6139375985959431,
+    "gap_pp": 7.0119082555131,
+    "interpretation": "开盘线嵌偏差(隐藏战力), 赛前被市场发现而 favorite 变短, 该漂移方向预测赛果 → 赛前是 edge 窗口"
+  }
+}

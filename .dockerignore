@@ -1,0 +1,68 @@
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.venv/
+.venv_*/
+venv/
+venv_*/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── Node ──
+node_modules/
+frontend/node_modules/
+frontend/dist/        # 由多阶段构建生成, 不复制
+
+# ── Git ──
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# ── IDE / Editor ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── WorkBuddy ──
+.workbuddy/
+.codebuddy/
+.experts/
+.$$$$$$/
+
+# ── Environment ──
+.env
+.env.*
+!.env.example
+
+# ── Data (mounted at runtime) ──
+data/
+saved_models/
+logs/
+
+# ── Output ──
+output/
+deliverables/
+reports/
+分析报告/
+$$$$$$/
+
+# ── Docs & Misc ──
+*.md
+!requirements.txt
+nul
+*.bak
+*.backup
+archive_backup/
+instructions/
+专家团模板/
+
+# ── Tests ──
+tests/
+tests/test*.py
+tests/test*.bat

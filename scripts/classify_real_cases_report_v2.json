@@ -1,0 +1,305 @@
+{
+  "n": 8061,
+  "cutoff": "2023-01-01",
+  "per_dimension": {
+    "tier": {
+      "obscure": 7431,
+      "main": 630
+    },
+    "line_state": {
+      "balanced": 5887,
+      "high_water_lure": 1665,
+      "trap_candidate": 465,
+      "low_water_smart": 44
+    },
+    "stage": {
+      "opening": 8061
+    },
+    "consistency": {
+      "consistent": 8017,
+      "internal_divergence": 44
+    },
+    "draw_risk": {
+      "neutral": 5633,
+      "high": 739,
+      "low": 1689
+    },
+    "water_level": {
+      "超高水": 6607,
+      "n/a": 1454
+    },
+    "eu_ah_fit": {
+      "unknown": 2318,
+      "consistent": 4743,
+      "shallower": 863,
+      "deeper": 137
+    },
+    "operation": {
+      "balanced": 5931,
+      "shallow_line_hot": 1665,
+      "deep_handicap_trap_candidate": 465
+    }
+  },
+  "top_signatures": [
+    {
+      "sig": [
+        "obscure",
+        "balanced",
+        "opening",
+        "consistent",
+        "neutral",
+        "超高水",
+        "consistent",
+        "balanced"
+      ],
+      "count": 2198
+    },
+    {
+      "sig": [
+        "obscure",
+        "high_water_lure",
+        "opening",
+        "consistent",
+        "neutral",
+        "超高水",
+        "consistent",
+        "shallow_line_hot"
+      ],
+      "count": 888
+    },
+    {
+      "sig": [
+        "obscure",
+        "balanced",
+        "opening",
+        "consistent",
+        "neutral",
+        "n/a",
+        "unknown",
+        "balanced"
+      ],
+      "count": 634
+    },
+    {
+      "sig": [
+        "obscure",
+        "balanced",
+        "opening",
+        "consistent",
+        "neutral",
+        "超高水",
+        "shallower",
+        "balanced"
+      ],
+      "count": 563
+    },
+    {
+      "sig": [
+        "obscure",
+        "balanced",
+        "opening",
+        "consistent",
+        "neutral",
+        "超高水",
+        "unknown",
+        "balanced"
+      ],
+      "count": 466
+    },
+    {
+      "sig": [
+        "obscure",
+        "balanced",
+        "opening",
+        "consistent",
+        "low",
+        "超高水",
+        "consistent",
+        "balanced"
+      ],
+      "count": 455
+    },
+    {
+      "sig": [
+        "obscure",
+        "trap_candidate",
+        "opening",
+        "consistent",
+        "low",
+        "超高水",
+        "consistent",
+        "deep_handicap_trap_candidate"
+      ],
+      "count": 347
+    },
+    {
+      "sig": [
+        "obscure",
+        "balanced",
+        "opening",
+        "consistent",
+        "low",
+        "n/a",
+        "unknown",
+        "balanced"
+      ],
+      "count": 274
+    },
+    {
+      "sig": [
+        "main",
+        "balanced",
+        "opening",
+        "consistent",
+        "neutral",
+        "超高水",
+        "consistent",
+        "balanced"
+      ],
+      "count": 265
+    },
+    {
+      "sig": [
+        "obscure",
+        "balanced",
+        "opening",
+        "consistent",
+        "low",
+        "超高水",
+        "unknown",
+        "balanced"
+      ],
+      "count": 218
+    },
+    {
+      "sig": [
+        "obscure",
+        "high_water_lure",
+        "opening",
+        "consistent",
+        "neutral",
+        "n/a",
+        "unknown",
+        "shallow_line_hot"
+      ],
+      "count": 201
+    },
+    {
+      "sig": [
+        "obscure",
+        "high_water_lure",
+        "opening",
+        "consistent",
+        "high",
+        "超高水",
+        "consistent",
+        "shallow_line_hot"
+      ],
+      "count": 191
+    },
+    {
+      "sig": [
+        "obscure",
+        "balanced",
+        "opening",
+        "consistent",
+        "high",
+        "超高水",
+        "consistent",
+        "balanced"
+      ],
+      "count": 175
+    },
+    {
+      "sig": [
+        "obscure",
+        "balanced",
+        "opening",
+        "consistent",
+        "low",
+        "超高水",
+        "shallower",
+        "balanced"
+      ],
+      "count": 127
+    },
+    {
+      "sig": [
+        "obscure",
+        "high_water_lure",
+        "opening",
+        "consistent",
+        "neutral",
+        "超高水",
+        "unknown",
+        "shallow_line_hot"
+      ],
+      "count": 120
+    },
+    {
+      "sig": [
+        "main",
+        "high_water_lure",
+        "opening",
+        "consistent",
+        "neutral",
+        "超高水",
+        "consistent",
+        "shallow_line_hot"
+      ],
+      "count": 103
+    },
+    {
+      "sig": [
+        "obscure",
+        "balanced",
+        "opening",
+        "consistent",
+        "high",
+        "n/a",
+        "unknown",
+        "balanced"
+      ],
+      "count": 96
+    },
+    {
+      "sig": [
+        "obscure",
+        "high_water_lure",
+        "opening",
+        "consistent",
+        "high",
+        "n/a",
+        "unknown",
+        "shallow_line_hot"
+      ],
+      "count": 88
+    },
+    {
+      "sig": [
+        "obscure",
+        "trap_candidate",
+        "opening",
+        "consistent",
+        "low",
+        "超高水",
+        "deeper",
+        "deep_handicap_trap_candidate"
+      ],
+      "count": 60
+    },
+    {
+      "sig": [
+        "obscure",
+        "balanced",
+        "opening",
+        "consistent",
+        "low",
+        "超高水",
+        "deeper",
+        "balanced"
+      ],
+      "count": 50
+    }
+  ]
+}

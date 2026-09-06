@@ -1,0 +1,32 @@
+# 哨响AI - 专业术语词典 (Terminology Dictionary)
+# ===============================================
+# 六大领域 · 中英双语 · 领域映射 · 专家匹配
+# 可被 TerminologyInjector 动态加载注入到推理链
+
+version: "1.0.0"
+
+domains:
+  probability:
+    description: "概率建模"
+    primary_expert: "季泊松"
+    color: "#8b5cf6"
+  game_theory:
+    description: "博弈论与庄家分析"
+    primary_expert: "杜博弈"
+    color: "#f59e0b"
+  imbalance:
+    description: "分类优化"
+    primary_expert: "曾均衡"
+    color: "#10b981"
+  ensemble:
+    description: "集成学习"
+    primary_expert: "荣合众"
+    color: "#ec4899"
+  math:
+    description: "统计验证"
+    primary_expert: "毕建模"
+    color: "#06b6d4"
+  temporal:
+    description: "时序深度学习"
+    primary_expert: "施时序"
+    color: "#3b82f6"

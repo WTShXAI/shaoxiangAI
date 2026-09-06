@@ -1,0 +1,56 @@
+# =============================================================================
+# 哨响AI (ShXAI) - 生产依赖 (Docker / 托管部署用)
+# =============================================================================
+# 与根目录 requirements.txt 的唯一差异: 剔除 PySide6 桌面 GUI 依赖。
+#   - PySide6 仅桌面端 app.py 使用, 后端 bridge_service.py 与采集器
+#     gq/auto_collector.py 在顶层均不 import PySide6 (已 grep 验证)。
+#   - 在 headless slim 镜像里 PySide6 会触发 Qt 依赖安装失败, 且体积巨大。
+#   - torch 必须保留: football_v4.1_production.joblib 反序列化依赖 torch。
+# 其余依赖与 requirements.txt 完全一致, 确保预测能力零降级。
+# =============================================================================
+
+# ── API / Web ──
+fastapi>=0.110.0,<0.140.0
+uvicorn[standard]>=0.30.0,<0.40.0
+httpx>=0.27.0,<0.29.0
+requests>=2.31.0,<2.33.0
+python-multipart>=0.0.9,<0.1.0
+# ── 数据库 ──
+SQLAlchemy>=2.0.0,<2.1.0
+redis>=5.0.0,<6.0.0
+# ── 数据科学（核心预测必需） ──
+numpy>=1.26.0,<2.1.0
+pandas>=2.0.0,<3.0.0
+scikit-learn>=1.4.0,<1.7.0
+xgboost>=2.0.0,<3.0.0
+lightgbm>=4.0.0,<5.0.0
+joblib>=1.3.0,<2.0.0
+scipy>=1.11.0,<2.0.0
+# ── 深度学习（CPU版, football_v4.1_production.joblib 反序列化必需） ──
+torch>=2.0.0,<3.0.0
+# ── 认证 ──
+python-jose[cryptography]>=3.3.0,<4.0.0
+passlib[bcrypt]>=1.7.0,<2.0.0
+# ── 监控 ──
+prometheus-client>=0.20.0,<0.22.0
+psutil>=5.9.0,<7.0.0
+# ── 工具 ──
+pydantic>=2.0.0,<3.0.0
+pydantic-settings>=2.0.0,<3.0.0
+PyYAML>=6.0,<7.0
+python-dotenv>=1.0.0,<2.0.0
+typer>=0.12.0,<1.0.0
+tqdm>=4.66.0,<5.0.0
+rich>=13.0.0,<16.0.0
+Jinja2>=3.1.0,<4.0.0
+# ── 基础设施 ──
+starlette>=0.37.0,<0.50.0
+anyio>=4.0.0,<5.0.0
+click>=8.1.0,<9.0.0
+h11>=0.14.0,<1.0.0
+certifi>=2024.0.0
+colorama>=0.4.6,<1.0.0
+# ── 桌面端 GUI（已剔除: 仅 app.py 使用, 后端/采集器运行时不需）──
+# PySide6>=6.7.0,<6.12.0
+# PySide6-Addons>=6.7.0,<6.12.0
+# PySide6-Essentials>=6.7.0,<6.12.0

@@ -1,0 +1,244 @@
+# =============================================================================
+# 哨响AI - CI/CD 工作流
+# =============================================================================
+# 触发: push / pull_request → main 分支
+# 阶段: lint → pytest → build
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20.x"
+
+jobs:
+  # ═══════════════════════════════════════════════
+  # Lint
+  # ═══════════════════════════════════════════════
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 flake8-bugbear
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Lint with flake8
+        run: |
+          flake8 . --count --statistics \
+            --show-source \
+            --max-line-length=120 \
+            --ignore=E203,E266,E501,W503,F841,E402,F403,F401 \
+            --exclude=.venv,.venv_314_backup,__pycache__,build,dist,.git,*.egg-info
+
+      - name: Type check with mypy (SSoT 核心类型门禁)
+        run: |
+          pip install mypy
+          mypy
+        # 配置见 pyproject.toml [tool.mypy]: 聚焦 bet_core/deep_report/reverse_odds_engine/score_model
+        # (价值层/注码/赔率破解 SSoT), lenient 基线, 阻止 SSoT 引入类型错误.
+
+  # ═══════════════════════════════════════════════
+  # Security Scan (ECC verification-loop Phase 5)
+  # 纵深防御: .gitignore 之外, CI 再扫一遍, 防密钥误入库
+  # ═══════════════════════════════════════════════
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Secret scan — .env 禁止入库
+        run: |
+          echo "=== 检查 .env 是否被 git 追踪 ==="
+          if git ls-files | grep -E '(^|/)\.env$'; then
+            echo "❌ 发现 .env 被追踪 — 真实密钥可能已泄露! 立即轮换并 git rm --cached"; exit 1
+          fi
+          echo "✅ 无 .env 入库"
+
+      - name: Secret scan — 检测硬编码密钥
+        run: |
+          echo "=== 扫描疑似硬编码密钥 (py) ==="
+          if grep -rInE "(THE_ODDS_API_KEY|THEODDS_API_KEY|SECRET_KEY|ACCESS_TOKEN|api_key|secret|token)\s*[:=]\s*[\"'][A-Za-z0-9_\-]{20,}[\"']" \
+               pipeline/ scripts/ bridge_service.py data_collector/ config/ \
+               --include=*.py 2>/dev/null \
+             | grep -vE "os\.getenv|os\.environ|getenv\(|environ\[|example|XXX|not set|changeme|your_|placeholder|TODO"; then
+            echo "❌ 检出疑似硬编码密钥 — 请改为环境变量读取"; exit 1
+          fi
+          echo "✅ 无硬编码密钥"
+
+  # ═══════════════════════════════════════════════
+  # Test
+  # ═══════════════════════════════════════════════
+  test:
+    runs-on: ubuntu-latest
+    needs: [lint, security]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-cov fastapi
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: py_compile 全量语法检查 (pre-merge guard)
+        run: |
+          echo "=== py_compile 全量扫描 ==="
+          find . -name "*.py" -not -path "./.venv/*" -not -path "./__pycache__/*" \
+            -not -path "./.venv_314_backup/*" -not -path "./frontend/*" \
+            -not -path "./awesome-design-md/*" \
+            -print0 | xargs -0 -I {} python -m py_compile {} \
+            || (echo "❌ py_compile 失败 — 阻断 merge" && exit 1)
+          echo "✅ py_compile 全量通过"
+
+      - name: import guard (核心模块导入完整性)
+        run: |
+          python -m pytest tests/test_import_guard.py tests/test_oos_guard.py -v --tb=short \
+            || (echo "❌ import/oos guard 失败 — 阻断 merge" && exit 1)
+          echo "✅ import guard 通过"
+
+      - name: Run pytest (全量覆盖率报告, 仅供参考不阻断)
+        run: |
+          python -m pytest tests/ -v --cov=. --cov-report=term-missing \
+            --ignore=tests/test_heavy \
+            -x --timeout=120
+
+      - name: SSoT 覆盖率硬门禁 (注码/量化/预算护栏 ≥80%)
+        # ECC 生产标准: 关键单一事实源必须维持高测试覆盖, 防公式漂移/回归
+        run: |
+          python -m pytest tests/ -q \
+            --cov=scripts.bet_core --cov=scripts.quant_executor \
+            --cov=pipeline.collectors.api_budget \
+            --cov-report= --cov-fail-under=80 --timeout=120 \
+            || (echo "❌ 关键 SSoT 覆盖率 < 80% — 阻断 merge" && exit 1)
+          echo "✅ 关键 SSoT 覆盖率达标 (≥80%)"
+
+      - name: P0-1 soft-line 决策闭环回归 (独立守护)
+        run: |
+          python scripts/test_softline_decision_closure.py
+
+      - name: P0-3 分歧闸门 + 规范凯利回归 (独立守护)
+        run: |
+          python scripts/test_p0_3_divergence_gate.py
+
+      - name: bet_core 单一事实源回归 (独立守护)
+        run: |
+          python -m pytest tests/test_bet_core.py -v
+
+      - name: G6 live 初盘 drift 补完回归 (独立守护)
+        run: |
+          python scripts/test_g6_drift_open.py
+
+      - name: G10 soft-line 进 predict() 衔接回归 (独立守护)
+        run: |
+          python scripts/test_g10_softline_predict.py
+
+      - name: G4 RLM 真 bet-split 源接入回归 (独立守护)
+        run: |
+          python scripts/test_g4_rlm_real.py
+
+      - name: G9 WC2026 缺 6 场赔率幂等回填回归 (独立守护)
+        run: |
+          python scripts/test_g9_fill_wc6.py
+
+      - name: G3 live 累积幂等守护回归 (独立守护)
+        run: |
+          python scripts/test_live_accumulator.py
+
+      - name: E4+E5 P2-18 数据质量门禁 (DB 存在时阻断致命项)
+        run: |
+          if [ -f data/football_data.db ]; then
+            python scripts/data_quality_checks.py --db data/football_data.db --fail-on critical
+          else
+            echo "ℹ️ data/football_data.db 不在 CI checkout (*.db gitignored) → 跳过数据质量门禁 (数据管线作业挂载 DB 时自动启用)"
+          fi
+
+  # ═══════════════════════════════════════════════
+  # Frontend (tsc typecheck + vite build 门禁)
+  # ═══════════════════════════════════════════════
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      - name: Typecheck (tsc --noEmit) — 类型门禁
+        run: |
+          npm run typecheck \
+            || (echo "❌ tsc 类型检查失败 — 阻断 merge" && exit 1)
+          echo "✅ 类型检查通过"
+
+      - name: Build (vite build) — 构建门禁
+        run: |
+          npm run build \
+            || (echo "❌ vite build 失败 — 阻断 merge" && exit 1)
+          echo "✅ 前端构建通过"
+
+  # ═══════════════════════════════════════════════
+  # Build (Docker 镜像)
+  # ═══════════════════════════════════════════════
+  build:
+    runs-on: ubuntu-latest
+    needs: [test, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: footballai-backend:ci-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true
+
+      - name: Test Docker image (smoke test)
+        run: |
+          docker run -d --name footballai-test -p 9000:9000 footballai-backend:ci-${{ github.sha }}
+          sleep 10
+          curl -sf http://localhost:9000/health || (echo "❌ health 探针失败" && docker logs footballai-test && exit 1)
+          docker stop footballai-test
+          docker rm footballai-test

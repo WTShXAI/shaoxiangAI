@@ -1,0 +1,201 @@
+/* 字体策略 (2026-07-25 重构):
+   - 移除 Google Fonts @import: 本机 GFW 屏蔽 fonts.googleapis.com, 加载请求恒失败且拖累首屏
+   - 全栈改用 system-ui: Windows 自动落到 Microsoft YaHei/Segoe UI; Mac 落到 PingFang/SF Pro;
+     中文场景天然友好, 0 网络请求, 0 FOUT。Inter 改在 Tailwind fontFamily 链尾作为可选增强。
+*/
+
+/* ═══ 主题变量 (RGB 通道) ═══
+   暗色为系统默认 (与旧硬编码值一致); [data-theme="light"] 覆盖亮色。
+   亮色刻意把 accent/field/pitch/ember/frost 调暗, 保证白底上赔率清晰可读。 */
+:root {
+  color-scheme: dark;
+  --color-fg: 255 255 255;
+  --color-ink-primary: 236 238 244;
+  --color-ink-secondary: 154 163 178;
+  --color-ink-muted: 107 114 128;
+  --color-ink-disabled: 110 114 122;
+  --color-surface-canvas: 10 10 11;
+  --color-surface-dark: 6 6 7;
+  --color-surface-panel: 16 16 19;
+  --color-surface-card: 20 20 23;
+  --color-surface-hover: 26 26 30;
+  --color-surface-border: 39 39 42;
+  --color-accent: 168 227 74;
+  --color-accent-dark: 10 10 11;
+  --color-accent-card: 20 20 23;
+  --color-accent-inner: 28 28 32;
+  --color-accent-dim: 154 163 178;
+  --color-field-400: 62 207 142;
+  --color-field-500: 31 184 115;
+  --color-field-600: 19 152 92;
+  --color-pitch-300: 115 234 176;
+  --color-pitch-400: 62 207 142;
+  --color-pitch-500: 31 184 115;
+  --color-pitch-600: 19 152 92;
+  --color-ember-300: 252 207 109;
+  --color-ember-400: 250 184 62;
+  --color-ember-500: 245 158 11;
+  --color-frost-300: 126 194 252;
+  --color-frost-400: 62 162 248;
+  --color-frost-500: 20 133 233;
+  --color-danger-400: 240 122 122;
+  --color-danger-500: 229 72 77;
+  --color-danger-600: 218 46 52;
+  /* 卡片投影 (主题感知): 暗色=顶部内高光+柔和下沉阴影; 亮色=轻投影+顶部内高光 */
+  --shadow-card: inset 0 1px 0 0 rgba(255, 255, 255, 0.04), 0 10px 30px -18px rgba(0, 0, 0, 0.65);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --color-fg: 17 20 24;
+  --color-ink-primary: 22 26 31;
+  --color-ink-secondary: 82 90 103;
+  --color-ink-muted: 134 142 154;
+  --color-ink-disabled: 158 164 176;
+  --color-surface-canvas: 247 248 246;
+  --color-surface-dark: 239 241 238;
+  --color-surface-panel: 255 255 255;
+  --color-surface-card: 255 255 255;
+  --color-surface-hover: 243 245 242;
+  --color-surface-border: 228 232 228;
+  --color-accent: 21 122 72;
+  --color-accent-dark: 17 20 24;
+  --color-accent-card: 255 255 255;
+  --color-accent-inner: 238 248 242;
+  --color-accent-dim: 82 90 103;
+  --color-field-400: 18 130 80;
+  --color-field-500: 15 110 68;
+  --color-field-600: 12 92 56;
+  --color-pitch-300: 30 150 95;
+  --color-pitch-400: 18 130 80;
+  --color-pitch-500: 15 110 68;
+  --color-pitch-600: 12 92 56;
+  --color-ember-300: 175 120 20;
+  --color-ember-400: 190 110 8;
+  --color-ember-500: 165 95 6;
+  --color-frost-300: 40 130 215;
+  --color-frost-400: 18 110 200;
+  --color-frost-500: 12 92 180;
+  --color-danger-400: 200 50 55;
+  --color-danger-500: 185 38 44;
+  --color-danger-600: 165 30 36;
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 30px -18px rgba(16, 24, 40, 0.18), inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+}
+
+/* 唯美白色主题: 珠光白底 + 极淡极光晕染(绿/蓝/紫), 保持高可读、保留白天黑夜切换 */
+[data-theme="light"] body {
+  background-image:
+    radial-gradient(1100px 560px at 12% -10%, rgba(34, 197, 130, 0.08), transparent 60%),
+    radial-gradient(900px 480px at 100% -6%, rgba(56, 189, 248, 0.07), transparent 55%),
+    radial-gradient(820px 620px at 50% 122%, rgba(167, 139, 250, 0.06), transparent 60%);
+  background-attachment: fixed;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { @apply border-surface-border; }
+  body {
+    @apply bg-surface-canvas text-ink-primary font-body antialiased;
+    background-attachment: fixed;
+  }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(62,207,142,0.12); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(62,207,142,0.25); }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface-card border border-surface-border rounded-xl;
+    box-shadow: var(--shadow-card);
+  }
+  .card-hover {
+    @apply card transition-colors duration-200;
+  }
+  .card-hover:hover {
+    @apply bg-surface-hover border-field-400/15;
+  }
+
+  .glass-card {
+    @apply bg-surface-card border border-surface-border rounded-xl;
+    box-shadow: var(--shadow-card);
+  }
+  .glass-card-hover {
+    @apply glass-card transition-colors duration-200;
+  }
+  .glass-card-hover:hover {
+    @apply bg-surface-hover border-field-400/15;
+  }
+
+  /* 深色子面板 — 滚球破蛋/分析等页面大量使用的"卡内卡"底座, 统一到单一样式源 */
+  .panel {
+    @apply rounded-xl border border-surface-border/40 bg-surface-dark/30;
+  }
+
+  .stat-label {
+    @apply text-[11px] font-medium uppercase tracking-wider text-ink-muted;
+  }
+  .stat-value {
+    @apply text-2xl font-semibold font-display tracking-tight;
+  }
+
+  .probability-bar { @apply h-1.5 rounded-full overflow-hidden bg-white/[0.06]; }
+  .probability-fill { @apply h-full rounded-full transition-all duration-500 ease-out; }
+
+  .status-dot { @apply w-2 h-2 rounded-full inline-block; }
+  .status-dot-healthy { @apply status-dot bg-field-500; }
+  .status-dot-warning { @apply status-dot bg-ember-500; }
+  .status-dot-danger { @apply status-dot bg-danger-500; }
+
+  .skeleton { @apply bg-white/[0.06] rounded-md animate-pulse; }
+
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium;
+  }
+  .badge-green { @apply badge bg-field-500/15 text-field-400 border border-field-500/20; }
+  .badge-amber { @apply badge bg-ember-500/15 text-ember-400 border border-ember-500/20; }
+  .badge-blue  { @apply badge bg-frost-500/15 text-frost-400 border border-frost-500/20; }
+  .badge-red   { @apply badge bg-danger-500/15 text-danger-400 border border-danger-500/20; }
+
+  .nav-link {
+    @apply flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-150 text-ink-muted hover:text-ink-primary hover:bg-white/[0.04];
+  }
+  .nav-link-active {
+    @apply nav-link text-field-400 bg-field-500/8 border border-field-500/15;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-field-600 hover:bg-field-500 text-white rounded-md text-sm font-medium transition-colors duration-150;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-white/[0.06] hover:bg-white/[0.10] text-ink-primary rounded-md text-sm font-medium transition-colors duration-150 border border-white/[0.08];
+  }
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-3 py-2 hover:bg-white/[0.04] text-ink-secondary hover:text-ink-primary rounded-md text-sm font-medium transition-colors duration-150;
+  }
+
+  .input-field {
+    @apply w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-md text-ink-primary text-sm placeholder:text-ink-disabled focus:outline-none focus:border-field-500/40 transition-colors duration-150;
+  }
+
+  .data-table { @apply w-full; }
+  .data-table th {
+    @apply px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-ink-muted border-b border-white/[0.06];
+  }
+  .data-table td {
+    @apply px-4 py-2.5 text-sm text-ink-secondary border-b border-white/[0.04];
+  }
+  .data-table tr:hover td { @apply bg-white/[0.02]; }
+
+  .divider { @apply h-px bg-white/[0.06]; }
+}
+
+@layer utilities {
+  .animate-in { animation: fadeIn 0.3s ease-out, slideUp 0.3s ease-out; }
+  .animate-in-delay-1 { animation: fadeIn 0.3s ease-out 0.08s both, slideUp 0.3s ease-out 0.08s both; }
+  .animate-in-delay-2 { animation: fadeIn 0.3s ease-out 0.16s both, slideUp 0.3s ease-out 0.16s both; }
+  .animate-in-delay-3 { animation: fadeIn 0.3s ease-out 0.24s both, slideUp 0.3s ease-out 0.24s both; }
+}

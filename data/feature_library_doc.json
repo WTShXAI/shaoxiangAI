@@ -1,0 +1,148 @@
+{
+  "generated_at": "2026-07-26T03:07:38.579111",
+  "n_total_features": 18,
+  "all_features": [
+    "imp_open_h",
+    "imp_open_d",
+    "imp_open_a",
+    "imp_close_h",
+    "imp_close_d",
+    "imp_close_a",
+    "drift_h",
+    "drift_d",
+    "drift_a",
+    "imp_shift_h",
+    "imp_shift_d",
+    "imp_shift_a",
+    "spread_open",
+    "spread_close",
+    "sigma_trap",
+    "favorite_flip",
+    "drift_mag",
+    "drift_dir"
+  ],
+  "importance_ranking": [
+    {
+      "rank": 1,
+      "feature": "imp_close_d",
+      "importance": 1919,
+      "description": "全场#1 — 收盘平赔反映最终市场共识"
+    },
+    {
+      "rank": 2,
+      "feature": "imp_shift_d",
+      "importance": 1818,
+      "description": "#2 — 开盘→收盘平局信念变化"
+    },
+    {
+      "rank": 3,
+      "feature": "imp_open_d",
+      "importance": 1780,
+      "description": "#3 — 庄家初始平赔定价"
+    },
+    {
+      "rank": 4,
+      "feature": "drift_d",
+      "importance": 1469,
+      "description": "#4 — 最隐蔽的操盘信号"
+    },
+    {
+      "rank": 5,
+      "feature": "spread_close",
+      "importance": 1426,
+      "description": "#5 — 收盘分歧度"
+    },
+    {
+      "rank": 6,
+      "feature": "sigma_trap",
+      "importance": 1410,
+      "description": "#6 — 赔率异常波动"
+    },
+    {
+      "rank": 7,
+      "feature": "drift_a",
+      "importance": 1353,
+      "description": "#7 — 客队方向判断"
+    },
+    {
+      "rank": 8,
+      "feature": "imp_open_h",
+      "importance": 1325,
+      "description": "#8 — 庄家初始主赔"
+    },
+    {
+      "rank": 9,
+      "feature": "imp_close_h",
+      "importance": 1300,
+      "description": "#9 — 收盘主队信念"
+    },
+    {
+      "rank": 10,
+      "feature": "imp_shift_h",
+      "importance": 1280,
+      "description": "#10 — 主胜信心变化"
+    }
+  ],
+  "model_results": {
+    "outcome_top10": {
+      "accuracy": 0.4747,
+      "f1_macro": 0.4538,
+      "n_features": 10,
+      "features": [
+        "imp_open_d",
+        "imp_close_d",
+        "imp_open_h",
+        "drift_d",
+        "spread_close",
+        "sigma_trap",
+        "drift_a",
+        "drift_h",
+        "imp_close_h",
+        "imp_shift_h"
+      ]
+    },
+    "outcome_full18": {
+      "accuracy": 0.4795,
+      "f1_macro": 0.4584,
+      "n_features": 18,
+      "features": [
+        "imp_open_h",
+        "imp_open_d",
+        "imp_open_a",
+        "imp_close_h",
+        "imp_close_d",
+        "imp_close_a",
+        "drift_h",
+        "drift_d",
+        "drift_a",
+        "imp_shift_h",
+        "imp_shift_d",
+        "imp_shift_a",
+        "spread_open",
+        "spread_close",
+        "sigma_trap",
+        "favorite_flip",
+        "drift_mag",
+        "drift_dir"
+      ]
+    },
+    "reversal_top12": {
+      "auc": 0.6143,
+      "accuracy": 0.5252,
+      "n_features": 12
+    }
+  },
+  "playbook_quick_ref": {
+    "平赔压低": "drift_d<0 → 庄家建仓平局, 逆转首要信号",
+    "热门反转": "favorite_flip=1 → 开盘/收盘热门不同, 命中率~70%",
+    "开盘胶着": "spread_open<1.0 → 不确定性高, 逆转↑15pp",
+    "陷阱检测": "sigma_trap>0.2 → 赔率异常, 警惕造盘",
+    "漂移显著": "|drift|>0.10 → 重大事件(红牌/伤退/变阵)"
+  },
+  "feature_count_per_model": {
+    "outcome_top10": 10,
+    "outcome_full18": 18,
+    "reversal_top12": 12,
+    "operator_reliability": 18
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "cutoff": "2023-01-01",
+  "n_total_universe": 8426,
+  "covered_open_eye": 166,
+  "uncovered_PASS": 7898,
+  "coverage_pct": 2.06,
+  "open_eye_recommend": {
+    "n": 166,
+    "roi": -8.81,
+    "ci": [
+      -28.61,
+      10.76
+    ],
+    "win": -8.81,
+    "direction_acc": 40.96,
+    "pos_ev": false
+  },
+  "base_market_favorite": {
+    "n": 166,
+    "roi": -5.78,
+    "ci": [
+      -20.74,
+      9.03
+    ],
+    "win": -5.78,
+    "direction_acc": 51.81,
+    "pos_ev": false
+  },
+  "edge_buckets": {
+    "gt0": {
+      "n": 166,
+      "roi": -8.81,
+      "win": 40.96
+    },
+    "gt3": {
+      "n": 161,
+      "roi": -10.09,
+      "win": 40.37
+    },
+    "gt5": {
+      "n": 156,
+      "roi": -8.54,
+      "win": 41.03
+    }
+  },
+  "model_oof_claim": {
+    "EYE_OPEN_ARGMAX_roi": 10.54,
+    "EYE_OPEN_ARGMAX_CI": [
+      5.01,
+      16.04
+    ],
+    "EYE_OPEN_RESID_roi": 10.05,
+    "EYE_OPEN_RESID_CI": [
+      3.7,
+      16.36
+    ],
+    "EYE_OPEN_RESID_004_roi": 15.59,
+    "EYE_OPEN_RESID_004_CI": [
+      9.32,
+      22.0
+    ],
+    "BASE_MARKET_roi": -4.57
+  },
+  "verdict": "独立重验未确认 +EV(ROI CI 跨零/负) → 模型 OOF 乐观或泄漏, 诚实拒采纳(IR-30)"
+}

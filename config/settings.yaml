@@ -1,0 +1,114 @@
+# 哨响AI - 统一设置 (YAML 参考)
+# ================================
+# 运行时配置由 backend/core/config.py (Pydantic) 管理
+# 本文件仅作为参考文档，不再被代码加载
+
+global_switches:
+  pure_v32_mode: false
+  enable_6layer_engine: true
+  enable_l0_knowledge: true
+  enable_l4_barrier: true
+  enable_l4_scenario: true
+  enable_l4_degradation: true
+  enable_cross_opponent: true
+  enable_balance_sim: true
+  enable_scorer_tracker: true
+  enable_image_input: true
+
+prediction:
+  draw_threshold: 0.32
+  ha_gap: 0.0
+  v32_baseline:
+    draw_threshold: 0.0
+    ha_gap: 0.0
+  d_gate:
+    junk_threshold: 0.02
+    fuzzy_threshold: 0.05
+    usable_threshold: 0.08
+
+scenarios:
+  league:
+    draw_target_rate: 0.25
+    home_advantage: 0.08
+    confidence_mult: 1.0
+    trap_threshold_mult: 1.0
+  cup_group:
+    draw_target_rate: 0.375
+    home_advantage: 0.03
+    cold_start_mix: 0.15
+    confidence_mult: 0.85
+    trap_threshold_mult: 1.2
+  cup_knockout:
+    draw_target_rate: 0.40
+    home_advantage: 0.02
+    cold_start_mix: 0.05
+    confidence_mult: 0.80
+    trap_threshold_mult: 1.3
+  final:
+    draw_target_rate: 0.42
+    home_advantage: 0.0
+    cold_start_mix: 0.10
+    confidence_mult: 0.70
+    trap_threshold_mult: 1.5
+    forbid_heavy_favorite_bet: true
+  strong_favorite:
+    draw_target_rate: 0.15
+    trap_threshold_mult: 0.80
+    confidence_mult: 0.85
+    forbid_heavy_favorite_bet: true
+  derby:
+    draw_target_rate: 0.32
+    home_advantage: 0.04
+    trap_threshold_mult: 1.1
+    confidence_mult: 0.90
+
+degradation:
+  max_consecutive_failures: 3
+  recovery_threshold: 2
+  uniform_fallback: [0.333, 0.334, 0.333]
+
+paths:
+  project_root: "."
+  model_dir: "saved_models"
+  data_dir: "data"
+  db_path: "data/football_data.db"
+  sp_db_path: "D:/AI/SP/data/sp_data.db"
+  v41_model: "saved_models/football_balanced_production.joblib"  # 原 football_v4.1_production 已隔离(加载失败: 依赖已删模块)
+  v32_model: "saved_models/football_balanced_production.joblib"
+  draw_expert: "saved_models/draw_expert_v1.joblib"
+  nn_model: "saved_models/football_nn_20260616_125617.pth"
+  output_dir: "output"
+  log_dir: "logs"
+  sandbox_dir: "sandbox"
+  archive_dir: "archive"
+
+experts:
+  game_theorist:
+    enable: true
+    default_weight: 1.0
+  imbalance_expert:
+    enable: true
+    default_weight: 1.0
+  ensemble_master:
+    enable: true
+    default_weight: 1.0
+  model_builder:
+    enable: true
+    default_weight: 0.8
+  temporal_analyst:
+    enable: true
+    default_weight: 0.8
+  optimizer:
+    enable: true
+    default_weight: 0.5
+
+server:
+  host: "0.0.0.0"
+  port: 9000
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
+  file: "logs/app.log"
+  max_bytes: 10485760
+  backup_count: 5

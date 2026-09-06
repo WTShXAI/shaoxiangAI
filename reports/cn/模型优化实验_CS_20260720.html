@@ -1,0 +1,76 @@
+<!doctype html><html lang=zh><head><meta charset=utf-8>
+<title>CS模型优化实验 v2</title><style>
+body{font-family:-apple-system,'Segoe UI',Roboto,'Microsoft YaHei',sans-serif;background:#0f1420;color:#e6e9ef;margin:0;padding:32px;line-height:1.6}
+.wrap{max-width:980px;margin:0 auto}
+h1{font-size:24px;margin:0 0 4px}
+.sub{color:#9aa4b2;font-size:13px;margin-bottom:24px}
+.card{background:#171d2b;border:1px solid #232c40;border-radius:12px;padding:20px 24px;margin-bottom:20px}
+h2{font-size:17px;margin:0 0 14px;color:#cdd6e4}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 10px;text-align:right;border-bottom:1px solid #232c40}
+th:first-child,td:first-child{text-align:left}
+th{color:#9aa4b2;font-weight:600}
+.verdict{background:#2a1a1a;border:1px solid #5a2d2d;border-radius:12px;padding:18px 24px;margin-bottom:20px}
+.verdict h2{color:#ff9b8a}
+.ok{color:#4ea1ff}.warn{color:#ffb454}.bad{color:#ff6b6b}.good{color:#5fd68a}
+.big{font-size:15px}
+.tag{display:inline-block;background:#232c40;color:#9aa4b2;border-radius:6px;padding:2px 8px;font-size:11px;margin-right:6px}
+ul{margin:8px 0;padding-left:20px}li{margin:4px 0}
+.hl{background:#1c2740}
+</style></head><body><div class=wrap>
+<h1>波胆(CS)模型优化实验 · v2 数据污染诊断</h1>
+<div class=sub>窗口 2026-07-16~20 · 源 data/GQ.db · 三方对照(模型OIP × 市场CS初盘 × 实际比分) · 样本 N=275(完赛+非模拟+CS+初盘1X2) · 生成 2026-07-20 11:01</div>
+
+<div class=verdict>
+<h2>⚠️ 核心结论: 不能用 GQ.db 实际比分校准模型 — 数据源污染</h2>
+<p class=big>表面看模型严重高估进球(gs=1.0比1.2准),<b>但实际比分数据不可信</b>。任何据此调 goal_scale 的动作都是给脏数据拟合 = 有害。<b>生产参数 goal_scale=1.2/1.35、rho、blend α 一律不动。</b></p>
+</div>
+
+<div class=card>
+<h2>1. 偏差诊断 (goal_scale=1.2, n=275)</h2>
+<table><tr><th>指标</th><th>模型</th><th>实际</th><th>偏差</th></tr><tr><td>总进球</td><td>3.093</td><td>1.869</td><td>+1.224</td></tr><tr><td>主队进球</td><td>1.660</td><td>0.873</td><td>+0.787</td></tr><tr><td>客队进球</td><td>1.433</td><td>0.996</td><td>+0.437</td></tr><tr><td>平局率</td><td>25.0%</td><td>15.6%</td><td>+9.3pp</td></tr></table>
+<p class=sub>实际总进球仅 1.869、平局率仅 15.6% — 低进球通常伴随<b>高</b>平局, 此组合反常, 是数据污染的第一个红旗。</p>
+</div>
+
+<div class=card>
+<h2>2. 命中率网格 (纯模型 / 纯市场 / 混合)</h2>
+<p><span class=tag>纯市场CS初盘 α=1.0</span> top1=14.2% · top3=35.8% · top5=54.0%</p>
+<div style="display:flex;gap:24px;flex-wrap:wrap">
+<div style="flex:1;min-width:280px"><b>纯模型 · goal_scale 网格</b><table><tr><th>goal_scale</th><th>top1</th><th>top3</th><th>top5</th></tr><tr><td>1.0</td><td>17.2%</td><td>42.3%</td><td>60.2%</td></tr><tr><td>1.1</td><td>13.9%</td><td>37.2%</td><td>56.9%</td></tr><tr class="hl"><td>1.2</td><td>14.2%</td><td>36.9%</td><td>51.5%</td></tr><tr><td>1.3</td><td>10.6%</td><td>31.8%</td><td>45.3%</td></tr><tr><td>1.35</td><td>8.4%</td><td>29.6%</td><td>43.4%</td></tr></table></div>
+<div style="flex:1;min-width:280px"><b>混合 blend · α 网格 (gs=1.2)</b><table><tr><th>α(市场CS权重)</th><th>top1</th><th>top3</th><th>top5</th></tr><tr><td>0.0</td><td>14.2%</td><td>36.9%</td><td>51.5%</td></tr><tr><td>0.3</td><td>13.9%</td><td>36.5%</td><td>52.6%</td></tr><tr><td>0.5</td><td>13.1%</td><td>37.2%</td><td>51.5%</td></tr><tr><td>0.6</td><td>13.5%</td><td>37.6%</td><td>52.6%</td></tr><tr class="hl"><td>0.7</td><td>13.1%</td><td>37.2%</td><td>54.4%</td></tr><tr><td>0.8</td><td>13.5%</td><td>36.9%</td><td>54.4%</td></tr><tr><td>0.9</td><td>13.9%</td><td>36.5%</td><td>54.4%</td></tr><tr><td>1.0</td><td>14.2%</td><td>35.8%</td><td>54.0%</td></tr></table></div>
+</div>
+<p class=sub>gs=1.0 top3 最高(42.3%)、blend α≈0.5-0.7 聚在~37% — 但因实际比分不可信, 这些"最优"不可采信。α 结论与既有生产 0.7 一致, 无需改。</p>
+</div>
+
+<div class=card>
+<h2>3. 数据污染证据 (决定性)</h2>
+<ul>
+<li><b class=bad>49% 是单进球比赛</b>: 275 场里 140 场总进球=1(0-1 或 1-0)。真实全场足球单球比赛约 20-25%。</li>
+<li><b class=bad>0-1 多于 1-0</b>: 0-1=72 场 &gt; 1-0=68 场 — 违反主场优势, 真实足球 1-0 应多于 0-1。</li>
+<li><b class=warn>8 场 minute=45 被标 finished</b>(全322集): 半场就被当终场入库。</li>
+<li><b class=warn>matches vs match_outcomes 303/307 一致(98.7%)</b>: 只证两表同源自洽, <b>不证真终场</b> — 共用同一乐鱼直播流, 共享同一 stale bug。</li>
+</ul>
+<p class=big>诊断: <b>进第一个球后乐鱼把该场从直播列表删除 → 采集器把当时比分(多为 1-0/0-1)冻结成"终场"</b>。故实际比分是<b>中途截断值</b>, 那个 +1.22 的"总进球高估"是截断假象, 不是真高估。</p>
+<table><tr><th>比分</th><th>场次</th><th>占比</th></tr><tr><td>0-1</td><td>72</td><td>26.2%</td></tr><tr><td>1-0</td><td>68</td><td>24.7%</td></tr><tr><td>1-1</td><td>36</td><td>13.1%</td></tr><tr><td>0-2</td><td>17</td><td>6.2%</td></tr><tr><td>2-1</td><td>16</td><td>5.8%</td></tr><tr><td>2-0</td><td>16</td><td>5.8%</td></tr><tr><td>1-2</td><td>14</td><td>5.1%</td></tr><tr><td>0-3</td><td>8</td><td>2.9%</td></tr><tr><td>1-3</td><td>6</td><td>2.2%</td></tr><tr><td>2-2</td><td>6</td><td>2.2%</td></tr></table>
+</div>
+
+<div class=card>
+<h2>4. 为什么坚决不动 goal_scale</h2>
+<ul>
+<li>gs=1.2(联赛)/1.35(WC) 源自 <b>interwetten_odds 14万条庄家已结算真赛果</b> walkforward — 可信地面真相。</li>
+<li>322 场存疑乐鱼抓取 &lt;&lt; 14万条结算结果的证据力。</li>
+<li>据脏数据把 gs 降到 1.0 → 生产模型对<b>真实</b>联赛系统性少报进球 → 直接有害。</li>
+</ul>
+</div>
+
+<div class=card>
+<h2>5. 真正的抓手 (P1, 已修正)</h2>
+<ul>
+<li><b class=ok>给 GQ 采集器加外部地面真相赛果校验</b>: The Odds API scores 端点 / flashscore 式终场比分。</li>
+<li>status='finished' 的写入条件收紧: <b>minute≥90 且 比分跨多次抓取稳定</b> 才落终场。</li>
+<li>在采集器修好之前: GQ 复盘<b class=good>只可做市场行为分析</b>(CS初盘命中率、临场 drift), <b class=bad>禁用于模型 λ 校准</b>。</li>
+</ul>
+</div>
+
+<div class=sub>铁律遵从: 输入仅赔率+实际比分, 零叙事。本次额外教训 — "只看数据"必须包含"验数据本身"; 两个内部表一致 ≠ 地面真相。</div>
+</div></body></html>

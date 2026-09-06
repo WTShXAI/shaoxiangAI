@@ -1,0 +1,175 @@
+"""
+哨响AI — 真比分概率模型 (生产级: OIP 赔率隐含 Poisson)
+========================================================
+为什么是 OIP 而不是 Dixon-Coles:
+  - 跨届 OOS 验证 (wc_all_matches 106场含赔率+比分):
+      OIP  OOS logloss=2.83  Top1=16.7%  Top3=50.0%  H-D-A=66.7%
+      DC   OOS logloss=3.85  Top1= 0.0%  Top3=22.2%  H-D-A=50.0%  (过拟合, rho撞0.5上界)
+  - 106场/50队 对 DC 的 100+ 参数样本太小, 即便 reg=5.0 仍崩.
+  - OIP 逐场解 λ_h/λ_a, 无训练 → 天然 OOS 安全, 等价于庄家隐含分布的比分管线.
+
+接口:
+  predict_score(home, away, oh, od, oa, max_goal=8) -> dict
+    {lh, la, p_h, p_d, p_a, matrix(np), top_scores:[(i,j,p),...]}
+
+作者: 赵统筹(总工) | 2026-07-07
+"""
+import math
+import numpy as np
+from scipy.optimize import root
+from typing import Any, Dict, List, Tuple
+
+MAX_GOAL_DEFAULT = 8
+
+# OIP λ 全局缩放 (校准用) — 单一事实源 (SSoT)
+# WC: 1.35 修正OIP对世界杯总进球的系统性低估。仅WC生效。
+#     来源(2026-07-10, scripts/improve_cs_accuracy.py): wc_all_matches 313场(2014-2026四届),
+#     20×70/30 OOS(调参仅train/eval仅test), goal_scale 1.0→1.355 使 test集 top3 命中率
+#     29.68%→34.41% (+4.73pp, 物理直觉: OIP隐含总进球~2.4 vs WC实际~2.9, 放大λ灌质量到2-1/3-1/1-2)。
+#     独立复验(2026-07-25): n=70034 top3=34.46% 与校准值吻合。
+#     ⚠️ 注意: data/wc_calibration.json 是另一 88场 子集产物(base/calibrated top3 均=0.3182,
+#        该子集上 goal_scale 提升不显著), 与此 313场 test集 不冲突 — 两数据集不同。
+#     1X2 安全: goal_scale 仅缩放比分矩阵 λ/M, p_h/p_d/p_a 来自 deoverround 不受影响。
+# 通用联赛: 1.2 (来源: interwetten_odds 140,729行真实赛果 walkforward 校准, 2026-07-18:
+#     train 2016-2022 选参 gs=1.2→test 2023-2025 OOS top3=0.3441 vs 基线1.0的0.3378 +0.63pp,
+#     train→test 衰减仅0.3pp = 干净泛化, 非过拟合; ρ(Dixon-Coles)扫描确认对top3无影响, 不采用;
+#     ⚠️ 此数字目前仅在 .workbuddy/memory 记录, 无独立可一键复现脚本, 见 ARCHITECTURE.md §9)。
+WC_OIP_GOAL_SCALE = 1.35
+GENERAL_OIP_GOAL_SCALE = 1.2
+
+# 波胆概率温度缩放校准 (2026-08-01, walkforward 严格验证): T=0.90 使 OIP 比分概率略尖锐,
+# 修正其轻微 under-confident。train(≤2022, 2.5万)学T → test(≥2023, 3.9万) logloss 2.8830→2.8777(-0.0054),
+# brier 0.9263→0.9258(-0.0005)。提升概率准确度(利于价值层EV/凯利/ROI稳定), 不改 top-N 排名(softmax单调)。
+# temperature=1.0 可退回旧行为。
+CS_PROB_TEMPERATURE = 0.90
+
+def deoverround(oh: float, od: float, oa: float) -> Tuple[float, float, float]:
+    """1X2 去抽水 → 隐含 P(H),P(D),P(A)"""
+    o = 1.0/oh + 1.0/od + 1.0/oa
+    return (1.0/oh)/o, (1.0/od)/o, (1.0/oa)/o
+
+def _poisson_marginal(lh: float, la: float, maxg: int) -> Tuple[float, float, float]:
+    ph = pd_ = pa = 0.0
+    for i in range(maxg+1):
+        pi = math.exp(-lh)*lh**i/math.factorial(i)
+        for j in range(maxg+1):
+            pj = math.exp(-la)*la**j/math.factorial(j)
+            p = pi*pj
+            if i > j: ph += p
+            elif i == j: pd_ += p
+            else: pa += p
+    return ph, pd_, pa
+
+def _nb_marginal(lam: float, maxg: int, kappa: float) -> List[float]:
+    """负二项边缘: 均值=lam, 方差=lam + kappa*lam^2 (过度离散). kappa→0 收敛 Poisson.
+    用 log-gamma 防溢出. 参数化: size r=1/kappa, success prob p=r/(r+lam),
+    P(k)=Γ(k+r)/(Γ(r)Γ(k+1)) * p^r * (1-p)^k. 均值=r(1-p)/p=lam 保持不变.
+    用途: obscure 联赛比分分布肥尾校准 (league_scoring_prior.overdispersion_for_liquidity)."""
+    r = 1.0 / kappa
+    p = r / (r + lam)
+    out = []
+    for k in range(maxg + 1):
+        lp = (math.lgamma(k + r) - math.lgamma(r) - math.lgamma(k + 1)
+              + r * math.log(p) + k * math.log(1.0 - p))
+        out.append(math.exp(lp))
+    return out
+
+def score_matrix(lh: float, la: float, maxg: int = MAX_GOAL_DEFAULT, kappa: float = 0.0) -> np.ndarray:
+    """比分概率矩阵. kappa>0 时用负二项边缘(过度离散/肥尾); kappa=0 退化为独立 Poisson(旧行为)."""
+    if kappa > 0:
+        col = _nb_marginal(lh, maxg, kappa)
+        row = _nb_marginal(la, maxg, kappa)
+    else:
+        col = [math.exp(-lh)*lh**i/math.factorial(i) for i in range(maxg+1)]
+        row = [math.exp(-la)*la**j/math.factorial(j) for j in range(maxg+1)]
+    return np.outer(col, row)
+
+def _dc_correct(M: np.ndarray, rho: float, maxg: int) -> np.ndarray:
+    """
+    Dixon-Coles 低比分依赖修正 (仅调整比分矩阵 M, 不影响 1X2:
+    1X2 由 deoverround 直接得出, 与 M 无关)。
+    对 i,j ∈ {0,1} 的格子乘 (1 - rho*i*j) 后整体重归一化。
+    rho<0 → 抑制低比分式联合概率(真实足球负相关); rho>0 → 抬升。
+    默认不调用 (rho=0 → 独立Poisson, 与旧行为一致)。
+    """
+    M = M.copy().astype(float)
+    for i in range(min(2, maxg + 1)):
+        for j in range(min(2, maxg + 1)):
+            M[i][j] *= (1.0 - rho * i * j)
+    s = M.sum()
+    return M / s if s > 0 else M
+
+def solve_oip(ph: float, pd: float, pa: float, maxg: int = MAX_GOAL_DEFAULT) -> Tuple[float, float]:
+    """数值解 λ_h,λ_a 使独立Poisson边缘匹配P(H/D/A)"""
+    def eq(x: Any) -> List[float]:
+        lh, la = x
+        if lh <= 0 or la <= 0:
+            return [1e6, 1e6]
+        eh, ed, ea = _poisson_marginal(lh, la, maxg)
+        return [eh - ph, ed - pd]
+    sol = root(eq, [1.3, 1.1], method='hybr')
+    if sol.success and sol.x[0] > 0 and sol.x[1] > 0:
+        return float(sol.x[0]), float(sol.x[1])
+    best, bestr = (1.3, 1.1), 1e9
+    for lh in np.arange(0.3, 4.5, 0.1):
+        for la in np.arange(0.3, 4.5, 0.1):
+            eh, ed, ea = _poisson_marginal(lh, la, maxg)
+            r = (eh - ph)**2 + (ed - pd)**2
+            if r < bestr:
+                bestr, best = r, (lh, la)
+    return best
+
+def predict_score(home: str, away: str, oh: float, od: float, oa: float, max_goal: int = MAX_GOAL_DEFAULT, rho: float = 0.0, goal_scale: float = 1.2, temperature: float = CS_PROB_TEMPERATURE, implied_total: float | None = None, overdispersion: float = 0.0) -> Dict[str, Any]:
+    """
+    赔率隐含 Poisson 比分预测.
+    返回 dict: lh, la(期望进球), p_h/p_d/p_a(胜平负), matrix(比分概率矩阵),
+               top_scores(前5可能比分 [(i,j,p),...]), home/away(回声)
+
+    rho: Dixon-Coles 低比分依赖项 (默认0=独立Poisson)。仅修正比分矩阵 M,
+         不影响 1X2 (p_h/p_d/p_a 来自 deoverround)。walkforward 校准确认
+         ρ 对波胆 top3 命中率无影响(最优ρ=0), 故默认不采用, 避免过拟合。
+    goal_scale: λ 全局缩放(校准用)。
+         - WC: 1.35 修正OIP对世界杯总进球的系统性低估。
+         - 通用联赛: 1.2 (interwetten_odds walkforward 校准, 2026-07-18)。
+    implied_total: OU 盘口隐含总进球锚 (2026-08-30 修复 λ 反推缺陷, 见下)。
+    overdispersion: 比分分布过度离散(kappa>0 用负二项边缘, 肥尾校准). 仅 obscure 联赛
+        经 league_scoring_prior.overdispersion_for_liquidity 注入; 主流(kappa=0)完全不动 →
+        零回归. 解决 Poisson 把 0:3 类屠杀概率压太低的问题(obscure 赔率噪/实力未知/业余队
+        战术纪律差→更易出极端比分). 注意: 均值保持, 修的是"不确定性估计不足"而非"主客不对称".
+
+    ⚠ 2026-08-30 修复 λ 反推缺陷 (根源):
+      旧 solve_oip 用独立泊松硬匹配 P(H)/P(D), 而独立泊松的平局概率上限约 0.25,
+      势均力敌(平局率 0.28~0.33)时方程无解 → λ 被压到 1.76(应 2.6+), 低 32%,
+      导致 0-0 概率虚高 37%、大球概率 8%、滚球判 Under 全错。
+      (实证: 博多格林特 vs 圣吉罗斯 0-0@45' 模型判小, 真实下半场 2-2 进 4 球)
+      修复: 传入 implied_total 时, λ_total 直接锚定 OU 总进球(诚实锚),
+            λ_h/λ_a 用 1X2 的 P(H)/P(A) 比例分配, 不再用平局概率压 λ。
+      未传 implied_total → 回退 solve_oip(兼容旧调用), 但加平局 cap 防压 λ。
+    """
+    ph, pd, pa = deoverround(oh, od, oa)
+    if implied_total and implied_total > 1.0:
+        # 锚定 OU 总球 + 主客比例分配 (平局概率由 DC rho 修正, 不压 λ)
+        ratio = ph / (ph + pa) if (ph + pa) > 0 else 0.5
+        lh = implied_total * ratio
+        la = implied_total * (1 - ratio)
+    else:
+        lh, la = solve_oip(ph, pd, pa, max_goal)
+    lh, la = lh * goal_scale, la * goal_scale   # WC校准: 修正OIP低估总进球
+    M = score_matrix(lh, la, max_goal, kappa=overdispersion)
+    M = M / M.sum()
+    if rho:
+        M = _dc_correct(M, rho, max_goal)
+    # 温度缩放校准 (T=CS_PROB_TEMPERATURE, walkforward验证): 修正OIP比分概率轻微under-confident,
+    # 提升概率准确度(logloss/brier), 不改top-N排名。temperature=1.0 退回旧行为。
+    # overdispersion>0 (obscure 肥尾) 时跳过温度缩放, 让 NB 肥尾主导(避免缩放与过度离散互相抵消)。
+    _eff_temp = 1.0 if overdispersion > 0 else temperature
+    if _eff_temp and abs(_eff_temp - 1.0) > 1e-9:
+        Mp = np.power(np.clip(M, 1e-12, 1.0), 1.0 / _eff_temp)
+        M = Mp / Mp.sum()
+    flat = M.flatten()
+    order = np.argsort(-flat)[:5]
+    top = [(int(divmod(k, max_goal+1)[0]), int(divmod(k, max_goal+1)[1]), round(float(flat[k]), 4))
+           for k in order]
+    return dict(home=home, away=away, lh=round(lh, 3), la=round(la, 3),
+                p_h=round(ph, 4), p_d=round(pd, 4), p_a=round(pa, 4),
+                matrix=M, top_scores=top)

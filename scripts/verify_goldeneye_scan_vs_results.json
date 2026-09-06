@@ -1,0 +1,39 @@
+{
+  "population": "非虚拟 + kickoff>=2023 (真OOS)",
+  "n": 8263,
+  "tianyan": {
+    "green": 160,
+    "hit": 63,
+    "hit_rate": 39.38,
+    "roi_pct": -9.04,
+    "roi_ci95": [
+      -27.99,
+      10.94
+    ],
+    "edge_pp_mean": 20.53,
+    "ev_verdict": "CI跨零=未确立+EV"
+  },
+  "world_sample2000": {
+    "checked": 2000,
+    "green": 408,
+    "hit": 158,
+    "hit_rate": 38.73,
+    "roi_pct": 2.93,
+    "roi_ci95": [
+      -9.91,
+      16.74
+    ],
+    "edge_pp_mean": 6.42,
+    "ev_verdict": "CI跨零=未确立+EV"
+  },
+  "market_baseline_favorite": {
+    "stake": 8263,
+    "hit": 4352,
+    "hit_rate": 52.67,
+    "roi_pct": -10.22,
+    "roi_ci95": [
+      -12.23,
+      -8.3
+    ]
+  }
+}

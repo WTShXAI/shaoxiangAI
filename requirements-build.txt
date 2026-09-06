@@ -1,0 +1,24 @@
+# =============================================================================
+# 哨响AI (ShXAI) - 打包专用依赖
+# =============================================================================
+# 仅在重新构建 exe 时安装 (PyInstaller 单文件打包工具链)
+#
+# 安装:
+#     pip install -r requirements-build.txt
+#
+# 打包:
+#     python -m PyInstaller desktop_app/app.spec --clean --noconfirm \
+#         --distpath dist --workpath build
+#
+# 产物:
+#     dist/哨响AI_操盘终端.exe
+# =============================================================================
+
+# ── 打包器 ──
+PyInstaller>=6.5.0,<7.0.0
+
+# ── 图标转换 (PNG→ICO, app.spec 中 icon128.png 需要) ──
+Pillow>=10.0.0,<13.0.0
+
+# ── PE 文件解析 (PyInstaller 已自动依赖, 此处显式声明) ──
+pefile>=2022.5.30

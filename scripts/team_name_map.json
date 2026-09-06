@@ -1,0 +1,27 @@
+{
+  "_meta": {
+    "purpose": "中文↔母语队名映射字典，供 team_name_resolver.py 反向映射整轮赛果卡到 GQ.db 的 mid。",
+    "rule": "只收录经多源查证确认的映射；未确认的队名不臆造。GQ 同一 league 字符串可能跨越多个真实子联赛，必须按队名身份匹配，禁止按 league 字符串整体套用赛果卡。",
+    "note": "GQ '波兰丙级联赛' 实际混合 III Liga Group1 / Group2 / 其他级别，须逐队确权。"
+  },
+  "polish_iii_liga_group_2": {
+    "波兹南莱赫B队": "Lech Poznań II",
+    "拜德戈斯茨": "Chemik Bydgoszcz",
+    "维基德卢齐诺": "Wiked Luzino",
+    "巴尔特克科沙林": "Bałtyk Koszalin",
+    "波罗尼亚斯若达": "Polonia Środa",
+    "乌尼亚斯瓦泽达": "Unia Swarzędz",
+    "诺泰奇": "MKS Notec Czarnkow",
+    "弗热希尼亚": "Victoria Września"
+  },
+  "polish_iii_liga_group_1": {
+    "维泽夫B队": "Widzew Lodz II",
+    "罗姆查": "LKS Lomza",
+    "马佐夫舍明斯克": "Mazovia Minsk Mazowiecki",
+    "KTS韦斯奥瓦尔萨瓦": "Weszlo",
+    "姆拉维安卡": "Mlawa",
+    "奥林匹亚埃尔布隆格": "Olimpia Elblag",
+    "斯维特": "Swit Mazowiecki",
+    "维亚扎布基": "Zabki"
+  }
+}

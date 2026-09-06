@@ -1,0 +1,230 @@
+{
+  "n": 8057,
+  "cutoff": "2023-01-01",
+  "per_dimension": {
+    "tier": {
+      "obscure": 7427,
+      "main": 630
+    },
+    "line_state": {
+      "balanced": 5885,
+      "high_water_lure": 1663,
+      "trap_candidate": 465,
+      "low_water_smart": 44
+    },
+    "stage": {
+      "opening": 8057
+    },
+    "consistency": {
+      "consistent": 8013,
+      "internal_divergence": 44
+    },
+    "draw_risk": {
+      "neutral": 5631,
+      "high": 737,
+      "low": 1689
+    }
+  },
+  "top_signatures": [
+    {
+      "sig": [
+        "obscure",
+        "balanced",
+        "opening",
+        "consistent",
+        "neutral"
+      ],
+      "count": 3884
+    },
+    {
+      "sig": [
+        "obscure",
+        "high_water_lure",
+        "opening",
+        "consistent",
+        "neutral"
+      ],
+      "count": 1219
+    },
+    {
+      "sig": [
+        "obscure",
+        "balanced",
+        "opening",
+        "consistent",
+        "low"
+      ],
+      "count": 1141
+    },
+    {
+      "sig": [
+        "obscure",
+        "trap_candidate",
+        "opening",
+        "consistent",
+        "low"
+      ],
+      "count": 420
+    },
+    {
+      "sig": [
+        "main",
+        "balanced",
+        "opening",
+        "consistent",
+        "neutral"
+      ],
+      "count": 385
+    },
+    {
+      "sig": [
+        "obscure",
+        "balanced",
+        "opening",
+        "consistent",
+        "high"
+      ],
+      "count": 352
+    },
+    {
+      "sig": [
+        "obscure",
+        "high_water_lure",
+        "opening",
+        "consistent",
+        "high"
+      ],
+      "count": 319
+    },
+    {
+      "sig": [
+        "main",
+        "high_water_lure",
+        "opening",
+        "consistent",
+        "neutral"
+      ],
+      "count": 117
+    },
+    {
+      "sig": [
+        "main",
+        "balanced",
+        "opening",
+        "consistent",
+        "low"
+      ],
+      "count": 73
+    },
+    {
+      "sig": [
+        "obscure",
+        "low_water_smart",
+        "opening",
+        "consistent",
+        "high"
+      ],
+      "count": 41
+    },
+    {
+      "sig": [
+        "main",
+        "trap_candidate",
+        "opening",
+        "consistent",
+        "low"
+      ],
+      "count": 36
+    },
+    {
+      "sig": [
+        "obscure",
+        "balanced",
+        "opening",
+        "internal_divergence",
+        "low"
+      ],
+      "count": 18
+    },
+    {
+      "sig": [
+        "obscure",
+        "balanced",
+        "opening",
+        "internal_divergence",
+        "neutral"
+      ],
+      "count": 17
+    },
+    {
+      "sig": [
+        "main",
+        "balanced",
+        "opening",
+        "consistent",
+        "high"
+      ],
+      "count": 10
+    },
+    {
+      "sig": [
+        "obscure",
+        "trap_candidate",
+        "opening",
+        "consistent",
+        "neutral"
+      ],
+      "count": 8
+    },
+    {
+      "sig": [
+        "main",
+        "high_water_lure",
+        "opening",
+        "consistent",
+        "high"
+      ],
+      "count": 6
+    },
+    {
+      "sig": [
+        "obscure",
+        "balanced",
+        "opening",
+        "internal_divergence",
+        "high"
+      ],
+      "count": 4
+    },
+    {
+      "sig": [
+        "obscure",
+        "low_water_smart",
+        "opening",
+        "internal_divergence",
+        "high"
+      ],
+      "count": 2
+    },
+    {
+      "sig": [
+        "obscure",
+        "high_water_lure",
+        "opening",
+        "internal_divergence",
+        "neutral"
+      ],
+      "count": 1
+    },
+    {
+      "sig": [
+        "main",
+        "low_water_smart",
+        "opening",
+        "consistent",
+        "high"
+      ],
+      "count": 1
+    }
+  ]
+}

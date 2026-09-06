@@ -1,0 +1,29 @@
+{
+  "cutoff": "2023-01-01",
+  "candidate_matches": 7985,
+  "with_1x2_snapshots": 2392,
+  "covered_open_close": 909,
+  "coverage_pct": 38.0,
+  "market_baseline_acc": 54.85,
+  "baseline_favorite_acc": 55.23,
+  "baseline_favorite_ci": [
+    51.93,
+    58.53
+  ],
+  "drift_follow_acc": 42.68,
+  "drift_follow_ci": [
+    39.38,
+    45.87
+  ],
+  "drift_beats_baseline": false,
+  "h3_shorten_fav_win_rate": 60.46,
+  "h3_shorten_fav_n": 435,
+  "h3_lengthen_fav_win_rate": 50.42,
+  "h3_lengthen_fav_n": 474,
+  "closing_line_brier": 0.1854,
+  "closing_line_logloss": 0.9432,
+  "conditional_fav_shorten_edge_pp": 10.04,
+  "underpowered_vs_g2": true,
+  "leakage_guard": "初版用 captured_at<kickoff 切开盘/收盘, 因 GQ captured_at 与 kickoff 纪元不一致(滚盘 score_at 快照 captured_at 仍<kickoff)导致 88%/97% 假信号; 已改为用数据自带 score_at/minute_at live 标记排除滚盘, 重测得真实值",
+  "verdict": "漂移信号未击败市场基线 (方向 42.68%<54.85%; favorite缩短条件 60%vs50% 为小样本弱信号, 诚实拒采纳)"
+}
