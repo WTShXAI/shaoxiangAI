@@ -9,6 +9,7 @@ import { worldAnalyzerService, goldenEyeService, timelineService } from '@/servi
  */
 
 const POLL = 8000
+const DIR_CN: Record<string, string> = { home: '主胜', draw: '平', away: '客胜' }
 
 interface RollballData {
   match_key: string
@@ -47,7 +48,10 @@ interface RollballData {
     majority?: string | null
     agree_ratio?: number
     signals?: Record<string, string>
+    fusion?: { direction?: string; prob?: number; weights?: Record<string, number>; agree?: boolean; split?: boolean }
+    cs_verify?: { pool_dir?: string; verdict?: string; match?: boolean }
   } | null
+  final_direction?: { direction?: string; prob?: number; agree?: number; cs_verified?: boolean | null; level?: string } | null
 }
 
 const pct = (v?: number | null, d = 0) => (v != null ? `${(v * 100).toFixed(d)}%` : '—')
@@ -441,6 +445,20 @@ export default function Rollball() {
                       <span className="text-[10px] text-ink-muted">方向一致度 {((g.agree_ratio ?? 0) * 100).toFixed(0)}%</span>
                     </div>
                     <div className="text-[11px] text-ink-secondary mt-1">{g.verdict}</div>
+                    {d.final_direction?.direction && (
+                      <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] text-ink-muted">融合最终方向:</span>
+                        <span className={`text-[15px] font-bold font-mono ${txt}`}>
+                          {DIR_CN[d.final_direction.direction ?? ''] ?? d.final_direction.direction}
+                        </span>
+                        <span className="text-[11px] text-ink-muted">置信 {((d.final_direction.prob ?? 0) * 100).toFixed(0)}%</span>
+                        {d.final_direction.cs_verified != null && (
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded ${d.final_direction.cs_verified ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-300'}`}>
+                            {d.final_direction.cs_verified ? '✓ 波胆验证通过' : '⚠ 波胆未确认'}
+                          </span>
+                        )}
+                      </div>
+                    )}
                     {sigs.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {sigs.map(([k, v]: [string, string]) => (

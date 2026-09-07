@@ -4884,7 +4884,9 @@ async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int =
             except Exception as _e:
                 logger.warning(f"[rollball] 方向: {_e}")
 
-            # ── 多方向一致性门控 (2026-09-09, 用户口径: 有分歧 → 结果不可信) ──
+            # ── 四方向加权融合 + 门控 (2026-09-09, 用户口径: 分歧 → 不可信) ──
+            # 权重基于各自实证: 1X2滚球方向76%+ (w0.40) / CS池 top3 95%覆盖 (w0.25) /
+            # beat_book 反热门 +4~6% ROI (w0.20) / 即时盘去水 argmax 市场上限 (w0.15)
             try:
                 _signals = {}
                 if (out.get("direction") or {}).get("winner"):
@@ -4904,7 +4906,41 @@ async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int =
                         _cnt[_sd] = _cnt.get(_sd, 0) + 1
                     if _cnt:
                         _signals['比分池'] = max(_cnt, key=_cnt.get)
+                _lx2 = ((out.get("live_odds") or {}).get("x2") or {})
+                if _lx2.get("fav"):
+                    _signals['即时盘'] = _lx2["fav"]
+                _W = {'1X2方向': 0.40, '比分池': 0.25, '让球反热门': 0.20, '即时盘': 0.15}
                 _gate = _consensus_gate(_signals)
+                _gate['fusion'] = {}
+                _acc = {}
+                for _name, _dir in _signals.items():
+                    _w = _W.get(_name, 0.10)
+                    _acc[_dir] = _acc.get(_dir, 0.0) + _w
+                _tw = sum(_acc.values()) or 1.0
+                _fusion_dir = max(_acc, key=_acc.get)
+                _fusion_p = _acc[_fusion_dir] / _tw
+                _gate['fusion'] = {'direction': _fusion_dir, 'prob': round(_fusion_p, 3),
+                                   'weights': _W,
+                                   'agree': _fusion_p >= 0.6,
+                                   'split': _fusion_p < 0.55}
+                # 波胆验证: 比分池方向 vs 融合方向
+                _pool_dir = _signals.get('比分池')
+                _gate['cs_verify'] = {
+                    'pool_dir': _pool_dir,
+                    'verdict': ('波胆验证通过: 比分池方向与融合结论一致'
+                                if _pool_dir == _fusion_dir else
+                                ('波胆未确认: 比分池方向与融合结论分歧' if _pool_dir else '比分池方向缺失')),
+                    'match': _pool_dir == _fusion_dir,
+                }
+                _gate['verdict'] = (
+                    f"融合方向 {({'home': '主胜', 'draw': '平', 'away': '客胜'}.get(_fusion_dir, _fusion_dir))} "
+                    f"(融合置信 {_fusion_p*100:.0f}%) | "
+                    + (_gate['cs_verify']['verdict'] + ' | ' if _pool_dir else '')
+                    + _gate['verdict'])
+                out["final_direction"] = {'direction': _fusion_dir, 'prob': round(_fusion_p, 3),
+                                          'agree': round(_fusion_p, 3),
+                                          'cs_verified': _pool_dir == _fusion_dir if _pool_dir else None,
+                                          'level': _gate['level']}
                 out["consensus_gate"] = _gate
             except Exception as _e:
                 logger.warning(f"[rollball] 门控: {_e}")
