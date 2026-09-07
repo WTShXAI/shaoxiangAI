@@ -48,10 +48,24 @@ AUDIT = os.path.join(ROOT, "data", "backfill_outcomes_audit.jsonl")
 # 与友谊赛同理: 不进 match_outcomes 建模/复盘库, 但完整保留在 matches(有据可查)。
 VIRTUAL_KEYWORDS = ("瓦尔哈拉杯", "瓦尔基里杯", "(8分钟)", "（8分钟）")
 
+# 非足球联赛(篮球/网球/其他项目) — 本系统定位足球, 不进 match_outcomes 复盘库。
+# 与虚拟盘同理: 完整保留在 matches(有据可查), 仅排除出足球建模回测集。
+NON_FOOTBALL_KEYWORDS = (
+    # 裸 "篮" 必须前置: 篮球联赛命名不统一(女篮世界杯/男篮/澳篮联/乌女篮 均不含"篮球"二字),
+    # 足球联赛绝不含"篮", 故裸字最稳。
+    "篮", "篮球", "网球", "排球", "冰球", "棒球", "橄榄球", "手球", "水球",
+    "乒乓", "羽", "桌球", "电竞", "台球", "高尔夫", "赛车",
+)
+
 
 def is_virtual(league: str) -> bool:
     lg = league or ""
     return any(k in lg for k in VIRTUAL_KEYWORDS)
+
+
+def is_football(league: str) -> bool:
+    lg = league or ""
+    return not any(k in lg for k in NON_FOOTBALL_KEYWORDS)
 
 
 def fetch_candidates(conn: sqlite3.Connection) -> list[dict]:
@@ -102,6 +116,8 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=0, help="只处理前 N 场(调试用)")
     ap.add_argument("--include-virtual", action="store_true",
                     help="把虚拟电子足球(8分钟赛制)也写进 match_outcomes(默认排除)")
+    ap.add_argument("--include-all-sports", action="store_true",
+                    help="把非足球项目(篮球/其他)也写进 match_outcomes(默认仅足球)")
     args = ap.parse_args()
 
     conn = sqlite3.connect(DB)
@@ -111,6 +127,10 @@ def main() -> None:
     if not args.include_virtual:
         cands = [g for g in cands if not is_virtual(g["league"])]
         print(f"排除虚拟电子足球: {n_raw - len(cands)} 场(仍保留在 matches)")
+    n_after_virtual = len(cands)
+    if not args.include_all_sports:
+        cands = [g for g in cands if is_football(g["league"])]
+        print(f"排除非足球(篮球/其他项目): {n_after_virtual - len(cands)} 场(仍保留在 matches)")
     if args.limit:
         cands = cands[: args.limit]
 

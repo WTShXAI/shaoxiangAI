@@ -106,6 +106,9 @@ def record(con):
 
 
 def settle(con):
+    # 2026-09-09 比分可信度闸门 (用户抓包验证): 比分源断供场 FT 冻结 0-0,
+    # 首批结算 255 条里 212 条 0-0 → ROI +88.2% 假象。闸门: matches 比分必须
+    # == 进球轨迹末值 (进球单调, 轨迹末值恒为最新已见比分) 才结算; 否则保持未结算。
     rows = con.execute(
         "SELECT id, match_key, line FROM beat_under_log WHERE settled_at IS NULL").fetchall()
     n = 0
@@ -114,7 +117,24 @@ def settle(con):
             "SELECT status, score_home, score_away FROM matches WHERE match_key=?", (mk,)).fetchone()
         if not m or m[0] != 'finished' or m[1] is None or m[2] is None:
             continue
-        total = int(m[1]) + int(m[2])
+        sh, sa = int(m[1]), int(m[2])
+        # 比分可信度双闸门 (2026-09-09):
+        #   ① FT == 轨迹末值  ② 比分帧覆盖到 ≥80' (全程跟随)
+        # 83% 断供率实测: obscure 场比分源从头断供 → 轨迹只有早期 0-0 帧,
+        # 轨迹末值闸门拦不住 — 必须要求比分帧覆盖到比赛后段才可信。
+        traj = con.execute(
+            "SELECT score_at, minute_at FROM odds_snapshots WHERE match_key=? AND score_at != '' "
+            "ORDER BY minute_at", (mk,)).fetchall()
+        if traj:
+            last = traj[-1][0].replace(':', '-')
+            if last != f'{sh}-{sa}':
+                continue   # ① FT 与轨迹末值不符
+            max_min = max((int(mn or 0) for _, mn in traj), default=0)
+            if max_min < 80:
+                continue   # ② 比分帧未覆盖到后段 — 断供场, 不结算
+        else:
+            continue
+        total = sh + sa
         st = 'win' if total < line else ('push' if total == line else 'lose')
         settle = 1.0 if st == 'win' else (0.0 if st == 'push' else -1.0)
         con.execute(
