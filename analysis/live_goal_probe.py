@@ -2063,7 +2063,9 @@ def probe_core(odds, current_score='0-0', current_minute=0, league=None, con=Non
                 except Exception:
                     _joint_p = None
             if p_mkt_f is not None:
-                prob = _joint_p if _joint_p is not None else p_mkt_f
+                # 2026-09-09 第二轮回测: 低线(≤1.5)单线 pgap 略优(55.1/48.6 vs 50.0/47.9),
+                # 中高线联合泊松尾大幅优(2.5线 62.5 vs 45.1 等) → 分线段混合落地 (C4, 60.6%)
+                prob = (p_mkt_f if line <= 1.5 else _joint_p) if _joint_p is not None else p_mkt_f
                 anchor_f = 'market_joint' if _joint_p is not None else 'market'
             else:
                 # 2026-08-30 泊松基线修正: 旧公式 0.72*(0.5/line) 对 line 2.5 只给 14%
