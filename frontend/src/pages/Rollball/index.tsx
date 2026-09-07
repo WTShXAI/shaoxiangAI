@@ -41,6 +41,13 @@ interface RollballData {
     ou_align?: string; live_filter?: string
   }
   direction?: { winner?: string | null; label?: string | null; basis?: string | null; conflict?: boolean; opening_conflict?: boolean } | null
+  consensus_gate?: {
+    level?: 'HIGH' | 'MED' | 'SPLIT' | 'NO_SIGNAL'
+    verdict?: string
+    majority?: string | null
+    agree_ratio?: number
+    signals?: Record<string, string>
+  } | null
 }
 
 const pct = (v?: number | null, d = 0) => (v != null ? `${(v * 100).toFixed(d)}%` : '—')
@@ -412,6 +419,40 @@ export default function Rollball() {
                   {tlData != null ? <DataPanel data={tlData} /> : <div className="text-[11px] text-ink-muted">加载中…</div>}
                 </div>
               )}
+
+              {/* 多方向一致性门控 (用户口径: 有分歧 → 结果不可信) */}
+              {tab === 'overview' && d?.consensus_gate?.level && d.consensus_gate.level !== 'NO_SIGNAL' && (() => {
+                const g = d.consensus_gate
+                const isHigh = g.level === 'HIGH'
+                const isSplit = g.level === 'SPLIT'
+                const style = isHigh
+                  ? 'border-emerald-500/50 bg-emerald-500/[0.08]'
+                  : isSplit
+                    ? 'border-rose-500/50 bg-rose-500/[0.07]'
+                    : 'border-amber-500/40 bg-amber-500/[0.05]'
+                const txt = isHigh ? 'text-emerald-300' : isSplit ? 'text-rose-300' : 'text-amber-300'
+                const sigs = Object.entries(g.signals || {})
+                return (
+                  <div className={`rounded-xl border p-3.5 ${style}`}>
+                    <div className="flex items-center justify-between flex-wrap gap-1.5">
+                      <span className={`text-[13px] font-bold ${txt}`}>
+                        {isHigh ? '✓ 结论可信' : isSplit ? '✗ 比赛结果不可信' : '△ 结论较可信'}
+                      </span>
+                      <span className="text-[10px] text-ink-muted">方向一致度 {((g.agree_ratio ?? 0) * 100).toFixed(0)}%</span>
+                    </div>
+                    <div className="text-[11px] text-ink-secondary mt-1">{g.verdict}</div>
+                    {sigs.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {sigs.map(([k, v]: [string, string]) => (
+                          <span key={k} className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-white/10 bg-white/[0.04] text-ink-muted">
+                            {k}: {v}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
 
               {/* 方向总判定 */}
               {tab === 'overview' && d.direction?.label && (

@@ -3774,6 +3774,30 @@ _CS_TRUST_CACHE = {"fetched_at": 0.0, "key": None, "data": None}
 _CS_TRUST_LOCK = None
 
 
+def _consensus_gate(signals: dict):
+    """多方向一致性门控 (2026-09-09, 用户口径: 各方向有分歧 → 比赛结果不可信)。
+
+    signals: {信号名: 方向(home/draw/away) or None}
+    级别: HIGH 全一致(可信) / MED 多数一致且无对半分裂(较可信) / SPLIT 分裂(不可信, 观望)"""
+    vals = [v for v in signals.values() if v]
+    n = len(vals)
+    if n == 0:
+        return {'level': 'NO_SIGNAL', 'verdict': '无可用方向信号, 结果不可信',
+                'majority': None, 'agree_ratio': 0.0, 'signals': dict(signals)}
+    cnt = {}
+    for v in vals:
+        cnt[v] = cnt.get(v, 0) + 1
+    top, n_top = max(cnt.items(), key=lambda kv: kv[1])
+    if n_top == n:
+        level, verdict = 'HIGH', '全部方向信号一致 → 结论可信'
+    elif n_top > n / 2 and list(cnt.values()).count(n_top) == 1:
+        level, verdict = 'MED', f'多数方向一致({n_top}/{n}) → 结论较可信'
+    else:
+        level, verdict = 'SPLIT', f'方向分裂({n_top}/{n}) → 比赛结果不可信, 建议观望'
+    return {'level': level, 'verdict': verdict, 'majority': top,
+            'agree_ratio': round(n_top / n, 3), 'signals': dict(signals)}
+
+
 def _aiqiuke_prior_fetch(oh: float, od: float, oa: float, timeout: float = 2.5):
     """爱球客赛前校准先验 (2026-09-09, 两系统打通 ②): 8790 推理服务。
     输入收盘三盘赔率 → 输出校准 1X2 概率 (0.7-0.8 区间实际命中 77.4%)。
@@ -4618,6 +4642,32 @@ async def sixline_analyze_api(match_key: str, score: str = "0-0", minute: int = 
                                  "score_pool": score_pool, "risks": risks, "text": l6}
             out["found"] = True
 
+            # ── 多方向一致性门控 (2026-09-09, 用户口径) ──
+            try:
+                _sg = {}
+                _dir_block = out.get("direction") or {}
+                if _dir_block.get("winner"):
+                    _sg['1X2方向'] = _dir_block["winner"]
+                if ah_verdict == 'supports' and fav[0] != 'draw':
+                    _sg['亚盘验证'] = fav[0]
+                elif ah_verdict == 'weak':
+                    _sg['亚盘验证'] = 'away' if (ah_line or 0) < 0 else 'home'   # 反热门方向
+                if score_pool:
+                    _pc = {}
+                    for _s in score_pool:
+                        try:
+                            _mh, _ma = (int(x) for x in str(_s).replace(':', '-').split('-')[:2])
+                        except Exception:
+                            continue
+                        _sd = 'home' if _mh > _ma else ('draw' if _mh == _ma else 'away')
+                        _pc[_sd] = _pc.get(_sd, 0) + 1
+                    if _pc:
+                        _sg['比分池'] = max(_pc, key=_pc.get)
+                _gate = _consensus_gate(_sg)
+                out["consensus_gate"] = _gate
+            except Exception as _e:
+                logger.warning(f"[sixline] 门控: {_e}")
+
             # ── 台账 ──
             try:
                 gq.execute("""CREATE TABLE IF NOT EXISTS sixline_log (
@@ -4625,20 +4675,25 @@ async def sixline_analyze_api(match_key: str, score: str = "0-0", minute: int = 
                     kickoff TEXT, minute INTEGER, cur_score TEXT,
                     direction TEXT, direction_prob REAL, score_pool TEXT, risks TEXT,
                     lines_json TEXT, created_at REAL, settled_at REAL,
-                    actual_score TEXT, dir_hit INTEGER, pool_hit INTEGER)""")
+                    actual_score TEXT, dir_hit INTEGER, pool_hit INTEGER, gate TEXT)""")
+                try:
+                    gq.execute("ALTER TABLE sixline_log ADD COLUMN gate TEXT")
+                except Exception:
+                    pass
                 exist = gq.execute(
                     "SELECT 1 FROM sixline_log WHERE match_key=? AND created_at > ?",
                     (match_key, time.time() - 3600)).fetchone()
                 if not exist:
                     gq.execute(
                         "INSERT INTO sixline_log (match_key, league, kickoff, minute, cur_score, "
-                        "direction, direction_prob, score_pool, risks, lines_json, created_at) "
-                        "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                        "direction, direction_prob, score_pool, risks, lines_json, created_at, gate) "
+                        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                         (match_key, out.get("league"), out.get("kickoff"), minute, cur_score,
                          (out.get("direction") or {}).get("winner"),
                          (out.get("direction") or {}).get("prob"),
                          json.dumps(score_pool), json.dumps(risks, ensure_ascii=False),
-                         json.dumps(out["lines"], ensure_ascii=False), time.time()))
+                         json.dumps(out["lines"], ensure_ascii=False), time.time(),
+                         json.dumps(out.get("consensus_gate"), ensure_ascii=False)))
                 # 结算过期记录
                 for (rid, lmk, dr, sp) in gq.execute(
                         "SELECT id, match_key, direction, score_pool FROM sixline_log "
@@ -4828,6 +4883,31 @@ async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int =
                                         "opening_conflict": r.get("opening_conflict")}
             except Exception as _e:
                 logger.warning(f"[rollball] 方向: {_e}")
+
+            # ── 多方向一致性门控 (2026-09-09, 用户口径: 有分歧 → 结果不可信) ──
+            try:
+                _signals = {}
+                if (out.get("direction") or {}).get("winner"):
+                    _signals['1X2方向'] = out["direction"]["winner"]
+                _ah_rec = ((out.get("opening_ah") or {}).get("recommend"))
+                if _ah_rec:
+                    _signals['让球反热门'] = _ah_rec
+                _pool = (out.get("cs") or {}).get("top5") or []
+                if _pool:
+                    _cnt = {}
+                    for _t in _pool[:3]:
+                        try:
+                            _mh, _ma = (int(x) for x in str(_t['score']).replace(':', '-').split('-')[:2])
+                        except Exception:
+                            continue
+                        _sd = 'home' if _mh > _ma else ('draw' if _mh == _ma else 'away')
+                        _cnt[_sd] = _cnt.get(_sd, 0) + 1
+                    if _cnt:
+                        _signals['比分池'] = max(_cnt, key=_cnt.get)
+                _gate = _consensus_gate(_signals)
+                out["consensus_gate"] = _gate
+            except Exception as _e:
+                logger.warning(f"[rollball] 门控: {_e}")
             out["ok"] = True
             return out
         finally:
