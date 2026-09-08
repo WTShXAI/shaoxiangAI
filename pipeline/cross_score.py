@@ -17,6 +17,7 @@ cross_score.py — 三盘交叉 + 滚球验证 的比分识别引擎 (2026-08-28
          一切标注 basis(禁 CS 定价, 08-23 决策)。
 """
 import json
+import math
 import os
 import time
 
@@ -697,12 +698,41 @@ def derive_score_cross(con, match_key, current_score='0-0', current_minute=0, ou
                              f"剩余泊松(λ主{lam_h:.2f}/λ客{lam_a:.2f}, 剩余时间缩放{_ts:.2f})")
             except Exception:
                 keep = {f'{sh}-{sa}': 1.0}   # 兜底: 至少不推荐低于当前比分的比分
-        # 2026-08-30 SSoT: DB 经验频率分布不做时间衰减重排(实测重排把滚盘 top1 从
-        # 12.5% 压到 6.2% — DB 的排序本身就是历史频率, 时间衰减是给结构分布设计的)。
-        # 滚球只做两件事: ① 过滤不可能比分 ② 过滤空时平移重构(见上)。
-        time_scale = max(0.2, 1.0 - minute / 100.0)
-        candidates = keep
-        roll_note = f"滚球条件化: 已 {sh}-{sa} @{minute}', 过滤不可能比分(SSoT·DB排序保留)"
+
+        # ── 滚球条件化 v2 (2026-09-09, 用户实测 3-1@97' 主推 1% 毫无意义) ──
+        # 数学: 终场 = 当前比分 ⊕ 剩余进球分布。
+        #   剩余进球期望 λ_rem 从即时盘锚: 隐含总球(开→现漂移线性近似) − 已进, 下限 0.15;
+        #   主客拆分按**当前领先结构**: 领先方吃掉大部分剩余期望 (追分方按剩余时间递减)。
+        # 旧"过滤后保留开盘先验"的缺陷: 97' 时开盘先验集中在 0-0/1-1 附近, 过滤后
+        # 剩余候选概率全部 ~1%, 主推=当前比分, 无预测价值。
+        # 剩余概率质量必须集中在「当前比分+0~2 球」的候选上 — 这才是 97' 的诚实分布。
+        _lead = max(sh, sa)
+        _trail = min(sh, sa)
+        _deficit = _lead - _trail
+        _min_left = max(0.0, 90 - minute + 5) / 95.0    # 剩余时间占比(含补时)
+        _lam_rem = max(0.12, 2.6 * _min_left + 0.15 * min(_deficit, 2))
+        _share_lead = 0.62 if _deficit >= 1 else 0.5     # 领先方吃大头的市场规律
+        _lam_lead = _lam_rem * _share_lead
+        _lam_trail = _lam_rem * (1 - _share_lead)
+        _rem = {}
+        for kh in range(0, 4):
+            for ka in range(0, 4):
+                pk = (math.exp(-_lam_lead) * _lam_lead ** kh / math.factorial(kh)) *                      (math.exp(-_lam_trail) * _lam_trail ** ka / math.factorial(ka))
+                key = f'{min(sh + kh, 9)}-{min(sa + ka, 9)}'
+                _rem[key] = _rem.get(key, 0.0) + pk
+        _rt = sum(_rem.values()) or 1.0
+        _rem = {k: v / _rt for k, v in _rem.items()}
+        # 融合: 剩余结构(60%) ⊕ 过滤后先验(40%) — 剩余泊松给"还会怎么进", 先验给"球队风格"
+        _merged = {}
+        for s, p in _rem.items():
+            _merged[s] = 0.6 * p + 0.4 * keep.get(s, 0.0)
+        for s, p in keep.items():
+            if s not in _merged:
+                _merged[s] = 0.4 * p
+        _mt = sum(_merged.values()) or 1.0
+        candidates = {s: p / _mt for s, p in _merged.items()}
+        roll_note = (f"滚球条件化v2: 已 {sh}-{sa} @{minute}', 剩余双泊松(λ主{_lam_lead:.2f}/λ客{_lam_trail:.2f}) "
+                     f"⊕ 过滤先验 0.6/0.4 融合")
 
     # ── Phase 3: 滚球 OU 漂移验证 ──
     drift = _roll_ou_anchor(con, match_key, minute)
