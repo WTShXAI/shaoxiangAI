@@ -4642,6 +4642,19 @@ async def sixline_analyze_api(match_key: str, score: str = "0-0", minute: int = 
                                  "score_pool": score_pool, "risks": risks, "text": l6}
             out["found"] = True
 
+            # ── 四点级联融合 (用户定义顺序: OU→1X2+AH→CS) ──
+            try:
+                _cs_mode = out.get("cs", {}).get("mode") if isinstance(out.get("cs"), dict) else None
+                _cs_top = [t.get("score") for t in ((out.get("cs") or {}).get("top5") or [])[:3]]
+                out["fusion"] = {
+                    "step1_ou": {"available": bool(ou_line and ou_over and ou_under),
+                                 "line": ou_line, "over": ou_over, "under": ou_under},
+                    "step2_direction": {"detail_available": True},
+                    "step3_cs": {"pool": _cs_top[:3] if _cs_top else []},
+                }
+            except Exception:
+                pass
+
             # ── 多方向一致性门控 (2026-09-09, 用户口径) ──
             try:
                 _sg = {}
@@ -4944,6 +4957,34 @@ async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int =
                 out["consensus_gate"] = _gate
             except Exception as _e:
                 logger.warning(f"[rollball] 门控: {_e}")
+
+            # ── 四点级联融合 (2026-09-09, 用户定义顺序: OU→1X2+AH→CS) ──
+            try:
+                _ou_d = (out.get("ou") or {}).get("direction") if isinstance(out.get("ou"), dict) else None
+                _fusion = {"step1_ou": None, "step2_direction": None, "step3_cs": None, "consensus": None}
+                _ou_dir = _ou_d
+                _ou_p = (out.get("ou") or {}).get("prob") if isinstance(out.get("ou"), dict) else None
+                _ou_ln = (out.get("ou") or {}).get("line")
+                if _ou_dir:
+                    _fusion["step1_ou"] = {"direction": _ou_dir, "prob": _ou_p, "line": _ou_ln}
+                _dir_cs = (out.get("direction") or {}).get("winner")
+                _dir_label_cs = (out.get("direction") or {}).get("label")
+                _ah_rec = ((out.get("opening_ah") or {}).get("recommend"))
+                _fusion["step2_direction"] = {
+                    "cs_direction": _dir_cs, "cs_label": _dir_label_cs, "ah_recommend": _ah_rec,
+                    "aligned": bool(_dir_cs and _ah_rec and _dir_cs == _ah_rec)}
+                _pool = [t.get("score") for t in ((out.get("cs") or {}).get("top5") or [])[:3]]
+                _fusion["step3_cs"] = {"pool": _pool, "top1": _pool[0] if _pool else None}
+                if _ou_dir and _pool:
+                    _pt = [int(str(s).split("-")[0]) + int(str(s).split("-")[1]) for s in _pool[:3] if "-" in str(s)]
+                    _pa = sum(_pt) / max(1, len(_pt)) if _pt else 0
+                    _fusion["consensus"] = {
+                        "ou_aligned": (_ou_dir == "OVER" and _pa >= (_ou_ln or 0)) or
+                                      (_ou_dir == "UNDER" and _pa <= (_ou_ln or 0)),
+                        "pool_avg_total": round(_pa, 1), "ou_line": _ou_ln}
+                out["fusion"] = _fusion
+            except Exception as _e:
+                logger.warning(f"[rollball] 融合: {_e}")
             out["ok"] = True
             return out
         finally:
