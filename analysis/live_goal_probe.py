@@ -1920,7 +1920,34 @@ def probe_core(odds, current_score='0-0', current_minute=0, league=None, con=Non
         # 规则项降级为微调(市场未定价的残差信息: 动量/深盘)。
         p_mkt = _dewatered_over_prob(ou1h_over, ou1h_under) if ou1h_over and ou1h_under else None
         ou1h_pgap = abs(p_mkt - 0.5) if p_mkt is not None else None  # 去水概率偏离度(抗诱导判定坐标)
-        if p_mkt is not None:
+        # ── 半场 OU 多线联合 (2026-09-09, 全场方法论复制: A/B 47.1→60.2) ──
+        # 上半场进行中, 全场总球 = 半场进球; OU_1H 全部活线反解隐含剩余半场进球 μ,
+        # 取中位数 → 泊松尾 P(半场总球 > 所选线 | μ_median)。单线 p_mkt 保留作对照/回退。
+        _h_joint = None
+        if ht_candidates:
+            _h_mus = []
+            for (_pg, _ov, _un, _ln, _lo) in ht_candidates:
+                if total_now >= _ln:
+                    continue
+                try:
+                    from pipeline.dc_model import solve_mu_from_line as _sm
+                    _mu, _ = _sm(_ln, _ov, _un)
+                    if 0.05 <= _mu <= 5:
+                        _h_mus.append(_mu)
+                except Exception:
+                    continue
+            if _h_mus:
+                try:
+                    from pipeline.dc_model import poisson_sf as _psf
+                    _mu_med = float(np.median(_h_mus))
+                    _need = max(0.05, ht_line - total_now)
+                    _h_joint = float(np.clip(_psf(_need, _mu_med), 0.03, 0.97))
+                except Exception:
+                    _h_joint = None
+        if _h_joint is not None:
+            prob = _h_joint
+            anchor = 'market_joint'
+        elif p_mkt is not None:
             prob = p_mkt
             anchor = 'market'
         else:
