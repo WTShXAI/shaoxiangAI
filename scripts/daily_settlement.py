@@ -22,9 +22,7 @@ def settle_prediction_ledger(con):
     rows = con.execute("""
         SELECT DISTINCT l.match_key FROM prediction_ledger l
         JOIN matches m ON m.match_key = l.match_key
-        WHERE l.correct IS NULL AND m.status='finished' AND m.score_home IS NOT NULL
-          AND m.ht_score_home IS NOT NULL
-          AND m.ht_score_home + m.ht_score_away < m.score_home + m.score_away""").fetchall()
+        WHERE l.correct IS NULL AND m.status='finished' AND m.score_home IS NOT NULL""").fetchall()
     done = 0
     for (mk,) in rows:
         try:
