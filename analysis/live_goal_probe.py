@@ -2060,6 +2060,9 @@ def probe_core(odds, current_score='0-0', current_minute=0, league=None, con=Non
                     from pipeline.dc_model import poisson_sf as _psf
                     _mu_med = float(np.median(_mus))
                     _joint_p = float(np.clip(_psf(line - total_now, _mu_med), 0.03, 0.97))
+                    # 2026-09-09 isotonic 校准: 原始联合概率过度自信(预测0.9+实际70.9%),
+                    # 校准后 Brier 0.2988→0.2456 — 概率质量修复, 方向命中无损。
+                    _joint_p = float(np.clip(_calibrate_joint_p(_joint_p), 0.03, 0.97))
                 except Exception:
                     _joint_p = None
             if p_mkt_f is not None:
@@ -2337,6 +2340,41 @@ def probe_core(odds, current_score='0-0', current_minute=0, league=None, con=Non
                '「降盘漂移」为独立观察特征: 开盘总球线降>=0.5时历史小方向命中~46%(早段ROI+7%/晚段-1%), '
                '开盘锚定结果仅作方向参考, 非+EV信号。',
     }
+
+
+# ── OU 联合概率 isotonic 校准表 (2026-09-09, 概率质量优化) ──
+# 生成: scripts/ou_joint_calib.py (回测 1079 样本, 前70%拟合/后30%验证 Brier -0.053)
+_OU_JOINT_CALIB = None
+_OU_JOINT_CALIB_TS = 0.0
+
+
+def _load_ou_joint_calib():
+    global _OU_JOINT_CALIB, _OU_JOINT_CALIB_TS
+    import json as _json
+    import os as _os
+    p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                     'config', 'ou_joint_calib.json')
+    try:
+        mt = _os.path.getmtime(p)
+        if _OU_JOINT_CALIB is not None and mt == _OU_JOINT_CALIB_TS:
+            return _OU_JOINT_CALIB
+        with open(p, encoding='utf-8') as f:
+            data = _json.load(f)
+        _OU_JOINT_CALIB = sorted(data.get('table') or [], key=lambda t: t['anchor'])
+        _OU_JOINT_CALIB_TS = mt
+    except Exception:
+        _OU_JOINT_CALIB = None
+    return _OU_JOINT_CALIB
+
+
+def _calibrate_joint_p(p):
+    # 联合泊松尾概率的 isotonic 校准 (锚点线性插值); 表缺失时原样返回。
+    tbl = _load_ou_joint_calib()
+    if not tbl or p is None:
+        return p
+    anchors = [t['anchor'] for t in tbl]
+    cals = [t['cal'] for t in tbl]
+    return float(np.interp(p, anchors, cals))
 
 
 def probe_match_with_con(con, match_key, current_score='0-0', current_minute=0, league=None, is_halftime=False):
