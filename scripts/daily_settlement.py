@@ -119,6 +119,31 @@ def main():
     except Exception as e:
         print(f'[beat_under] 失败: {e}')
     con.commit()
+
+    # 比分源同步: odds_changes 镜像 -> matches
+    try:
+        rows2 = con.execute(
+            "SELECT m.match_key, m.score_home, m.score_away FROM matches m "
+            "WHERE m.status='finished' AND m.score_home IS NOT NULL "
+            "AND m.kickoff >= datetime('now', '-7 days')").fetchall()
+        fixed = 0
+        for (mk, sh, sa) in rows2:
+            r = con.execute(
+                "SELECT score_at FROM odds_changes WHERE match_key=? AND score_at != '' "
+                "ORDER BY minute_at DESC, id DESC LIMIT 1", (mk,)).fetchone()
+            if r:
+                oc = str(r[0]).replace(':', '-')
+                if oc != f'{sh}-{sa}':
+                    parts = oc.split('-')
+                    con.execute('UPDATE matches SET score_home=?, score_away=? WHERE match_key=?',
+                                (int(parts[0]), int(parts[1]), mk))
+                    fixed += 1
+        if fixed:
+            con.commit()
+            print(f'[sync] odds_changes->matches 同步修正 {fixed} 场')
+    except Exception as e:
+        print(f'[sync] ERR: {e}')
+
     report(con)
     con.close()
 
