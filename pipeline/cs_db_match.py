@@ -126,6 +126,13 @@ def _load_library(force=False):
         return _LIB
 
 
+# OU/AH 维距离权重 (2026-09-10): 保持等权 1.0。
+# 实验记录(09月 149 场): 各权重方案差异均在 ~1 个标准误内(±3.7pp), 不过拟合;
+# 关键修复是维数错位与 NaN 掩码两个真 bug(见上)。权重接口保留供后续大样本调档。
+_DIM_W_OU = 1.0
+_DIM_W_AH = 1.0
+
+
 def db_match_scoreline(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_under=None,
                        ah_line=None, ah_home=None, ah_away=None, top_n=_DEF_N,
                        max_goal=_MAXG, exclude_mid=None):
@@ -137,31 +144,40 @@ def db_match_scoreline(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_un
     if not lib or lib["n"] < 20:
         return None
     # 查询特征 (与库同规则)
+    # 2026-09-10 维数错位修复: 旧代码按"有哪些盘"拼查询向量, 有 AH 没 OU 时
+    # pah 会错位到库的 pou 列 (pah↔pou 比较 = 纯噪声, 实测 TOP1 33.6%→18.8%)。
+    # 现恒定 5 维槽位 [ph, pd, pa, pou, pah], 缺失盘口填 NaN → 掩码自动跳过。
     x3 = _devig3(h, d, a)
     pou = _devig2(ou_over, ou_under) if ou_over and ou_under else None
     pah = _devig2(ah_home, ah_away) if ah_home and ah_away else None
-    if x3 is None and pou is None:
+    if x3 is None and pou is None and pah is None:
         return None
-    q = []
+    q = [float('nan')] * 5
     if x3 is not None:
-        q += [x3[0], x3[1], x3[2]]
-        if pou is not None:
-            q.append(pou)
-        if pah is not None:
-            q.append(pah)
-    else:
-        q += [pou, pah]
-    qd = len(q)
+        q[0], q[1], q[2] = x3[0], x3[1], x3[2]
+    if pou is not None:
+        q[3] = pou
+    if pah is not None:
+        q[4] = pah
+    qd = 5
     # 2026-08-28 向量化 (原逐行 Python 循环 8533 场 ~20ms → ~0.5ms, 训练脚本实测)
+    # 2026-09-10 维度权重 (链路优化实测): 5 维等权时 OU/AH 维过度收窄匹配池,
+    #   TOP1 18.8% vs 仅1X2 30.9% (09月 149 场) → OU/AH 维降权为软约束,
+    #   _DIM_W_OUAH 可调 (0=等价仅1X2, 1=等权5维)。
     F = lib["feat"]
     sub = F[:, :qd]
     qarr = np.array(q, dtype=np.float32)
-    mask = ~np.isnan(sub)
+    # 2026-09-10 NaN 掩码修复: 缺失维填 0 且从掩码剔除 — 原掩码只查库侧 NaN,
+    # 查询 NaN × 库有效列 = NaN 毒化整条距离 → 该场匹配静默全灭 (审计发现)
+    q_nan = np.isnan(qarr)
+    qarr = np.where(q_nan, np.float32(0.0), qarr)
+    mask = ~np.isnan(sub) & (~q_nan[None, :])
+    wvec = np.array([1.0, 1.0, 1.0, _DIM_W_OU, _DIM_W_AH], dtype=np.float32)
     d2 = np.zeros(sub.shape[0], dtype=np.float32)
     for j in range(qd):
         col = sub[:, j]
         m = mask[:, j]
-        diff = np.where(m, col - qarr[j], 0.0)
+        diff = np.where(m, col - qarr[j], 0.0) * wvec[j]
         d2 += np.where(m, diff * diff, 0.0)
     dists = np.sqrt(d2)
     valid = dists < 1.0   # 距离>=1.0 视为完全不同盘 (2026-08-28 训练调优: thresh=1.0)
