@@ -4599,8 +4599,21 @@ async def sixline_analyze_api(match_key: str, score: str = "0-0", minute: int = 
             try:
                 from pipeline.cs_db_match import unified_scoreline
                 from pipeline.cross_score import derive_score_cross
+                # 2026-09-10 与 rollball 同源 hint: 滚球 OU(probe live_odds)优先,
+                # 开盘去水兜底 — 消灭同页"CS 卡用滚球 hint / 六行池用开盘 hint"两池互相矛盾。
                 _ou_hint = None
-                if ou_line and p_over is not None and p_over != 0.5:
+                try:
+                    if _LIVE_GOAL_OK:
+                        _pr = _live_goal_probe(match_key, current_score=cur_score,
+                                               current_minute=minute, is_halftime=False)
+                        _fu = ((_pr or {}).get('full') or {})
+                        if (_fu.get('data_source') == 'live_odds' and _fu.get('line') is not None
+                                and _fu.get('direction') in ('OVER', 'UNDER')
+                                and _fu.get('signal') not in ('ALREADY_BROKEN',)):
+                            _ou_hint = (_fu['line'], _fu['direction'])
+                except Exception:
+                    _ou_hint = None
+                if not _ou_hint and ou_line and p_over is not None and p_over != 0.5:
                     _ou_hint = (ou_line, "OVER" if p_over >= 0.5 else "UNDER")
                 _cs_sc = cur_score
                 dm = unified_scoreline(h=odds.get("h"), d=odds.get("d"), a=odds.get("a"),

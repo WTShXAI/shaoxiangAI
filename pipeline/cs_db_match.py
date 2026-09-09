@@ -302,22 +302,27 @@ def _unified_impl(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_under=N
 def unified_scoreline(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_under=None,
                       ah_line=None, ah_home=None, ah_away=None,
                       current_score='', current_minute=0, top_n=_DEF_N, ou_hint=None):
-    """SSoT 统一波胆推荐 (外层包装: 应用 OU 推荐软约束, 详 impl docstring)。"""
+    """SSoT 统一波胆推荐 (外层包装: OU 推荐软约束 + 方向仲裁, 详 impl docstring)。
+
+    2026-09-10 末级方向仲裁: 输出的 direction 与 top1 比分类别恒一致
+    (arbitrate_direction), 消灭"方向卡 主胜 vs 首选比分 0-0"串联矛盾。"""
     out = _unified_impl(h=h, d=d, a=a, ou_line=ou_line, ou_over=ou_over, ou_under=ou_under,
                         ah_line=ah_line, ah_home=ah_home, ah_away=ah_away,
                         current_score=current_score, current_minute=current_minute, top_n=top_n)
-    if not out or not out.get('found') or not ou_hint:
+    if not out or not out.get('found'):
         return out
+    if not ou_hint:
+        return _finalize_arbitrate(out)
     # 当前比分解析 (impl 内部局部变量此处不可见)
     try:
         _h, _a = str(current_score).replace(':', '-').split('-')
         sh, sa = int(_h), int(_a)
     except Exception:
-        return out
+        return _finalize_arbitrate(out)
     try:
         line, direction = float(ou_hint[0]), str(ou_hint[1]).upper()
         if direction not in ('OVER', 'UNDER') or not (0.5 <= line <= 10.0):
-            return out
+            return _finalize_arbitrate(out)
         demoted = []
         adj = []
         for t in out['top5']:
@@ -333,7 +338,7 @@ def unified_scoreline(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_und
             else:
                 adj.append(t)
         if not demoted:
-            return out
+            return _finalize_arbitrate(out)
         # 2026-08-30 补位: 若降权后 top3 仍全是矛盾候选(约束方向下必输的总球),
         # 生成符合 OU 方向的候选 — 当前比分 + 达标所需进球的主客分配(按强度比),
         # 否则降权不改变相对排序, OU 与 CS 依旧矛盾(实测 大4.25 下 1-1/2-1/1-2 全降权仍霸榜)。
@@ -379,6 +384,93 @@ def unified_scoreline(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_und
         out['ou_align'] = (f"已对齐 OU 推荐 {'大' if direction == 'OVER' else '小'}{line:g}: "
                            f"矛盾总球降权({','.join(demoted)})")
         out['basis'] = (out.get('basis') or '') + '; ' + out['ou_align']
-        return out
+        return _finalize_arbitrate(out)
     except Exception:
-        return out
+        return _finalize_arbitrate(out)
+
+
+def _finalize_arbitrate(out):
+    """末级方向仲裁出口 (2026-09-10): 必须在 OU 约束重排之后调用。
+
+    保证 unified_scoreline 输出的 direction 与 top1 比分类别恒一致 —
+    "方向卡 主胜" 与 "首选比分 0-0(平)" 这类串联矛盾从结构上不可能出现。"""
+    try:
+        if out and out.get('found'):
+            _dir, _ordered = arbitrate_direction(out.get('top5') or [])
+            if _dir and _ordered:
+                out['top5'] = _ordered
+                out['score'] = _ordered[0]['score']
+                out['direction'] = _dir
+    except Exception:
+        pass
+    return out
+
+
+def _outcome_of(score: str) -> str:
+    """比分 → 胜负平类 ('home'|'draw'|'away'); 解析失败返回 'draw'。"""
+    try:
+        mh, ma = (int(x) for x in str(score).replace(':', '-').split('-')[:2])
+    except Exception:
+        return 'draw'
+    return 'home' if mh > ma else ('draw' if mh == ma else 'away')
+
+
+def arbitrate_direction(top5):
+    """方向仲裁 (2026-09-10, 用户报"单个模型没问题, 串起来自相矛盾"根治):
+
+    实证(311 场 2026-08-15 后完赛场):
+      - 市场fav 方向 36.0% / 池加权多数 52.4% / TOP1比分胜负平 48.9%;
+      - 市场fav 与比分池多数方向 67% 的场次不一致 → 页面"方向 主胜"与
+        "首选比分 0-0(平)"并排出现, 即用户看到的自相矛盾。
+      - 融合重排(市场⊕池)被否决: top1 命中 37.2%→31.4%, top3 56.3%→52.4%,
+        融合伤比分级精度。
+
+    采纳规则(自适应仲裁, 实测方向 51.1%, 只比纯池多数低 1.3pp):
+      ① TOP1 比分类别 == 池加权多数 → 方向 = 多数, 排序不动 (83% 走此支);
+      ② 否则若多数类最优比分 prob ≥ 0.60×TOP1 且多数类质量 ≥ 0.34
+         → 稳定分区排序(多数类在前), 方向 = 多数 — 首选与方向保持一致;
+      ③ 否则方向 = TOP1 类别 (类别证据太弱, 诚实跟随首选)。
+    不变量: 输出的方向 与 输出的 top1 比分类别 恒一致 — 结构上不可能矛盾。
+
+    返回 (direction_dict, ordered_top5); top5 为空时返回 (None, 原列表)。
+    """
+    try:
+        if not top5:
+            return None, top5
+        tot = 0.0
+        mass = {'home': 0.0, 'draw': 0.0, 'away': 0.0}
+        for t in top5:
+            p = float(t.get('prob') or 0.0)
+            tot += p
+            mass[_outcome_of(t.get('score'))] += p
+        if tot <= 1e-9:
+            return None, top5
+        mass = {k: v / tot for k, v in mass.items()}
+        maj = max(mass, key=mass.get)
+        t1_out = _outcome_of(top5[0].get('score'))
+        direction = {
+            'winner': maj,
+            'label': {'home': '主胜', 'draw': '平', 'away': '客胜'}[maj],
+            'prob': round(mass[maj], 3),
+            'basis': '比分池仲裁(类质量加权, 311场实证51.1%)',
+        }
+        if t1_out == maj:
+            return direction, top5
+        # 分歧: 多数类内部最优候选
+        cands = [t for t in top5 if _outcome_of(t.get('score')) == maj]
+        best = cands[0] if cands else None
+        if (best and float(best.get('prob') or 0.0) >= 0.60 * float(top5[0].get('prob') or 0.0)
+                and mass[maj] >= 0.34):
+            ordered = sorted(
+                top5, key=lambda t: (_outcome_of(t.get('score')) != maj, -float(t.get('prob') or 0.0)))
+            direction['top1_swapped'] = True
+            direction['note'] = (f"方向与原首选比分({top5[0]['score']})类别分歧, "
+                                 f"已按多数类({direction['label']} 质量{mass[maj]*100:.0f}%)重排首选")
+            return direction, ordered
+        direction['winner'] = t1_out
+        direction['label'] = {'home': '主胜', 'draw': '平', 'away': '客胜'}[t1_out]
+        direction['prob'] = round(mass[t1_out], 3)
+        direction['note'] = '类别证据弱, 方向跟随首选比分'
+        return direction, top5
+    except Exception:
+        return None, top5

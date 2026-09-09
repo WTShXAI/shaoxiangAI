@@ -52,6 +52,7 @@ interface RollballData {
     mode?: string; score?: string; top5?: { score: string; prob: number }[]
     n_matched?: number; mean_dist?: number; basis?: string
     ou_align?: string; live_filter?: string
+    direction?: { winner?: string; label?: string; prob?: number; basis?: string; top1_swapped?: boolean; note?: string } | null
   }
   direction?: { winner?: string | null; label?: string | null; basis?: string | null; conflict?: boolean; opening_conflict?: boolean } | null
   consensus_gate?: {
@@ -687,16 +688,33 @@ export default function Rollball() {
                 )
               })()}
 
-              {/* 方向总判定 */}
-              {tab === 'overview' && d.direction?.label && (
-                <div className={`rounded-xl border p-3 ${d.direction.conflict ? 'border-amber-500/40 bg-amber-500/[0.05]' : 'border-emerald-500/40 bg-emerald-500/[0.06]'}`}>
-                  <span className="text-[12px] text-ink-secondary">终场方向判定: </span>
-                  <span className={`text-[14px] font-bold ${d.direction.conflict ? 'text-amber-300' : 'text-emerald-300'}`}>
-                    {d.direction.label}
-                  </span>
-                  {d.direction.basis && <span className="text-[10px] text-ink-muted ml-2">{d.direction.basis}</span>}
-                </div>
-              )}
+              {/* 方向总判定 — 单一 verdict 源 (2026-09-10 串联矛盾根治):
+                  有四方向融合时只显示融合结果(与门控卡同源), 无融合才退回结构方向;
+                  两者分歧时显式标注"结构方向", 不再两张卡各说各话 */}
+              {tab === 'overview' && (d.final_direction?.direction || d.direction?.label) && (() => {
+                const fd = d.final_direction
+                const useFusion = !!fd?.direction
+                const structW = d.direction?.winner ?? null
+                const diverged = useFusion && structW && structW !== fd!.direction
+                const label = useFusion ? (DIR_CN[fd!.direction ?? ''] ?? fd!.direction) : d.direction!.label
+                const prob = useFusion ? fd!.prob : null
+                const tone = diverged ? 'border-amber-500/40 bg-amber-500/[0.05] text-amber-300'
+                  : 'border-emerald-500/40 bg-emerald-500/[0.06] text-emerald-300'
+                return (
+                  <div className={`rounded-xl border p-3 ${tone}`}>
+                    <span className="text-[12px] text-ink-secondary">终场方向判定: </span>
+                    <span className={`text-[14px] font-bold ${diverged ? 'text-amber-300' : 'text-emerald-300'}`}>{label}</span>
+                    {prob != null && <span className="text-[11px] text-ink-muted ml-1.5">置信 {(prob * 100).toFixed(0)}%</span>}
+                    {useFusion && <span className="text-[10px] px-1 py-0.5 rounded bg-field-500/15 text-field-300 ml-2">四方向融合</span>}
+                    {diverged && (
+                      <span className="text-[10px] text-ink-muted ml-2" title="比分池结构方向与融合结论分歧 — 融合已按四方向加权裁决, 详见门控卡">
+                        (结构方向 {DIR_CN[structW ?? ''] ?? structW} 与融合分歧)
+                      </span>
+                    )}
+                    {!useFusion && d.direction?.basis && <span className="text-[10px] text-ink-muted ml-2">{d.direction.basis}</span>}
+                  </div>
+                )
+              })()}
 
               {/* 四市场 */}
               <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${tab === 'overview' ? '' : 'hidden'}`}>
@@ -832,6 +850,13 @@ export default function Rollball() {
                         <span className="text-[22px] font-bold font-mono text-emerald-300">{main}</span>
                         <span className="text-[10px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-semibold">首选 TOP1</span>
                         {cs.mode === 'roll' && <span className="text-[10px] px-1 py-0.5 rounded bg-sky-500/15 text-sky-300">滚球态</span>}
+                        {/* 仲裁方向徽章: 与首选比分恒一致 (2026-09-10 串联矛盾根治) */}
+                        {cs.direction?.label && (
+                          <span className="text-[10px] px-1 py-0.5 rounded bg-violet-500/15 text-violet-300 border border-violet-500/25"
+                            title={cs.direction.basis || '比分池仲裁方向'}>
+                            池方向 {cs.direction.label} {cs.direction.prob != null ? (cs.direction.prob * 100).toFixed(0) + '%' : ''}
+                          </span>
+                        )}
                         {postponed && (
                           <span className="text-[9px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20"
                             title={`后端首推 ${cs.top5?.[0]?.score} 与当前比分矛盾, 已按排除法顺延`}>
@@ -839,6 +864,7 @@ export default function Rollball() {
                           </span>
                         )}
                       </div>
+                      {cs.direction?.note && <div className="text-[10px] text-ink-muted mt-0.5">{cs.direction.note}</div>}
                       {/* 推荐内容 = TOP1 + TOP3 (前三名, 回测 top3 含实际 95.1%@55-65'自洽样本) */}
                       <div className="mt-1">
                         <div className="text-[10px] text-ink-muted mb-1">推荐三选 (TOP3 · 滚球 60′ 回测含实际 95.1%)</div>

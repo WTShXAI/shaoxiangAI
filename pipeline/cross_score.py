@@ -843,6 +843,18 @@ def derive_score_cross(con, match_key, current_score='0-0', current_minute=0, ou
 
     # 第二比分: 滚球修正后 (条件化 + 漂移验证 + 领先方先验)
     ranked = sorted(candidates.items(), key=lambda x: -x[1])
+    # ── 方向仲裁 (2026-09-10, 与 unified_scoreline 同一仲裁器): 保证 cross 输出的
+    #    top1/方向 与 SSoT 统一波胆卡一致 — 消灭"方向 主胜 vs 首选比分 0-0"串联矛盾。
+    #    实证: 市场fav 36.0% / 池多数 52.4% / 仲裁 51.1% (311场), 仲裁只伤 1.3pp。 ──
+    _arb_dir = None
+    try:
+        from pipeline.cs_db_match import arbitrate_direction
+        _arb_top5 = [{'score': s, 'prob': round(p, 4)} for s, p in ranked[:5]]
+        _arb_dir, _arb_ordered = arbitrate_direction(_arb_top5)
+        if _arb_dir and _arb_ordered:
+            ranked = [(t['score'], t['prob']) for t in _arb_ordered] + ranked[5:]
+    except Exception:
+        pass
     top3 = [{'score': s, 'prob': round(p, 4)} for s, p in ranked[:3]]
 
     # 主推比分与当前比分领先方冲突 → 诚实标注 (IR-30: 宁标注不伪造)。
@@ -915,6 +927,10 @@ def derive_score_cross(con, match_key, current_score='0-0', current_minute=0, ou
                     pass
                 # 先验置信权重仅作用于与市场分歧度, 不改变 argmax 选择
                 winner_out = max(_p_hda, key=_p_hda.get)
+        if winner_out is None and _arb_dir is not None and _arb_dir.get('winner'):
+            # 2026-09-10: 赛前/无领先场景方向采纳比分池仲裁(311场实证 51.1%, 优于
+            # 市场fav 36.0%), 且与首选比分恒一致 — 串联输出不再自相矛盾。
+            winner_out = _arb_dir.get('winner')
         if winner_out is None and odds.get('h') and odds.get('d') and odds.get('a'):
             _ih, _idd, _ia = 1.0 / odds['h'], 1.0 / odds['d'], 1.0 / odds['a']
             _s = _ih + _idd + _ia
@@ -922,6 +938,14 @@ def derive_score_cross(con, match_key, current_score='0-0', current_minute=0, ou
                              key=lambda k: {'home': _ih, 'draw': _idd, 'away': _ia}[k] / _s)
     except Exception:
         winner_out = None
+    if winner_out is not None and minute > 0 and sh != sa:
+        _wbasis = '领先方先验(干净频率表)⊕即时盘'
+    elif winner_out is not None and _arb_dir is not None and winner_out == _arb_dir.get('winner'):
+        _wbasis = '比分池仲裁(与首选比分恒一致, 311场实证51.1%)'
+    elif winner_out is not None:
+        _wbasis = '开盘1X2去水(市场上限≈55%)'
+    else:
+        _wbasis = None
     return {
         'top3': top3,
         'score': top3[0]['score'] if top3 else None,        # 第二比分: 滚球修正 (主推)
@@ -933,8 +957,7 @@ def derive_score_cross(con, match_key, current_score='0-0', current_minute=0, ou
         'roll_conflict': roll_conflict,                     # Fix-3: 主推比分方向与实时比分领先方相反
         'winner': winner_out,
         'winner_label': {'home': '主胜', 'draw': '平', 'away': '客胜'}.get(winner_out),
-        'winner_basis': ('领先方先验(干净频率表)⊕即时盘' if minute > 0 and sh != sa and winner_out
-                         else '开盘1X2去水(市场上限≈55%)'),
+        'winner_basis': _wbasis,
         'total': None,
         'lead_prior_note': lead_prior_note,     # 方向3: 领先方先验校正说明 (None=未生效)
         # 条件化+校正后的完整分布 (top20), 供回测/复核用, 前端不消费
