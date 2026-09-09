@@ -3966,6 +3966,12 @@ async def _cs_trust_card_compute(match_key: str, home: str, away: str, actual_sc
             if cur_score_tuple is not None:
                 _cs_str = f"{cur_score_tuple[0]}-{cur_score_tuple[1]}"
                 _mn = int(live_minute or 0)
+                # 2026-09-08 分钟防御: live_minute 请求参数可能被污染链路带垃圾值
+                try:
+                    from analysis.live_goal_probe import minute_wallclock_guard
+                    _mn, _ = minute_wallclock_guard(gq, match_key, _mn)
+                except Exception:
+                    pass
             _ou_hint = None
             try:
                 if cur_score_tuple is not None and _LIVE_GOAL_OK:
@@ -4233,6 +4239,12 @@ async def live_odds_api(match_key: str):
         score = f"{m[0] or 0}-{m[1] or 0}" if m else None
         minute = m[2] if m else None
         status = m[3] if m else None
+        # 2026-09-08 分钟防御: matches.minute 垃圾 mmp 污染兜底(kickoff 墙钟 SSoT)
+        try:
+            from analysis.live_goal_probe import minute_wallclock_guard
+            minute, _ = minute_wallclock_guard(c, match_key, minute or 0)
+        except Exception:
+            pass
         rows = c.execute(
             "SELECT market, selection, odds, line, captured_at FROM odds_snapshots "
             "WHERE match_key=? AND captured_at > strftime('%s','now','-4 hour')", (match_key,)).fetchall()
@@ -4774,6 +4786,13 @@ async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int =
                 out.update({"status": mrow[0], "minute": mrow[1],
                             "score": f"{mrow[2] or 0}-{mrow[3] or 0}",
                             "kickoff": mrow[4], "league": mrow[5], "home": mrow[6], "away": mrow[7]})
+            # 2026-09-08 分钟防御: 前端传入/DB 存储的 minute 都可能被垃圾 mmp 污染
+            # (真实 88' 报 7'), kickoff 墙钟 SSoT 覆盖, 保护下方全部模型消费点。
+            try:
+                from analysis.live_goal_probe import minute_wallclock_guard
+                minute, _ = minute_wallclock_guard(gq, match_key, minute)
+            except Exception:
+                pass
             traj = gq.execute(
                 "SELECT minute_at, score_at FROM odds_snapshots WHERE match_key=? AND score_at != '' "
                 "AND minute_at BETWEEN 1 AND 130 ORDER BY minute_at", (match_key,)).fetchall()

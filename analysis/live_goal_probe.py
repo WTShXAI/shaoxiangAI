@@ -359,6 +359,37 @@ def _parse_kickoff(s):
 HALFTIME_BREAK_MIN = 15.0   # 标准中场休息时长(分钟)
 
 
+def minute_wallclock_guard(con, match_key, current_minute, is_halftime=False, divergence_tol=10):
+    """读侧分钟防御(SSoT: kickoff 墙钟) — 2026-09-08。
+
+    caller 传入的 current_minute 源头是 matches.minute, 会被 ws feed 垃圾 mmp 污染
+    (实测格拉茨风暴B队 5-2 场: 真值 10/41/45/74 之间穿插垃圾 6/7, 垃圾最后写入胜出
+    → 真实 88' 模型拿到 minute=7, T_remain/动态λ/时间压力全错 — 用户报
+    "90分钟了模型还当刚开场分析"即此)。采集端已修(gq/ws_collector._sanitize_minute),
+    此处兜底历史残留/前端透传链路。
+
+    背离 > divergence_tol 时用 resolve_true_minute 覆盖, 并同步中场标记。
+    返回 (minute, is_halftime); 无 kickoff/异常时原值返回(零回归)。
+    """
+    try:
+        fm = int(current_minute) if current_minute is not None else 0
+        _kr = con.execute("SELECT kickoff, minute FROM matches WHERE match_key=?", (match_key,)).fetchone()
+        if _kr and _kr[0]:
+            _tm = resolve_true_minute(_kr[0], feed_minute=(_kr[1] if _kr[1] is not None else fm))
+            _tm_min, _tm_phase = _tm.get('minute'), _tm.get('phase')
+            if (_tm_min is not None and _tm_phase in ('first', 'ht', 'second', 'et')
+                    and abs(int(_tm_min) - fm) > divergence_tol):
+                if _tm_phase == 'ht':
+                    return int(_tm_min), True
+                return int(_tm_min), False
+    except Exception:
+        pass
+    try:
+        return int(current_minute or 0), bool(is_halftime)
+    except Exception:
+        return 0, bool(is_halftime)
+
+
 def resolve_true_minute(kickoff, feed_minute=None, now_ts=None):
     """真实比赛分钟解析(SSoT) — 2026-08-21 重大修复。
 
@@ -2406,6 +2437,10 @@ def _calibrate_joint_p(p):
 
 def probe_match_with_con(con, match_key, current_score='0-0', current_minute=0, league=None, is_halftime=False):
     """使用已打开的数据库连接输出滚球破蛋探测结果(批量扫描时避免反复创建连接)。"""
+    # 2026-09-08 读侧防御(见 minute_wallclock_guard): 垃圾 mmp 污染 matches.minute
+    # → 真实 88' 模型拿到 minute=7。kickoff 墙钟 SSoT 覆盖。
+    current_minute, is_halftime = minute_wallclock_guard(
+        con, match_key, current_minute, is_halftime)
     # 修(2026-08-19 实时滚盘分析): 原全场OU只取 OU_2.00~2.50 三条线, 滚球下半场
     # 庄家降线到 1.5/1.75 甚至 0.5/0.75 时模型拿不到新线, 仍用过时的 2.5 赔率判读。
     # 现扩展到全部滚球线(0.5~4.25), get_latest_snapshot_odds 只返回"当前仍在挂"的最新快照,

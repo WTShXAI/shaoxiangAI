@@ -586,6 +586,13 @@ def _roll_ou_anchor(con, match_key, minute):
 
 def derive_score_cross(con, match_key, current_score='0-0', current_minute=0, ou_hint=None):
     """三盘交叉 + 滚球验证 比分识别. 返回 dict 或 None."""
+    # 2026-09-08 读侧分钟防御: bridge 直呼点传入的 minute 可能仍是垃圾 matches.minute,
+    # kickoff 墙钟 SSoT 覆盖(与 probe/analyze 引擎同源 guard), 保护滚球条件化/平移。
+    try:
+        from analysis.live_goal_probe import minute_wallclock_guard
+        current_minute, _ = minute_wallclock_guard(con, match_key, current_minute)
+    except Exception:
+        pass
     odds = _open_odds(con, match_key)
     if odds is None:
         return None

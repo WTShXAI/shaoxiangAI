@@ -478,6 +478,15 @@ def analyze_match_with_model(match_key, current_score="0-0", current_minute=0,
     con = None
     try:
         con = _connect(db_path)
+        # 2026-09-08 读侧分钟防御: matches.minute 可能被 ws 垃圾 mmp 污染(实测 88' 报 7'),
+        # kickoff 墙钟 SSoT 覆盖(与 probe_match_with_con 同源), 保护下方 derive_score_cross/
+        # _compute_live_signal/决策层所有 current_minute 消费点。
+        try:
+            from analysis.live_goal_probe import minute_wallclock_guard
+            current_minute, is_halftime = minute_wallclock_guard(
+                con, match_key, current_minute, is_halftime)
+        except Exception:
+            pass
         from analysis.live_goal_probe import (
             get_opening_structure_diagnosis, _open_1x2_from_snapshots,
             _open_total_from_snapshots, _open_ah_from_snapshots,

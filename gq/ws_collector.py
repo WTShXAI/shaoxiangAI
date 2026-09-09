@@ -497,6 +497,8 @@ class WSCollector:
         _mn = mmp_i
         if mmp_i in (45, 90):
             _mn = self._true_minute_from_kickoff(mid, mmp_i)
+        else:
+            _mn = self._sanitize_minute(mid, mmp_i)
         self.minute[mid] = _mn if 0 <= _mn <= 130 else 0
         info = self.reg.resolve(mid)
         if not info:
@@ -516,6 +518,24 @@ class WSCollector:
                           (st, self.minute[mid], time.time(), mid))
         except Exception:
             pass
+
+    def _sanitize_minute(self, mid, mmp_i):
+        """2026-09-08 垃圾分钟防御(升级 08-29 的 45/90 占位消毒, 那次只拦 45/90):
+
+        实测(格拉茨风暴B队 5-2 场, 08-30) feed mmp 在真值 10/41/45/74 之间**穿插垃圾
+        6/7/7/7**, 垃圾值最后写入胜出 → odds_snapshots.minute_at=7(真实 88'),
+        matches.minute 同被污染 → 模型以为还剩 80+ 分钟, 滚球 λ/时间压力全错。
+
+        规则: |mmp - 墙钟推算| <= 10 → 采信 feed(容纳小幅开赛延迟/补时偏差);
+              背离 > 10 → 墙钟推算值覆盖(kickoff 是 SSoT, 与 resolve_true_minute 同口径)。
+        kickoff 不可得时返回原值(零回归)。
+        """
+        est = self._true_minute_from_kickoff(mid, None)
+        if est is None:
+            return mmp_i
+        if abs(mmp_i - est) <= 10:
+            return mmp_i
+        return est
 
     def _true_minute_from_kickoff(self, mid, fallback):
         """mmp 占位值(45/90) → 用 kickoff + 墙钟推算真实比赛分钟。
