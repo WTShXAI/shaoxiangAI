@@ -1255,6 +1255,76 @@ class GQCollector:
         except Exception as e:
             self.log(f"[auto_focus] 失败: {e}")
 
+    def _rescue_missing_scores(self):
+        """断供比分救援 (2026-09-08): 乐鱼对部分低级联赛(俄杯资/德国戊级等)一开赛即停止
+        推流 — 快照停在开赛瞬间, C103 比分帧从未到达 → matches.score_home 恒 NULL:
+          ① 前端滚球列表比分留白 (用户报"有的比赛不显示比分");
+          ② 模型条件化被迫按 0-0 处理, OU/CS 判定失真。
+        structureMatchBaseInfoByMidsPB 端点对滚球场仍返回 msc 真实比分 →
+        周期(每 90s)对【墙钟已开赛 3~100min + 比分缺失 + 有 mid + 非 finished + 非
+        人工锁定】的场次批量拉分回写, 顺带把假 scheduled 状态翻正为 live。
+        只补缺失(score_home IS NULL), 不覆盖已有比分; HT 走 COALESCE 不清旧值。
+        """
+        try:
+            import sqlite3
+            con = sqlite3.connect(DB_PATH, timeout=30)
+            con.execute("PRAGMA busy_timeout=30000")
+            con.row_factory = sqlite3.Row
+            try:
+                now = time.time()
+                rows = con.execute(
+                    "SELECT match_key, mid, kickoff FROM matches "
+                    "WHERE mid IS NOT NULL AND mid != '' "
+                    "AND (score_home IS NULL OR score_away IS NULL) "
+                    "AND (is_override IS NULL OR is_override=0) "
+                    "AND status != 'finished'").fetchall()
+            finally:
+                con.close()
+            targets = []
+            for r in rows:
+                kots = _parse_kickoff(r["kickoff"])
+                if not kots:
+                    continue
+                elapsed_min = (now - kots) / 60.0
+                if 3.0 <= elapsed_min <= 100.0:   # 真在场上(含补时余量)才救
+                    targets.append((r["match_key"], str(r["mid"])))
+            if not targets:
+                return
+            items = fetch_match_structure([m for _, m in targets])
+            by_mid = {}
+            for m in items:
+                if isinstance(m, dict) and m.get("mid") is not None:
+                    by_mid[str(m.get("mid"))] = m
+            fixed = 0
+            from gq import db as _db
+            for mk, mid in targets:
+                m = by_mid.get(mid)
+                if not m:
+                    continue
+                sh, sa, ht_sh, ht_sa = _score_from_msc(m.get("msc"))
+                if sh is None or sa is None:
+                    continue
+                # 足球合理性护栏: 半场>全场必非足球(实测混入篮球场 0-0/HT 5-11), 跳过
+                if ht_sh is not None and ht_sa is not None and (ht_sh > sh or ht_sa > sa):
+                    continue
+                if sh + sa > 12:
+                    continue
+                with _db.conn() as _c:
+                    cur = _c.execute(
+                        "UPDATE matches SET score_home=?, score_away=?, "
+                        "ht_score_home=COALESCE(?, ht_score_home), "
+                        "ht_score_away=COALESCE(?, ht_score_away), "
+                        "status=CASE WHEN status='scheduled' THEN 'live' ELSE status END, "
+                        "last_seen=? "
+                        "WHERE match_key=? AND (score_home IS NULL OR score_away IS NULL) "
+                        "AND (is_override IS NULL OR is_override=0)",
+                        (sh, sa, ht_sh, ht_sa, time.time(), mk))
+                    fixed += cur.rowcount
+            if fixed:
+                self.log(f"[比分救援] 断供场回补 {fixed}/{len(targets)} 场真实比分 (structure 端点)")
+        except Exception as e:
+            self.log(f"[比分救援] 异常: {e}")
+
     def fast_round(self) -> int:
         """秒级焦点轮询: 只采集 focus_mids 的单场赔率, 不写 sweep/cs/conclusion。
 
@@ -1714,6 +1784,7 @@ class GQCollector:
         t0 = time.time()
         last_full = 0.0
         last_auto_focus = 0.0
+        last_rescue = 0.0
 
         # 启动秒级焦点采集线程(与全量轮并行, 避免全量轮阻塞焦点)
         self._fast_running = True
@@ -1757,6 +1828,11 @@ class GQCollector:
                 if self.auto_focus and now - last_auto_focus >= 60:
                     last_auto_focus = now
                     self._auto_focus_live()
+
+                # ── 断供比分救援 (每 90s, 2026-09-08) ──
+                if now - last_rescue >= 90:
+                    last_rescue = now
+                    self._rescue_missing_scores()
 
                 if dur_min > 0 and time.time() - t0 >= dur_min * 60:
                     break

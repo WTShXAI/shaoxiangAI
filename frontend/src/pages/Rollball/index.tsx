@@ -27,6 +27,7 @@ interface RollballData {
   status?: string
   minute?: number
   score?: string
+  score_known?: boolean
   kickoff?: string
   league?: string
   home?: string
@@ -410,7 +411,10 @@ export default function Rollball() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[12px] text-ink-primary truncate">{m.home} vs {m.away}</span>
-                    <span className="text-[12px] font-mono text-field-300 ml-2 shrink-0">{m.score}</span>
+                    {/* 比分缺失(断供场)显示 '—' 而非留白 — 诚实占位 */}
+                    <span className={`text-[12px] font-mono ml-2 shrink-0 ${m.score ? 'text-field-300' : 'text-ink-disabled'}`}>
+                      {m.score || '—'}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1.5 text-[10px] text-ink-muted mt-0.5">
                     <PhaseDot phase={ph} />
@@ -481,9 +485,17 @@ export default function Rollball() {
                     </div>
                     <div className="text-center">
                       <div className="text-[10px] text-ink-muted">比分</div>
-                      <div className={`text-[22px] font-bold font-mono leading-none mt-0.5 ${flash ? 'animate-scorepulse ' + (flash === 'home' ? 'text-sky-300' : 'text-violet-300') : 'text-ink-primary'}`}>
-                        {d.score}
-                      </div>
+                      {/* 断供场: DB 无真实比分 → 显示 '—' + 断供徽章, 不把兜底 0-0 当真 */}
+                      {d.score_known === false ? (
+                        <>
+                          <div className="text-[22px] font-bold font-mono text-ink-disabled leading-none mt-0.5" title="比分数据源断供(乐鱼对此联赛开赛后不再推流), 采集器每90s尝试外部救援">—</div>
+                          <div className="text-[9px] text-amber-300/80 mt-0.5" title="乐鱼对此联赛开赛后不再推流比分; 采集器每90s尝试外部救援">比分断供</div>
+                        </>
+                      ) : (
+                        <div className={`text-[22px] font-bold font-mono leading-none mt-0.5 ${flash ? 'animate-scorepulse ' + (flash === 'home' ? 'text-sky-300' : 'text-violet-300') : 'text-ink-primary'}`}>
+                          {d.score}
+                        </div>
+                      )}
                     </div>
                     <div className="text-center">
                       <div className="text-[10px] text-ink-muted">时间</div>

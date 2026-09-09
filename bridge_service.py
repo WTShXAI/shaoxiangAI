@@ -4785,6 +4785,9 @@ async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int =
             if mrow:
                 out.update({"status": mrow[0], "minute": mrow[1],
                             "score": f"{mrow[2] or 0}-{mrow[3] or 0}",
+                            # 2026-09-08: 比分是否真实已知(feed 断供场 DB 为 NULL) —
+                            # 前端据此显示 '—'/断供徽章, 而非把兜底 0-0 当真比分
+                            "score_known": mrow[2] is not None and mrow[3] is not None,
                             "kickoff": mrow[4], "league": mrow[5], "home": mrow[6], "away": mrow[7]})
             # 2026-09-08 分钟防御: 前端传入/DB 存储的 minute 都可能被垃圾 mmp 污染
             # (真实 88' 报 7'), kickoff 墙钟 SSoT 覆盖, 保护下方全部模型消费点。
