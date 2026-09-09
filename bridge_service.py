@@ -4942,6 +4942,41 @@ async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int =
             except Exception as _e:
                 logger.warning(f"[rollball] CS: {_e}")
 
+            # ── CS 先验兜底 (2026-09-10 哨响理念: 每场必分析) ──
+            # 无开盘三盘的极偏场次(实测 ~7.5%, 巴西州青赛等)此前直接"暂无比分推荐"。
+            # 用 probe 期望进球(缺失时 1.35/1.15 均势先验)构造分布, 走同一套
+            # 联合约束/仲裁管线(ou_hint/winner_hint) — 诚实降级但串联恒一致。
+            try:
+                if not ((out.get("cs") or {}).get("found")):
+                    from pipeline.cs_db_match import _apply_constraints_stage, _finalize_arbitrate
+                    from pipeline.score_model import score_matrix
+                    _pr_cs = _live_goal_probe(match_key, current_score=_cs_str,
+                                              current_minute=minute) if _LIVE_GOAL_OK else None
+                    _eh = (_pr_cs or {}).get('expected_home_goals')
+                    _ea = (_pr_cs or {}).get('expected_away_goals')
+                    if _eh is None or _ea is None or float(_eh) <= 0 or float(_ea) <= 0:
+                        _eh, _ea = 1.35, 1.15
+                    _M = score_matrix(max(0.1, float(_eh)), max(0.1, float(_ea)), 6)
+                    _M = _M / _M.sum()
+                    _sh0 = _cs_sh if _cs_sh is not None else 0
+                    _sa0 = _cs_sa if _cs_sa is not None else 0
+                    _dist = {}
+                    for _i in range(_M.shape[0]):
+                        for _j in range(_M.shape[1]):
+                            _k = f'{min(_sh0 + _i, 9)}-{min(_sa0 + _j, 9)}'
+                            _dist[_k] = _dist.get(_k, 0.0) + float(_M[_i, _j])
+                    _top5 = [{'score': k, 'prob': round(v, 4)}
+                             for k, v in sorted(_dist.items(), key=lambda x: -x[1])[:5]]
+                    _fb = {'found': True, 'mode': 'prior', 'top5': _top5,
+                           'score': _top5[0]['score'] if _top5 else None,
+                           'basis': '无开盘三盘: 期望进球先验(诚实降级)'}
+                    _fb, _force = _apply_constraints_stage(_fb, _cs_str, _ou_hint, _dir_winner)
+                    _fb = _finalize_arbitrate(_fb, force_dir=_force)
+                    out["cs"] = _fb
+                    out["cs_prior_fallback"] = True
+            except Exception as _e:
+                logger.warning(f"[rollball] CS先验兜底: {_e}")
+
             # ── 四方向加权融合 + 门控 (2026-09-09, 用户口径: 分歧 → 不可信) ──
             # 权重基于各自实证: 1X2滚球方向76%+ (w0.40) / CS池 top3 95%覆盖 (w0.25) /
             # beat_book 反热门 +4~6% ROI (w0.20) / 即时盘去水 argmax 市场上限 (w0.15)

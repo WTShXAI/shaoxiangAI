@@ -851,6 +851,12 @@ export default function Rollball() {
                         <span className="text-[22px] font-bold font-mono text-emerald-300">{main}</span>
                         <span className="text-[10px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-semibold">首选 TOP1</span>
                         {cs.mode === 'roll' && <span className="text-[10px] px-1 py-0.5 rounded bg-sky-500/15 text-sky-300">滚球态</span>}
+                        {cs.mode === 'prior' && (
+                          <span className="text-[10px] px-1 py-0.5 rounded bg-ember-500/15 text-ember-300 border border-ember-500/20"
+                            title="本场无开盘三盘, 以期望进球先验分析(诚实降级)">
+                            先验分析
+                          </span>
+                        )}
                         {/* 仲裁方向徽章: 与首选比分恒一致 (2026-09-10 串联矛盾根治) */}
                         {cs.direction?.label && (
                           <span className="text-[10px] px-1 py-0.5 rounded bg-violet-500/15 text-violet-300 border border-violet-500/25"
