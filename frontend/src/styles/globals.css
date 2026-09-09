@@ -194,6 +194,16 @@
 }
 
 @layer utilities {
+  /* 2026-09-08 修复: .animate-in 引用的 keyframes 此前从未定义(静默失效), 补齐 */
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  /* 滚球页比分变动脉冲: 进球瞬间放大强调, 1.2s 后回落 */
+  @keyframes scorePulse {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.28); text-shadow: 0 0 14px rgba(62, 207, 142, 0.55); }
+    100% { transform: scale(1); }
+  }
+  .animate-scorepulse { animation: scorePulse 1.2s ease-out; }
   .animate-in { animation: fadeIn 0.3s ease-out, slideUp 0.3s ease-out; }
   .animate-in-delay-1 { animation: fadeIn 0.3s ease-out 0.08s both, slideUp 0.3s ease-out 0.08s both; }
   .animate-in-delay-2 { animation: fadeIn 0.3s ease-out 0.16s both, slideUp 0.3s ease-out 0.16s both; }

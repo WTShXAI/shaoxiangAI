@@ -4793,9 +4793,11 @@ async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int =
                 minute, _ = minute_wallclock_guard(gq, match_key, minute)
             except Exception:
                 pass
+            # 2026-09-08: ORDER BY captured_at(真实墙钟) — minute_at 有历史垃圾污染会乱序,
+            # 前端时间轴按 captured 序单调钳制显示分钟。
             traj = gq.execute(
                 "SELECT minute_at, score_at FROM odds_snapshots WHERE match_key=? AND score_at != '' "
-                "AND minute_at BETWEEN 1 AND 130 ORDER BY minute_at", (match_key,)).fetchall()
+                "AND minute_at BETWEEN 1 AND 130 ORDER BY captured_at", (match_key,)).fetchall()
             seen = []
             for mn, sc in traj:
                 if not seen or seen[-1]["score"] != sc:
