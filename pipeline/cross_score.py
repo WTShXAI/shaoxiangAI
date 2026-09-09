@@ -940,6 +940,16 @@ def derive_score_cross(con, match_key, current_score='0-0', current_minute=0, ou
         winner_out = None
     if winner_out is not None and minute > 0 and sh != sa:
         _wbasis = '领先方先验(干净频率表)⊕即时盘'
+        # 2026-09-10 滚球方向对齐: lead-prior 定向后, 非该类比分类别 ×0.15 软降权
+        # 再重排 — top3 首选与方向恒一致 (链路审计 CHK1; 概率语义为软降权非篡改)。
+        try:
+            from pipeline.cs_db_match import _outcome_of
+            _dem = [(s, (p if _outcome_of(s) == winner_out else p * 0.15)) for s, p in ranked]
+            _dem.sort(key=lambda x: -x[1])
+            ranked = _dem
+            top3 = [{'score': s, 'prob': round(p, 4)} for s, p in ranked[:3]]
+        except Exception:
+            pass
     elif winner_out is not None and _arb_dir is not None and winner_out == _arb_dir.get('winner'):
         _wbasis = '比分池仲裁(与首选比分恒一致, 311场实证51.1%)'
     elif winner_out is not None:

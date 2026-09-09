@@ -301,106 +301,192 @@ def _unified_impl(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_under=N
 
 def unified_scoreline(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_under=None,
                       ah_line=None, ah_home=None, ah_away=None,
-                      current_score='', current_minute=0, top_n=_DEF_N, ou_hint=None):
-    """SSoT 统一波胆推荐 (外层包装: OU 推荐软约束 + 方向仲裁, 详 impl docstring)。
+                      current_score='', current_minute=0, top_n=_DEF_N, ou_hint=None,
+                      winner_hint=None):
+    """SSoT 统一波胆推荐 (外层包装: OU 软约束 → winner 方向对齐 → 方向仲裁末级)。
 
-    2026-09-10 末级方向仲裁: 输出的 direction 与 top1 比分类别恒一致
-    (arbitrate_direction), 消灭"方向卡 主胜 vs 首选比分 0-0"串联矛盾。"""
+    2026-09-10 固定管线: impl → OU 软约束 → winner_hint 对齐 → arbitrate 仲裁。
+    仲裁必须最后: 保证输出的 direction 与 top1 比分类别恒一致, "方向卡 主胜 vs
+    首选比分 0-0(平)"这类串联矛盾从结构上不可能出现。
+    winner_hint: 'home'|'draw'|'away' — 滚球 lead-prior 方向(76%+ 实证)传入后,
+    非该类候选 ×0.15 软降权且 direction 强制对齐, 消灭滚球态方向卡与首选比分
+    的类别分歧(链路审计 CHK1)。"""
     out = _unified_impl(h=h, d=d, a=a, ou_line=ou_line, ou_over=ou_over, ou_under=ou_under,
                         ah_line=ah_line, ah_home=ah_home, ah_away=ah_away,
                         current_score=current_score, current_minute=current_minute, top_n=top_n)
     if not out or not out.get('found'):
         return out
-    if not ou_hint:
-        return _finalize_arbitrate(out)
-    # 当前比分解析 (impl 内部局部变量此处不可见)
+    force = None
+    if ou_hint or winner_hint:
+        out, force = _apply_constraints_stage(out, current_score, ou_hint, winner_hint)
+    return _finalize_arbitrate(out, force_dir=force)
+
+
+def _apply_constraints_stage(out, current_score, ou_hint, winner_hint):
+    """OU + winner 双约束联合求解 (2026-09-10, 取代分级降权).
+
+    分级降权的缺陷(审计实测): OU 段先降权违规者, winner 段再把方向外候选 ×0.15 —
+    两个 ×0.15 复合后, "OU 合规但方向外"候选反而输给 "OU 违规但方向内"候选,
+    且 OU 补位条件(全部 top3 违规)在混合 top3 下永不触发。
+
+    联合求解: 每个候选一次乘齐两组惩罚
+        p' = p × (方向外?0.15:1) × (违反OU?0.15:1)
+    再做方向感知补位(need~need+2 全拆分, 方向合规拆分免罚), 排序后一次性生效。
+    返回 (out, force_dir) — force_dir 供末级仲裁锁定方向。
+    """
     try:
-        _h, _a = str(current_score).replace(':', '-').split('-')
-        sh, sa = int(_h), int(_a)
-    except Exception:
-        return _finalize_arbitrate(out)
-    try:
-        line, direction = float(ou_hint[0]), str(ou_hint[1]).upper()
-        if direction not in ('OVER', 'UNDER') or not (0.5 <= line <= 10.0):
-            return _finalize_arbitrate(out)
-        demoted = []
-        adj = []
-        for t in out['top5']:
+        if not out or not out.get('found'):
+            return out, None
+        top5 = out.get('top5') or []
+        if not top5:
+            return out, None
+        try:
+            _h, _a = str(current_score).replace(':', '-').split('-')
+            sh, sa = int(_h), int(_a)
+        except Exception:
+            sh = sa = None
+        import math as _math
+        if winner_hint in ('home', 'draw', 'away'):
+            wf = lambda cls: 1.0 if cls == winner_hint else 0.15
+        else:
+            wf = None
+        ou_dir = ou_ifloor = None
+        if ou_hint:
+            try:
+                ou_dir = str(ou_hint[1]).upper()
+                _line = float(ou_hint[0])
+                if ou_dir in ('OVER', 'UNDER') and 0.5 <= _line <= 10.0:
+                    ou_ifloor = _math.floor(_line + 1e-9)
+                else:
+                    ou_dir = None
+            except Exception:
+                ou_dir = None
+
+        def ou_bad(tot):
+            return (ou_dir == 'OVER' and tot <= ou_ifloor) or (ou_dir == 'UNDER' and tot > ou_ifloor)
+
+        demoted_ou, adj = [], []
+        _need = 1   # 方向代表合成的默认加球量(OU 补位块内会被覆盖)
+        for t in top5:
+            p = float(t.get('prob') or 0.0)
+            cls = _outcome_of(t.get('score'))
             try:
                 tot = int(t['score'].split('-')[0]) + int(t['score'].split('-')[1])
             except Exception:
-                adj.append(t)
-                continue
-            losing = (direction == 'OVER' and tot < line) or (direction == 'UNDER' and tot > line)
-            if losing:
-                demoted.append(t['score'])
-                adj.append({'score': t['score'], 'prob': round(t['prob'] * 0.15, 6), 'n': t.get('n')})
-            else:
-                adj.append(t)
-        if not demoted:
-            return _finalize_arbitrate(out)
-        # 2026-08-30 补位: 若降权后 top3 仍全是矛盾候选(约束方向下必输的总球),
-        # 生成符合 OU 方向的候选 — 当前比分 + 达标所需进球的主客分配(按强度比),
-        # 否则降权不改变相对排序, OU 与 CS 依旧矛盾(实测 大4.25 下 1-1/2-1/1-2 全降权仍霸榜)。
-        out = dict(out)
-        top3 = adj[:3]
-        _tot3 = [int(t['score'].split('-')[0]) + int(t['score'].split('-')[1]) for t in top3]
-        _need = 0
-        if direction == 'OVER':
-            _target = int(line) + 1            # 总球 > line → 至少 floor+1
+                tot = None
+            f = 1.0
+            if wf and wf(cls) < 1.0:
+                f *= 0.15
+            if ou_dir and tot is not None and ou_bad(tot):
+                f *= 0.15
+                demoted_ou.append(t['score'])
+            adj.append({'score': t['score'], 'prob': round(p * f, 6), '_p': p})
+        if not demoted_ou and not wf:
+            return out, None
+        # ---- 方向感知补位: OU 合规候选权重过低时, 生成 need~need+2 全拆分 ----
+        if ou_dir == 'OVER' and sh is not None:
+            _target = ou_ifloor + 1
             _need = max(0, _target - (sh + sa))
-        else:
-            _target = int(line)                # 总球 < line → 至多 floor
-            _need = 0                          # UNDER 无需补(低总球候选天然存在)
-        if direction == 'OVER' and _need > 0 and all(t < _target for t in _tot3):
-            _wsum = _hsum = 0.0
-            for t in out['top5']:
-                try:
-                    mh, ma = (int(x) for x in t['score'].split('-'))
-                    _wsum += (mh + ma) * t['prob']
-                    _hsum += mh * t['prob']
-                except Exception:
-                    continue
-            h_share = (_hsum / _wsum) if _wsum > 1e-9 else 0.5
-            _mu_rem = max(0.3, _need * 0.9)
-            added = {}
-            for extra_h in range(_need, _need + 2):
-                extra_a = _need - extra_h
-                if extra_a < 0:
-                    continue
-                key = f'{min(sh + extra_h, 9)}-{min(sa + extra_a, 9)}'
-                # 主客分配权重: 二项式, 偏向 h_share 侧
-                w = 0.5 + (h_share - 0.5) * (extra_h - extra_a) / max(1, _need)
-                added[key] = max(0.05, w * (top3[0]['prob'] if top3 else 0.05) * 3)
-            merged = {t['score']: t['prob'] for t in adj}
-            for k, p in added.items():
-                if merged.get(k, 0) < p:
-                    merged[k] = p
-            adj = [{'score': s, 'prob': round(p, 6)} for s, p in
-                   sorted(merged.items(), key=lambda x: -x[1])[:5]]
-        adj.sort(key=lambda t: -t['prob'])
-        out['top5'] = adj
-        out['score'] = adj[0]['score'] if adj else None
-        out['ou_align'] = (f"已对齐 OU 推荐 {'大' if direction == 'OVER' else '小'}{line:g}: "
-                           f"矛盾总球降权({','.join(demoted)})")
-        out['basis'] = (out.get('basis') or '') + '; ' + out['ou_align']
-        return _finalize_arbitrate(out)
+            # 触发口径 = 同时满足 OU + 方向两约束 (只满足 OU 不够 — winner 段会再压它)
+            best_sat = max([t['prob'] for t in adj
+                            if (not ou_bad(int(t['score'].split('-')[0]) + int(t['score'].split('-')[1])))
+                            and (not wf or _outcome_of(t['score']) == winner_hint)] or [0.0])
+            best_any = max([t.get('_p', t['prob']) for t in adj] or [0.0])
+            if _need > 0 and best_sat < 0.30 * best_any:
+                _ref_p = max([t.get('_p', 0.0) for t in adj] or [0.05])
+                _wsum = _hsum = 0.0
+                for t in top5:
+                    try:
+                        mh, ma = (int(x) for x in t['score'].split('-'))
+                        _wsum += (mh + ma) * float(t.get('prob') or 0.0)
+                        _hsum += mh * float(t.get('prob') or 0.0)
+                    except Exception:
+                        continue
+                h_share = (_hsum / _wsum) if _wsum > 1e-9 else 0.5
+                added = {}
+                for _g in range(_need, _need + 3):
+                    for extra_h in range(_g + 1):
+                        extra_a = _g - extra_h
+                        key = f'{min(sh + extra_h, 9)}-{min(sa + extra_a, 9)}'
+                        w = 0.5 + (h_share - 0.5) * (extra_h - extra_a) / max(1, _g)
+                        wgt = max(0.05, w * _ref_p)
+                        if winner_hint and _outcome_of(key) != winner_hint:
+                            wgt *= 0.15
+                        if wgt > added.get(key, 0):
+                            added[key] = wgt
+                merged = {t['score']: t['prob'] for t in adj}
+                for k, p in added.items():
+                    if merged.get(k, 0) < p:
+                        merged[k] = p
+                adj = [{'score': k, 'prob': round(p, 6)} for k, p in merged.items()]
+        # 方向代表候选合成 (2026-09-10): winner 类在池中缺席时补一个该类代表 —
+        # 否则 force 分区无从落地, 方向卡与首选比分再次矛盾 (审计 CHK1 实测 2 例)。
+        if (winner_hint and sh is not None
+                and not any(_outcome_of(t['score']) == winner_hint for t in adj)):
+            _ref_p2 = max([t.get('_p', 0.0) for t in adj] or [0.05])
+            if winner_hint == 'draw':
+                key = f'{sh}-{sa}' if sh == sa else f'{min(sh + 1, 9)}-{min(sa + 1, 9)}'
+                wgt = 0.8 * _ref_p2
+            elif winner_hint == 'home':
+                key = f'{min(sh + max(1, _need), 9)}-{sa}'
+                wgt = 0.6 * _ref_p2
+            else:
+                key = f'{sh}-{min(sa + max(1, _need), 9)}'
+                wgt = 0.6 * _ref_p2
+            adj.append({'score': key, 'prob': round(wgt, 6)})
+        adj.sort(key=lambda t: -float(t.get('prob') or 0.0))
+        out = dict(out)
+        out['top5'] = [{'score': t['score'], 'prob': t['prob']} for t in adj[:5]]
+        out['score'] = out['top5'][0]['score']
+        force = None
+        if winner_hint in ('home', 'draw', 'away') and wf:
+            tot = sum(float(t.get('prob') or 0.0) for t in out['top5']) or 1.0
+            fm = sum(float(t.get('prob') or 0.0) for t in out['top5']
+                     if _outcome_of(t.get('score')) == winner_hint) / tot
+            force = winner_hint
+            _wlabel = {'home': '主胜', 'draw': '平', 'away': '客胜'}[winner_hint]
+            out['direction'] = {'winner': winner_hint, 'label': _wlabel, 'prob': round(fm, 3),
+                                'basis': '领先方先验⊕即时盘(方向对齐池重排)'}
+            out['winner_align'] = f"已对齐方向{_wlabel}: 非该类候选联合降权"
+            out['basis'] = (out.get('basis') or '') + '; ' + out['winner_align']
+        if demoted_ou:
+            out['ou_align'] = (f"已对齐 OU 推荐 {'大' if ou_dir == 'OVER' else '小'}"
+                               f"{float(ou_hint[0]):g}: 矛盾总球降权({','.join(demoted_ou)})")
+            out['basis'] = (out.get('basis') or '') + '; ' + out['ou_align']
+        return out, force
     except Exception:
-        return _finalize_arbitrate(out)
+        return out, None
 
 
-def _finalize_arbitrate(out):
-    """末级方向仲裁出口 (2026-09-10): 必须在 OU 约束重排之后调用。
+def _finalize_arbitrate(out, force_dir=None):
+    """末级方向仲裁出口 (2026-09-10): 必须在 OU/winner 约束重排之后调用。
 
     保证 unified_scoreline 输出的 direction 与 top1 比分类别恒一致 —
-    "方向卡 主胜" 与 "首选比分 0-0(平)" 这类串联矛盾从结构上不可能出现。"""
+    "方向卡 主胜" 与 "首选比分 0-0(平)" 这类串联矛盾从结构上不可能出现。
+    force_dir: winner_hint 生效时锁定方向 — 只做稳定分区(该类在前), 不改判。"""
     try:
-        if out and out.get('found'):
-            _dir, _ordered = arbitrate_direction(out.get('top5') or [])
-            if _dir and _ordered:
-                out['top5'] = _ordered
-                out['score'] = _ordered[0]['score']
-                out['direction'] = _dir
+        if not (out and out.get('found')):
+            return out
+        top5 = out.get('top5') or []
+        if force_dir in ('home', 'draw', 'away') and any(_outcome_of(t.get('score')) == force_dir for t in top5):
+            ordered = sorted(top5, key=lambda t: (_outcome_of(t.get('score')) != force_dir,
+                                                  -float(t.get('prob') or 0.0)))
+            tot = sum(float(t.get('prob') or 0.0) for t in top5) or 1.0
+            fm = sum(float(t.get('prob') or 0.0) for t in top5 if _outcome_of(t.get('score')) == force_dir) / tot
+            out['top5'] = ordered
+            out['score'] = ordered[0]['score']
+            out['direction'] = {
+                'winner': force_dir,
+                'label': {'home': '主胜', 'draw': '平', 'away': '客胜'}[force_dir],
+                'prob': round(fm, 3),
+                'basis': '领先方先验⊕即时盘(方向对齐池重排)',
+            }
+            return out
+        _dir, _ordered = arbitrate_direction(top5)
+        if _dir and _ordered:
+            out['top5'] = _ordered
+            out['score'] = _ordered[0]['score']
+            out['direction'] = _dir
     except Exception:
         pass
     return out

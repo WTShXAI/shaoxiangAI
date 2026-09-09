@@ -4787,6 +4787,9 @@ async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int =
     minute = int(minute or 0)
 
     def _worker():
+        nonlocal minute   # 2026-09-10 修复: 下方分钟防御会赋值 minute, 不声明 nonlocal
+                          # 会让 minute 变成本函数局部变量 → 右侧读取时 UnboundLocalError
+                          # (被 try 吞掉) → minute 永未绑定, OU/CS/方向全段瘫痪。
         gq = sqlite3.connect(os.path.join(PROJECT_ROOT, "data", "events.db"), timeout=8)
         gq.execute("PRAGMA busy_timeout=8000")
         out = {"match_key": match_key}
@@ -4889,6 +4892,23 @@ async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int =
                                      "recommend": _ah_rec, "recommend_note": _ah_note}
 
             # ── CS 统一推荐 (SSoT + OU 约束) ──
+            # ── 方向直出 (领先方先验 ⊕ 即时盘) — cross_score 同源 ──
+            # 2026-09-10 提前到 CS 卡之前: 方向先算, 作为 winner_hint 传给统一波胆,
+            # 保证 CS 卡首选比分类别与方向卡恒一致 (链路审计 CHK1)。
+            _dir_winner = None
+            try:
+                from pipeline.cross_score import derive_score_cross
+                _cs_score = f"{sh}-{sa}" if (sh is not None and sa is not None) else "0-0"
+                r = derive_score_cross(gq, match_key, _cs_score, minute)
+                if r:
+                    _dir_winner = r.get("winner")
+                    out["direction"] = {"winner": r.get("winner"), "label": r.get("winner_label"),
+                                        "basis": r.get("winner_basis"),
+                                        "conflict": r.get("roll_conflict"),
+                                        "opening_conflict": r.get("opening_conflict")}
+            except Exception as _e:
+                logger.warning(f"[rollball] 方向: {_e}")
+
             try:
                 from pipeline.cs_db_match import unified_scoreline
                 _ou_hint = None
@@ -4915,24 +4935,12 @@ async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int =
                                        ou_under=odds.get("ou_under"),
                                        ah_line=odds.get("ah_line"), ah_home=odds.get("ah_home"),
                                        ah_away=odds.get("ah_away"),
-                                       current_score=_cs_str, current_minute=minute, ou_hint=_ou_hint)
+                                       current_score=_cs_str, current_minute=minute, ou_hint=_ou_hint,
+                                       winner_hint=_dir_winner)
                 if dm:
                     out["cs"] = dm
             except Exception as _e:
                 logger.warning(f"[rollball] CS: {_e}")
-
-            # ── 方向直出 (领先方先验 ⊕ 即时盘) — cross_score 同源 ──
-            try:
-                from pipeline.cross_score import derive_score_cross
-                _cs_score = f"{sh}-{sa}" if (sh is not None and sa is not None) else "0-0"
-                r = derive_score_cross(gq, match_key, _cs_score, minute)
-                if r:
-                    out["direction"] = {"winner": r.get("winner"), "label": r.get("winner_label"),
-                                        "basis": r.get("winner_basis"),
-                                        "conflict": r.get("roll_conflict"),
-                                        "opening_conflict": r.get("opening_conflict")}
-            except Exception as _e:
-                logger.warning(f"[rollball] 方向: {_e}")
 
             # ── 四方向加权融合 + 门控 (2026-09-09, 用户口径: 分歧 → 不可信) ──
             # 权重基于各自实证: 1X2滚球方向76%+ (w0.40) / CS池 top3 95%覆盖 (w0.25) /
