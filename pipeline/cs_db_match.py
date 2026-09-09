@@ -518,23 +518,14 @@ def _outcome_of(score: str) -> str:
 
 
 def arbitrate_direction(top5):
-    """方向仲裁 (2026-09-10, 用户报"单个模型没问题, 串起来自相矛盾"根治):
+    """方向仲裁 v3 (2026-09-10, 干净样本实证后简化):
 
-    实证(311 场 2026-08-15 后完赛场):
-      - 市场fav 方向 36.0% / 池加权多数 52.4% / TOP1比分胜负平 48.9%;
-      - 市场fav 与比分池多数方向 67% 的场次不一致 → 页面"方向 主胜"与
-        "首选比分 0-0(平)"并排出现, 即用户看到的自相矛盾。
-      - 融合重排(市场⊕池)被否决: top1 命中 37.2%→31.4%, top3 56.3%→52.4%,
-        融合伤比分级精度。
-
-    采纳规则(自适应仲裁, 实测方向 51.1%, 只比纯池多数低 1.3pp):
-      ① TOP1 比分类别 == 池加权多数 → 方向 = 多数, 排序不动 (83% 走此支);
-      ② 否则若多数类最优比分 prob ≥ 0.60×TOP1 且多数类质量 ≥ 0.34
-         → 稳定分区排序(多数类在前), 方向 = 多数 — 首选与方向保持一致;
-      ③ 否则方向 = TOP1 类别 (类别证据太弱, 诚实跟随首选)。
-    不变量: 输出的方向 与 输出的 top1 比分类别 恒一致 — 结构上不可能矛盾。
-
-    返回 (direction_dict, ordered_top5); top5 为空时返回 (None, 原列表)。
+    匹配器维数错位/NaN掩码双 bug 修复后, 干净样本(109 场非库内)实证:
+      方向=TOP1类别 76.1%  >>  方向=池多数 59.6%  (旧分支②换首选倒贴 9pp TOP1)
+    故方向恒取 TOP1 比分的类别, 置信度 = 该类质量占比; 不再换首选、不再改判。
+    不变量: 输出的 direction 与 top1 比分类别恒一致(结构上不可能矛盾)。
+    (滚球态 winner_hint 对齐由 _apply_constraints_stage/_finalize_arbitrate
+     的 force 路径负责, 与本函数独立。)
     """
     try:
         if not top5:
@@ -548,31 +539,13 @@ def arbitrate_direction(top5):
         if tot <= 1e-9:
             return None, top5
         mass = {k: v / tot for k, v in mass.items()}
-        maj = max(mass, key=mass.get)
         t1_out = _outcome_of(top5[0].get('score'))
         direction = {
-            'winner': maj,
-            'label': {'home': '主胜', 'draw': '平', 'away': '客胜'}[maj],
-            'prob': round(mass[maj], 3),
-            'basis': '比分池仲裁(类质量加权, 311场实证51.1%)',
+            'winner': t1_out,
+            'label': {'home': '主胜', 'draw': '平', 'away': '客胜'}[t1_out],
+            'prob': round(mass[t1_out], 3),
+            'basis': '比分池仲裁(方向=首选比分类别, 干净样本实证)',
         }
-        if t1_out == maj:
-            return direction, top5
-        # 分歧: 多数类内部最优候选
-        cands = [t for t in top5 if _outcome_of(t.get('score')) == maj]
-        best = cands[0] if cands else None
-        if (best and float(best.get('prob') or 0.0) >= 0.60 * float(top5[0].get('prob') or 0.0)
-                and mass[maj] >= 0.34):
-            ordered = sorted(
-                top5, key=lambda t: (_outcome_of(t.get('score')) != maj, -float(t.get('prob') or 0.0)))
-            direction['top1_swapped'] = True
-            direction['note'] = (f"方向与原首选比分({top5[0]['score']})类别分歧, "
-                                 f"已按多数类({direction['label']} 质量{mass[maj]*100:.0f}%)重排首选")
-            return direction, ordered
-        direction['winner'] = t1_out
-        direction['label'] = {'home': '主胜', 'draw': '平', 'away': '客胜'}[t1_out]
-        direction['prob'] = round(mass[t1_out], 3)
-        direction['note'] = '类别证据弱, 方向跟随首选比分'
         return direction, top5
     except Exception:
         return None, top5
