@@ -1,4 +1,4 @@
-"""比分分析器 (2026-08-30 拍板) — 三级判定: 定方向 / 软加权 / 观望。
+"""比分分析器 (2026-08-30 拍板; 2026-09-10 哨响理念: 永不观望) — 三级判定: 定方向 / 软加权 / 弱方向。
 
 定位: **你是比分分析器，不是预测器。**
 
@@ -10,9 +10,9 @@
             → 方向听领先方; 概率分布整体保留, 不符合方向的比分乘
               0.05~0.10 衰减系数(禁止置零), 平局/爆冷尾巴保留 5~10%;
               标注「方向分歧, 置信度降级一档」。
-【观望】    置信度 < 0.45, 或(领先方与市场冲突 且 比分胶着/剩余充裕/噪声显著)
-            → 不下方向、不输出推荐比分, 仅输出原始概率分布,
-              标注「观望: 信息不足以支撑方向判断」。
+【弱方向】  置信度 < 0.55, 或(领先方与市场冲突 且 比分胶着/剩余充裕/噪声显著)
+            → 仍输出方向(领先方或市场最强), 标注「低置信: 弱方向呈现, 仅供参考」。
+              (2026-09-10 用户拍板: 哨响核心是分析对每一场比赛, 不允许观望)
 
 硬约束:
   1. 任何情况下不得对不符合方向的比分直接置零。
@@ -20,7 +20,7 @@
 
 判定优先级: 先算置信度 → 再检测领先方与市场是否一致 → 由高到低匹配, 命中即停。
 
-输出结构固定: {级别, 方向(观望为 null), 概率分布, 分歧标注(无则省略)}
+输出结构固定: {级别, 方向(恒非空), 概率分布, 分歧标注(无则省略)}
 """
 from __future__ import annotations
 
@@ -125,9 +125,9 @@ def analyze_score(
             direction = market_dir
             note = None
         else:
-            level = "观望"
-            direction = None
-            note = "观望: 信息不足以支撑方向判断"
+            level = "弱方向"
+            direction = market_dir
+            note = "低置信: 弱方向呈现(市场最强), 仅供参考"
     elif (not conflict) and conf >= CONF_HIGH:
         level = "定方向"
         direction = lead_side_eff or market_dir
@@ -137,9 +137,9 @@ def analyze_score(
         direction = lead_side_eff
         note = "方向分歧, 置信度降级一档"
     elif conf < CONF_LOW or (conflict and drawn) or (conflict and ample_time):
-        level = "观望"
-        direction = None
-        note = "观望: 信息不足以支撑方向判断"
+        level = "弱方向"
+        direction = lead_side_eff or market_dir
+        note = "低置信·方向存在分歧: 弱方向呈现, 仅供参考"
     else:
         # conf ≥ 0.70 但冲突(且不胶着/不充裕) → 高置信冲突, 仍软加权听领先方
         level = "软加权"

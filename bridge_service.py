@@ -3793,7 +3793,7 @@ def _consensus_gate(signals: dict):
     elif n_top > n / 2 and list(cnt.values()).count(n_top) == 1:
         level, verdict = 'MED', f'多数方向一致({n_top}/{n}) → 结论较可信'
     else:
-        level, verdict = 'SPLIT', f'方向分裂({n_top}/{n}) → 比赛结果不可信, 建议观望'
+        level, verdict = 'SPLIT', f'方向分裂({n_top}/{n}) → 结论可信度低, 按融合方向谨慎参考'
     return {'level': level, 'verdict': verdict, 'majority': top,
             'agree_ratio': round(n_top / n, 3), 'signals': dict(signals)}
 
@@ -7739,9 +7739,8 @@ async def terminal_analyze_api(req: TerminalAnalyzeRequest):
                 _sa["级别"] = "软加权"
                 _sa["分歧标注"] = "诱盘信号, 置信度降级一档"
             elif _lv == "软加权":
-                _sa["级别"] = "观望"
-                _sa["方向"] = None
-                _sa["分歧标注"] = "诱盘信号: 观望, 信息不足以支撑方向判断"
+                _sa["级别"] = "弱方向"
+                _sa["分歧标注"] = "诱盘信号: 弱方向呈现, 置信受限"
             _score_analysis = _sa
         card = {
             "fixture": {"home": req.home, "away": req.away,

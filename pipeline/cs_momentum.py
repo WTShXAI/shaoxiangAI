@@ -11,7 +11,7 @@ cs_momentum.py — CS波胆跟庄策略模块
 输出信号:
   FOLLOW — 多盘同向收敛, 跟庄
   FADE   — 多盘反向发散, 反庄
-  WATCH  — 信号模糊, 观望
+  WEAK_FOLLOW / WEAK_FADE — 信号弱, 弱倾向跟庄/反庄 (2026-09-10 永不观望)
 
 三色盘口信号 (color_signal):
   GREEN  — 下降 > 3pp
@@ -33,7 +33,7 @@ class CSMomentumTracker:
     """CS 波胆跟庄策略追踪器。
 
     分析波胆赔率变动 (initial_odds → current_odds)，
-    输出跟庄/反庄/观望信号。
+    输出跟庄/反庄/弱倾向信号 (2026-09-10 永不观望)。
 
     用法:
         tracker = CSMomentumTracker()
@@ -195,14 +195,13 @@ class CSMomentumTracker:
 
         # ── 判定主信号 ──
         if divergence_detected:
-            # 矛盾和但整体偏绿 → WATCH (有分歧时不急着跟)
-            signal = "WATCH"
-            if green_count > red_count * 2:
-                desc = f"绿色 {green_count} vs 红色 {red_count}: 偏向看好但存在分歧, 建议观望"
-            elif red_count > green_count * 2:
-                desc = f"红色 {red_count} vs 绿色 {green_count}: 偏向看衰但存在分歧, 建议观望"
+            # 2026-09-10 哨响理念(永不观望): 分歧时仍按多数色给弱倾向方向
+            if green_count >= red_count:
+                signal = "WEAK_FOLLOW"
+                desc = f"绿色 {green_count} vs 红色 {red_count}: 存在分歧, 弱倾向跟庄"
             else:
-                desc = f"绿色 {green_count} vs 红色 {red_count}: 庄家分歧明显, 不建议入场"
+                signal = "WEAK_FADE"
+                desc = f"红色 {red_count} vs 绿色 {green_count}: 存在分歧, 弱倾向反庄"
         elif green_count >= total * 0.5:
             # 超过半数是绿色 → 跟庄
             signal = "FOLLOW"
@@ -212,8 +211,8 @@ class CSMomentumTracker:
             signal = "FADE"
             desc = f"红色 {red_count}/{total} 盘口被看衰, 庄家共识反庄"
         else:
-            signal = "WATCH"
-            desc = f"绿{green_count}/红{red_count}/中性{amber_count}: 信号模糊, 建议观望"
+            signal = "WEAK_FOLLOW" if green_count >= red_count else "WEAK_FADE"
+            desc = f"绿{green_count}/红{red_count}/中性{amber_count}: 信号偏弱, 弱倾向{'跟庄' if green_count >= red_count else '反庄'}"
 
         # ── 主导颜色 ──
         if green_count > red_count and green_count > amber_count:

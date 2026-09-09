@@ -128,7 +128,7 @@ const OU_SIG: Record<string, { label: string; cls: string }> = {
   STRONG_HOLD: { label: '强小球信号', cls: 'bg-ember-500/15 text-ember-300 border border-ember-500/25' },
   WEAK_TREND: { label: '弱趋势', cls: 'bg-amber-500/10 text-amber-300 border border-amber-500/20' },
   ALREADY_BROKEN: { label: '已破线', cls: 'bg-sky-500/15 text-sky-300 border border-sky-500/25' },
-  NO_EDGE: { label: '无优势', cls: 'bg-white/[0.06] text-ink-muted border border-white/10' },
+  NO_EDGE: { label: '弱优势', cls: 'bg-white/[0.06] text-ink-secondary border border-white/10' },
 }
 
 /* 门控信号值着色 (主胜/客胜/平/大/小 各自语义色) */
@@ -793,22 +793,18 @@ export default function Rollball() {
                   {ou && (ou.line != null || ou.data_source === 'live_odds') ? (
                     <div>
                       <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                        {/* 2026-09-10 串联矛盾根治: NO_EDGE(无优势)显示观望, 不再输出伪方向 */}
-                        {ou.signal === 'NO_EDGE' ? (
-                          <span className="text-[13px] font-bold text-ink-secondary">观望</span>
-                        ) : (
-                          <span className={`text-[13px] font-bold ${ou.direction === 'OVER' ? 'text-emerald-300' : 'text-amber-300'}`}>
-                            {dirCN(ou.direction)}
-                          </span>
-                        )}
+                        {/* 哨响理念: 永不观望 — NO_EDGE 也输出方向(弱优势标注), 概率照实展示 */}
+                        <span className={`text-[13px] font-bold ${ou.direction === 'OVER' ? 'text-emerald-300' : 'text-amber-300'}`}>
+                          {dirCN(ou.direction)}
+                        </span>
                         {ou.line != null && <span className="text-[11px] font-mono text-ink-secondary">线 {ou.line}</span>}
                         {ou.signal && OU_SIG[ou.signal] && (
                           <span className={`text-[9px] px-1.5 py-0.5 rounded ${OU_SIG[ou.signal].cls}`}>{OU_SIG[ou.signal].label}</span>
                         )}
                         {ou.verdict && <span className="text-[10px] text-ink-muted">{ou.verdict}</span>}
                       </div>
-                      {/* 置信度概率条 (绿=大 / 黄=小, 长度=置信; 观望态不显示) */}
-                      {ou.prob != null && ou.signal !== 'NO_EDGE' && (
+                      {/* 置信度概率条 (绿=大 / 黄=小, 长度=置信) */}
+                      {ou.prob != null && (
                         <div className="probability-bar mb-1.5">
                           <div className={`probability-fill ${ou.direction === 'OVER' ? 'bg-field-500' : 'bg-ember-500'}`}
                             style={{ width: `${Math.max(0, Math.min(1, ou.prob)) * 100}%` }} />
