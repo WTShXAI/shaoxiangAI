@@ -13,6 +13,8 @@ interface PageHeaderProps {
   icon?: ReactNode
   metrics?: PageMetric[]
   actions?: ReactNode
+  /** 紧凑模式: 底部间距减半 (2026-09-10 分析页顶部布局收紧) */
+  compact?: boolean
 }
 
 const accentMap: Record<NonNullable<PageMetric['accent']>, string> = {
@@ -22,9 +24,9 @@ const accentMap: Record<NonNullable<PageMetric['accent']>, string> = {
   danger: 'text-danger-400',
 }
 
-export default function PageHeader({ title, subtitle, icon, metrics, actions }: PageHeaderProps) {
+export default function PageHeader({ title, subtitle, icon, metrics, actions, compact }: PageHeaderProps) {
   return (
-    <div className='flex items-start justify-between gap-4 mb-4'>
+    <div className={`flex items-start justify-between gap-4 ${compact ? 'mb-2' : 'mb-4'}`}>
       <div className='flex items-start gap-3 min-w-0'>
         {icon && (
           <div className='w-9 h-9 rounded-lg bg-field-500/10 border border-field-500/20 flex items-center justify-center flex-shrink-0 mt-0.5'>

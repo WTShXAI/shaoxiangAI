@@ -408,10 +408,10 @@ export default function Rollball() {
   const nowMin = sel ? calibMinute(sel) : 0
 
   return (
-    <div className="min-h-screen p-4 md:p-6">
-      <PageHeader title="滚球分析" subtitle="胜平负 · 让球 · 大小球 · 比分 — 四市场同源分析, 结合实时进度 (进球轨迹 / 盘口漂移 / OU 对齐)" />
+    <div className="min-h-screen p-3 md:p-4">
+      <PageHeader compact title="滚球分析" subtitle="胜平负 · 让球 · 大小球 · 比分 — 四市场同源分析, 结合实时进度 (进球轨迹 / 盘口漂移 / OU 对齐)" />
 
-      <div className="mt-4 grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4">
+      <div className="mt-2 grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-3">
         {/* 左: 比赛列表 */}
         <div className="rounded-xl border border-surface-border/40 bg-surface-dark/30 p-3">
           <div className="flex items-center justify-between mb-2">
