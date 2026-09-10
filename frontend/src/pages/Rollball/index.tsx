@@ -74,7 +74,7 @@ const dirCN = (d?: string | null) =>
 
 function Card({ title, accent, children }: { title: string; accent?: string; children: React.ReactNode }) {
   return (
-    <div className={`rounded-xl border p-4 bg-surface-dark/30 ${accent ?? 'border-surface-border/40'}`}>
+    <div className={`rounded-xl border p-3 bg-surface-dark/30 ${accent ?? 'border-surface-border/40'}`}>
       <div className="text-[12px] font-semibold text-ink-secondary mb-2">{title}</div>
       {children}
     </div>
@@ -432,7 +432,7 @@ export default function Rollball() {
         </div>
 
         {/* 右: 分析面板 */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           {!d && loading && <div className="text-[12px] text-ink-muted p-4">分析加载中…</div>}
           {err && <div className="text-[12px] text-rose-300 p-3 rounded-lg border border-rose-500/30 bg-rose-500/[0.05]">{err}</div>}
           {!d && !loading && !err && <div className="text-[12px] text-ink-muted p-4">← 左侧选择比赛开始分析</div>}
@@ -717,7 +717,7 @@ export default function Rollball() {
               })()}
 
               {/* 四市场 */}
-              <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${tab === 'overview' ? '' : 'hidden'}`}>
+              <div className={`grid grid-cols-1 md:grid-cols-2 gap-2 ${tab === 'overview' ? '' : 'hidden'}`}>
                 {/* 胜平负 */}
                 <Card title="胜平负 1X2 (开盘 vs 即时)" accent="border-sky-500/30">
                   {opX2 && (
@@ -758,74 +758,6 @@ export default function Rollball() {
                       </div>
                     </div>
                   ) : <div className="text-[11px] text-ink-muted">暂无即时 1X2 盘口</div>}
-                </Card>
-
-                {/* 让球 */}
-                <Card title="让球 AH (亚盘)" accent="border-violet-500/30">
-                  <div className="space-y-1.5 text-[11px]">
-                    {ahOpen ? (
-                      <div className="flex justify-between items-center">
-                        <span className="text-ink-muted">开盘 {ahOpen.line > 0 ? `+${ahOpen.line}` : ahOpen.line}</span>
-                        <span className="font-mono text-ink-primary">{odds2(ahOpen.home)} / {odds2(ahOpen.away)}</span>
-                        {ahOpen.p_home_cover != null && <span className="text-ink-muted">主覆盖 {pct(ahOpen.p_home_cover)}</span>}
-                      </div>
-                    ) : <div className="text-ink-muted">无开盘让球</div>}
-                    {ahLive && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-ink-muted flex items-center gap-1">
-                          即时 {ahLive.line > 0 ? `+${ahLive.line}` : ahLive.line}
-                          {/* 线移动指示: 开盘 → 即时 发生升降盘 */}
-                          {ahOpen != null && ahLive.line !== ahOpen.line && (
-                            <span className="text-[9px] px-1 py-0.5 rounded bg-frost-500/15 text-frost-300 border border-frost-500/20">
-                              {ahLive.line > (ahOpen?.line ?? ahLive.line) ? '↑' : '↓'} 升降盘
-                            </span>
-                          )}
-                        </span>
-                        <span className="font-mono text-field-300">{odds2(ahLive.home)} / {odds2(ahLive.away)}</span>
-                      </div>
-                    )}
-                    {!ahOpen && !ahLive && <div className="text-ink-muted">暂无让球盘口</div>}
-                  </div>
-                </Card>
-
-                {/* 大小球 */}
-                <Card title="大小球 OU (破蛋)" accent="border-ember-500/30">
-                  {ou && (ou.line != null || ou.data_source === 'live_odds') ? (
-                    <div>
-                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                        {/* 哨响理念: 永不观望 — NO_EDGE 也输出方向(弱优势标注), 概率照实展示 */}
-                        <span className={`text-[13px] font-bold ${ou.direction === 'OVER' ? 'text-emerald-300' : 'text-amber-300'}`}>
-                          {dirCN(ou.direction)}
-                        </span>
-                        {ou.line != null && <span className="text-[11px] font-mono text-ink-secondary">线 {ou.line}</span>}
-                        {ou.signal && OU_SIG[ou.signal] && (
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded ${OU_SIG[ou.signal].cls}`}>{OU_SIG[ou.signal].label}</span>
-                        )}
-                        {ou.verdict && <span className="text-[10px] text-ink-muted">{ou.verdict}</span>}
-                      </div>
-                      {/* 置信度概率条 (绿=大 / 黄=小, 长度=置信) */}
-                      {ou.prob != null && (
-                        <div className="probability-bar mb-1.5">
-                          <div className={`probability-fill ${ou.direction === 'OVER' ? 'bg-field-500' : 'bg-ember-500'}`}
-                            style={{ width: `${Math.max(0, Math.min(1, ou.prob)) * 100}%` }} />
-                        </div>
-                      )}
-                      {ou && ou.data_source === 'live_odds' && d.live_odds?.ou && (
-                        <div className="text-[11px] text-ink-muted mb-1">
-                          即时线 {d.live_odds.ou.line}: 大 {odds2(d.live_odds.ou.over)} / 小 {odds2(d.live_odds.ou.under)}
-                        </div>
-                      )}
-                      {ou.anchor?.open_line != null && (
-                        <div className="text-[10px] text-ink-muted">
-                          漂移: 开盘 {ou.anchor.open_line} → 当前 {ou.anchor.current_line ?? '—'}
-                          {ou.anchor.drift_total != null && ` (总球 ${ou.anchor.drift_total > 0 ? '+' : ''}${ou.anchor.drift_total})`}
-                        </div>
-                      )}
-                      {ou.data_source !== 'live_odds' && (
-                        <div className="text-[10px] text-amber-300/80 mt-0.5">⚠ 非即时盘数据 ({ou.data_source})</div>
-                      )}
-                    </div>
-                  ) : <div className="text-[11px] text-ink-muted">暂无 OU 盘口</div>}
                 </Card>
 
                 {/* 比分 */}
@@ -919,7 +851,75 @@ export default function Rollball() {
                     )
                   })() : <div className="text-[11px] text-ink-muted">暂无比分推荐(无开盘三盘)</div>}
                 </Card>
-              </div>
+              {/* 让球 */}
+                <Card title="让球 AH (亚盘)" accent="border-violet-500/30">
+                  <div className="space-y-1.5 text-[11px]">
+                    {ahOpen ? (
+                      <div className="flex justify-between items-center">
+                        <span className="text-ink-muted">开盘 {ahOpen.line > 0 ? `+${ahOpen.line}` : ahOpen.line}</span>
+                        <span className="font-mono text-ink-primary">{odds2(ahOpen.home)} / {odds2(ahOpen.away)}</span>
+                        {ahOpen.p_home_cover != null && <span className="text-ink-muted">主覆盖 {pct(ahOpen.p_home_cover)}</span>}
+                      </div>
+                    ) : <div className="text-ink-muted">无开盘让球</div>}
+                    {ahLive && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-ink-muted flex items-center gap-1">
+                          即时 {ahLive.line > 0 ? `+${ahLive.line}` : ahLive.line}
+                          {/* 线移动指示: 开盘 → 即时 发生升降盘 */}
+                          {ahOpen != null && ahLive.line !== ahOpen.line && (
+                            <span className="text-[9px] px-1 py-0.5 rounded bg-frost-500/15 text-frost-300 border border-frost-500/20">
+                              {ahLive.line > (ahOpen?.line ?? ahLive.line) ? '↑' : '↓'} 升降盘
+                            </span>
+                          )}
+                        </span>
+                        <span className="font-mono text-field-300">{odds2(ahLive.home)} / {odds2(ahLive.away)}</span>
+                      </div>
+                    )}
+                    {!ahOpen && !ahLive && <div className="text-ink-muted">暂无让球盘口</div>}
+                  </div>
+                </Card>
+
+                {/* 大小球 */}
+                <Card title="大小球 OU (破蛋)" accent="border-ember-500/30">
+                  {ou && (ou.line != null || ou.data_source === 'live_odds') ? (
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        {/* 哨响理念: 永不观望 — NO_EDGE 也输出方向(弱优势标注), 概率照实展示 */}
+                        <span className={`text-[13px] font-bold ${ou.direction === 'OVER' ? 'text-emerald-300' : 'text-amber-300'}`}>
+                          {dirCN(ou.direction)}
+                        </span>
+                        {ou.line != null && <span className="text-[11px] font-mono text-ink-secondary">线 {ou.line}</span>}
+                        {ou.signal && OU_SIG[ou.signal] && (
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded ${OU_SIG[ou.signal].cls}`}>{OU_SIG[ou.signal].label}</span>
+                        )}
+                        {ou.verdict && <span className="text-[10px] text-ink-muted">{ou.verdict}</span>}
+                      </div>
+                      {/* 置信度概率条 (绿=大 / 黄=小, 长度=置信) */}
+                      {ou.prob != null && (
+                        <div className="probability-bar mb-1.5">
+                          <div className={`probability-fill ${ou.direction === 'OVER' ? 'bg-field-500' : 'bg-ember-500'}`}
+                            style={{ width: `${Math.max(0, Math.min(1, ou.prob)) * 100}%` }} />
+                        </div>
+                      )}
+                      {ou && ou.data_source === 'live_odds' && d.live_odds?.ou && (
+                        <div className="text-[11px] text-ink-muted mb-1">
+                          即时线 {d.live_odds.ou.line}: 大 {odds2(d.live_odds.ou.over)} / 小 {odds2(d.live_odds.ou.under)}
+                        </div>
+                      )}
+                      {ou.anchor?.open_line != null && (
+                        <div className="text-[10px] text-ink-muted">
+                          漂移: 开盘 {ou.anchor.open_line} → 当前 {ou.anchor.current_line ?? '—'}
+                          {ou.anchor.drift_total != null && ` (总球 ${ou.anchor.drift_total > 0 ? '+' : ''}${ou.anchor.drift_total})`}
+                        </div>
+                      )}
+                      {ou.data_source !== 'live_odds' && (
+                        <div className="text-[10px] text-amber-300/80 mt-0.5">⚠ 非即时盘数据 ({ou.data_source})</div>
+                      )}
+                    </div>
+                  ) : <div className="text-[11px] text-ink-muted">暂无 OU 盘口</div>}
+                </Card>
+
+                </div>
 
               {/* 底注 */}
               <div className="text-[10px] text-ink-muted/70 px-1">
