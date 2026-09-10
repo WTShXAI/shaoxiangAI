@@ -2224,7 +2224,7 @@ def probe_core(odds, current_score='0-0', current_minute=0, league=None, con=Non
         if is_deep_fav:
             prob += 0.08
         ft_prob = max(0.05, min(0.95, prob))
-        line = 0.5
+        line = None   # 2026-09-10: 基线先验无真实盘口, 不再输出假线 0.5(用户误读为盘口判定)
         ft_signal = 'NO_EDGE'
         ft_direction = 'OVER' if ft_prob >= 0.5 else 'UNDER'
         ft_data_source = 'league_prior'
@@ -2370,7 +2370,9 @@ def probe_core(odds, current_score='0-0', current_minute=0, league=None, con=Non
             'prob': round(ft_prob, 3),
             'signal': ft_signal,
             'direction': ft_direction,
-            'line': line if line is not None else 0.5,
+            # 2026-09-10: league_prior(基线先验)不再输出假线 0.5 — 0.5 是"至少1球"的
+            # 语义线, 显示成盘口线会被误读为庄家判定 (用户实测 风暴vs守护者FC 反馈)
+            'line': line,
             'target_total': total_now + (line if line is not None else 0.5),
             'over_odds': ouf_over,
             'under_odds': ouf_under,

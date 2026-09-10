@@ -561,9 +561,8 @@ export default function Rollball() {
                         {timeline.map((g, i) => (
                           <div key={i} className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 group"
                             style={{ left: pos(g.minute) }}>
-                            <span className={`block w-2.5 h-2.5 rounded-full border-2 border-surface-dark ${
-                              g.side === 'home' ? 'bg-sky-400' : g.side === 'away' ? 'bg-violet-400' : 'bg-white/40'
-                            }`} />
+                            <span className={`block text-[11px] leading-none ${g.side === 'away' ? 'grayscale-[0.2]' : ''}`}
+                              style={{ transform: 'translateY(-1px)' }}>⚽</span>
                             <span className="pointer-events-none absolute bottom-full mb-1 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] font-mono px-1 py-0.5 rounded bg-surface-card border border-surface-border/60 text-ink-secondary opacity-0 group-hover:opacity-100 transition-opacity">
                               {g.minute}′ {g.score}
                             </span>
@@ -575,8 +574,8 @@ export default function Rollball() {
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-3">
-                        <span className="text-[10px] text-ink-muted flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-sky-400 inline-block" />{d.home}</span>
-                        <span className="text-[10px] text-ink-muted flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-violet-400 inline-block" />{d.away}</span>
+                        <span className="text-[10px] text-ink-muted flex items-center gap-1">⚽<span className="text-sky-300">{d.home}</span></span>
+                        <span className="text-[10px] text-ink-muted flex items-center gap-1">⚽<span className="text-violet-300">{d.away}</span></span>
                         <span className="ml-auto text-[9px] text-ink-disabled">悬停进球点看比分</span>
                       </div>
                     </div>
@@ -914,7 +913,7 @@ export default function Rollball() {
 
                 {/* 大小球 */}
                 <Card title="大小球 OU (破蛋)" accent="border-ember-500/30">
-                  {ou && (ou.line != null || ou.data_source === 'live_odds') ? (
+                  {ou && (ou.line != null || ou.data_source === 'live_odds' || ou.data_source === 'league_prior') ? (
                     <div>
                       <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                         {/* 哨响理念: 永不观望 — NO_EDGE 也输出方向(弱优势标注), 概率照实展示 */}
