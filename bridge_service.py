@@ -1060,6 +1060,46 @@ async def _start_background_loops():
     except Exception as e:
         logger.warning(f"[飞轮] model engine warmup failed: {e}")
 
+    # 2026-09-10: CS 串联链路预热 — 匹配库(13150×5 矩阵首载)/lead-prior/isotonic
+    # 校准器/probe 内部表 都是懒加载, 重启后首个 rollball/sixline 请求各自付一次
+    # 首载成本。后台对"最近一场有比分的 live 比赛"跑全链路一次, 全部缓存落位。
+    try:
+        def _warm_cs_chain():
+            import time as _t
+            _t.sleep(3)   # 等 matches 就绪
+            try:
+                _con = sqlite3.connect(os.path.join(PROJECT_ROOT, "data", "events.db"), timeout=8)
+                _r = _con.execute(
+                    "SELECT match_key, score_home, score_away, minute FROM matches "
+                    "WHERE status='live' AND score_home IS NOT NULL ORDER BY last_seen DESC LIMIT 1"
+                ).fetchone()
+                _con.close()
+                if not _r:
+                    logger.info("[飞轮] CS 链路预热跳过(无进行中比赛)")
+                    return
+                _mk, _sh, _sa, _mn = _r
+                _score = f"{_sh or 0}-{_sa or 0}"
+                from pipeline.cs_db_match import unified_scoreline, _load_library
+                _load_library()   # 匹配库首载
+                from pipeline.cross_score import derive_score_cross
+                from analysis.live_goal_probe import probe_match, _load_lead_prior
+                _load_lead_prior()
+                probe_match(_mk, current_score=_score, current_minute=int(_mn or 0))
+                _g = sqlite3.connect(os.path.join(PROJECT_ROOT, "data", "events.db"), timeout=8)
+                derive_score_cross(_g, _mk, _score, int(_mn or 0))
+                _g.close()
+                unified_scoreline(current_score=_score, current_minute=int(_mn or 0))
+                logger.info(f"[飞轮] CS 链路预热完成({_mk}) — 首个 rollball/sixline 请求毫秒级")
+            except Exception as _e2:
+                logger.warning(f"[飞轮] CS 链路预热失败(不阻塞): {_e2}")
+
+        async def _warm_cs():
+            await _asyncio.to_thread(_warm_cs_chain)
+        _asyncio.create_task(_warm_cs())
+        logger.info("[飞轮] CS 链路预热 started (后台)")
+    except Exception as e:
+        logger.warning(f"[飞轮] CS 链路预热 failed: {e}")
+
     # 2026-09-02: 概率排名(ranked_predictor)重模型预热 — WI 主导模型首载 ~736ms +
     # analysis_center 邻居向量库首查 ~128ms, 导致 bridge 重启后首个 /api/predict/ranked
     # 请求 ~900ms 冷启动, 前端概率排名 Tab 解析明显变慢。启动时后台预热, 首个请求命中

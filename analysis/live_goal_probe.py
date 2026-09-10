@@ -3116,6 +3116,7 @@ def list_live_matches(limit=50, offset=0):
     live 在前(优先级降序), scheduled 在后(kickoff 升序, 越近越前)。
     支持 offset 分页 (解决 live 场次过多被 limit 静默截断导致比赛"消失")。
     返回 {"matches": [...], "max_last_seen", "total_live", "total_scheduled", "offset", "limit"}。
+    (已有 @_coalesce_cache 3s 单飞缓存 — 2026-09-10 复查确认, 无需再加 TTL 缓存。)
     """
     con = _open_gq()  # 只读连接: timeout=5 + wal_autocheckpoint=0, 避免读被自身 checkpoint 阻塞
     try:
