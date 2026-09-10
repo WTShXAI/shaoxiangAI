@@ -1467,6 +1467,43 @@ def ensure_prematch_conclusion():
         )""")
 
 
+def ensure_halftime_conclusion():
+    """中场冻结判定表 (2026-09-10 双锚点架构: 赛前 + 中场各冻结一次, 下半场不再滚动预测)."""
+    with conn() as c:
+        c.execute("""CREATE TABLE IF NOT EXISTS halftime_conclusion (
+            match_key    TEXT PRIMARY KEY,
+            ht_home      INTEGER,
+            ht_away      INTEGER,
+            ou_line      REAL,
+            ou_direction TEXT,
+            ou_prob      REAL,
+            x2_home      REAL,
+            x2_draw      REAL,
+            x2_away      REAL,
+            x2_direction TEXT,
+            cs_top1      TEXT,
+            cs_top3      TEXT,
+            frozen_at    REAL
+        )""")
+
+
+def store_halftime_conclusion(match_key, ht_home, ht_away,
+                              ou_line, ou_direction, ou_prob,
+                              x2_home, x2_draw, x2_away, x2_direction,
+                              cs_top1=None, cs_top3=None):
+    """冻结中场判定 (HT 窗口内调用一次; 下半场模型不再改写)."""
+    ensure_halftime_conclusion()
+    now = time.time()
+    with conn() as c:
+        c.execute("""INSERT INTO halftime_conclusion
+                     (match_key, ht_home, ht_away, ou_line, ou_direction, ou_prob,
+                      x2_home, x2_draw, x2_away, x2_direction, cs_top1, cs_top3, frozen_at)
+                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                     ON CONFLICT(match_key) DO NOTHING""",
+                  (match_key, ht_home, ht_away, ou_line, ou_direction, ou_prob,
+                   x2_home, x2_draw, x2_away, x2_direction, cs_top1, cs_top3, now))
+
+
 def store_prematch_conclusion(match_key, verdict_code, verdict_cn, excess, roi,
                               draw_signal=0):
     """固化赛前结论 (赛前展示/冻结时调用一次). 赛后机关直接读此行比对."""

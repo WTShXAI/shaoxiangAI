@@ -92,6 +92,14 @@ interface RollballData {
     cs_verify?: { pool_dir?: string; verdict?: string; match?: boolean }
   } | null
   final_direction?: { direction?: string; prob?: number; agree?: number; cs_verified?: boolean | null; level?: string } | null
+  ht_freeze?: {
+    ht_score: string
+    ou: { line?: number | null; direction?: string | null; prob?: number | null }
+    x2: { p_home?: number | null; p_draw?: number | null; p_away?: number | null; direction?: string | null }
+    cs_top1?: string | null
+    cs_top3?: string[]
+    frozen_at?: number
+  } | null
 }
 
 const pct = (v?: number | null, d = 0) => (v != null ? `${(v * 100).toFixed(d)}%` : '—')
@@ -674,6 +682,52 @@ export default function Rollball() {
                   {tlData != null ? <div className="max-h-[62vh] overflow-y-auto pr-1"><DataPanel data={tlData} /></div> : <div className="text-[11px] text-ink-muted">加载中…</div>}
                 </div>
               )}
+
+              {/* 中场冻结判定 (2026-09-10 双锚点架构): 下半场的主判定。
+                  HT 窗口用仅上半场信息冻结一次, 下半场不再随实时进球改写 —
+                  判定可干净复盘重训。滚球实时卡降级为参考。 */}
+              {tab === 'overview' && d?.ht_freeze && selPhase?.key === 'second' && (() => {
+                const hf = d.ht_freeze
+                const ouTxt = hf.ou.direction ? `${hf.ou.direction === 'OVER' ? '大' : '小'}${hf.ou.line != null ? hf.ou.line : ''}` : '—'
+                const x2Txt = hf.x2.direction ? (DIR_CN[hf.x2.direction] ?? hf.x2.direction) : '—'
+                return (
+                  <div className="rounded-xl border border-field-500/50 bg-field-500/[0.07] p-3.5">
+                    <div className="flex items-center justify-between flex-wrap gap-1.5">
+                      <span className="text-[13px] font-bold text-field-300">
+                        冻结 · 中场判定 (HT {hf.ht_score})
+                      </span>
+                      <span className="text-[10px] text-ink-muted">
+                        {hf.frozen_at ? new Date(hf.frozen_at * 1000).toLocaleTimeString('zh-CN', { hour12: false }) : ''} 冻结 · 下半场判定以此为准
+                      </span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                      <div className="rounded-lg border border-surface-border/30 bg-surface-card/40 px-2 py-1.5 text-center">
+                        <div className="text-[10px] text-ink-muted">OU 方向</div>
+                        <div className={`text-[14px] font-bold font-mono ${hf.ou.direction === 'OVER' ? 'text-emerald-300' : 'text-amber-300'}`}>
+                          {ouTxt}
+                        </div>
+                        {hf.ou.prob != null && <div className="text-[9px] text-ink-muted">置信 {(hf.ou.prob * 100).toFixed(0)}%</div>}
+                      </div>
+                      <div className="rounded-lg border border-surface-border/30 bg-surface-card/40 px-2 py-1.5 text-center">
+                        <div className="text-[10px] text-ink-muted">1X2 方向</div>
+                        <div className="text-[14px] font-bold font-mono text-sky-300">{x2Txt}</div>
+                        {hf.x2.direction && hf.x2.p_home != null && hf.x2.p_draw != null && hf.x2.p_away != null && (
+                          <div className="text-[9px] text-ink-muted">
+                            {({ home: hf.x2.p_home, draw: hf.x2.p_draw, away: hf.x2.p_away } as Record<string, number | null>)[hf.x2.direction!] !== undefined
+                              ? `${((( { home: hf.x2.p_home, draw: hf.x2.p_draw, away: hf.x2.p_away } as Record<string, number | null>)[hf.x2.direction!]) ?? 0) * 100 > 0 ? ((({ home: hf.x2.p_home, draw: hf.x2.p_draw, away: hf.x2.p_away } as Record<string, number | null>)[hf.x2.direction!])! * 100).toFixed(0) + '%' : ''}`
+                              : ''}
+                          </div>
+                        )}
+                      </div>
+                      <div className="rounded-lg border border-surface-border/30 bg-surface-card/40 px-2 py-1.5 text-center">
+                        <div className="text-[10px] text-ink-muted">CS 首选</div>
+                        <div className="text-[14px] font-bold font-mono text-violet-300">{hf.cs_top1 ?? '—'}</div>
+                        {(hf.cs_top3 ?? []).length > 1 && <div className="text-[9px] text-ink-muted">三选 {(hf.cs_top3 ?? []).join('/')}</div>}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* 多方向一致性门控 (用户口径: 有分歧 → 结果不可信) */}
               {tab === 'overview' && gate?.level && gate.level !== 'NO_SIGNAL' && (() => {

@@ -437,6 +437,15 @@ HT_BREAK_MIN = 15
 FT_ELAPSED_MIN = 110
 
 
+def _x2h_or_none(x2, side):
+    """get_latest_snapshot_odds 的 1X2 dict → 单边赔率(float) 或 None。"""
+    try:
+        v = (x2 or {}).get('1X2', {}).get(side)
+        return float(v) if v else None
+    except Exception:
+        return None
+
+
 def _parse_kickoff(s):
     """把 matches.kickoff (naive GMT+8) 解析为 Unix 时间戳。
 
@@ -1330,6 +1339,128 @@ class GQCollector:
         except Exception as e:
             self.log(f"[比分救援] 异常: {e}")
 
+    def _ht_freeze_tick(self):
+        """中场冻结判定 (2026-09-10 双锚点架构核心): 开赛后 46~58 分钟(中场休息窗)
+        的比赛, 用**仅上半场信息**(当时比分 + 当时盘口)冻结一次判定入
+        halftime_conclusion 表 — 下半场模型不再随实时进球改写, 判定可干净复盘重训。
+
+        冻结内容: HT 比分 / OU 方向+线+置信(HT 时点盘口) / 1X2 去水三向 /
+        CS top1+top3(统一波胆 @HT 态)。每场只冻结一次(主键幂等)。
+        """
+        try:
+            import sqlite3
+            from analysis.live_goal_probe import (
+                _lightweight_signals_batch, _dewater_1x2, get_latest_snapshot_odds)
+            con = sqlite3.connect(DB_PATH, timeout=30)
+            con.execute("PRAGMA busy_timeout=30000")
+            con.row_factory = sqlite3.Row
+            now = time.time()
+            try:
+                rows = con.execute(
+                    "SELECT match_key, kickoff, score_home, score_away FROM matches "
+                    "WHERE status='live' AND kickoff IS NOT NULL AND kickoff != '' "
+                    "AND score_home IS NOT NULL AND score_away IS NOT NULL "
+                    "AND (is_override IS NULL OR is_override=0)").fetchall()
+                done = {r[0] for r in con.execute("SELECT match_key FROM halftime_conclusion").fetchall()}
+            finally:
+                con.close()
+            targets = []
+            for r in rows:
+                if r["match_key"] in done:
+                    continue
+                kots = _parse_kickoff(r["kickoff"])
+                if not kots:
+                    continue
+                em = (now - kots) / 60.0
+                if 46.0 <= em <= 58.0:   # 中场休息窗(含补时余量)
+                    targets.append((r["match_key"], int(r["score_home"]), int(r["score_away"])))
+            if not targets:
+                return
+            from gq import db as _db
+            _gqcon = sqlite3.connect(DB_PATH, timeout=30)
+            _gqcon.row_factory = sqlite3.Row
+            for mk, sh, sa in targets:
+                try:
+                    cur = _gqcon.cursor()
+                    items = [{'match_key': mk, 'minute': 45, 'score': f'{sh}-{sa}'}]
+                    sig = _lightweight_signals_batch(_gqcon, items).get(mk) or {}
+                    full = sig.get('full') or {}
+                    ou_line = full.get('line')
+                    ou_dir = full.get('direction')
+                    ou_prob = full.get('prob')
+                    # 1X2: HT 最新帧去水; 贫瘠场次(无滚球帧)用开盘 1X2 兜底;
+                    # 都缺时用领先方先验定方向 (56-85' 领先1球→76% 实证, 45' 同源口径)
+                    x2 = get_latest_snapshot_odds(_gqcon, mk, ['1X2'])
+                    x2h = x2.get('1X2', {}).get('home') if isinstance(x2.get('1X2'), dict) else None
+                    ph = pd_ = pa = None
+                    x2_dir = None
+                    if x2h and x2.get('1X2', {}).get('draw') and x2.get('1X2', {}).get('away'):
+                        ph, pd_, pa = _dewater_1x2(float(x2h), float(x2['1X2']['draw']), float(x2['1X2']['away'])) or (None, None, None)
+                        if ph is not None:
+                            x2_dir = max(('home', 'draw', 'away'), key=lambda k: {'home': ph, 'draw': pd_, 'away': pa}[k])
+                    if x2_dir is None:
+                        # 开盘 1X2 兜底 (snapshots 最早帧)
+                        try:
+                            from analysis.live_goal_probe import _open_1x2_from_snapshots as _o12
+                            _g2 = sqlite3.connect(DB_PATH, timeout=15)
+                            oh, od, oa = _o12(_g2, mk)
+                            _g2.close()
+                            if oh and od and oa:
+                                ph, pd_, pa = _dewater_1x2(float(oh), float(od), float(oa)) or (None, None, None)
+                                if ph is not None:
+                                    x2_dir = max(('home', 'draw', 'away'), key=lambda k: {'home': ph, 'draw': pd_, 'away': pa}[k])
+                        except Exception:
+                            pass
+                    if x2_dir is None and sh != sa:
+                        # 领先方先验兜底 (score_analyzer lead_win_prob, 45' 同源口径)
+                        try:
+                            from pipeline.score_analyzer import lead_win_prob
+                            _side = 'home' if sh > sa else 'away'
+                            _pl = lead_win_prob(_side, abs(sh - sa), 45)
+                            if _pl:
+                                x2_dir = _side
+                                ph = _pl if _side == 'home' else (1 - _pl)
+                        except Exception:
+                            pass
+                    # CS: 统一波胆 @HT 态 (仅上半场信息: 比分+45'); 1X2 缺失用开盘兜底
+                    cs_top1 = cs_top3 = None
+                    try:
+                        from analysis.live_goal_probe import _open_gq as _ogq, _open_1x2_from_snapshots as _o12
+                        _ac = _ogq()
+                        try:
+                            fh, fd, fa = _x2h_or_none(x2, 'home'), _x2h_or_none(x2, 'draw'), _x2h_or_none(x2, 'away')
+                            if not (fh and fd and fa):
+                                _g3 = sqlite3.connect(DB_PATH, timeout=15)
+                                oh, od, oa = _o12(_g3, mk)
+                                _g3.close()
+                                fh, fd, fa = fh or oh, fd or od, fa or oa
+                            from pipeline.cs_db_match import unified_scoreline
+                            dm = unified_scoreline(h=fh, d=fd, a=fa,
+                                                   current_score=f'{sh}-{sa}', current_minute=45)
+                            t5 = (dm or {}).get('top5') or []
+                            if t5:
+                                cs_top1 = t5[0]['score']
+                                cs_top3 = ','.join(t['score'] for t in t5[:3])
+                        finally:
+                            _ac.close()
+                    except Exception:
+                        pass
+                    with _db.conn() as _c:
+                        _c.execute(
+                            "INSERT INTO halftime_conclusion "
+                            "(match_key, ht_home, ht_away, ou_line, ou_direction, ou_prob, "
+                            " x2_home, x2_draw, x2_away, x2_direction, cs_top1, cs_top3, frozen_at) "
+                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(match_key) DO NOTHING",
+                            (mk, sh, sa, ou_line, ou_dir, ou_prob,
+                             ph, pd_, pa, x2_dir, cs_top1, cs_top3, time.time()))
+                    self.log(f"[HT冻结] {mk} HT {sh}-{sa} → OU {ou_dir or '—'}({ou_line}) "
+                             f"1X2 {x2_dir or '—'} CS {cs_top1 or '—'}")
+                except Exception as _e:
+                    self.log(f"[HT冻结] {mk} 失败(跳过): {_e}")
+            _gqcon.close()
+        except Exception as e:
+            self.log(f"[HT冻结] 异常: {e}")
+
     def fast_round(self) -> int:
         """秒级焦点轮询: 只采集 focus_mids 的单场赔率, 不写 sweep/cs/conclusion。
 
@@ -1790,6 +1921,7 @@ class GQCollector:
         last_full = 0.0
         last_auto_focus = 0.0
         last_rescue = 0.0
+        last_ht_freeze = 0.0
 
         # 启动秒级焦点采集线程(与全量轮并行, 避免全量轮阻塞焦点)
         self._fast_running = True
@@ -1838,6 +1970,11 @@ class GQCollector:
                 if now - last_rescue >= 90:
                     last_rescue = now
                     self._rescue_missing_scores()
+
+                # ── 中场冻结判定 (每 60s, 2026-09-10 双锚点架构) ──
+                if now - last_ht_freeze >= 60:
+                    last_ht_freeze = now
+                    self._ht_freeze_tick()
 
                 if dur_min > 0 and time.time() - t0 >= dur_min * 60:
                     break

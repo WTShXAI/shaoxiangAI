@@ -5078,6 +5078,26 @@ async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int =
             except Exception as _e:
                 logger.warning(f"[rollball] 门控: {_e}")
 
+            # ── 中场冻结判定 (2026-09-10 双锚点架构): 下半场的主判定 =
+            #    HT 窗口冻结的结论(仅上半场信息), 不随下半场实时进球改写 ──
+            try:
+                _hf = gq.execute(
+                    "SELECT ht_home, ht_away, ou_line, ou_direction, ou_prob, "
+                    "x2_home, x2_draw, x2_away, x2_direction, cs_top1, cs_top3, frozen_at "
+                    "FROM halftime_conclusion WHERE match_key=?", (match_key,)).fetchone()
+                if _hf:
+                    out["ht_freeze"] = {
+                        "ht_score": f"{_hf[0]}-{_hf[1]}",
+                        "ou": {"line": _hf[2], "direction": _hf[3], "prob": _hf[4]},
+                        "x2": {"p_home": _hf[5], "p_draw": _hf[6], "p_away": _hf[7],
+                               "direction": _hf[8]},
+                        "cs_top1": _hf[9],
+                        "cs_top3": (_hf[10] or '').split(',') if _hf[10] else [],
+                        "frozen_at": _hf[11],
+                    }
+            except Exception as _e:
+                logger.warning(f"[rollball] HT冻结读取: {_e}")
+
             # ── 四点级联融合 (2026-09-09, 用户定义顺序: OU→1X2+AH→CS) ──
             try:
                 _ou_d = (out.get("ou") or {}).get("direction") if isinstance(out.get("ou"), dict) else None

@@ -7,6 +7,7 @@
 用法: .venv/Scripts/python.exe scripts/daily_settlement.py
 建议: 每日 1-2 次 (本地计划任务或手动)。
 """
+import collections
 import sqlite3
 import sys
 import time
@@ -30,6 +31,84 @@ def settle_prediction_ledger(con):
         except Exception:
             pass
     return len(rows), done
+
+
+
+def settle_halftime_conclusion(con):
+    """中场冻结判定结算 (2026-09-10 双锚点架构): HT 冻结的 OU/1X2/CS vs 终果.
+
+    OU:  direction='OVER'  → 赢 iff FT总球 > 冻结线 (FT总球 == 线 = 走水 void)
+         direction='UNDER' → 赢 iff FT总球 < 冻结线
+    1X2: x2_direction vs 终果胜平负;  CS: top1/top3 是否含终场比分。
+    结果写回表内列 (ou_hit/x2_hit/cs1_hit/cs3_hit), 并打印成绩单。
+    """
+    for col, typ in [('ou_hit', 'INTEGER'), ('x2_hit', 'INTEGER'),
+                     ('cs1_hit', 'INTEGER'), ('cs3_hit', 'INTEGER')]:
+        try:
+            con.execute("ALTER TABLE halftime_conclusion ADD COLUMN " + col + " " + typ)
+            con.commit()
+        except Exception:
+            pass
+    rows = con.execute("""
+        SELECT h.match_key, h.ht_home, h.ht_away, h.ou_line, h.ou_direction,
+               h.x2_direction, h.cs_top1, h.cs_top3,
+               m.score_home, m.score_away
+        FROM halftime_conclusion h JOIN matches m ON m.match_key = h.match_key
+        WHERE m.status='finished' AND m.score_home IS NOT NULL
+          AND h.ou_hit IS NULL""").fetchall()
+    n_set = 0
+    ou = {'win': 0, 'lose': 0, 'void': 0}
+    x2 = {'win': 0, 'lose': 0}
+    c1 = {'win': 0, 'lose': 0}
+    c3 = {'win': 0, 'lose': 0}
+    for (mk, hh, ha, oline, odir, xdir, ct1, ct3, fsh, fsa) in rows:
+        ft_tot = fsh + fsa
+        ou_hit = x2_hit = c1_hit = c3_hit = None
+        if odir in ('OVER', 'UNDER') and oline:
+            if ft_tot == oline:
+                ou_hit = 0; ou['void'] += 1
+            elif (ft_tot > oline) == (odir == 'OVER'):
+                ou_hit = 1; ou['win'] += 1
+            else:
+                ou_hit = -1; ou['lose'] += 1
+        actual = 'home' if fsh > fsa else ('draw' if fsh == fsa else 'away')
+        if xdir:
+            x2_hit = 1 if xdir == actual else -1
+            x2['win' if x2_hit == 1 else 'lose'] += 1
+        fs = str(fsh) + '-' + str(fsa)
+        if ct1:
+            c1_hit = 1 if ct1 == fs else -1
+            c1['win' if c1_hit == 1 else 'lose'] += 1
+        if ct3:
+            t3 = [x.strip() for x in str(ct3).split(',')]
+            c3_hit = 1 if fs in t3 else -1
+            c3['win' if c3_hit == 1 else 'lose'] += 1
+        con.execute("UPDATE halftime_conclusion SET ou_hit=?, x2_hit=?, cs1_hit=?, cs3_hit=? "
+                    "WHERE match_key=?", (ou_hit, x2_hit, c1_hit, c3_hit, mk))
+        n_set += 1
+    con.commit()
+    rate = lambda d: ((str(round(d['win']/(d['win']+d['lose'])*100, 1)) + '%') if d['win']+d['lose'] else '—')
+    print('── 中场冻结判定成绩单 ──')
+    print('  本轮结算', n_set, '场')
+    # 赛前锚点成绩单 (prematch_conclusion 赛前固化 1X2 vs 终果, 现算)
+    try:
+        pro = con.execute("""
+            SELECT p.verdict_code, m.score_home, m.score_away
+            FROM prematch_conclusion p JOIN matches m ON m.match_key = p.match_key
+            WHERE m.status='finished' AND m.score_home IS NOT NULL""").fetchall()
+        pp = collections.Counter()
+        for vc, fsh, fsa in pro:
+            actual = 'home' if fsh > fsa else ('draw' if fsh == fsa else 'away')
+            pp[vc == actual] += 1
+        if pp:
+            tot = pp[True] + pp[False]
+            print('  [赛前锚点] 1X2 固化判定:', pp[True], '/', tot, '=', round(pp[True]/tot*100, 1), '%')
+    except Exception as _pe:
+        print('  [赛前锚点] 结算失败:', _pe)
+    print("  OU 方向:  赢", ou['win'], "/ 输", ou['lose'], "/ 走水", ou['void'], "→ 命中率", rate(ou))
+    print("  1X2 方向:", rate(x2), "(赢", x2['win'], "/ 输", x2['lose'], ")")
+    print("  CS TOP1: ", rate(c1), "| CS TOP3:", rate(c3))
+    return n_set
 
 
 def settle_beat_under(con):
@@ -117,6 +196,12 @@ def main():
     except Exception as e:
         print(f'[beat_under] 失败: {e}')
     con.commit()
+
+    # 中场冻结判定结算 (2026-09-10 双锚点架构)
+    try:
+        settle_halftime_conclusion(con)
+    except Exception as e:
+        print(f'[halftime] 结算失败(不阻塞): {e}')
 
     # 比分源同步: odds_changes 镜像 -> matches
     try:
