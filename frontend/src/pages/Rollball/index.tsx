@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import PageHeader from '@/components/layout/PageHeader'
+import Skeleton from '@/components/shared/Skeleton'
 import MatchAnalysisModal from '@/pages/LiveScores/MatchAnalysisModal'
 import { worldAnalyzerService, goldenEyeService, timelineService } from '@/services/api'
 
@@ -433,7 +434,15 @@ export default function Rollball() {
 
         {/* 右: 分析面板 */}
         <div className="space-y-2">
-          {!d && loading && <div className="text-[12px] text-ink-muted p-4">分析加载中…</div>}
+          {!d && loading && (
+            <div className="space-y-2 p-1">
+              <Skeleton variant="line" className="w-2/3" />
+              <div className="grid grid-cols-2 gap-2">
+                <Skeleton variant="card" /><Skeleton variant="card" />
+              </div>
+              <Skeleton variant="card" />
+            </div>
+          )}
           {err && <div className="text-[12px] text-rose-300 p-3 rounded-lg border border-rose-500/30 bg-rose-500/[0.05]">{err}</div>}
           {!d && !loading && !err && <div className="text-[12px] text-ink-muted p-4">← 左侧选择比赛开始分析</div>}
 
@@ -511,6 +520,9 @@ export default function Rollball() {
                     <div className="mt-4 px-1">
                       <div className="relative h-7">
                         <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[3px] rounded-full bg-white/[0.07]" />
+                        {/* 起止刻度 */}
+                        <span className="absolute top-full -translate-x-1/2 text-[8px] text-ink-disabled" style={{ left: '0%' }}>0′</span>
+                        <span className="absolute top-full -translate-x-full text-[8px] text-ink-disabled" style={{ left: '100%' }}>90′</span>
                         {/* 中场线 */}
                         <div className="absolute top-0 bottom-0 w-px bg-white/15" style={{ left: pos(45) }} title="中场 45'" />
                         <span className="absolute top-full -translate-x-1/2 text-[8px] text-ink-disabled" style={{ left: pos(45) }}>HT</span>
@@ -541,8 +553,8 @@ export default function Rollball() {
                 })()}
               </div>
 
-              {/* 融合 Tab 栏 */}
-              <div className="flex items-center gap-1 rounded-lg bg-surface-dark/50 border border-surface-border/40 p-1 w-fit flex-wrap">
+              {/* 融合 Tab 栏 (吸顶: 深挖 tab 长内容滚动时保持可达) */}
+              <div className="sticky top-0 z-10 flex items-center gap-1 rounded-lg bg-surface-dark/90 backdrop-blur border border-surface-border/40 p-1 w-fit flex-wrap shadow-sm">
                 {([
                   ['overview', '总览 · 四市场'],
                   ['deep', '全链路 7 模型'],
@@ -660,20 +672,38 @@ export default function Rollball() {
                         style={{ width: `${agree * 100}%` }} />
                     </div>
                     <div className="text-[11px] text-ink-secondary mt-2">{g.verdict}</div>
-                    {d.final_direction?.direction && (
-                      <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] text-ink-muted">融合最终方向:</span>
-                        <span className={`text-[15px] font-bold font-mono ${txt}`}>
-                          {DIR_CN[d.final_direction.direction ?? ''] ?? d.final_direction.direction}
-                        </span>
-                        <span className="text-[11px] text-ink-muted">置信 {((d.final_direction.prob ?? 0) * 100).toFixed(0)}%</span>
-                        {d.final_direction.cs_verified != null && (
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded ${d.final_direction.cs_verified ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-300'}`}>
-                            {d.final_direction.cs_verified ? '✓ 波胆验证通过' : '⚠ 波胆未确认'}
+                    {(() => {
+                      const fd = d.final_direction
+                      const useFusion = !!fd?.direction
+                      const structW = d.direction?.winner ?? null
+                      const diverged = useFusion && structW && structW !== fd!.direction
+                      const vLabel = useFusion
+                        ? (DIR_CN[fd!.direction ?? ''] ?? fd!.direction)
+                        : (d.direction?.label ?? null)
+                      const vProb = useFusion ? fd!.prob : null
+                      if (!vLabel) return null
+                      return (
+                        <div className="mt-2 flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] text-ink-muted">终场方向判定:</span>
+                          <span className={`text-[16px] font-bold font-mono ${diverged ? 'text-amber-300' : txt}`}>
+                            {vLabel}
                           </span>
-                        )}
-                      </div>
-                    )}
+                          {vProb != null && <span className="text-[11px] text-ink-muted">置信 {((vProb ?? 0) * 100).toFixed(0)}%</span>}
+                          {useFusion && <span className="text-[10px] px-1 py-0.5 rounded bg-field-500/15 text-field-300">四方向融合</span>}
+                          {d.final_direction?.cs_verified != null && (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${d.final_direction.cs_verified ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-300'}`}>
+                              {d.final_direction.cs_verified ? '✓ 波胆验证通过' : '⚠ 波胆未确认'}
+                            </span>
+                          )}
+                          {diverged && (
+                            <span className="text-[10px] text-ink-muted" title="比分池结构方向与融合结论分歧 — 已按四方向加权裁决">
+                              (结构方向 {DIR_CN[structW ?? ''] ?? structW} 与融合分歧)
+                            </span>
+                          )}
+                          {!useFusion && d.direction?.basis && <span className="text-[10px] text-ink-muted">{d.direction.basis}</span>}
+                        </div>
+                      )
+                    })()}
                     {sigs.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {sigs.map(([k, v]: [string, string]) => (
@@ -684,34 +714,6 @@ export default function Rollball() {
                         ))}
                       </div>
                     )}
-                  </div>
-                )
-              })()}
-
-              {/* 方向总判定 — 单一 verdict 源 (2026-09-10 串联矛盾根治):
-                  有四方向融合时只显示融合结果(与门控卡同源), 无融合才退回结构方向;
-                  两者分歧时显式标注"结构方向", 不再两张卡各说各话 */}
-              {tab === 'overview' && (d.final_direction?.direction || d.direction?.label) && (() => {
-                const fd = d.final_direction
-                const useFusion = !!fd?.direction
-                const structW = d.direction?.winner ?? null
-                const diverged = useFusion && structW && structW !== fd!.direction
-                const label = useFusion ? (DIR_CN[fd!.direction ?? ''] ?? fd!.direction) : d.direction!.label
-                const prob = useFusion ? fd!.prob : null
-                const tone = diverged ? 'border-amber-500/40 bg-amber-500/[0.05] text-amber-300'
-                  : 'border-emerald-500/40 bg-emerald-500/[0.06] text-emerald-300'
-                return (
-                  <div className={`rounded-xl border p-3 ${tone}`}>
-                    <span className="text-[12px] text-ink-secondary">终场方向判定: </span>
-                    <span className={`text-[14px] font-bold ${diverged ? 'text-amber-300' : 'text-emerald-300'}`}>{label}</span>
-                    {prob != null && <span className="text-[11px] text-ink-muted ml-1.5">置信 {(prob * 100).toFixed(0)}%</span>}
-                    {useFusion && <span className="text-[10px] px-1 py-0.5 rounded bg-field-500/15 text-field-300 ml-2">四方向融合</span>}
-                    {diverged && (
-                      <span className="text-[10px] text-ink-muted ml-2" title="比分池结构方向与融合结论分歧 — 融合已按四方向加权裁决, 详见门控卡">
-                        (结构方向 {DIR_CN[structW ?? ''] ?? structW} 与融合分歧)
-                      </span>
-                    )}
-                    {!useFusion && d.direction?.basis && <span className="text-[10px] text-ink-muted ml-2">{d.direction.basis}</span>}
                   </div>
                 )
               })()}
