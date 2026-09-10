@@ -23,6 +23,32 @@ import { worldAnalyzerService, goldenEyeService, timelineService } from '@/servi
 const POLL = 8000
 const DIR_CN: Record<string, string> = { home: '主胜', draw: '平', away: '客胜' }
 
+/* 深挖 Tab 常见键名中文化 (未知键原样显示, 悬停看原文) */
+const KEY_CN: Record<string, string> = {
+  match_key: '比赛', home: '主队', away: '客队', league: '联赛', kickoff: '开赛',
+  score: '比分', minute: '分钟', status: '状态', last_seen: '最近活跃',
+  direction: '方向', prob: '概率', signal: '信号', line: '盘口线', verdict: '判定',
+  top5: '前五比分', top3: '前三比分', n_matched: '匹配场数', mean_dist: '平均距离',
+  odds: '赔率', h: '主胜赔', d: '平赔', a: '客胜赔', ou: '大小球', ah: '让球',
+  ph: '主胜概率', pd: '平概率', pa: '客胜概率', fav: '热门',
+  open_line: '开盘线', current_line: '当前线', drift_total: '总球漂移',
+  half: '半场', full: '全场', half_signal: '半场信号', full_signal: '全场信号',
+  ou_drift: 'OU漂移', priority: '优先级', expected_score: '预期比分',
+  confidence: '置信度', conf: '置信度', edge: '优势', weight: '权重',
+  agree: '一致', split: '分裂', level: '级别', pool: '比分池', fusion: '融合',
+  risks: '风险', risk: '风险', fixture: '赛事', commence_time: '开赛时间',
+  market_prob: '市场概率', value_layer: '价值层', strategy_tier: '策略层',
+  injuries: '伤停', news: '新闻', preview: '前瞻', mode: '模式',
+  basis: '依据', winner: '赢家', winner_label: '方向', winner_basis: '方向依据',
+  is_scheduled: '未开赛', is_halftime: '中场', inducement: '诱导信号',
+  current_score: '当前比分', current_minute: '当前分钟', total: '总球',
+  cs_direction: '比分方向', ah_recommend: '让球推荐', aligned: '对齐',
+  consensus: '共识', open_total: '开盘总球', pool_avg_total: '池均总球',
+  anchor: '锚点', drift: '漂移', line_drop: '降盘', opening: '开盘',
+  opening_1x2: '开盘1X2', opening_ah: '开盘让球', live_odds: '即时盘',
+  goal_timeline: '进球轨迹', summary: '摘要', data_source: '数据源',
+}
+
 interface RollballData {
   match_key: string
   status?: string
@@ -303,7 +329,7 @@ export default function Rollball() {
       <div className="space-y-0.5">
         {entries.slice(0, 24).map(([k, v]) => (
           <div key={k} className="flex gap-2 text-[11px]">
-            <span className="text-ink-muted shrink-0 w-32 truncate" title={k}>{k}</span>
+            <span className="text-ink-secondary shrink-0 w-32 truncate" title={k}>{KEY_CN[k] || k}</span>
             <span className="min-w-0"><DataPanel data={v} depth={depth + 1} /></span>
           </div>
         ))}
@@ -421,6 +447,11 @@ export default function Rollball() {
                   <div className="flex items-center gap-1.5 text-[10px] text-ink-muted mt-0.5">
                     <PhaseDot phase={ph} />
                     <span className="truncate">{m.league}</span>
+                    {m.full_direction && (m.full_signal === 'STRONG_BREAK' || m.full_signal === 'STRONG_HOLD' || (m.full_prob != null && m.full_prob >= 0.56)) && (
+                      <span className={`shrink-0 font-mono px-1 rounded ${m.full_direction === 'OVER' ? 'text-emerald-300/80 bg-emerald-500/[0.08]' : 'text-ember-300/80 bg-ember-500/[0.08]'}`}>
+                        {m.full_direction === 'OVER' ? '大' : '小'} {m.full_prob != null ? (m.full_prob * 100).toFixed(0) : ''}
+                      </span>
+                    )}
                     <span className="ml-auto shrink-0 font-mono">
                       {ph.key === 'pre' ? '未开赛' : `${calibMinute(m)}'`}
                     </span>
@@ -909,7 +940,13 @@ export default function Rollball() {
                         </div>
                       )}
                       {ou.anchor?.open_line != null && (
-                        <div className="text-[10px] text-ink-muted">
+                        <div className="text-[10px] text-ink-muted flex items-center gap-1 flex-wrap">
+                          {(ou.anchor.current_line ?? ou.anchor.open_line) !== ou.anchor.open_line && (
+                            <span className={`px-1 rounded ${ou.anchor.current_line! < ou.anchor.open_line! ? 'bg-rose-500/15 text-rose-300' : 'bg-field-500/15 text-field-300'}`}
+                              title="庄家调整总球线: 降线=防大, 升线=放大的信号">
+                              {ou.anchor.current_line! < ou.anchor.open_line! ? '↓ 降盘' : '↑ 升盘'}
+                            </span>
+                          )}
                           漂移: 开盘 {ou.anchor.open_line} → 当前 {ou.anchor.current_line ?? '—'}
                           {ou.anchor.drift_total != null && ` (总球 ${ou.anchor.drift_total > 0 ? '+' : ''}${ou.anchor.drift_total})`}
                         </div>
