@@ -106,6 +106,9 @@ def main(apply: bool = False):
         if sh + sa > 12:
             skipped += 1
             continue
+        # 2026-09-10 HT 污染加固: 滚球中 API S1 会携带当前比分冒充 HT
+        # (风暴vs守护者FC 实测 HT 被写成 4-1, 真实 HT 1-1) → 回补时 HT 置 None。
+        ht_sh = ht_sa = None
         fixed.append((mk, sh, sa, ht_sh, ht_sa, st))
         _safe_print(f"  {mk} [{st}] → {sh}-{sa}" + (f" (HT {ht_sh}-{ht_sa})" if ht_sh is not None else ""))
 

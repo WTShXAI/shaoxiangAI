@@ -1309,6 +1309,11 @@ class GQCollector:
                     continue
                 if sh + sa > 12:
                     continue
+                # 2026-09-10 HT 污染加固(风暴vs守护者FC 实测): 比赛进行中 API 的 S1 字段
+                # 会携带**当前比分**冒充半场比分(该场滚球中 HT 被写成 4-1, 用户实证
+                # HT 为 1-1; mststi/mlet 判完场不可靠) → 滚球救援一律不写 HT, 只补比分。
+                # 完赛场的 HT 恢复由墙钟轨迹脚本负责(repair_ht_scores_wallclock.py)。
+                ht_sh = ht_sa = None
                 with _db.conn() as _c:
                     cur = _c.execute(
                         "UPDATE matches SET score_home=?, score_away=?, "
