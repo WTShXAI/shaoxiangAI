@@ -97,9 +97,11 @@ def settle_halftime_conclusion(con):
             FROM prematch_conclusion p JOIN matches m ON m.match_key = p.match_key
             WHERE m.status='finished' AND m.score_home IS NOT NULL""").fetchall()
         pp = collections.Counter()
+        _vc_map = {'H': 'home', 'D': 'draw', 'A': 'away',
+                   'home': 'home', 'draw': 'draw', 'away': 'away'}
         for vc, fsh, fsa in pro:
             actual = 'home' if fsh > fsa else ('draw' if fsh == fsa else 'away')
-            pp[vc == actual] += 1
+            pp[_vc_map.get(str(vc).strip().upper(), vc) == actual] += 1
         if pp:
             tot = pp[True] + pp[False]
             print('  [赛前锚点] 1X2 固化判定:', pp[True], '/', tot, '=', round(pp[True]/tot*100, 1), '%')
