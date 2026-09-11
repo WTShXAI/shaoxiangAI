@@ -2063,6 +2063,28 @@ def probe_core(odds, current_score='0-0', current_minute=0, league=None, con=Non
     except Exception:
         _select_ou_lines = None
     _raw_lines = []
+    # 2026-09-10 死线剔除(滚球): 线的报价帧 >12 分钟无更新 = 庄家已撤/换线,
+    # 旧价去水概率描述的是过去的比赛状态(实测 塔拉戈纳 85' 线6@74%大 → 幽灵
+    # 比分 5-2/6-2/7-2 入 CS 卡)。滚球中只接受 12 分钟内有报价的线;
+    # 赛前(minute=0)不受此限(开盘线本身就是几小时前的)。
+    _fresh_lines = None
+    if current_minute and current_minute > 0:
+        try:
+            _fr = con.execute(
+                "SELECT market, MAX(captured_at) AS mx FROM odds_snapshots "
+                "WHERE match_key=? AND market LIKE 'OU_%' AND market NOT LIKE 'OU_1H%' "
+                "AND market NOT LIKE 'OU_2H%' AND captured_at > ? GROUP BY market",
+                (match_key, time.time() - 720)).fetchall()
+            _fresh_lines = set()
+            for _mkt, _mx in _fr:
+                try:
+                    _lv = _extract_line_from_market(_mkt)
+                    if _lv is not None:
+                        _fresh_lines.add(round(_lv, 2))
+                except Exception:
+                    pass
+        except Exception:
+            _fresh_lines = None
     for key in odds:
         if key.startswith('OU_') and not key.startswith('OU_1H') and not key.startswith('OU_2H') and key.endswith('__over'):
             line_key = key[:-6]
@@ -2076,6 +2098,8 @@ def probe_core(odds, current_score='0-0', current_minute=0, league=None, con=Non
                     line = 0.5
                 if total_now >= line:
                     continue
+                if _fresh_lines is not None and round(line, 2) not in _fresh_lines:
+                    continue   # 死线: 滚球中 12 分钟无报价更新
                 _raw_lines.append({'line': line, 'over': ov, 'under': un})
     _picked = _select_ou_lines(_raw_lines, is_halftime=False) if _select_ou_lines else _raw_lines
     for c in _picked:
