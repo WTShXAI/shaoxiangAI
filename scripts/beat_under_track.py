@@ -95,11 +95,28 @@ def record(con):
         if not got:
             continue
         line, over, under = got
+        # 2026-09-10 数据驱动闸门收紧 (484 注已结样本聚类):
+        #   ✓ 盈利核: 线 2.25(+19.0%)/2.5(+13.8%)/3.25(+6.1%)
+        #   ✗ 亏损源: 线 1.5(-33.5%)/1.75(-32%)/2.0(-18.6%)/2.75(-13.9%)/3.0(-14.9%)
+        #   ✗ 低赔档 <1.80: -25.6% (低赔=市场极度确信的小球, beat_book 优势被吃掉)
+        #   ✗ 午夜档(00-06时): -16.0% (亚澳夜场, 样本 155 注)
+        if not (2.2 <= line <= 2.6 or 3.2 <= line <= 3.3):
+            continue
+        if float(under) < 1.80:
+            continue
+        try:
+            _dt = datetime.datetime.fromisoformat(str(ko).replace(' ', 'T'))
+            if _dt.tzinfo is None:
+                _dt = _dt.replace(tzinfo=datetime.timezone(datetime.timedelta(hours=8)))
+            if 0 <= _dt.hour < 6:
+                continue
+        except Exception:
+            pass
         con.execute(
             "INSERT INTO beat_under_log (match_key, league, kickoff, line, odds, "
             "book_odds_total, note, created_at) VALUES (?,?,?,?,?,?,?,?)",
             (mk, lg, ko, line, under, round(over, 2),
-             'back 小球 (beat_book: 小球被系统性低估, 历史 ROI+6.7%)', now))
+             'back 小球 (闸门收紧版: 线2.25-2.5/3.25 + 赔率≥1.80 + 非午夜档)', now))
         n += 1
     con.commit()
     return n
