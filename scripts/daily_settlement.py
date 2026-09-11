@@ -55,6 +55,9 @@ def settle_halftime_conclusion(con):
                m.score_home, m.score_away
         FROM halftime_conclusion h JOIN matches m ON m.match_key = h.match_key
         WHERE m.status='finished' AND m.score_home IS NOT NULL
+          AND m.kickoff <= datetime('now', '-110 minutes')
+          AND EXISTS (SELECT 1 FROM odds_snapshots o WHERE o.match_key = h.match_key
+                      AND o.score_at IS NOT NULL AND o.score_at != '')
           AND h.ou_hit IS NULL""").fetchall()
     n_set = 0
     ou = {'win': 0, 'lose': 0, 'void': 0}

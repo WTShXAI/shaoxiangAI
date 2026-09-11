@@ -81,11 +81,16 @@ def record(con):
 
 def settle(con):
     ensure_table(con)
+    # 2026-09-10 幽灵finished守卫: 延期/未开赛场被 3.5h 规则打成 finished 0-0,
+    # 让球+1 的 0-0 恰好=覆盖赢 → 假 win 刷高台账。守卫: 开赛≥110min + feed 必须有比分帧。
     rows = con.execute("""
         SELECT s.id, s.match_key, s.odds FROM strategy_log s
         JOIN matches m ON m.match_key = s.match_key
         WHERE s.strategy='让球+1' AND s.result IS NULL
-          AND m.status='finished' AND m.score_home IS NOT NULL""").fetchall()
+          AND m.status='finished' AND m.score_home IS NOT NULL
+          AND m.kickoff <= datetime('now', '-110 minutes')
+          AND EXISTS (SELECT 1 FROM odds_snapshots o WHERE o.match_key = s.match_key
+                      AND o.score_at IS NOT NULL AND o.score_at != '')""").fetchall()
     n = 0
     for sid, mk, odds in rows:
         sh, sa = con.execute("SELECT score_home, score_away FROM matches WHERE match_key=?", (mk,)).fetchone()
@@ -107,11 +112,12 @@ def settle(con):
 def report(con):
     ensure_table(con)
     rows = con.execute("""
-        SELECT result, COUNT(*), SUM(CASE result WHEN 'win' THEN ? ELSE -1.0 END)
-        FROM strategy_log WHERE strategy='让球+1' AND result IS NOT NULL""", (S5_ODDS,)).fetchone()
+        SELECT COUNT(*), SUM(CASE result WHEN 'win' THEN 1 ELSE 0 END),
+               SUM(CASE result WHEN 'win' THEN ? ELSE -1.0 END)
+        FROM strategy_log WHERE strategy='让球+1' AND result IS NOT NULL""", (S5_ODDS - 1.0,)).fetchone()
     pend = con.execute("SELECT COUNT(*) FROM strategy_log WHERE strategy='让球+1' AND result IS NULL").fetchone()[0]
     if rows and rows[0]:
-        res, n, ret = rows
+        n, res, ret = rows   # ret = 净收益 (赢单 +odds-1, 输单 -1)
         roi = ret / n * 100 if n else 0
         hit = res / n * 100 if n else 0
         print(f'── 策略台账成绩单 ──')

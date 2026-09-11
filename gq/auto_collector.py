@@ -1373,6 +1373,13 @@ class GQCollector:
                     continue
                 em = (now - kots) / 60.0
                 if 46.0 <= em <= 58.0:   # 中场休息窗(含补时余量)
+                    # 延期场守卫: 开赛窗到了但比分仍是 0-0 且 feed 从未推过非零帧 → 可能未开赛, 暂缓冻结
+                    if r["score_home"] == 0 and r["score_away"] == 0:
+                        _fr = con.execute(
+                            "SELECT COUNT(*) FROM odds_snapshots WHERE match_key=? "
+                            "AND score_at IS NOT NULL AND score_at != '0-0'", (r["match_key"],)).fetchone()[0]
+                        if _fr == 0:
+                            continue
                     targets.append((r["match_key"], int(r["score_home"]), int(r["score_away"])))
             if not targets:
                 return

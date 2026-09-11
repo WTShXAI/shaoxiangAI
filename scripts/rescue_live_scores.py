@@ -74,7 +74,9 @@ def main(apply: bool = False):
         if not kots:
             continue
         em = (now - kots) / 60.0
-        if 3.0 <= em <= 100.0:
+        # 2026-09-10 延期场守卫: 开赛<20min 时不回补 0-0 (API 对未开赛也回 0:0 占位,
+        # 写入后会被 3.5h 规则打成 finished 0-0 幽灵, 污染结算)
+        if 3.0 <= em <= 100.0 and not (em < 20 and r['status'] in ('scheduled', 'live')):
             targets.append((r['match_key'], str(r['mid']), r['status']))
     _safe_print(f"[SELECT] 墙钟在赛(3~100min)+比分缺失: {len(targets)} 场")
 
