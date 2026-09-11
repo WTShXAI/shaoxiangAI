@@ -72,15 +72,13 @@ def audit_match(mk, m, viol, examples, cov):
                 f"{mk}: dir={direction['winner']}({str(direction.get('basis'))[:24]}) top1={top1} "
                 f"cs.dir={(cs.get('direction') or {}).get('winner')} align={str(cs.get('winner_align'))[:36]}")
 
-    # CHK2 OU 判定 vs 首选比分总球
+    # CHK2 OU 判定 vs 首选比分总球 (仅审计强置信 ≥0.70 的锚 —
+    # 置信 <70% 的 OU 为展示倾向, 不降权池, 与首选比分的类别分歧属设计行为)
     if (top1 and ou.get('data_source') == 'live_odds' and ou.get('line') is not None
-            and ou.get('direction') in ('OVER', 'UNDER') and ou.get('signal') not in ('NO_EDGE', 'ALREADY_BROKEN')):
-        # 2026-09-10 语义对齐: 置信 <70% 的 OU 为展示倾向(不降权池), 与首选比分
-        # 的类别分歧属设计行为 — 仅审计强置信(≥0.70)的锚
-        if (ou.get('prob') is not None and ou.get('prob') >= 0.70) or ou.get('prob') is None:
-            cov['CHK2'] += 1
-        else:
-            t1 = None   # 弱置信倾向: 不计检查也不计违反
+            and ou.get('direction') in ('OVER', 'UNDER')
+            and ou.get('signal') not in ('NO_EDGE', 'ALREADY_BROKEN')
+            and (ou.get('prob') is None or ou.get('prob') >= 0.70)):
+        cov['CHK2'] += 1
         t1 = total(top1)
         ln = float(ou['line'])
         # 线已被当前总球击穿(破线)时, 真实链路走 ALREADY_BROKEN 分支不产出方向 — 跳过;
