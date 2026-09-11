@@ -4803,6 +4803,15 @@ async def sixline_analyze_api(match_key: str, score: str = "0-0", minute: int = 
 
 
 
+def _parse_ts(sc):
+    """'a-b' → (a, b); 解析失败 (0, 0)。"""
+    try:
+        a, b = (int(x) for x in str(sc).split('-')[:2])
+        return (a, b)
+    except Exception:
+        return (0, 0)
+
+
 @app.get("/api/rollball/analyze")
 async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int = 0):
     """滚球分析仪表盘聚合端点 — 一次返回 四市场(1X2/AH/OU/CS) + 实时进度 + 进球轨迹。
@@ -4857,10 +4866,36 @@ async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int =
             traj = gq.execute(
                 "SELECT minute_at, score_at FROM odds_snapshots WHERE match_key=? AND score_at != '' "
                 "AND minute_at BETWEEN 1 AND 130 ORDER BY captured_at", (match_key,)).fetchall()
+            # 2026-09-10 时间轴三修(用户实测 累西腓体育PE 场):
+            #   ① 0-0 首帧不再当"进球事件"(幻影 ⚽2' 0-0)
+            #   ② feed 误推后修正(2-0 → 回退 1-0)时回滚时间轴 — 比分只进不退,
+            #      与当前比分矛盾的幽灵比分(2-0@36')不得出现在轴上
+            #   ③ 显示分钟单调钳制(垃圾 minute_at 免疫)
             seen = []
+            last = (0, 0)
+            last_mn = 0
             for mn, sc in traj:
-                if not seen or seen[-1]["score"] != sc:
-                    seen.append({"minute": mn, "score": sc})
+                try:
+                    a, b = (int(x) for x in str(sc).split('-')[:2])
+                except Exception:
+                    continue
+                if (a, b) == (0, 0):
+                    continue                      # ① 无进球帧
+                if (a, b) == last:
+                    continue                      # 未变化
+                if a < last[0] or b < last[1]:
+                    # ② feed 回退修正: 回滚到该帧状态, 被撤销的比分从轴上移除
+                    while seen and ((lambda t: (t[0] > a or t[1] > b))(_parse_ts(seen[-1]["score"]))):
+                        seen.pop()
+                    if seen:
+                        _t = _parse_ts(seen[-1]["score"])
+                        last = (_t[0], _t[1])
+                    else:
+                        last = (a, b)
+                    continue
+                seen.append({"minute": max(int(mn), last_mn), "score": f"{a}-{b}"})
+                last_mn = max(int(mn), last_mn)
+                last = (a, b)
             out["goal_timeline"] = seen[-12:]
 
             # ── 开盘 1X2 (match_outcomes/op_* → 快照回退) ──
