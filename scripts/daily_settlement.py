@@ -205,6 +205,14 @@ def main():
     except Exception as e:
         print(f'[halftime] 结算失败(不阻塞): {e}')
 
+    # 策略台账 (2026-09-10: 让球+1 回测 ROI+23.4%, 时段规律+6.1pp)
+    try:
+        sys.path.insert(0, r'D:\Architecture\scripts')
+        from strategy_ledger import main as sl_main
+        sl_main()
+    except Exception as e:
+        print(f'[strategy] 失败(不阻塞): {e}')
+
     # 比分源同步: odds_changes 镜像 -> matches
     try:
         rows2 = con.execute(

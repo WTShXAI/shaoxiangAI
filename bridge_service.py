@@ -4818,6 +4818,28 @@ def _parse_ts(sc):
         return (0, 0)
 
 
+@app.get("/api/strategy/today")
+async def strategy_today_api():
+    """今日策略台账候选 (2026-09-10): 让球+1 条件策略(回测 ROI+23.4%)。"""
+    def _worker():
+        gq = sqlite3.connect(os.path.join(PROJECT_ROOT, "data", "events.db"), timeout=8)
+        gq.execute("PRAGMA busy_timeout=8000")
+        try:
+            rows = gq.execute("""
+                SELECT s.match_key, s.kickoff, s.detail, s.odds
+                FROM strategy_log s
+                WHERE s.strategy='让球+1' AND s.result IS NULL
+                  AND s.kickoff >= datetime('now')""").fetchall()
+            return {"ok": True, "data": {"candidates": [
+                {"match_key": r[0], "kickoff": r[1], "detail": r[2], "odds": r[3]} for r in rows]}}
+        finally:
+            gq.close()
+    try:
+        return await asyncio.to_thread(_worker)
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e), "data": None})
+
+
 @app.get("/api/rollball/analyze")
 async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int = 0):
     """滚球分析仪表盘聚合端点 — 一次返回 四市场(1X2/AH/OU/CS) + 实时进度 + 进球轨迹。

@@ -191,7 +191,17 @@ export default function Rollball() {
   const [geData, setGeData] = useState<any>(null)
   const [geErr, setGeErr] = useState('')
   const [tlData, setTlData] = useState<any>(null)
+  const [strategySet, setStrategySet] = useState<Set<string>>(new Set())
   const timer = useRef<number | null>(null)
+
+  const loadStrategy = useCallback(async () => {
+    try {
+      const r = await fetch('/api/strategy/today')
+      const j = await r.json()
+      const cands = ((j?.data ?? j)?.candidates ?? []) as { match_key: string }[]
+      setStrategySet(new Set(cands.map(c => c.match_key)))
+    } catch { /* silent */ }
+  }, [])
   const selRef = useRef<any>(null)
   const loadingRef = useRef(false)
 
@@ -253,13 +263,18 @@ export default function Rollball() {
 
   useEffect(() => {
     loadMatches()
+    loadStrategy()
     timer.current = window.setInterval(() => {
       loadMatches()
       // ② 主面板随轮询同步刷新 — 比分/分钟/判定跟着比赛走, 而非冻结在选中瞬间
       if (selRef.current) loadAnalyze(selRef.current, true)
     }, POLL)
-    return () => { if (timer.current) window.clearInterval(timer.current) }
-  }, [loadMatches, loadAnalyze])
+    const st = window.setInterval(loadStrategy, 120000)
+    return () => {
+      if (timer.current) window.clearInterval(timer.current)
+      window.clearInterval(st)
+    }
+  }, [loadMatches, loadAnalyze, loadStrategy])
 
   useEffect(() => {
     selRef.current = sel
@@ -458,6 +473,12 @@ export default function Rollball() {
                     {m.full_direction && (m.full_signal === 'STRONG_BREAK' || m.full_signal === 'STRONG_HOLD' || (m.full_prob != null && m.full_prob >= 0.56)) && (
                       <span className={`shrink-0 font-mono px-1 rounded ${m.full_direction === 'OVER' ? 'text-emerald-300/80 bg-emerald-500/[0.08]' : 'text-ember-300/80 bg-ember-500/[0.08]'}`}>
                         {m.full_direction === 'OVER' ? '大' : '小'} {m.full_prob != null ? (m.full_prob * 100).toFixed(0) + '%' : ''}
+                      </span>
+                    )}
+                    {strategySet.has(m.match_key) && (
+                      <span className="shrink-0 px-1 rounded bg-yellow-500/10 text-yellow-300 border border-yellow-500/25 font-semibold"
+                        title="策略台账·让球+1: 弱队受让(回测 63% 覆盖/ROI+23%)">
+                        让+1
                       </span>
                     )}
                     <span className="ml-auto shrink-0 font-mono">
