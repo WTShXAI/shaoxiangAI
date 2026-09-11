@@ -367,12 +367,24 @@ def _apply_constraints_stage(out, current_score, ou_hint, winner_hint):
         else:
             wf = None
         ou_dir = ou_ifloor = None
+        ou_factor = 0.15
         if ou_hint:
             try:
                 ou_dir = str(ou_hint[1]).upper()
                 _line = float(ou_hint[0])
+                # 2026-09-10 置信度分档降权: 仅 ≥70% 强信号降权(0.15);
+                # <70% 完全不降权 — 90' 大4.75@66% 把最可能的 2-2 压到 3-3 之后
+                # (3-3 需再进 2 球, 现实概率更低) = 弱置信扭曲精确排序, 实测复盘后收紧。
+                _op = float(ou_hint[2]) if len(ou_hint) > 2 and ou_hint[2] is not None else 1.0
+                ou_factor = 0.15 if _op >= 0.70 else 1.0
                 if ou_dir in ('OVER', 'UNDER') and 0.5 <= _line <= 10.0:
-                    ou_ifloor = _math.floor(_line + 1e-9)
+                    # 2026-09-10 过期锚闸门(用户实测 阿尔托赞比西 89' 大7.5): 线与当前
+                    # 总球差 >3 球 = 赛前/残线已不可达, 继续用会降权真首选并合成幽灵
+                    # 高比分(4-2/5-2) → 弃用该锚。
+                    if sh is not None and abs(_line - (sh + sa)) > 3:
+                        ou_dir = None
+                    else:
+                        ou_ifloor = _math.floor(_line + 1e-9)
                 else:
                     ou_dir = None
             except Exception:
@@ -394,7 +406,7 @@ def _apply_constraints_stage(out, current_score, ou_hint, winner_hint):
             if wf and wf(cls) < 1.0:
                 f *= 0.15
             if ou_dir and tot is not None and ou_bad(tot):
-                f *= 0.15
+                f *= ou_factor
                 demoted_ou.append(t['score'])
             adj.append({'score': t['score'], 'prob': round(p * f, 6), '_p': p})
         if not demoted_ou and not wf:
@@ -428,6 +440,10 @@ def _apply_constraints_stage(out, current_score, ou_hint, winner_hint):
                         wgt = max(0.05, w * _ref_p)
                         if winner_hint and _outcome_of(key) != winner_hint:
                             wgt *= 0.15
+                        if ou_dir and ou_factor < 1.0:
+                            _tt = int(key.split('-')[0]) + int(key.split('-')[1])
+                            if ou_bad(_tt):
+                                wgt *= ou_factor
                         if wgt > added.get(key, 0):
                             added[key] = wgt
                 merged = {t['score']: t['prob'] for t in adj}

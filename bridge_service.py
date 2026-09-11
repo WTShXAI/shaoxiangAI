@@ -4650,11 +4650,17 @@ async def sixline_analyze_api(match_key: str, score: str = "0-0", minute: int = 
                         if (_fu.get('data_source') == 'live_odds' and _fu.get('line') is not None
                                 and _fu.get('direction') in ('OVER', 'UNDER')
                                 and _fu.get('signal') not in ('ALREADY_BROKEN',)):
-                            _ou_hint = (_fu['line'], _fu['direction'])
+                            _ou_hint = (_fu['line'], _fu['direction'], _fu.get('prob'))
                 except Exception:
                     _ou_hint = None
                 if not _ou_hint and ou_line and p_over is not None and p_over != 0.5:
-                    _ou_hint = (ou_line, "OVER" if p_over >= 0.5 else "UNDER")
+                    # 2026-09-10 过期锚闸门: 赛前线与当前总球差 >3 球 = 不可达(89' 大7.5 类), 弃用
+                    try:
+                        _cur_tot = int(str(cur_score).split('-')[0]) + int(str(cur_score).split('-')[1])
+                        if abs(float(ou_line) - _cur_tot) <= 3:
+                            _ou_hint = (ou_line, "OVER" if p_over >= 0.5 else "UNDER")
+                    except Exception:
+                        _ou_hint = (ou_line, "OVER" if p_over >= 0.5 else "UNDER")
                 _cs_sc = cur_score
                 dm = unified_scoreline(h=odds.get("h"), d=odds.get("d"), a=odds.get("a"),
                                        ou_line=odds.get("ou_line"), ou_over=odds.get("ou_over"),
@@ -4991,7 +4997,7 @@ async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int =
                 if (_ou_block.get("data_source") == "live_odds" and _ou_block.get("line") is not None
                         and _ou_block.get("direction") in ("OVER", "UNDER")
                         and _ou_block.get("signal") not in ("ALREADY_BROKEN",)):
-                    _ou_hint = (_ou_block["line"], _ou_block["direction"])
+                    _ou_hint = (_ou_block["line"], _ou_block["direction"], _ou_block.get("prob"))
                 # 比分滞后免疫 (2026-08-31, 用户实测 札幌冈萨多 0-1@37' 请求比分仍 0-0 →
                 # 过滤失效推了 0-0/1-0): 进球单调不减, 用「调用方比分 ⊕ 轨迹末值」的
                 # 分量 max 作为过滤比分 — 轨迹末值是 DB 中最新已见比分。
