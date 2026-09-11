@@ -457,7 +457,7 @@ export default function Rollball() {
                     <span className="truncate">{m.league}</span>
                     {m.full_direction && (m.full_signal === 'STRONG_BREAK' || m.full_signal === 'STRONG_HOLD' || (m.full_prob != null && m.full_prob >= 0.56)) && (
                       <span className={`shrink-0 font-mono px-1 rounded ${m.full_direction === 'OVER' ? 'text-emerald-300/80 bg-emerald-500/[0.08]' : 'text-ember-300/80 bg-ember-500/[0.08]'}`}>
-                        {m.full_direction === 'OVER' ? '大' : '小'} {m.full_prob != null ? (m.full_prob * 100).toFixed(0) : ''}
+                        {m.full_direction === 'OVER' ? '大' : '小'} {m.full_prob != null ? (m.full_prob * 100).toFixed(0) + '%' : ''}
                       </span>
                     )}
                     <span className="ml-auto shrink-0 font-mono">
