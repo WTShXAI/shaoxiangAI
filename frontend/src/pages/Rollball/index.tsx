@@ -929,6 +929,30 @@ export default function Rollball() {
                           </div>
                         </details>
                       )}
+                      {/* 条件化推荐 (2026-09-10): OU 方向与首选比分类别分歧时,
+                          按 OU 命中与否给出条件首选 — 张力转成信息而非矛盾 */}
+                      {(() => {
+                        const od = ou?.direction
+                        const ol = ou?.line
+                        if (!od || !ol || !list.length) return null
+                        const sat = list.filter(t => {
+                          const [a, b] = t.score.split('-').map(Number)
+                          const tot = a + b
+                          return od === 'OVER' ? tot > ol : tot < ol
+                        })
+                        const top = list[0]
+                        const topSat = top && (() => {
+                          const [a, b] = top.score.split('-').map(Number)
+                          return od === 'OVER' ? a + b > ol : a + b < ol
+                        })()
+                        if (topSat || !sat.length) return null
+                        return (
+                          <div className="text-[10px] mt-1 text-ink-muted">
+                            条件推荐: OU{od === 'OVER' ? '大' : '小'}命中 → 首选 {sat[0].score} ({(sat[0].prob * 100).toFixed(0)}%)
+                            ；OU未中 → {top.score}
+                          </div>
+                        )
+                      })()}
                       {cs.ou_align && <div className="text-[10px] text-sky-300/90 mt-1">{cs.ou_align}</div>}
                       {cs.n_matched != null && (
                         <div className="text-[10px] text-ink-muted mt-1">
