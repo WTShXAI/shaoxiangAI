@@ -1380,6 +1380,13 @@ class GQCollector:
                             "AND score_at IS NOT NULL AND score_at != '0-0'", (r["match_key"],)).fetchone()[0]
                         if _fr == 0:
                             continue
+                    # 2026-09-10 比分稳定守卫: 最近 8 分钟内比分有变化 → 比赛仍在进球期
+                    # (延迟开赛/垃圾墙钟), 不是真中场 → 暂缓冻结(下轮窗口再试)
+                    _lastchg = con.execute(
+                        "SELECT MAX(captured_at) FROM odds_snapshots WHERE match_key=? "
+                        "AND score_at IS NOT NULL AND score_at != ?", (r["match_key"], r["score_home"].__str__() + "-" + r["score_away"].__str__())).fetchone()[0]
+                    if _lastchg and (now - _lastchg) < 480:
+                        continue
                     targets.append((r["match_key"], int(r["score_home"]), int(r["score_away"])))
             if not targets:
                 return
