@@ -200,3 +200,6 @@ frontend/test-results/
 gq/.collector.lock
 sandbox/collab/_t3.ps1
 sandbox/collab/journal*.jsonl
+gq/_ws_markets.json
+scripts/_ht_repair_backup_*.jsonl
+sandbox/collab/journal_s35.jsonl
