@@ -1516,6 +1516,11 @@ class GQCollector:
                                 x2_dir = _side
                         except Exception:
                             pass
+                    else:
+                        # 2026-09-13 实证(16 场 HT平局场): 滚球盘 argmax 仅 18.8%(低于
+                        # 随机33%), 终果分布均匀(home6/draw6/away4) → 无信息源时方向
+                        # 取"持续平局"基准 37.5%(诚实最大化期望, 市场argmax是负贡献)
+                        x2_dir = 'draw'
                     # CS: 统一波胆 @HT 态 (仅上半场信息: 比分+45'); 1X2 缺失用开盘兜底
                     cs_top1 = cs_top3 = None
                     try:
