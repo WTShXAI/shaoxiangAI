@@ -1374,19 +1374,25 @@ class GQCollector:
                 em = (now - kots) / 60.0
                 if 46.0 <= em <= 58.0:   # 中场休息窗(含补时余量)
                     # 延期场守卫: 开赛窗到了但比分仍是 0-0 且 feed 从未推过非零帧 → 可能未开赛, 暂缓冻结
-                    if r["score_home"] == 0 and r["score_away"] == 0:
-                        _fr = con.execute(
-                            "SELECT COUNT(*) FROM odds_snapshots WHERE match_key=? "
-                            "AND score_at IS NOT NULL AND score_at != '0-0'", (r["match_key"],)).fetchone()[0]
-                        if _fr == 0:
-                            continue
-                    # 2026-09-10 比分稳定守卫: 最近 8 分钟内比分有变化 → 比赛仍在进球期
-                    # (延迟开赛/垃圾墙钟), 不是真中场 → 暂缓冻结(下轮窗口再试)
-                    _lastchg = con.execute(
-                        "SELECT MAX(captured_at) FROM odds_snapshots WHERE match_key=? "
-                        "AND score_at IS NOT NULL AND score_at != ?", (r["match_key"], r["score_home"].__str__() + "-" + r["score_away"].__str__())).fetchone()[0]
-                    if _lastchg and (now - _lastchg) < 480:
-                        continue
+                    _con2 = sqlite3.connect(DB_PATH, timeout=15)
+                    try:
+                        if r["score_home"] == 0 and r["score_away"] == 0:
+                            _fr = _con2.execute(
+                                "SELECT COUNT(*) FROM odds_snapshots WHERE match_key=? "
+                                "AND score_at IS NOT NULL AND score_at != '0-0'", (r["match_key"],)).fetchone()[0]
+                            if _fr == 0:
+                                continue
+                        # 2026-09-10 比分稳定守卫(条件修正): 当前比分首帧至今 ≥8 分钟
+                        # (=比分已 8 分钟无变化, 真正到了中场/稳定期)才冻结。
+                        # 初版条件反了(MAX=当前比分最近帧, 滚球推流中恒为几秒前) → 全部跳过。
+                        _cur_sc = f"{r['score_home']}-{r['score_away']}"
+                        _first_of_cur = _con2.execute(
+                            "SELECT MIN(captured_at) FROM odds_snapshots WHERE match_key=? "
+                            "AND score_at IS NOT NULL AND score_at = ?", (r["match_key"], _cur_sc)).fetchone()[0]
+                        if _first_of_cur and (now - _first_of_cur) < 480:
+                            continue   # 当前比分出现还不到 8 分钟, 仍在进球期
+                    finally:
+                        _con2.close()
                     targets.append((r["match_key"], int(r["score_home"]), int(r["score_away"])))
             if not targets:
                 return
