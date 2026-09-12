@@ -183,7 +183,10 @@ export default function Rollball() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [err, setErr] = useState('')
   const [search, setSearch] = useState('')
-  const [tab, setTab] = useState<'overview' | 'deep' | 'world' | 'ge' | 'timeline' | 'sixline' | 'collab'>('overview')
+  const [tab, setTab] = useState<'overview' | 'collab' | 'deep' | 'timeline'>('overview')
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [tlRequested, setTlRequested] = useState(false)
+  const [deepModalClosed, setDeepModalClosed] = useState(false)
   const [sixData, setSixData] = useState<any>(null)
   const [sixErr, setSixErr] = useState('')
   const [worldData, setWorldData] = useState<any>(null)
@@ -278,6 +281,7 @@ export default function Rollball() {
 
   useEffect(() => {
     selRef.current = sel
+    setDeepModalClosed(false)
     if (sel) loadAnalyze(sel)
   }, [sel, loadAnalyze])
 
@@ -333,12 +337,10 @@ export default function Rollball() {
 
   useEffect(() => {
     if (!sel) return
-    if (tab === 'world') loadWorld(sel)
-    if (tab === 'ge') loadGoldenEye(sel)
-    if (tab === 'timeline') loadTimeline()
-    if (tab === 'sixline') loadSixline(sel)
+    setDeepModalClosed(false)
+    if (tab === 'timeline' && tlRequested) loadTimeline()
     if (tab === 'collab') loadCollab()
-  }, [sel, tab, loadWorld, loadGoldenEye, loadTimeline, loadSixline, loadCollab])
+  }, [sel, tab, loadTimeline, loadCollab, tlRequested])
 
   // 协作面板自动刷新 (30s, 仅面板可见时; 黑板是活动数据流, 非静态列表)
   useEffect(() => {
@@ -704,11 +706,8 @@ export default function Rollball() {
                 {([
                   ['overview', '总览 · 四市场'],
                   ['collab', '协作面板'],
-                  ['deep', '全链路 7 模型'],
-                  ['world', '世界分析器'],
-                  ['ge', '黄金神瞳'],
+                  ['deep', '深度分析'],
                   ['timeline', '时间线'],
-                  ['sixline', '六行框架'],
                 ] as const).map(([id, label]) => (
                   <button
                     key={id}
@@ -720,71 +719,77 @@ export default function Rollball() {
                     {label}
                   </button>
                 ))}
-              </div>
-
-              {tab === 'deep' && sel && (
-                <MatchAnalysisModal
-                  home={sel.home}
-                  away={sel.away}
-                  sportKey="soccer"
-                  league={sel.league}
-                  kickoff={sel.kickoff}
-                  matchKey={sel.match_key}
-                  matchState={sel.minute != null && sel.minute > 0 ? 'live' : 'scheduled'}
-                  liveScore={(() => {
-                    const [h, a] = String(sel.score || '0-0').split('-').map((x: string) => parseInt(x, 10) || 0)
-                    return { homeGoals: h, awayGoals: a, elapsed: calibMinute(sel) }
-                  })()}
-                  onClose={() => setTab('overview')}
-                />
-              )}
-
-              {tab === 'sixline' && (
-                <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/[0.04] p-4 space-y-2">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <span className="text-[12px] font-semibold text-indigo-300">六行分析框架 · 概率判断而非必中</span>
-                    <button onClick={() => sel && loadSixline(sel)} className="text-[11px] px-2 py-1 rounded border border-surface-border/40 text-ink-secondary hover:text-ink-primary">重新分析</button>
-                  </div>
-                  {sixErr && <div className="text-[11px] text-rose-300">{sixErr}</div>}
-                  {!sixData && !sixErr && <div className="text-[11px] text-ink-muted">分析中…</div>}
-                  {sixData?.lines?.map((ln: any) => (
-                    <div key={ln.no} className="rounded-lg border border-surface-border/30 bg-surface-card/40 px-3 py-2">
-                      <span className="text-[10px] font-mono text-indigo-300 mr-2">行{ln.no}</span>
-                      <span className="text-[12px] text-ink-primary">{ln.text}</span>
-                    </div>
-                  ))}
-                  {sixData?.conclusion && (
-                    <div className="text-[10px] text-ink-muted/70">
-                      每场自动入台账(sixline_log), 赛后结算方向/比分池命中 — 支持 100+ 场复盘
+                {/* 更多 ▾: 低频查询 (时间线已提主位; 此处保留扩展位) */}
+                <div className="relative">
+                  <button
+                    onClick={() => setMoreOpen((v) => !v)}
+                    className={`px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors border ${
+                      moreOpen ? 'text-ink-primary border-surface-border/60' : 'text-ink-muted hover:text-ink-primary border-transparent'
+                    }`}
+                  >
+                    更多 ▾
+                  </button>
+                  {moreOpen && (
+                    <div className="absolute right-0 top-full mt-1 z-20 rounded-lg border border-surface-border/60 bg-surface-panel shadow-lg py-1 w-40">
+                      <button onClick={() => { setTab('timeline'); setMoreOpen(false); setTlRequested(true); }}
+                        className="w-full text-left px-3 py-1.5 text-[12px] text-ink-secondary hover:text-ink-primary hover:bg-white/[0.04]">
+                        时间线 · 当日赛程
+                      </button>
                     </div>
                   )}
                 </div>
+              </div>
+
+              {tab === 'deep' && sel && (
+                <>
+                  {!deepModalClosed && (
+                  <MatchAnalysisModal
+                    home={sel.home}
+                    away={sel.away}
+                    sportKey="soccer"
+                    league={sel.league}
+                    kickoff={sel.kickoff}
+                    matchKey={sel.match_key}
+                    matchState={sel.minute != null && sel.minute > 0 ? 'live' : 'scheduled'}
+                    liveScore={(() => {
+                      const [h, a] = String(sel.score || '0-0').split('-').map((x: string) => parseInt(x, 10) || 0)
+                      return { homeGoals: h, awayGoals: a, elapsed: calibMinute(sel) }
+                    })()}
+                    onClose={() => setDeepModalClosed(true)}
+                  />
+                  )}
+                  {/* 原始模型数据 (原 世界分析器/黄金神瞳 收编): 供 AI 与人工核对, 默认收起 */}
+                  <details className="rounded-xl border border-surface-border/40 bg-surface-dark/30 p-4">
+                    <summary className="text-[12px] font-semibold text-ink-secondary cursor-pointer">
+                      原始模型数据 ▾ (世界分析器 / 黄金神瞳 — 供核对, 常态收起)
+                    </summary>
+                    <div className="mt-3 space-y-3">
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[11px] text-ink-muted">世界分析器 · 市场锚+模型矩阵+Edge</span>
+                          <button onClick={() => loadWorld(sel)} className="text-[10px] px-2 py-0.5 rounded border border-surface-border/40 text-ink-secondary hover:text-ink-primary">运行</button>
+                        </div>
+                        {worldErr && <div className="text-[10px] text-rose-300">{worldErr}</div>}
+                        {worldData != null && <div className="max-h-64 overflow-y-auto pr-1"><DataPanel data={worldData} /></div>}
+                      </div>
+                      <div className="divider" />
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[11px] text-ink-muted">黄金神瞳 · 三镜头</span>
+                          <button onClick={() => loadGoldenEye(sel)} className="text-[10px] px-2 py-0.5 rounded border border-surface-border/40 text-ink-secondary hover:text-ink-primary">运行</button>
+                        </div>
+                        {geErr && <div className="text-[10px] text-rose-300">{geErr}</div>}
+                        {geData != null && <div className="max-h-64 overflow-y-auto pr-1"><DataPanel data={geData} /></div>}
+                      </div>
+                    </div>
+                  </details>
+                </>
               )}
 
-              {tab === 'world' && (
-                <div className="rounded-xl border border-surface-border/40 bg-surface-dark/30 p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[12px] font-semibold text-ink-secondary">世界分析器 · 市场锚 + 模型矩阵 + Edge</span>
-                    <button onClick={() => loadWorld(sel)} className="text-[11px] px-2 py-1 rounded border border-surface-border/40 text-ink-secondary hover:text-ink-primary">重新分析</button>
-                  </div>
-                  {worldErr && <div className="text-[11px] text-rose-300">{worldErr}</div>}
-                  {!worldData && !worldErr && <div className="text-[11px] text-ink-muted">分析中…</div>}
-                  {worldData != null && <div className="max-h-[62vh] overflow-y-auto pr-1"><DataPanel data={worldData} /></div>}
-                </div>
-              )}
 
-              {tab === 'ge' && (
-                <div className="rounded-xl border border-surface-border/40 bg-surface-dark/30 p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[12px] font-semibold text-ink-secondary">黄金神瞳 · 天眼/世界级/赛程OU/比分分布 三镜头</span>
-                    <button onClick={() => loadGoldenEye(sel)} className="text-[11px] px-2 py-1 rounded border border-surface-border/40 text-ink-secondary hover:text-ink-primary">重新分析</button>
-                  </div>
-                  {geErr && <div className="text-[11px] text-rose-300">{geErr}</div>}
-                  {!geData && !geErr && <div className="text-[11px] text-ink-muted">分析中…</div>}
-                  {geData != null && <div className="max-h-[62vh] overflow-y-auto pr-1"><DataPanel data={geData} /></div>}
-                </div>
-              )}
 
+              
+              
               {tab === 'timeline' && (
                 <div className="rounded-xl border border-surface-border/40 bg-surface-dark/30 p-4 space-y-2">
                   <span className="text-[12px] font-semibold text-ink-secondary">时间线 · 当日赛程</span>
@@ -1192,6 +1197,45 @@ export default function Rollball() {
                 </Card>
 
                 </div>
+
+              {/* 六行分析框架 (原独立 Tab 收编): 自然语言版一致性审计, 可直接入黑板 */}
+              {tab === 'overview' && sel && (
+                <details className="rounded-xl border border-indigo-500/25 bg-indigo-500/[0.03] p-4">
+                  <summary className="text-[12px] font-semibold text-indigo-300 cursor-pointer">
+                    六行分析框架 ▾ <span className="text-[10px] text-ink-muted font-normal">(自然语言版一致性审计 · 概率判断而非必中)</span>
+                  </summary>
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <button onClick={() => loadSixline(sel)} className="text-[11px] px-2 py-1 rounded border border-surface-border/40 text-ink-secondary hover:text-ink-primary">运行分析</button>
+                      {sixData?.found && (
+                        <button onClick={() => {
+                          fetch('/api/collab/report', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              task: String(Date.now()).slice(-8), pri: 'P3',
+                              text: `六行框架异议上报 [${sel.match_key}]: ` + (document.getElementById('sixline-text')?.textContent || '').slice(0, 300),
+                              context: { match_key: sel.match_key, score: sel.score, minute: sel.minute },
+                            }),
+                          }).then((r) => r.json()).then((j) => { if (j?.ok) window.alert('✓ 异议已入黑板') })
+                        }} className="text-[11px] px-2 py-1 rounded bg-amber-500/15 text-amber-300 border border-amber-500/25">异议入黑板</button>
+                      )}
+                    </div>
+                    {sixErr && <div className="text-[11px] text-rose-300">{sixErr}</div>}
+                    {!sixData && !sixErr && <div className="text-[11px] text-ink-muted">点"运行分析"开始</div>}
+                    <div id="sixline-text">
+                      {sixData?.lines?.map((ln: any) => (
+                        <div key={ln.no} className="rounded-lg border border-surface-border/30 bg-surface-card/40 px-3 py-2 mb-1.5">
+                          <span className="text-[10px] font-mono text-indigo-300 mr-2">行{ln.no}</span>
+                          <span className="text-[12px] text-ink-primary">{ln.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {sixData?.conclusion && (
+                      <div className="text-[10px] text-ink-muted/70">每场自动入台账(sixline_log), 赛后结算方向/比分池命中</div>
+                    )}
+                  </div>
+                </details>
+              )}
 
               {/* 底注 */}
               <div className="text-[10px] text-ink-muted/70 px-1">
