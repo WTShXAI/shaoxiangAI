@@ -1436,6 +1436,17 @@ class GQCollector:
                                 ph = _pl if _side == 'home' else (1 - _pl)
                         except Exception:
                             pass
+                    # 2026-09-10 A/B 实证(124 场 HT 回放): 领先域先验方向 71.2% vs
+                    # 市场去水 ~54% → 领先时方向以先验为准(概率展示仍用市场赔率)
+                    if sh != sa:
+                        try:
+                            from pipeline.score_analyzer import lead_win_prob as _lwp
+                            _side = 'home' if sh > sa else 'away'
+                            _pl = _lwp(_side, abs(sh - sa), 45)
+                            if _pl is not None and _pl >= 0.5:
+                                x2_dir = _side
+                        except Exception:
+                            pass
                     # CS: 统一波胆 @HT 态 (仅上半场信息: 比分+45'); 1X2 缺失用开盘兜底
                     cs_top1 = cs_top3 = None
                     try:
