@@ -340,6 +340,51 @@ export default function Rollball() {
     if (tab === 'collab') loadCollab()
   }, [sel, tab, loadWorld, loadGoldenEye, loadTimeline, loadSixline, loadCollab])
 
+  // 协作面板自动刷新 (30s, 仅面板可见时; 黑板是活动数据流, 非静态列表)
+  useEffect(() => {
+    if (tab !== 'collab') return
+    const t = window.setInterval(loadCollab, 30000)
+    return () => window.clearInterval(t)
+  }, [tab, loadCollab])
+
+  const [quickMsg, setQuickMsg] = useState('')
+  function quickReport() {
+    // 自动一致性检测(前端版审计): OU方向 vs 首选比分总球 / 方向 vs 首选类别 /
+    // 首选比分 vs 当前比分 / 死线信号 —— 发现即生成结构化报告入黑板
+    if (!d) { window.alert('请先选择比赛'); return }
+    const found: string[] = []
+    const cur = String(d.score || '0-0').split('-').map((x) => parseInt(x, 10) || 0)
+    const t1 = cs?.top5?.[0]?.score
+    if (t1) {
+      const [a, b] = t1.split('-').map((x) => parseInt(x, 10) || 0)
+      if (a < cur[0] || b < cur[1]) found.push(`首选比分${t1}低于当前比分${d.score}`)
+      if (ou?.direction && ou?.line != null) {
+        const tot = a + b
+        const bad = ou.direction === 'OVER' ? tot <= ou.line : tot > ou.line
+        const strong = (ou.prob ?? 0) >= 0.70
+        if (bad && strong) found.push(`OU强信号${ou.direction === 'OVER' ? '大' : '小'}${ou.line} 与首选比分${t1}(总${tot})矛盾`)
+      }
+      const dw = cs?.direction?.winner
+      const cls = a > b ? 'home' : a === b ? 'draw' : 'away'
+      if (dw && dw !== cls) found.push(`CS卡方向${dw} 与首选比分${t1}类别${cls}不一致`)
+    }
+    if (d.final_direction?.direction && d.direction?.winner && d.final_direction.direction !== d.direction.winner) {
+      found.push(`融合方向${d.final_direction.direction} 与结构方向${d.direction.winner}分歧`)
+    }
+    const ctx = sel ? { match_key: sel.match_key, score: sel.score, minute: sel.minute, league: sel.league } : {}
+    const text = found.length
+      ? `自动检测到 ${found.length} 项矛盾: ${found.join('; ')}`
+      : `手动巡检: 当前场次四市场无自动可检矛盾 (比分${d.score}@${sel ? calibMinute(sel) : '?'}')`
+    fetch('/api/collab/report', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task: String(Date.now()).slice(-8), text, pri: found.length ? 'P1' : 'P3', context: ctx }),
+    }).then((r) => r.json()).then((j) => {
+      if (j?.ok) { setQuickMsg('✓ 已入黑板' + (found.length ? ` (P1, ${found.length} 项矛盾)` : ' (P3 巡检)')); loadCollab() }
+      else setQuickMsg('✗ 提交失败')
+      window.setTimeout(() => setQuickMsg(''), 4000)
+    })
+  }
+
   function ReportBox() {
     const [txt, setTxt] = useState('')
     const [sent, setSent] = useState('')
@@ -658,12 +703,12 @@ export default function Rollball() {
               <div className="sticky top-0 z-10 flex items-center gap-1 rounded-lg bg-surface-dark/90 backdrop-blur border border-surface-border/40 p-1 w-fit flex-wrap shadow-sm">
                 {([
                   ['overview', '总览 · 四市场'],
+                  ['collab', '协作面板'],
                   ['deep', '全链路 7 模型'],
                   ['world', '世界分析器'],
                   ['ge', '黄金神瞳'],
                   ['timeline', '时间线'],
                   ['sixline', '六行框架'],
-                  ['collab', '协作面板'],
                 ] as const).map(([id, label]) => (
                   <button
                     key={id}
@@ -761,7 +806,10 @@ export default function Rollball() {
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <span className="text-[12px] font-semibold text-violet-300">双 AI 协作黑板 · 观察与修复流</span>
                       <div className="flex items-center gap-2">
+                        <button onClick={quickReport} className="text-[11px] px-2.5 py-1 rounded bg-amber-500/15 text-amber-300 border border-amber-500/25 font-semibold"
+                          title="自动检测当前场次的分析矛盾(OU/CS/方向/比分一致性)并一键入黑板">⚡ 一键检测上报</button>
                         <button onClick={() => loadCollab()} className="text-[11px] px-2 py-1 rounded border border-surface-border/40 text-ink-secondary hover:text-ink-primary">刷新</button>
+                        {quickMsg && <span className="text-[10px] text-violet-300">{quickMsg}</span>}
                       </div>
                     </div>
                     {/* 报告异常 */}
