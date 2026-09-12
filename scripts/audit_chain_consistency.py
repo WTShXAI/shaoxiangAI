@@ -59,6 +59,10 @@ def audit_match(mk, m, viol, examples, cov):
     ou = d.get('ou') or {}
     direction = d.get('direction') or {}
     top1 = (cs.get('top5') or [{}])[0].get('score')
+    # 2026-09-13 match_key 碰撞防御: 未开赛场(is_scheduled)的"当前比分"无意义,
+    # 且同名球队跨日比赛共享 key 会混用旧场数据 → 跳过 CHK1/CHK4(需真实比分的检查)
+    if m.get('is_scheduled'):
+        return
 
     # CHK1 方向 vs 首选比分
     if direction.get('winner') and top1:
