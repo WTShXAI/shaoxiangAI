@@ -183,7 +183,7 @@ export default function Rollball() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [err, setErr] = useState('')
   const [search, setSearch] = useState('')
-  const [tab, setTab] = useState<'overview' | 'deep' | 'world' | 'ge' | 'timeline' | 'sixline'>('overview')
+  const [tab, setTab] = useState<'overview' | 'deep' | 'world' | 'ge' | 'timeline' | 'sixline' | 'collab'>('overview')
   const [sixData, setSixData] = useState<any>(null)
   const [sixErr, setSixErr] = useState('')
   const [worldData, setWorldData] = useState<any>(null)
@@ -303,6 +303,15 @@ export default function Rollball() {
     } catch (e: any) { setGeErr(e?.message || '分析失败') }
   }, [])
 
+  const [collabData, setCollabData] = useState<any>(null)
+  const loadCollab = useCallback(async () => {
+    try {
+      const r = await fetch('/api/collab/journal?limit=60')
+      const j = await r.json()
+      setCollabData((j?.data ?? j))
+    } catch { setCollabData(null) }
+  }, [])
+
   const loadTimeline = useCallback(async () => {
     try {
       const r = await timelineService.getToday()
@@ -328,7 +337,38 @@ export default function Rollball() {
     if (tab === 'ge') loadGoldenEye(sel)
     if (tab === 'timeline') loadTimeline()
     if (tab === 'sixline') loadSixline(sel)
-  }, [sel, tab, loadWorld, loadGoldenEye, loadTimeline, loadSixline])
+    if (tab === 'collab') loadCollab()
+  }, [sel, tab, loadWorld, loadGoldenEye, loadTimeline, loadSixline, loadCollab])
+
+  function ReportBox() {
+    const [txt, setTxt] = useState('')
+    const [sent, setSent] = useState('')
+    const send = async () => {
+      if (!txt.trim()) return
+      try {
+        const ctx = sel ? { match_key: sel.match_key, score: sel.score, minute: sel.minute, league: sel.league } : {}
+        const r = await fetch('/api/collab/report', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ task: String(Date.now()).slice(-8), text: txt.trim(), pri: 'P2', context: ctx }),
+        })
+        const j = await r.json()
+        if (j?.ok) { setSent('✓ 已入黑板, 执行 AI 将认领处理'); setTxt(''); loadCollab() }
+        else setSent('✗ ' + (j?.error || '提交失败'))
+      } catch (e: any) { setSent('✗ ' + (e?.message || '网络错误')) }
+      window.setTimeout(() => setSent(''), 4000)
+    }
+    return (
+      <div className="rounded-lg border border-surface-border/30 bg-surface-card/40 p-2">
+        <div className="flex gap-1.5">
+          <input value={txt} onChange={(e) => setTxt(e.target.value)}
+            placeholder="报告异常: 现象+场次/组件 (自动附当前场次上下文)"
+            className="flex-1 px-2.5 py-1.5 text-[11px] rounded-md bg-surface-dark/50 border border-surface-border/40 text-ink-primary placeholder:text-ink-disabled outline-none focus:border-violet-500/50" />
+          <button onClick={send} className="text-[11px] px-3 py-1.5 rounded-md bg-violet-500/20 text-violet-300 border border-violet-500/30 hover:bg-violet-500/30">提交到黑板</button>
+        </div>
+        {sent && <div className="text-[10px] text-ink-muted mt-1">{sent}</div>}
+      </div>
+    )
+  }
 
   // 通用数据面板: 标量键值 + 数组/对象摘要 (结构未知的服务响应统一展示)
   function DataPanel({ data, depth = 0 }: { data: any; depth?: number }) {
@@ -623,6 +663,7 @@ export default function Rollball() {
                   ['ge', '黄金神瞳'],
                   ['timeline', '时间线'],
                   ['sixline', '六行框架'],
+                  ['collab', '协作面板'],
                 ] as const).map(([id, label]) => (
                   <button
                     key={id}
@@ -705,6 +746,50 @@ export default function Rollball() {
                   {tlData != null ? <div className="max-h-[62vh] overflow-y-auto pr-1"><DataPanel data={tlData} /></div> : <div className="text-[11px] text-ink-muted">加载中…</div>}
                 </div>
               )}
+
+              {tab === 'collab' && (() => {
+                const ST: Record<string, {label: string; cls: string}> = {
+                  open: { label: '待处理', cls: 'bg-amber-500/15 text-amber-300 border-amber-500/25' },
+                  claimed: { label: '处理中', cls: 'bg-frost-500/15 text-frost-300 border-frost-500/25' },
+                  fixed: { label: '已修复·待验证', cls: 'bg-sky-500/15 text-sky-300 border-sky-500/25' },
+                  done: { label: '已闭环', cls: 'bg-field-500/15 text-field-300 border-field-500/25' },
+                  rejected: { label: '已否决·回滚', cls: 'bg-rose-500/15 text-rose-300 border-rose-500/25' },
+                }
+                const items = (collabData?.items ?? []) as any[]
+                return (
+                  <div className="rounded-xl border border-violet-500/30 bg-violet-500/[0.04] p-4 space-y-2">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <span className="text-[12px] font-semibold text-violet-300">双 AI 协作黑板 · 观察与修复流</span>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => loadCollab()} className="text-[11px] px-2 py-1 rounded border border-surface-border/40 text-ink-secondary hover:text-ink-primary">刷新</button>
+                      </div>
+                    </div>
+                    {/* 报告异常 */}
+                    <ReportBox />
+                    <div className="space-y-1.5 max-h-[55vh] overflow-y-auto pr-1">
+                      {items.length === 0 && <div className="text-[11px] text-ink-muted">黑板暂无条目</div>}
+                      {items.slice().reverse().map((it) => {
+                        const st = ST[it.status] ?? { label: it.status, cls: 'bg-white/[0.06] text-ink-muted border-white/10' }
+                        return (
+                          <div key={it.task} className="rounded-lg border border-surface-border/30 bg-surface-card/40 px-3 py-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded border font-semibold ${st.cls}`}>{st.label}</span>
+                              <span className="text-[10px] font-mono text-ink-muted">{it.pri}</span>
+                              <span className="text-[11px] text-ink-primary truncate" title={it.task}>{it.task}</span>
+                              <span className="ml-auto text-[9px] text-ink-disabled">
+                                {it.ts ? new Date(it.ts * 1000).toLocaleString('zh-CN', { hour12: false }) : ''}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-ink-secondary mt-1">{it.text}</div>
+                            {it.fix_note && <div className="text-[10px] text-ink-muted mt-0.5">修复: {it.fix_note}</div>}
+                            {it.validate_note && <div className="text-[10px] mt-0.5 ${''}" style={{ color: it.status === 'done' ? '#73eab0' : '#f7aaaa' }}>验证: {it.validate_note}</div>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* 中场冻结判定 (2026-09-10 双锚点架构): 下半场的主判定。
                   HT 窗口用仅上半场信息冻结一次, 下半场不再随实时进球改写 —

@@ -4818,6 +4818,82 @@ def _parse_ts(sc):
         return (0, 0)
 
 
+@app.get("/api/collab/journal")
+async def collab_journal_api(limit: int = 50, status: str = ""):
+    """黑板条目流 (双AI协作, 沙箱毕业后指向生产 journal)。读端: 前端协作面板。"""
+    def _worker():
+        import json as _j
+        src = os.path.join(PROJECT_ROOT, "sandbox", "collab", "journal_s35.jsonl")
+        items = []
+        if os.path.exists(src):
+            with open(src, encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        try:
+                            items.append(_j.loads(line))
+                        except Exception:
+                            pass
+        # 折叠: 按 task 取最终状态
+        tasks = {}
+        order = []
+        for e in items:
+            t = e.get('task')
+            if t not in tasks:
+                order.append(t)
+            st = tasks.setdefault(t, {'task': t, 'status': None, 'pri': 'P2', 'text': '', 'events': []})
+            st['events'].append(e)
+            act = e.get('act')
+            if act == 'observation':
+                if st['status'] is None:
+                    st['status'] = 'open'
+                    st['pri'] = e.get('pri', 'P2')
+                    st['text'] = e.get('text', '')
+                    st['ts'] = e.get('ts')
+            elif act == 'claim' and st['status'] == 'open':
+                st['status'] = 'claimed'
+            elif act == 'fix' and st['status'] == 'claimed':
+                st['status'] = 'fixed'
+                st['fix_note'] = e.get('note', '')
+            elif act == 'validate' and st['status'] == 'fixed':
+                st['status'] = 'done' if e.get('ok') else 'rejected'
+                st['validate_note'] = e.get('note', '')
+            elif act == 'reopen' and st['status'] == 'rejected':
+                st['status'] = 'open'
+        out = [tasks[t] for t in order if tasks[t].get('status')]
+        if status:
+            out = [x for x in out if x['status'] == status]
+        return {"ok": True, "data": {"items": out[-limit:], "total": len(out),
+                                      "open_count": sum(1 for x in out if x['status'] == 'open')}}
+    try:
+        return await asyncio.to_thread(_worker)
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e), "data": None})
+
+
+@app.post("/api/collab/report")
+async def collab_report_api(req: dict):
+    """前端报告异常 → 黑板 open 条目 (写端)。body: {task, text, pri, context}"""
+    try:
+        task = str(req.get('task') or '').strip()
+        text = str(req.get('text') or '').strip()
+        if not task or not text:
+            return JSONResponse({"ok": False, "error": "task/text 必填", "data": None})
+        import json as _j
+        import time as _t
+        import uuid as _uuid
+        src = os.path.join(PROJECT_ROOT, "sandbox", "collab", "journal_s35.jsonl")
+        ev = {'act': 'observation', 'task': f"UI_{task}", 'pri': req.get('pri', 'P2'),
+              'text': text, 'author': 'frontend',
+              'context': req.get('context'), 'ts': _t.time(), 'eid': _uuid.uuid4().hex[:12]}
+        os.makedirs(os.path.dirname(src), exist_ok=True)
+        with open(src, 'a', encoding='utf-8') as f:
+            f.write(_j.dumps(ev, ensure_ascii=False) + chr(10))
+        return {"ok": True, "data": {"task": ev['task']}}
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e), "data": None})
+
+
 @app.get("/api/strategy/today")
 async def strategy_today_api():
     """今日策略台账候选 (2026-09-10): 让球+1 条件策略(回测 ROI+23.4%)。"""
