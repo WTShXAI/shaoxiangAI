@@ -1339,6 +1339,69 @@ class GQCollector:
         except Exception as e:
             self.log(f"[比分救援] 异常: {e}")
 
+    def _collab_observe_tick(self):
+        """哨响观察侧 (2026-09-13 生产接入): 系统级巡检发现写入协作黑板.
+
+        检测项(均为本会话实证过的异常模式):
+          Z1 僵尸场: status=live 但开赛>3.5h (判定全噪声)
+          Z2 比分-feed 严重背离: OU 隐含总球与系统比分差>3 (比分滞后/市场僵尸流)
+          Z3 断供场堆积: 近24h完赛但无比分帧 >30 场 (结算闸门压力)
+        观察条目幂等: 同类发现 6h 内不重复写入(按 task 前缀+日期去重)。
+        """
+        import json as _json
+        import sqlite3 as _sq
+        journal = os.environ.get("COLLAB_JOURNAL") or os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "collab_journal.jsonl")
+        day = time.strftime("%m%d")
+        try:
+            con = _sq.connect(DB_PATH, timeout=20)
+            con.execute("PRAGMA busy_timeout=15000")
+            findings = []
+            # Z1 僵尸场
+            zom = con.execute("""
+                SELECT COUNT(*) FROM matches WHERE status='live'
+                AND kickoff IS NOT NULL AND kickoff != ''
+                AND datetime(kickoff) <= datetime('now', '-210 minutes')""").fetchone()[0]
+            if zom >= 3:
+                findings.append(('P2', f'OBS_Z1_zombie_{day}',
+                                 f'僵尸场 {zom} 场: status=live 但开赛已超3.5h, 判定全噪声 — 建议清扫为 finished'))
+            # Z3 断供堆积
+            cut = con.execute("""
+                SELECT COUNT(*) FROM matches WHERE status='finished' AND score_home IS NOT NULL
+                AND kickoff >= datetime('now', '-1 day')
+                AND NOT EXISTS (SELECT 1 FROM odds_snapshots o WHERE o.match_key = matches.match_key
+                                AND o.score_at IS NOT NULL AND o.score_at != '')""").fetchone()[0]
+            if cut >= 30:
+                findings.append(('P2', f'OBS_Z3_supply_cut_{day}',
+                                 f'近24h断供场 {cut} 场(完赛无比分帧) — 结算可信度闸门持续拦截, 积压观察'))
+            con.close()
+            if not findings:
+                return
+            os.makedirs(os.path.dirname(journal), exist_ok=True)
+            existing = set()
+            if os.path.exists(journal):
+                with open(journal, encoding='utf-8') as f:
+                    for line in f:
+                        try:
+                            e = _json.loads(line)
+                            existing.add(e.get('task', ''))
+                        except Exception:
+                            pass
+            added = 0
+            with open(journal, 'a', encoding='utf-8') as f:
+                for pri, task, text in findings:
+                    if task in existing:
+                        continue
+                    f.write(_json.dumps({'act': 'observation', 'task': task, 'pri': pri,
+                                         'text': text, 'author': 'shaoxiang_observer',
+                                         'ts': time.time(), 'eid': str(time.time_ns())[-12:]},
+                                        ensure_ascii=False) + chr(10))
+                    added += 1
+            if added:
+                self.log(f"[collab] 哨响观察写入黑板 {added} 条: {[t for _, t, _ in findings]}")
+        except Exception as e:
+            self.log(f"[collab] 观察写入异常(不阻塞): {e}")
+
     def _ht_freeze_tick(self):
         """中场冻结判定 (2026-09-10 双锚点架构核心): 开赛后 46~58 分钟(中场休息窗)
         的比赛, 用**仅上半场信息**(当时比分 + 当时盘口)冻结一次判定入
@@ -1953,6 +2016,7 @@ class GQCollector:
         last_auto_focus = 0.0
         last_rescue = 0.0
         last_ht_freeze = 0.0
+        last_collab_obs = 0.0
 
         # 启动秒级焦点采集线程(与全量轮并行, 避免全量轮阻塞焦点)
         self._fast_running = True
@@ -2006,6 +2070,11 @@ class GQCollector:
                 if now - last_ht_freeze >= 60:
                     last_ht_freeze = now
                     self._ht_freeze_tick()
+
+                # ── 哨响观察写入黑板 (每 15min, 2026-09-13 生产接入) ──
+                if now - last_collab_obs >= 900:
+                    last_collab_obs = now
+                    self._collab_observe_tick()
 
                 if dur_min > 0 and time.time() - t0 >= dur_min * 60:
                     break

@@ -4823,7 +4823,7 @@ async def collab_journal_api(limit: int = 50, status: str = ""):
     """黑板条目流 (双AI协作, 沙箱毕业后指向生产 journal)。读端: 前端协作面板。"""
     def _worker():
         import json as _j
-        src = os.path.join(PROJECT_ROOT, "sandbox", "collab", "journal_s35.jsonl")
+        src = os.environ.get("COLLAB_JOURNAL") or os.path.join(PROJECT_ROOT, "data", "collab_journal.jsonl")
         items = []
         if os.path.exists(src):
             with open(src, encoding='utf-8') as f:
@@ -4882,7 +4882,7 @@ async def collab_report_api(req: dict):
         import json as _j
         import time as _t
         import uuid as _uuid
-        src = os.path.join(PROJECT_ROOT, "sandbox", "collab", "journal_s35.jsonl")
+        src = os.environ.get("COLLAB_JOURNAL") or os.path.join(PROJECT_ROOT, "data", "collab_journal.jsonl")
         ev = {'act': 'observation', 'task': f"UI_{task}", 'pri': req.get('pri', 'P2'),
               'text': text, 'author': 'frontend',
               'context': req.get('context'), 'ts': _t.time(), 'eid': _uuid.uuid4().hex[:12]}
