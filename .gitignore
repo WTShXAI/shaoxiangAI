@@ -198,3 +198,5 @@ aiqiuke/dev.log
 frontend/test-results/
 
 gq/.collector.lock
+sandbox/collab/_t3.ps1
+sandbox/collab/journal*.jsonl
