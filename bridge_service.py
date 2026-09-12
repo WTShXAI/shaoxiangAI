@@ -5096,14 +5096,18 @@ async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int =
                         and _ou_block.get("direction") in ("OVER", "UNDER")
                         and _ou_block.get("signal") not in ("ALREADY_BROKEN",)):
                     _ou_hint = (_ou_block["line"], _ou_block["direction"], _ou_block.get("prob"))
-                # 比分滞后免疫 (2026-08-31, 用户实测 札幌冈萨多 0-1@37' 请求比分仍 0-0 →
-                # 过滤失效推了 0-0/1-0): 进球单调不减, 用「调用方比分 ⊕ 轨迹末值」的
-                # 分量 max 作为过滤比分 — 轨迹末值是 DB 中最新已见比分。
+                # 比分滞后免疫 (2026-08-31): 用「调用方比分 ⊕ 轨迹末值」的分量 max。
+                # 2026-09-13 修正: 分量 max 会被**短命脏帧永久抬基**(实测 曼塔vs奥卡斯:
+                # feed 误推 1-0 存活 2 分钟被修正回 0-0, 分量 max 却把 1-0 永久当过滤基
+                # → CS 卡在 0-0 场上推 2-1)。改为: 轨迹末值 = 按 captured_at 的最后一条
+                # score_at(feed 时间序真相, 脏帧被修正后自然消失), 仍与调用方比分取 max。
                 _cs_sh, _cs_sa = sh, sa
-                _tl = out.get("goal_timeline") or []
-                if _tl:
+                _tl_row = gq.execute(
+                    "SELECT score_at FROM odds_snapshots WHERE match_key=? AND score_at IS NOT NULL "
+                    "AND score_at != '' ORDER BY captured_at DESC LIMIT 1", (match_key,)).fetchone()
+                if _tl_row and _tl_row[0]:
                     try:
-                        _lh, _la = (int(x) for x in str(_tl[-1]["score"]).replace(":", "-").split("-")[:2])
+                        _lh, _la = (int(x) for x in str(_tl_row[0]).replace(":", "-").split("-")[:2])
                         _cs_sh = max(_cs_sh if _cs_sh is not None else 0, _lh)
                         _cs_sa = max(_cs_sa if _cs_sa is not None else 0, _la)
                     except Exception:
