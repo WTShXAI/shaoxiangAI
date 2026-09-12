@@ -883,6 +883,15 @@ export default function Rollball() {
                       <div className="rounded-lg border border-surface-border/30 bg-surface-card/40 px-2 py-1.5 text-center">
                         <div className="text-[10px] text-ink-muted">CS 首选</div>
                         <div className="text-[14px] font-bold font-mono text-violet-300">{hf.cs_top1 ?? '—'}</div>
+                        {/* 双口径 (2026-09-13): 精确比分天生低命中, 方向口径避免低估冻结质量 */}
+                        {hf.cs_top1 && (
+                          <div className="text-[9px] text-violet-300/80">
+                            方向 {(() => {
+                              const [a, b] = hf.cs_top1.split('-').map(Number)
+                              return a > b ? '主胜' : a === b ? '平' : '客胜'
+                            })()}
+                          </div>
+                        )}
                         {(hf.cs_top3 ?? []).length > 1 && <div className="text-[9px] text-ink-muted">三选 {(hf.cs_top3 ?? []).join('/')}</div>}
                       </div>
                     </div>
