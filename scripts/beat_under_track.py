@@ -102,7 +102,9 @@ def record(con):
         #   ✗ 午夜档(00-06时): -16.0% (亚澳夜场, 样本 155 注)
         if not (2.2 <= line <= 2.6 or 3.2 <= line <= 3.3):
             continue
-        if float(under) < 1.80:
+        # 2026-09-13 精确线闸门(756注odds≥2.0实证): 盈利线=2.25/3.0/3.25/3.5
+        # 其余线全部亏损(1.5:-42.6% / 1.75:-27.3% / 2.0:-20.8% / 2.5:-3.9% / 2.75:-11.0%)
+        if float(line) not in (2.25, 3.0, 3.25, 3.5):
             continue
         try:
             _dt = datetime.datetime.fromisoformat(str(ko).replace(' ', 'T'))
