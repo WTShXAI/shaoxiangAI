@@ -2190,7 +2190,7 @@ class GQCollector:
                     self._collab_observe_tick()
 
                 # ── 黑板报告处理 (每 5min, 2026-09-13): 上报→分析→写回结果 ──
-                if now - last_report_process >= 300:
+                if now - last_report_process >= 120:
                     last_report_process = now
                     self._process_collab_reports()
 
