@@ -1374,6 +1374,12 @@ class GQCollector:
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "collab_journal.jsonl")
         if not os.path.exists(journal):
             return
+        # 去重: 已处理的任务 ID 持久化到文件(重启不丢失)
+        done_file = journal + '.processed'
+        done_set = set()
+        if os.path.exists(done_file):
+            with open(done_file, encoding='utf-8') as df:
+                done_set = set(l.strip() for l in df if l.strip())
         try:
             # 读 open 条目
             entries = []
@@ -1393,7 +1399,7 @@ class GQCollector:
             tasks = {}
             for e in entries:
                 t = e.get('task')
-                if t and t not in tasks:
+                if t and t not in tasks and t not in done_set:
                     tasks[t] = e
             processed = 0
             for task, entry in tasks.items():
@@ -1432,6 +1438,9 @@ class GQCollector:
                 _append_report_result(journal, task, result_text)
                 processed += 1
             if processed:
+                with open(done_file, 'a', encoding='utf-8') as df:
+                    for t in tasks:
+                        df.write(t + chr(10))
                 self.log(f"[collab-reports] 处理前端上报 {processed}/{len(tasks)} 条")
         except Exception as e:
             self.log(f"[collab-reports] 异常(不阻塞): {e}")
