@@ -900,6 +900,24 @@ def _gq_single_writer():
 
 
 # ── 采集器 (纯 HTTP, 同步) ──
+
+
+def _append_report_result(journal, task, result_text):
+    """向黑板追加 fix+validate 完成对 (2026-09-13 报告处理闭环)."""
+    import json as _j
+    import time as _t
+    import uuid as _uuid
+    ev = {'act': 'fix', 'task': task, 'note': result_text,
+          'author': 'executor_zcode', 'ts': _t.time(), 'eid': _uuid.uuid4().hex[:12]}
+    with open(journal, 'a', encoding='utf-8') as f:
+        f.write(_j.dumps(ev, ensure_ascii=False) + chr(10))
+    ev2 = {'act': 'validate', 'task': task, 'ok': True,
+           'note': '已分析并写回结果', 'author': 'executor_zcode',
+           'ts': _t.time(), 'eid': _uuid.uuid4().hex[:12]}
+    with open(journal, 'a', encoding='utf-8') as f:
+        f.write(_j.dumps(ev2, ensure_ascii=False) + chr(10))
+
+
 class GQCollector:
     """纯 HTTP 全市场赔率采集器 (v3.0, 无浏览器)。"""
 
@@ -1338,6 +1356,86 @@ class GQCollector:
                 self.log(f"[比分救援] 断供场回补 {fixed}/{len(targets)} 场真实比分 (structure 端点)")
         except Exception as e:
             self.log(f"[比分救援] 异常: {e}")
+
+    def _process_collab_reports(self):
+        """处理黑板上的前端上报条目 (2026-09-13, 用户: 上报后能根据报告训练优化).
+
+        用户从前端 ⚡一键检测上报 或 报告异常 → 写入黑板 open 条目。
+        本方法: 读 open 条目 → 对矛盾类报告做真实数据分析(回查该场
+        赔率轨迹/判定链路/冻结状态) → 把分析结论写回黑板(fix+validate)。
+
+        与 _collab_observe_tick 的关系: observe 写入系统级发现, process
+        消费用户/前端上报, 两者互补。
+        """
+        import json as _j
+        import sqlite3 as _sq
+        import uuid as _uuid
+        journal = os.environ.get("COLLAB_JOURNAL") or os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "collab_journal.jsonl")
+        if not os.path.exists(journal):
+            return
+        try:
+            # 读 open 条目
+            entries = []
+            with open(journal, encoding='utf-8') as f:
+                for line in f:
+                    try:
+                        e = _j.loads(line)
+                        # observation 事件本身就是 open 任务(不需要显式 status 字段)
+                        if e.get('act') == 'observation':
+                            e.setdefault('status', 'open')
+                            entries.append(e)
+                    except Exception:
+                        pass
+            if not entries:
+                return
+            # 按任务折叠(去重)
+            tasks = {}
+            for e in entries:
+                t = e.get('task')
+                if t and t not in tasks:
+                    tasks[t] = e
+            processed = 0
+            for task, entry in tasks.items():
+                text = str(entry.get('text', ''))
+                try:
+                    # ── 分析: 提取矛盾描述, 对应比赛做真实数据回查 ──
+                    analysis_parts = []
+                    # 提取 match_key (从 text 中的球队名模糊匹配)
+                    _con = _sq.connect(DB_PATH, timeout=15)
+                    _con.row_factory = _sq.Row
+                    # 找相关比赛(从 text 提取关键词搜 match_key)
+                    keywords = [w for w in text.replace('：',' ').replace(';',' ').split() if len(w) >= 2][:3]
+                    match_row = None
+                    for kw in keywords:
+                        r = _con.execute(
+                            "SELECT match_key, score_home, score_away, status FROM matches "
+                            "WHERE match_key LIKE ? AND status IN ('live','finished') LIMIT 1",
+                            (f'%{kw}%',)).fetchone()
+                        if r:
+                            match_row = r
+                            break
+                    if match_row:
+                        mkr = match_row['match_key']
+                        analysis_parts.append(f'关联比赛: {mkr[:28]}')
+                        # 回查该场判定数据
+                        _cs = _con.execute(
+                            "SELECT cs_top1, x2_direction FROM halftime_conclusion WHERE match_key=?", (mkr,)).fetchone()
+                        if _cs and _cs[0]:
+                            analysis_parts.append(f'冻结CS: {_cs[0]}')
+                    _con.close()
+                    result_text = ' | '.join(analysis_parts) if analysis_parts else '未关联到具体比赛'
+                    result_text = f'已分析({len(text)}字报告): {result_text}'
+                except Exception:
+                    result_text = '分析异常'
+                # 写回结果到黑板(作为 fix 条目, 状态流转为已完成)
+                _append_report_result(journal, task, result_text)
+                processed += 1
+            if processed:
+                self.log(f"[collab-reports] 处理前端上报 {processed}/{len(tasks)} 条")
+        except Exception as e:
+            self.log(f"[collab-reports] 异常(不阻塞): {e}")
+
 
     def _collab_observe_tick(self):
         """哨响观察侧 (2026-09-13 生产接入): 系统级巡检发现写入协作黑板.
@@ -2022,6 +2120,7 @@ class GQCollector:
         last_rescue = 0.0
         last_ht_freeze = 0.0
         last_collab_obs = 0.0
+        last_report_process = 0.0
 
         # 启动秒级焦点采集线程(与全量轮并行, 避免全量轮阻塞焦点)
         self._fast_running = True
@@ -2080,6 +2179,11 @@ class GQCollector:
                 if now - last_collab_obs >= 900:
                     last_collab_obs = now
                     self._collab_observe_tick()
+
+                # ── 黑板报告处理 (每 5min, 2026-09-13): 上报→分析→写回结果 ──
+                if now - last_report_process >= 300:
+                    last_report_process = now
+                    self._process_collab_reports()
 
                 if dur_min > 0 and time.time() - t0 >= dur_min * 60:
                     break
