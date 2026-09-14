@@ -1,88 +1,44 @@
-{"act": "observation", "task": "ANOM_Tarragona_deadline6", "pri": "P1", "text": "塔拉戈纳 85' 线6@74%大: 死线(12分钟无报价)参与判定, CS 卡被污染出 5-2/6-2/7-2 幽灵首选", "author": "observer", "ts": 1789235418.8900418, "eid": "29928f9bd4cd"}
-{"act": "observation", "task": "ANOM_Storm_HT_pollution", "pri": "P1", "text": "风暴vs守护者FC: 滚球中 API S1 字段携带当前比分冒充 HT, HT 被写 4-1(真实 1-1)", "author": "observer", "ts": 1789235418.9280066, "eid": "fe0ff037720f"}
-{"act": "observation", "task": "ANOM_Postponed_ghost_0_0", "pri": "P1", "text": "延期/未开赛场被 3.5h 规则打成 finished 0-0, 让球+1 结算器把 0-0 当平局覆盖记假 win(82.5% 虚高)", "author": "observer", "ts": 1789235418.9673114, "eid": "e5f3fcf590d0"}
-{"act": "observation", "task": "ANOM_Watch_neg1_45_bias", "pri": "P1", "text": "盯盘 11 场实证: CS top1 总球均值比实际低 1.45 球(8/11 负偏差), CS_TOP1 0/11", "author": "observer", "ts": 1789235419.0058942, "eid": "ade65e9d6a51"}
-{"act": "observation", "task": "ANOM_BetUnder_line_150", "pri": "P2", "text": "beat_under 线1.5 亏损簇: 15 注 ROI -33.5%", "author": "observer", "ts": 1789235419.0445192, "eid": "89316f8abb38"}
-{"act": "observation", "task": "ANOM_BetUnder_line_175", "pri": "P2", "text": "beat_under 线1.75 亏损簇: 32 注 ROI -32.0%", "author": "observer", "ts": 1789235419.080743, "eid": "22a33ade89e3"}
-{"act": "observation", "task": "ANOM_BetUnder_line_200", "pri": "P2", "text": "beat_under 线2.0 亏损簇: 65 注 ROI -18.6%", "author": "observer", "ts": 1789235419.1175637, "eid": "13612c1da3fb"}
-{"act": "observation", "task": "ANOM_BetUnder_line_275", "pri": "P2", "text": "beat_under 线2.75 亏损簇: 43 注 ROI -13.9%", "author": "observer", "ts": 1789235419.1543484, "eid": "af239c2e645a"}
-{"act": "observation", "task": "ANOM_BetUnder_line_300", "pri": "P2", "text": "beat_under 线3.0 亏损簇: 46 注 ROI -14.9%", "author": "observer", "ts": 1789235419.1937978, "eid": "3b838a29526a"}
-{"act": "observation", "task": "ANOM_BetUnder_odds_lt180", "pri": "P2", "text": "beat_under 低赔档<1.80: 75 注 ROI -25.6%", "author": "observer", "ts": 1789235419.2304404, "eid": "6a957649b1b3"}
-{"act": "observation", "task": "ANOM_BetUnder_midnight", "pri": "P2", "text": "beat_under 午夜档(00-06时): 155 注 ROI -16.0%", "author": "observer", "ts": 1789235419.2666593, "eid": "45a28daba91a"}
-{"act": "observation", "task": "ANOM_Zombie_12h_live", "pri": "P1", "text": "塔拉戈纳场开赛 12 小时仍标 live, mlet 卡死 45:00 占位, 僵尸 OU 报价持续推流(大6@1.03)", "author": "observer", "ts": 1789235419.3042152, "eid": "7b3ed3ec4407"}
-{"act": "observation", "task": "ANOM_MinuteAt_618_pollute", "pri": "P1", "text": "历史 minute_at 61.8% 污染(45/90 占位 + 垃圾 mmp 穿插), HT 窗口回测全失真", "author": "observer", "ts": 1789235419.3426862, "eid": "58c738253e2c"}
-{"act": "observation", "task": "ANOM_HT_gt_FT_792", "pri": "P1", "text": "792 场不可行半场(HT>FT, 含篮球 71-79 混入)", "author": "observer", "ts": 1789235419.3862329, "eid": "158f2c2bea12"}
-{"act": "observation", "task": "ANOM_Stale_anchor_750_89", "pri": "P1", "text": "阿尔托赞比西 89' OU 赛前线 7.5 当滚球锚, 降权真首选 2-2 并合成 4-2/5-2 幽灵比分", "author": "observer", "ts": 1789235419.4399571, "eid": "33df1cee6aba"}
-{"act": "observation", "task": "ANOM_NO_EDGE_high_prob", "pri": "P2", "text": "probe 输出 NO_EDGE 但 prob≥0.70(标注语义矛盾, 展示层弱优势)", "author": "observer", "ts": 1789235419.4798274, "eid": "b40426a3e94f"}
-{"act": "observation", "task": "ANOM_1X2_freeze_45pct", "pri": "P2", "text": "中场冻结 1X2 方向首批 45.0%(49/60), 领先域先验 71.2% 未优先", "author": "observer", "ts": 1789235419.5174258, "eid": "fb038a6953a3"}
-{"act": "observation", "task": "ANOM_X2_port_regression", "pri": "P1", "text": "v2 移植实验: HT 回放 TOP1 46.7→17.1% — 已回滚, 需记录为被否决方案", "author": "observer", "ts": 1789235419.5582047, "eid": "fa18ea1c1fcc"}
-{"act": "observation", "task": "ANOM_Score_backtrack_15", "pri": "P2", "text": "近2天 15 场比分轨迹倒退(feed 误推后修正, 轴上幽灵比分)", "author": "observer", "ts": 1789235419.5953538, "eid": "8b0b0e59fda1"}
-{"act": "observation", "task": "ANOM_Supply_cut_83", "pri": "P2", "text": "近2天 83 场完赛无比分帧(断供), 结算可信度双闸门持续拦截", "author": "observer", "ts": 1789235419.6334846, "eid": "167d8eca0af2"}
-{"act": "observation", "task": "ANOM_Preverify_double", "pri": "P3", "text": "结构性候选: 赛前锚 verdict 与统一波胆方向双源并存, 一致率仅 25%(样本偏差待查)", "author": "observer", "ts": 1789235419.6715314, "eid": "f461f9e7cca3"}
-{"act": "observation", "task": "ANOM_OU_deadline_6", "pri": "P1", "text": "OU_6.00 报价 1.03(市场认为总球≥7)而系统比分 3-2 — 比分滞后或市场僵尸流, 需交叉核实", "author": "observer", "ts": 1789235419.7107453, "eid": "dfaaf5900284"}
-{"act": "claim", "task": "ANOM_HT_gt_FT_792", "by": "mock_executor", "author": "mock_executor", "ts": 1789235419.8246436, "eid": "3bac554af900"}
-{"act": "fix", "task": "ANOM_HT_gt_FT_792", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235419.8643687, "eid": "0db7a2b10eed"}
-{"act": "validate", "task": "ANOM_HT_gt_FT_792", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235419.9052205, "eid": "635e3b086f42"}
-{"act": "claim", "task": "ANOM_MinuteAt_618_pollute", "by": "mock_executor", "author": "mock_executor", "ts": 1789235419.9464915, "eid": "66965a3ca79b"}
-{"act": "fix", "task": "ANOM_MinuteAt_618_pollute", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235419.985327, "eid": "533626381c73"}
-{"act": "validate", "task": "ANOM_MinuteAt_618_pollute", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235420.0278933, "eid": "1a242717225d"}
-{"act": "claim", "task": "ANOM_OU_deadline_6", "by": "mock_executor", "author": "mock_executor", "ts": 1789235420.0705035, "eid": "b4e6309db692"}
-{"act": "fix", "task": "ANOM_OU_deadline_6", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235420.1109924, "eid": "f33c4ce663a1"}
-{"act": "validate", "task": "ANOM_OU_deadline_6", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235420.150791, "eid": "47cadec8262a"}
-{"act": "claim", "task": "ANOM_Postponed_ghost_0_0", "by": "mock_executor", "author": "mock_executor", "ts": 1789235420.1898403, "eid": "547145492076"}
-{"act": "fix", "task": "ANOM_Postponed_ghost_0_0", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235420.2360604, "eid": "984a88c9488b"}
-{"act": "validate", "task": "ANOM_Postponed_ghost_0_0", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235420.2750878, "eid": "7dd964345992"}
-{"act": "claim", "task": "ANOM_Stale_anchor_750_89", "by": "mock_executor", "author": "mock_executor", "ts": 1789235420.3170578, "eid": "e094a62c1742"}
-{"act": "fix", "task": "ANOM_Stale_anchor_750_89", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235420.3618245, "eid": "766d1f173a06"}
-{"act": "validate", "task": "ANOM_Stale_anchor_750_89", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235420.4008656, "eid": "0fa5445b51e0"}
-{"act": "claim", "task": "ANOM_Storm_HT_pollution", "by": "mock_executor", "author": "mock_executor", "ts": 1789235420.4415743, "eid": "4797b1c110d6"}
-{"act": "fix", "task": "ANOM_Storm_HT_pollution", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235420.4820962, "eid": "d39844326934"}
-{"act": "validate", "task": "ANOM_Storm_HT_pollution", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235420.5211327, "eid": "54cb6e2eb83f"}
-{"act": "claim", "task": "ANOM_Tarragona_deadline6", "by": "mock_executor", "author": "mock_executor", "ts": 1789235420.5611687, "eid": "0c6483b31d22"}
-{"act": "fix", "task": "ANOM_Tarragona_deadline6", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235420.5992362, "eid": "f98b0febacfb"}
-{"act": "validate", "task": "ANOM_Tarragona_deadline6", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235420.6379685, "eid": "a0b77ac07137"}
-{"act": "claim", "task": "ANOM_Watch_neg1_45_bias", "by": "mock_executor", "author": "mock_executor", "ts": 1789235420.6744983, "eid": "cd54503adde6"}
-{"act": "fix", "task": "ANOM_Watch_neg1_45_bias", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235420.713076, "eid": "5032c378af18"}
-{"act": "validate", "task": "ANOM_Watch_neg1_45_bias", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235420.7521138, "eid": "150e2d9ff89b"}
-{"act": "claim", "task": "ANOM_X2_port_regression", "by": "mock_executor", "author": "mock_executor", "ts": 1789235420.7896686, "eid": "3964f373380e"}
-{"act": "fix", "task": "ANOM_X2_port_regression", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235420.8266337, "eid": "9cd39be598fd"}
-{"act": "validate", "task": "ANOM_X2_port_regression", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235420.863156, "eid": "61d284a42b09"}
-{"act": "claim", "task": "ANOM_Zombie_12h_live", "by": "mock_executor", "author": "mock_executor", "ts": 1789235420.9016929, "eid": "ed008319ea6d"}
-{"act": "fix", "task": "ANOM_Zombie_12h_live", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235420.9424956, "eid": "2dd7966a5c70"}
-{"act": "validate", "task": "ANOM_Zombie_12h_live", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235420.9835484, "eid": "e17a055f156e"}
-{"act": "claim", "task": "ANOM_1X2_freeze_45pct", "by": "mock_executor", "author": "mock_executor", "ts": 1789235421.0215948, "eid": "116f9596bac6"}
-{"act": "fix", "task": "ANOM_1X2_freeze_45pct", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235421.0593352, "eid": "7435c50a54f3"}
-{"act": "validate", "task": "ANOM_1X2_freeze_45pct", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235421.0974965, "eid": "fb1dbd994839"}
-{"act": "claim", "task": "ANOM_BetUnder_line_150", "by": "mock_executor", "author": "mock_executor", "ts": 1789235421.135668, "eid": "67b696fbb4e3"}
-{"act": "fix", "task": "ANOM_BetUnder_line_150", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235421.1737096, "eid": "e5fe159b89f2"}
-{"act": "validate", "task": "ANOM_BetUnder_line_150", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235421.2127192, "eid": "a4bb39a02011"}
-{"act": "claim", "task": "ANOM_BetUnder_line_175", "by": "mock_executor", "author": "mock_executor", "ts": 1789235421.2492507, "eid": "c63faeee9699"}
-{"act": "fix", "task": "ANOM_BetUnder_line_175", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235421.2852805, "eid": "86b84187de37"}
-{"act": "validate", "task": "ANOM_BetUnder_line_175", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235421.3228133, "eid": "af1309035415"}
-{"act": "claim", "task": "ANOM_BetUnder_line_200", "by": "mock_executor", "author": "mock_executor", "ts": 1789235421.3615165, "eid": "46b6db737010"}
-{"act": "fix", "task": "ANOM_BetUnder_line_200", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235421.3991895, "eid": "579282beb9ba"}
-{"act": "validate", "task": "ANOM_BetUnder_line_200", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235421.4378996, "eid": "0b8692659050"}
-{"act": "claim", "task": "ANOM_BetUnder_line_275", "by": "mock_executor", "author": "mock_executor", "ts": 1789235421.4764295, "eid": "4c226eb899c2"}
-{"act": "fix", "task": "ANOM_BetUnder_line_275", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235421.514461, "eid": "4b8ed64d51ce"}
-{"act": "validate", "task": "ANOM_BetUnder_line_275", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235421.553009, "eid": "e1dc293680e5"}
-{"act": "claim", "task": "ANOM_BetUnder_line_300", "by": "mock_executor", "author": "mock_executor", "ts": 1789235421.6074393, "eid": "30e1f7e9065e"}
-{"act": "fix", "task": "ANOM_BetUnder_line_300", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235421.6456525, "eid": "3be3974d42a4"}
-{"act": "validate", "task": "ANOM_BetUnder_line_300", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235421.6836815, "eid": "417a72890eb0"}
-{"act": "claim", "task": "ANOM_BetUnder_midnight", "by": "mock_executor", "author": "mock_executor", "ts": 1789235421.7232192, "eid": "0e11162c5898"}
-{"act": "fix", "task": "ANOM_BetUnder_midnight", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235421.7627687, "eid": "b309ba5af08f"}
-{"act": "validate", "task": "ANOM_BetUnder_midnight", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235421.8021393, "eid": "bd513aa4f0a0"}
-{"act": "claim", "task": "ANOM_BetUnder_odds_lt180", "by": "mock_executor", "author": "mock_executor", "ts": 1789235421.8418415, "eid": "182dfb798d0c"}
-{"act": "fix", "task": "ANOM_BetUnder_odds_lt180", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235421.8795009, "eid": "7f2aed90ac4f"}
-{"act": "validate", "task": "ANOM_BetUnder_odds_lt180", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235421.9186893, "eid": "b0086ea18cda"}
-{"act": "claim", "task": "ANOM_NO_EDGE_high_prob", "by": "mock_executor", "author": "mock_executor", "ts": 1789235421.9587183, "eid": "e33f0a7f8f18"}
-{"act": "fix", "task": "ANOM_NO_EDGE_high_prob", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235421.9972582, "eid": "57ba4a809cc6"}
-{"act": "validate", "task": "ANOM_NO_EDGE_high_prob", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235422.0342934, "eid": "d3881a2d7cb3"}
-{"act": "claim", "task": "ANOM_Score_backtrack_15", "by": "mock_executor", "author": "mock_executor", "ts": 1789235422.0733447, "eid": "ad64e83dc268"}
-{"act": "fix", "task": "ANOM_Score_backtrack_15", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235422.109746, "eid": "b24c0abe4305"}
-{"act": "validate", "task": "ANOM_Score_backtrack_15", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235422.1486223, "eid": "bed5667dd628"}
-{"act": "claim", "task": "ANOM_Supply_cut_83", "by": "mock_executor", "author": "mock_executor", "ts": 1789235422.1856656, "eid": "b386c88cc3e9"}
-{"act": "fix", "task": "ANOM_Supply_cut_83", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235422.2259336, "eid": "02bdebe75721"}
-{"act": "validate", "task": "ANOM_Supply_cut_83", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235422.2684977, "eid": "421a8ce6f5b4"}
-{"act": "claim", "task": "ANOM_Preverify_double", "by": "mock_executor", "author": "mock_executor", "ts": 1789235422.3075793, "eid": "ee63b1378afc"}
-{"act": "fix", "task": "ANOM_Preverify_double", "note": "修复完成(模拟): 数据回填+守卫+验证通过", "author": "executor", "ts": 1789235422.348622, "eid": "c83d0884abb5"}
-{"act": "validate", "task": "ANOM_Preverify_double", "ok": true, "note": "回测不回退, 审计0违反", "author": "observer", "ts": 1789235422.3884346, "eid": "be5206149614"}
+{"act": "observation", "task": "ANOM_Tarragona_deadline6", "pri": "P1", "text": "塔拉戈纳 85' 线6@74%大: 死线(12分钟无报价)参与判定, CS 卡被污染出 5-2/6-2/7-2 幽灵首选", "author": "observer", "ts": 1789311660.589068, "eid": "2e6bbac52ea2"}
+{"act": "observation", "task": "ANOM_Storm_HT_pollution", "pri": "P1", "text": "风暴vs守护者FC: 滚球中 API S1 字段携带当前比分冒充 HT, HT 被写 4-1(真实 1-1)", "author": "observer", "ts": 1789311660.6252651, "eid": "94863abf9112"}
+{"act": "observation", "task": "ANOM_Postponed_ghost_0_0", "pri": "P1", "text": "延期/未开赛场被 3.5h 规则打成 finished 0-0, 让球+1 结算器把 0-0 当平局覆盖记假 win(82.5% 虚高)", "author": "observer", "ts": 1789311660.658794, "eid": "64c00cc8ac99"}
+{"act": "observation", "task": "ANOM_Watch_neg1_45_bias", "pri": "P1", "text": "盯盘 11 场实证: CS top1 总球均值比实际低 1.45 球(8/11 负偏差), CS_TOP1 0/11", "author": "observer", "ts": 1789311660.6936681, "eid": "084ddb0e8991"}
+{"act": "observation", "task": "ANOM_BetUnder_line_150", "pri": "P2", "text": "beat_under 线1.5 亏损簇: 15 注 ROI -33.5%", "author": "observer", "ts": 1789311660.7286174, "eid": "b857a0ab0f12"}
+{"act": "observation", "task": "ANOM_BetUnder_line_175", "pri": "P2", "text": "beat_under 线1.75 亏损簇: 32 注 ROI -32.0%", "author": "observer", "ts": 1789311660.7612526, "eid": "6cca303f7f96"}
+{"act": "observation", "task": "ANOM_BetUnder_line_200", "pri": "P2", "text": "beat_under 线2.0 亏损簇: 65 注 ROI -18.6%", "author": "observer", "ts": 1789311660.799281, "eid": "db128b7bac2f"}
+{"act": "observation", "task": "ANOM_BetUnder_line_275", "pri": "P2", "text": "beat_under 线2.75 亏损簇: 43 注 ROI -13.9%", "author": "observer", "ts": 1789311660.8328164, "eid": "10a42ad5a975"}
+{"act": "observation", "task": "ANOM_BetUnder_line_300", "pri": "P2", "text": "beat_under 线3.0 亏损簇: 46 注 ROI -14.9%", "author": "observer", "ts": 1789311660.868369, "eid": "17f853b7db8c"}
+{"act": "observation", "task": "ANOM_BetUnder_odds_lt180", "pri": "P2", "text": "beat_under 低赔档<1.80: 75 注 ROI -25.6%", "author": "observer", "ts": 1789311660.9038942, "eid": "4032ab77085c"}
+{"act": "observation", "task": "ANOM_BetUnder_midnight", "pri": "P2", "text": "beat_under 午夜档(00-06时): 155 注 ROI -16.0%", "author": "observer", "ts": 1789311660.938933, "eid": "ad5b18a153d7"}
+{"act": "observation", "task": "ANOM_Zombie_12h_live", "pri": "P1", "text": "塔拉戈纳场开赛 12 小时仍标 live, mlet 卡死 45:00 占位, 僵尸 OU 报价持续推流(大6@1.03)", "author": "observer", "ts": 1789311660.9726572, "eid": "acbb64a2f2c3"}
+{"act": "observation", "task": "ANOM_MinuteAt_618_pollute", "pri": "P1", "text": "历史 minute_at 61.8% 污染(45/90 占位 + 垃圾 mmp 穿插), HT 窗口回测全失真", "author": "observer", "ts": 1789311661.0077264, "eid": "47dcc9b7d4a0"}
+{"act": "observation", "task": "ANOM_HT_gt_FT_792", "pri": "P1", "text": "792 场不可行半场(HT>FT, 含篮球 71-79 混入)", "author": "observer", "ts": 1789311661.0447657, "eid": "dd8f49f10d98"}
+{"act": "observation", "task": "ANOM_Stale_anchor_750_89", "pri": "P1", "text": "阿尔托赞比西 89' OU 赛前线 7.5 当滚球锚, 降权真首选 2-2 并合成 4-2/5-2 幽灵比分", "author": "observer", "ts": 1789311661.0797977, "eid": "2495f0f7dafa"}
+{"act": "observation", "task": "ANOM_NO_EDGE_high_prob", "pri": "P2", "text": "probe 输出 NO_EDGE 但 prob≥0.70(标注语义矛盾, 展示层弱优势)", "author": "observer", "ts": 1789311661.1158557, "eid": "20b87e07168f"}
+{"act": "observation", "task": "ANOM_1X2_freeze_45pct", "pri": "P2", "text": "中场冻结 1X2 方向首批 45.0%(49/60), 领先域先验 71.2% 未优先", "author": "observer", "ts": 1789311661.1518316, "eid": "0e899abbd5c6"}
+{"act": "observation", "task": "ANOM_X2_port_regression", "pri": "P1", "text": "v2 移植实验: HT 回放 TOP1 46.7→17.1% — 已回滚, 需记录为被否决方案", "author": "observer", "ts": 1789311661.188877, "eid": "245bd779a6b7"}
+{"act": "observation", "task": "ANOM_Score_backtrack_15", "pri": "P2", "text": "近2天 15 场比分轨迹倒退(feed 误推后修正, 轴上幽灵比分)", "author": "observer", "ts": 1789311661.2330904, "eid": "e58aa6599df8"}
+{"act": "observation", "task": "ANOM_Supply_cut_83", "pri": "P2", "text": "近2天 83 场完赛无比分帧(断供), 结算可信度双闸门持续拦截", "author": "observer", "ts": 1789311661.2661228, "eid": "44e0d5b86b14"}
+{"act": "observation", "task": "ANOM_Preverify_double", "pri": "P3", "text": "结构性候选: 赛前锚 verdict 与统一波胆方向双源并存, 一致率仅 25%(样本偏差待查)", "author": "observer", "ts": 1789311661.3020098, "eid": "aa92caf98b7b"}
+{"act": "observation", "task": "ANOM_OU_deadline_6", "pri": "P1", "text": "OU_6.00 报价 1.03(市场认为总球≥7)而系统比分 3-2 — 比分滞后或市场僵尸流, 需交叉核实", "author": "observer", "ts": 1789311661.338051, "eid": "5cc52e53c65e"}
+{"act": "claim", "task": "ANOM_HT_gt_FT_792", "by": "mock_executor", "author": "mock_executor", "ts": 1789311661.4416437, "eid": "48bb8e71a41c"}
+{"act": "claim", "task": "ANOM_MinuteAt_618_pollute", "by": "mock_executor", "author": "mock_executor", "ts": 1789311661.4766877, "eid": "974d68d5a2ba"}
+{"act": "claim", "task": "ANOM_OU_deadline_6", "by": "mock_executor", "author": "mock_executor", "ts": 1789311661.5127263, "eid": "d9cb513f3ce8"}
+{"act": "claim", "task": "ANOM_Postponed_ghost_0_0", "by": "mock_executor", "author": "mock_executor", "ts": 1789311661.5482676, "eid": "ee2ae59bcd63"}
+{"act": "claim", "task": "ANOM_Stale_anchor_750_89", "by": "mock_executor", "author": "mock_executor", "ts": 1789311661.5824974, "eid": "3d714cd88151"}
+{"act": "claim", "task": "ANOM_Storm_HT_pollution", "by": "mock_executor", "author": "mock_executor", "ts": 1789311661.616549, "eid": "419c9d894a24"}
+{"act": "claim", "task": "ANOM_Tarragona_deadline6", "by": "mock_executor", "author": "mock_executor", "ts": 1789311661.6500988, "eid": "b8f0ec55e670"}
+{"act": "claim", "task": "ANOM_Watch_neg1_45_bias", "by": "mock_executor", "author": "mock_executor", "ts": 1789311661.6826215, "eid": "fe3c4c5a27d6"}
+{"act": "claim", "task": "ANOM_X2_port_regression", "by": "mock_executor", "author": "mock_executor", "ts": 1789311661.718646, "eid": "5822f9deabd4"}
+{"act": "claim", "task": "ANOM_Zombie_12h_live", "by": "mock_executor", "author": "mock_executor", "ts": 1789311661.754511, "eid": "a41f85141a85"}
+{"act": "claim", "task": "ANOM_1X2_freeze_45pct", "by": "mock_executor", "author": "mock_executor", "ts": 1789311661.788537, "eid": "dabe94565bf9"}
+{"act": "claim", "task": "ANOM_BetUnder_line_150", "by": "mock_executor", "author": "mock_executor", "ts": 1789311661.8215878, "eid": "7de11ef5c9c8"}
+{"act": "claim", "task": "ANOM_BetUnder_line_175", "by": "mock_executor", "author": "mock_executor", "ts": 1789311661.8551471, "eid": "18135b7bcdbd"}
+{"act": "claim", "task": "ANOM_BetUnder_line_200", "by": "mock_executor", "author": "mock_executor", "ts": 1789311661.8929262, "eid": "16c771fc5035"}
+{"act": "claim", "task": "ANOM_BetUnder_line_275", "by": "mock_executor", "author": "mock_executor", "ts": 1789311661.9285085, "eid": "8b46cab84d64"}
+{"act": "claim", "task": "ANOM_BetUnder_line_300", "by": "mock_executor", "author": "mock_executor", "ts": 1789311661.9615407, "eid": "fd2fc6db3043"}
+{"act": "claim", "task": "ANOM_BetUnder_midnight", "by": "mock_executor", "author": "mock_executor", "ts": 1789311661.9957893, "eid": "41c4e2f6cf7e"}
+{"act": "claim", "task": "ANOM_BetUnder_odds_lt180", "by": "mock_executor", "author": "mock_executor", "ts": 1789311662.0339594, "eid": "9cd19b13e4ea"}
+{"act": "claim", "task": "ANOM_NO_EDGE_high_prob", "by": "mock_executor", "author": "mock_executor", "ts": 1789311662.0674984, "eid": "ff02f44244cb"}
+{"act": "claim", "task": "ANOM_Score_backtrack_15", "by": "mock_executor", "author": "mock_executor", "ts": 1789311662.1057408, "eid": "d3df17892e85"}
+{"act": "claim", "task": "ANOM_Supply_cut_83", "by": "mock_executor", "author": "mock_executor", "ts": 1789311662.1407866, "eid": "3f377285c499"}
+{"act": "claim", "task": "ANOM_Preverify_double", "by": "mock_executor", "author": "mock_executor", "ts": 1789311662.175814, "eid": "d6f563f0f6ab"}

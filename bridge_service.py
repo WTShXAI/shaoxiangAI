@@ -4889,6 +4889,16 @@ async def collab_report_api(req: dict):
         os.makedirs(os.path.dirname(src), exist_ok=True)
         with open(src, 'a', encoding='utf-8') as f:
             f.write(_j.dumps(ev, ensure_ascii=False) + chr(10))
+        # 2026-09-13 即时处理: 上报后同步触发分析(不等采集器 5 分钟轮询)
+        try:
+            import subprocess as _sp
+            _sp.Popen([sys.executable,
+                       os.path.join(PROJECT_ROOT, "sandbox", "collab", "collab.py"),
+                       "--journal", src,
+                       "listx", "--status", "open"],
+                      stdout=_sp.DEVNULL, stderr=_sp.DEVNULL)
+        except Exception:
+            pass
         return {"ok": True, "data": {"task": ev['task']}}
     except Exception as e:
         return JSONResponse({"ok": False, "error": str(e), "data": None})
