@@ -458,6 +458,11 @@ export default function Rollball() {
     const raw = m.minute != null ? Math.max(0, Math.min(130, Number(m.minute))) : null
     if (probe == null) return raw ?? 0
     if (raw == null) return probe
+    // 2026-09-13 修正: feed 分钟活跃更新时优先(延赛场墙钟会高估22+分钟)
+    // 仅当 feed 分钟卡死(≤1 且 elapsed>10)时才用墙钟
+    if (raw > 0 && Math.abs(raw - probe) > 2 && raw < probe) {
+      return raw   // feed 滞后但活跃 → 延迟开赛, 信 feed
+    }
     return Math.abs(raw - probe) > 2 ? probe : raw
   }, [])
 
