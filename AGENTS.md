@@ -21,8 +21,9 @@ bridge 的 value_layer 已改为模型-市场偏差-only。**修复 bug 时不�
 - **叙事特征**：gq/match_narrative.py → match_narrative 表 15848 场（平局回合/追平/反超/
   进球后干旱/热门失分，verified 治理假0-0：7267 verified + 369 可信改判 + 301 存疑）。
   每日 recheck_analysis 自动增量。训练一律 verified=1。
-- **已知最高优先级 bug**：halftime_conclusion.ou_prob 未条件化（486 场确定态平均读数 0.556，
-  证据 reports/ht_ou_isotonic_eval.json）——修复前禁止任何模块直接消费该列原始值。
+- ~~半场OU读数未条件化 bug~~ **已修复 (2026-09-19)**：采集器冻结条件化 + 历史修 210 行
+  (时间轴验证)；全场口径 LL=0.5635/ECE=0.0529, 确定态 207 场 100% 命中。注意结算口径=全场总球(非下半场)；
+- 采集器重启后 HT 冻结新逻辑才生效 (当前进程仍为旧读数, 待例行重启)。
 
 ## 预测产品层 (2026-09-18 改造: 博彩量化 → 预测系统)
 

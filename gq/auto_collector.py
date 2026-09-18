@@ -1607,6 +1607,14 @@ class GQCollector:
                     ou_line = full.get('line')
                     ou_dir = full.get('direction')
                     ou_prob = full.get('prob')
+                    # 2026-09-19 修复 (IR-33 前哨): HT冻结OU必须条件化既有比分 —
+                    # 旧读数回退赛前式概率, 486场"HT总球>盘口(OVER数学确定)"平均读数仅0.556。
+                    # HT总球 > 盘口 → OVER 已锁定, 概率恒 1.0 (数学事实, 非模型 opinion)。
+                    try:
+                        if ou_line is not None and (int(sh) + int(sa)) > float(ou_line):
+                            ou_dir, ou_prob = 'OVER', 1.0
+                    except (TypeError, ValueError):
+                        pass
                     # 1X2: HT 最新帧去水; 贫瘠场次(无滚球帧)用开盘 1X2 兜底;
                     # 都缺时用领先方先验定方向 (56-85' 领先1球→76% 实证, 45' 同源口径)
                     x2 = get_latest_snapshot_odds(_gqcon, mk, ['1X2'])

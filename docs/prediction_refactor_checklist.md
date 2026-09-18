@@ -143,3 +143,16 @@ $PY scripts/settle_candles_vs_knn.py --days 7         # 既有双判定对照台
 
 训练脚本新增: scripts/verify_ht_anchor_by_state.py · eval_knn_candles_stack.py · eval_league_shrink.py;
 train_odds_candles_model.py 输出新增 LogLoss 主指标; reports/ 下 5 份新报告。
+
+---
+
+## 附2: 训练迭代 (2026-09-19, 自主优化轮)
+
+| # | 项目 | 结果 | 数字 |
+|---|---|---|---|
+| T1 | K线 draw 校准 (α 缩放) | **不采纳** | 2/5 折有真增益(-0.02~-0.06) 但 3/5 折 α*=1.0 — 非平稳, 静态 α 缺乏跨折稳定性 (reports/draw_calibration_tune.json) |
+| T2 | 70d 采纳多种子稳健性 | **确认稳定** | seed42/7/13 集成 LL 1.0264/1.0326/1.0193 (均值 1.0261 ± 0.007, 均不劣于 26d 基线 1.0343) |
+| T3 | 半场OU读数条件化 | **根因修复+历史修复+验证闭环** | 根因: 冻结读数未条件化比分(486场确定态均值0.556); 修复: 采集器冻结条件化 + 历史修210行(时间轴验证); 全场正确口径修复后 LL=0.5635/ECE=0.0529, 确定态207场100%命中; M5 isotonic 增益证实为伪影(口径错+未条件化叠加), 校准器作废 |
+| T4 | IR-32 落地守卫 | 完成 | tests/test_no_crossbook.py 反向守卫上线即抓到 2 处残留并清除 |
+
+训练脚本新增: scripts/tune_draw_calibration.py · repair_ht_ou_conditioned.py。
