@@ -65,6 +65,16 @@ def record(con):
             fav_odds = float(a if under == 'home' else h)
             if not (2.9 <= under_odds <= 6.0 and fav_odds <= 3.5):
                 continue
+            # 2026-09-13 崩盘日解剖(9/12: 凌晨2-3时 58注 覆盖23-33% ROI -35~-55%):
+            # 与 beat_under 午夜档同模式 → 凌晨 02-05 时开赛不入账
+            try:
+                _dt = datetime.datetime.fromisoformat(str(ko).replace(' ', 'T'))
+                if _dt.tzinfo is None:
+                    _dt = _dt.replace(tzinfo=datetime.timezone(datetime.timedelta(hours=8)))
+                if 2 <= _dt.hour < 5:
+                    continue
+            except Exception:
+                pass
             detail = f"弱队{under} @{under_odds:.2f} (强队 @{fav_odds:.2f})"
             try:
                 con.execute("""INSERT INTO strategy_log (strategy, match_key, kickoff, detail, odds, created_at)
