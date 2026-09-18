@@ -47,7 +47,10 @@ $PY scripts/eval_prediction_calibration.py            # 校准评估 → reports
 - **devig SSoT**: pipeline/odds_math.py (devig_n/devig2/devig3/devig_power); 新代码禁再写本地去水
 - 工程规范: 测试 `.venv/Scripts/python -m pytest tests/ -q --timeout=120` (79 用例); 规范化+待办见
   docs/prediction_refactor_checklist.md 与 docs/pending_cleanup_backlog.md; ARCHITECTURE.md 已重写为预测系统版
-- 预测刷新/校准评估为**手动执行** (无定时自动化, 2026-09-18 按用户要求移除)
+- **自主监测优化** (2026-09-19 用户指令开启): 每小时自动化 automation-23e0a46a 运行
+  scripts/autonomous_monitor.py --cycle (bridge自愈/采集活性/预测补算/叙事增量/校准漂移/重训门控);
+  状态 reports/monitor_status.json, 历史 monitor_history.jsonl, 日志 logs/autonomous_monitor.log;
+  重训建议仅提示不自动执行 (walkforward 门禁保留)
 - 前端已去喊单化 (价值层/决策/操盘手/天眼镜 → 概率偏差解释表达); 二期剩余见清单§五:
   `_live_predict` 摘除 value_layer、bookmaker_sim 解耦、bet_core 归档
 
