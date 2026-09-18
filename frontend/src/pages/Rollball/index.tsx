@@ -3,6 +3,7 @@ import PageHeader from '@/components/layout/PageHeader'
 import Skeleton from '@/components/shared/Skeleton'
 import MatchAnalysisModal from '@/pages/LiveScores/MatchAnalysisModal'
 import { worldAnalyzerService, goldenEyeService, timelineService } from '@/services/api'
+import { serverNow, parseKickoffGMT8 } from '@/pages/LiveScores/fixtureUtils'
 
 /**
  * 滚球分析仪表盘 (2026-08-30) — 四市场(胜平负/让球/大小球/比分) + 实时进度。
@@ -120,10 +121,17 @@ function Card({ title, accent, children }: { title: string; accent?: string; chi
 type PhaseKey = 'pre' | 'first' | 'ht' | 'second' | 'ft'
 const PHASE_ORDER: Record<PhaseKey, number> = { second: 0, first: 1, ht: 2, pre: 3, ft: 4 }
 function phaseInfo(m: any): { key: PhaseKey; label: string; live: boolean } {
+  // 2026-09-15 修正: 优先用盘口来源真实分钟定相位(与显示分钟一致), 仅占位/缺失时墙钟兜底
+  const rawPh = m?.minute != null ? Number(m.minute) : null
+  if (rawPh != null && rawPh > 0 && rawPh !== 45 && rawPh !== 90) {
+    if (rawPh < 45) return { key: 'first', label: '上半场', live: true }
+    if (rawPh < 47) return { key: 'ht', label: '中场休息', live: false }
+    return { key: 'second', label: '下半场', live: true }
+  }
   if (!m?.kickoff) return { key: 'pre', label: '未开赛', live: false }
-  const ko = new Date(String(m.kickoff).replace(' ', 'T')).getTime()
+  const ko = parseKickoffGMT8(m.kickoff)
   if (isNaN(ko)) return { key: 'pre', label: '未开赛', live: false }
-  const elapsed = (Date.now() - ko) / 60000
+  const elapsed = (serverNow() - ko) / 60000
   if (elapsed < 0) return { key: 'pre', label: '未开赛', live: false }
   if (elapsed <= 47) return { key: 'first', label: '上半场', live: true }
   if (elapsed <= 62) return { key: 'ht', label: '中场休息', live: false }
@@ -134,9 +142,9 @@ function phaseInfo(m: any): { key: PhaseKey; label: string; live: boolean } {
 /* 墙钟推算分钟 (三段映射), 无 kickoff 时 null — calibMinute 与列表排序共用 */
 function wallclockMinute(m: any): number | null {
   if (!m?.kickoff) return null
-  const ko = new Date(String(m.kickoff).replace(' ', 'T')).getTime()
+  const ko = parseKickoffGMT8(m.kickoff)
   if (isNaN(ko)) return null
-  const elapsed = (Date.now() - ko) / 60000
+  const elapsed = (serverNow() - ko) / 60000
   if (elapsed <= 47) return Math.max(0, Math.floor(elapsed))
   if (elapsed <= 62) return 45
   return Math.min(120, 45 + Math.floor(elapsed - 62))
@@ -456,14 +464,12 @@ export default function Rollball() {
   const calibMinute = useCallback((m: any): number => {
     const probe = wallclockMinute(m)
     const raw = m.minute != null ? Math.max(0, Math.min(130, Number(m.minute))) : null
-    if (probe == null) return raw ?? 0
-    if (raw == null) return probe
-    // 2026-09-13 修正: feed 分钟活跃更新时优先(延赛场墙钟会高估22+分钟)
-    // 仅当 feed 分钟卡死(≤1 且 elapsed>10)时才用墙钟
-    if (raw > 0 && Math.abs(raw - probe) > 2 && raw < probe) {
-      return raw   // feed 滞后但活跃 → 延迟开赛, 信 feed
-    }
-    return Math.abs(raw - probe) > 2 ? probe : raw
+    // 2026-09-15 修正: 后端 resolve_true_minute 已采信盘口来源真实分钟(feed),
+    // 前端应直接显示来源分钟(来源即盘口真值), 仅当来源分钟是占位垃圾(45/90 恒值)
+    // 或缺失时才退回墙钟推算。此前末行在 |raw-probe|>2 时退回墙钟, 会把来源真值覆盖掉。
+    const isPlaceholder = raw === 45 || raw === 90
+    if (raw == null || isPlaceholder) return probe ?? raw ?? 0
+    return raw
   }, [])
 
   // 墙钟校准是否实际纠偏过 (展示"墙钟校准"标记的系统优势: 分钟可信)
@@ -483,9 +489,9 @@ export default function Rollball() {
         if (!`${m.home} ${m.away} ${m.league}`.toLowerCase().includes(q)) return false
       }
       if (m.kickoff) {
-        const ko = new Date(String(m.kickoff).replace(' ', 'T')).getTime()
+        const ko = parseKickoffGMT8(m.kickoff)
         if (!isNaN(ko)) {
-          const elapsedMin = (Date.now() - ko) / 60000
+          const elapsedMin = (serverNow() - ko) / 60000
           if (elapsedMin < 3) return false   // 开赛未满 3 分钟 → 暂不加入
           if (elapsedMin > 130) return false // 完赛僵尸不占列表
         }

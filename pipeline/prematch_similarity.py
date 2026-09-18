@@ -47,8 +47,9 @@ try:
 except ImportError:  # pragma: no cover - numpy 是硬依赖
     np = None  # type: ignore
 
+# 2026-09-19 B2 统一数据库: historical_matches 已迁入 events.db (scripts/migrate_unify_db.py)
 FOOTBALL_DB = os.environ.get(
-    'SHAOXIANG_FOOTBALL_DB', r'D:\Architecture\data\football_data.db'
+    'SHAOXIANG_FOOTBALL_DB', r'D:\Architecture\data\events.db'
 )
 
 # ── 距离权重: 临盘信息更足(含全部盘前调整), 权重高于初盘 ──

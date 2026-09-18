@@ -254,9 +254,119 @@ if __name__ == "__main__":
 # 统一 = DB 核心 + 滚球比分过滤 + 平移补位(候选不足时以当前比分平移 DB 分布补齐 top3)。
 # 赛前/滚盘单一真相源: 合理比分卡主推 / CS信任卡DB栏 / 终场读数回退 全部消费本函数。
 # ═══════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════
+# 滚球剩余时间建模 (2026-09-16 用户实测: 93' 0-0 仍推 1-1)
+#
+# 病根: 旧滚球分支 `if len(kept) >= 3: return kept` —— minute 完全不参与, 45' 与
+#   93' 的输出字节级相同(已复现)。DB 池是"从 0' 打满 90 分钟"的历史比分分布,
+#   与"已经打到 93' 且 0-0"根本不是同一个条件分布 —— 拿满场分布回答残局问题。
+#
+# 实证 (events.db 干净终场 ⊕ GQ 末段真实分钟档 91-103', n=97023 采样点):
+#   终场比分 == 当前比分的比例: 91' 41.2% → 95' 49.3% → 99' 58.0% → 103' 61.7%
+#   → 末段"不再进球"是单点最大概率事件, 且随时间单调上升。
+#
+# 模型: 终场 = 当前比分 ⊕ 剩余进球泊松过程
+#   ν     = max(0, (T_END - minute) / T_END)      剩余时间占比
+#   λ_rem = λ_full × ν                            剩余期望进球
+#   p_rem = Pois(Δh; λ_rem_h) × Pois(Δa; λ_rem_a)
+#   软融合: p ∝ α·p_db + (1-α)·p_rem, α = ν^gamma
+#     → 越接近终场, 整场口径的 DB 池权重越低, 分布坍缩到当前比分;
+#     → 早段 (ν 大) 仍以 DB 池为主, 不改动既有赛前/早段行为。
+# 候选网格 = 池候选 ∪ 当前比分 ∪ (当前比分 + 0..3 球) 邻域 —— 保证"当前比分"
+#   永远在候选内 (旧逻辑下 0-0 若未进池 top5 就永不出现在推荐里)。
+# ═══════════════════════════════════════════════════════════════════════════
+_T_END = 95.0  # 有效比赛时长 (90 + 平均补时 5)
+
+
+def _pois(k, lam):
+    import math
+    try:
+        k = int(k)
+        if k < 0:
+            return 0.0
+        if lam <= 1e-9:
+            return 1.0 if k == 0 else 0.0
+        return math.exp(-lam) * (lam ** k) / math.factorial(k)
+    except Exception:
+        return 0.0
+
+
+def _time_aware_roll(top5, sh, sa, minute, ou_line=None, t_end=_T_END, gamma=1.0):
+    """把赛前 DB 池按剩余时间条件化, 返回重排后的候选 [{score, prob}]。
+
+    融合权重 α = ν^gamma 控制"整场口径 DB 池"与"剩余泊松"的混合比例;
+    两者都保留, 谁在当下更可信就谁主导——不丢弃任何一方(宁融合不伪造)。
+    """
+    try:
+        nu = max(0.0, min(1.0, (t_end - float(minute)) / t_end))
+        alpha = nu ** float(gamma)
+
+        # ── 池的加权统计: 总球期望 + 主队进球占比 (池为空时退化到均势先验) ──
+        wsum = hsum = 0.0
+        for t in (top5 or []):
+            try:
+                _i, _j = (int(x) for x in str(t['score']).replace(':', '-').split('-')[:2])
+            except Exception:
+                continue
+            _p = float(t.get('prob') or 0.0)
+            wsum += (_i + _j) * _p
+            hsum += _i * _p
+        _ptot = sum(float(t.get('prob') or 0.0) for t in (top5 or [])) or 1.0
+        _lam_pool = wsum / _ptot if _ptot > 1e-9 else 2.6
+        try:
+            _lam_full = float(ou_line) if (ou_line is not None and 0.5 <= float(ou_line) <= 10.0) else _lam_pool
+        except Exception:
+            _lam_full = _lam_pool
+        _lam_full = max(0.4, _lam_full)
+        _share_h = (hsum / wsum) if wsum > 1e-9 else 0.5
+        _share_h = min(0.85, max(0.15, _share_h))
+        _lh, _la = _lam_full * _share_h, _lam_full * (1.0 - _share_h)
+        _rh, _ra = _lh * nu, _la * nu
+
+        # ── 候选网格 ──
+        cand = {}
+        for t in (top5 or []):
+            cand[t['score']] = float(t.get('prob') or 0.0)
+        for _dh in range(0, 4):
+            for _da in range(0, 4):
+                k = f'{sh + _dh}-{sa + _da}'
+                cand.setdefault(k, 0.0)
+        _floor = max(1e-4, 0.02 * max(cand.values() or [1.0]))
+
+        p_db = {k: (v if v > 0 else _floor) for k, v in cand.items()}
+        _s = sum(p_db.values()) or 1.0
+        p_db = {k: v / _s for k, v in p_db.items()}
+
+        p_rem, _rs = {}, 0.0
+        for k in cand:
+            try:
+                _i, _j = (int(x) for x in k.split('-')[:2])
+            except Exception:
+                continue
+            _v = _pois(_i - sh, _rh) * _pois(_j - sa, _ra)
+            p_rem[k] = _v
+            _rs += _v
+        if _rs > 1e-12:
+            p_rem = {k: v / _rs for k, v in p_rem.items()}
+        else:
+            p_rem = {k: (1.0 if k == f'{sh}-{sa}' else 0.0) for k in cand}
+
+        merged = {k: alpha * p_db.get(k, 0.0) + (1.0 - alpha) * p_rem.get(k, 0.0)
+                  for k in cand}
+        _tot = sum(merged.values()) or 1.0
+        ranked = sorted(merged.items(), key=lambda x: -x[1])[:5]
+        return ([{'score': k, 'prob': round(v / _tot, 4)} for k, v in ranked],
+                {'nu': round(nu, 3), 'alpha': round(alpha, 3),
+                 'lam_full': round(_lam_full, 2), 'lam_rem': round(_rh + _ra, 2),
+                 'minute': int(minute), 't_end': t_end})
+    except Exception:
+        return None, None
+
+
 def _unified_impl(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_under=None,
                       ah_line=None, ah_home=None, ah_away=None,
-                      current_score='', current_minute=0, top_n=_DEF_N, ou_hint=None):
+                      current_score='', current_minute=0, top_n=_DEF_N, ou_hint=None,
+                      time_aware=True, ta_gamma=1.0):
     """统一波胆推荐 (SSoT)。赛前 = DB三盘匹配 top5; 滚球 = 过滤低于当前比分 + 平移补位。
 
     ou_hint: (line, direction) 可选 — 全场破蛋卡(probe full)的 OU 判定, 仅 live_odds
@@ -294,6 +404,22 @@ def _unified_impl(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_under=N
     kept = [t for t in top5
             if int(t['score'].split('-')[0]) >= sh and int(t['score'].split('-')[1]) >= sa]
     live_filter = f"已过滤低于当前比分 {sh}-{sa} 的候选"
+
+    # 剩余时间条件化 (2026-09-16): kept 仍是"整场 90 分钟"口径的历史池, 必须按
+    # 「还剩多少分钟」重新加权 —— 93' 0-0 的终场大概率仍是 0-0, 照搬满场分布
+    # 就会给出 1-1 这种与既成事实无关的推荐(用户实测)。
+    if time_aware and minute > 0:
+        _tw, _ti = _time_aware_roll(kept if len(kept) >= 3 else top5, sh, sa, minute,
+                                    ou_line=ou_line, gamma=ta_gamma)
+        if _tw:
+            _tail = (f"; 已按剩余时间条件化(剩 {max(0, _T_END - minute):.0f}′ "
+                     f"ν={_ti['nu']:.2f} α={_ti['alpha']:.2f} "
+                     f"λ_全{_ti['lam_full']:g}→λ_剩{_ti['lam_rem']:g})")
+            return {**{k: v for k, v in m.items() if k != 'top5'},
+                    'mode': 'roll', 'top5': _tw, 'score': _tw[0]['score'],
+                    'live_filter': live_filter, 'time_aware': _ti,
+                    'basis': (f"SSoT·滚球: DB三盘匹配 {m['n_matched']} 场"
+                              f"(均距 {m['mean_dist']}) 真实波胆, {live_filter}{_tail}")}
     if len(kept) >= 3:
         return {**{k: v for k, v in m.items() if k != 'top5'},
                 'mode': 'roll', 'top5': kept, 'score': kept[0]['score'],
@@ -318,7 +444,7 @@ def _unified_impl(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_under=N
 def unified_scoreline(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_under=None,
                       ah_line=None, ah_home=None, ah_away=None,
                       current_score='', current_minute=0, top_n=_DEF_N, ou_hint=None,
-                      winner_hint=None):
+                      winner_hint=None, time_aware=True, ta_gamma=1.0):
     """SSoT 统一波胆推荐 (外层包装: OU 软约束 → winner 方向对齐 → 方向仲裁末级)。
 
     2026-09-10 固定管线: impl → OU 软约束 → winner_hint 对齐 → arbitrate 仲裁。
@@ -329,7 +455,8 @@ def unified_scoreline(h=None, d=None, a=None, ou_line=None, ou_over=None, ou_und
     的类别分歧(链路审计 CHK1)。"""
     out = _unified_impl(h=h, d=d, a=a, ou_line=ou_line, ou_over=ou_over, ou_under=ou_under,
                         ah_line=ah_line, ah_home=ah_home, ah_away=ah_away,
-                        current_score=current_score, current_minute=current_minute, top_n=top_n)
+                        current_score=current_score, current_minute=current_minute, top_n=top_n,
+                        time_aware=time_aware, ta_gamma=ta_gamma)
     if not out or not out.get('found'):
         return out
     force = None

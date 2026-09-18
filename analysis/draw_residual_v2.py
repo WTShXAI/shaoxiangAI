@@ -3,7 +3,7 @@
    仅GQ(有OU线)。残差<0 = OU隐含总球少于比分总球 = 偏防守/平局倾向。"""
 import sqlite3, math, numpy as np
 
-con = sqlite3.connect("data/rollball_training.db"); con.row_factory=sqlite3.Row
+con = sqlite3.connect("data/events.db"); con.row_factory=sqlite3.Row
 rows=[dict(r) for r in con.execute(
   "SELECT p_h,p_d,p_a,ou_line,ou_over,ou_under,is_draw FROM rb_matches "
   "WHERE src='gq' AND p_h IS NOT NULL AND ou_line>0 AND ou_over>0 AND ou_under>0")]

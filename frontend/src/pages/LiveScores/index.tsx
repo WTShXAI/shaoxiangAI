@@ -5,7 +5,7 @@ import PageHeader from '@/components/layout/PageHeader'
 import ApiError from '@/components/shared/ApiError'
 import Skeleton from '@/components/shared/Skeleton'
 import type { FixtureEntry } from '@/types'
-import { stateOf, FAKE_LEAGUE, liveToFixture } from './fixtureUtils'
+import { stateOf, FAKE_LEAGUE, liveToFixture, serverNow } from './fixtureUtils'
 import { MatchCard } from './components'
 
 // ═══ 主页面 ═══
@@ -33,7 +33,7 @@ export default function LiveScoresPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [updatedAt, setUpdatedAt] = useState<number | null>(null)
-  const [now, setNow] = useState(() => Date.now())
+  const [now, setNow] = useState(() => serverNow())
   const [filter, setFilter] = useState<FilterMode>('all')
   const [leagueFilter, setLeagueFilter] = useState<string>('')
   const [leagueSearch, setLeagueSearch] = useState('')
@@ -149,7 +149,7 @@ export default function LiveScoresPage() {
 
   // 1s 实时时钟 (倒计时/开赛同步)
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000)
+    const t = setInterval(() => setNow(serverNow()), 1000)
     return () => clearInterval(t)
   }, [])
 
@@ -172,7 +172,7 @@ export default function LiveScoresPage() {
 
   // 今日议程判定 (GMT+8, 用标准 timeZone 选项)
   const todayKey = useMemo(() => {
-    return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' }) // YYYY-MM-DD
+    return new Date(serverNow()).toLocaleDateString('en-CA', { timeZone: 'Asia/Shanghai' }) // YYYY-MM-DD
   }, [updatedAt])
   const isToday = (iso: string) => {
     try {

@@ -1,26 +1,26 @@
 import type { TerminalDecisionCard, ValueLayerRow, StrategySignal } from '@/types'
-import { pct, num, edgeColor, dirColor, dirLabel, hcColor, ouColor } from './format'
+import { pct, num, dirColor, dirLabel, hcColor, ouColor } from './format'
 
-// ── 价值层三行 (H/D/A) ──
+// ── 模型 vs 市场 三行 (H/D/A) — 2026-09-18 去喊单化: 概率对照, 无 EV/凯利/注码语义 ──
 export function ValueRows({ rows }: { rows: ValueLayerRow[] }) {
   if (!rows || !rows.length) return null
   const dirMap: Record<string, string> = { H: '主胜', D: '平局', A: '客胜' }
+  const maxDev = Math.max(0, ...rows.map((r) => Math.abs(r.edge ?? 0)))
   return (
     <div className="space-y-1.5">
       {rows.map((r) => {
-        const isBest = r.ev > 0
+        const dev = r.edge_pct ?? 0
+        const isTop = Math.abs(r.edge ?? 0) > 0.005 && Math.abs(r.edge ?? 0) >= maxDev - 1e-9
         return (
-          <div key={r.outcome} className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isBest ? 'bg-accent/10 border border-accent/20' : 'bg-white/[0.04]'}`}>
+          <div key={r.outcome} className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isTop ? 'bg-accent/10 border border-accent/20' : 'bg-white/[0.04]'}`}>
             <span className="text-sm text-white w-12">{dirMap[r.outcome] || r.outcome}</span>
             <span className="font-mono text-sm text-white/85 w-14">@{num(r.odds)}</span>
-            <span className="font-mono text-xs text-white/70 w-16">P{num(r.model_prob, 3)}</span>
-            <span className={`font-mono text-sm font-semibold w-16 text-right ${edgeColor(r.edge)}`}>
-              {r.edge_pct >= 0 ? '+' : ''}{num(r.edge_pct, 1)}%
+            <span className="font-mono text-xs text-white/85 w-20">模型 {pct(r.model_prob)}</span>
+            <span className="font-mono text-xs text-white/60 w-20">市场 {pct(r.market_prob)}</span>
+            <span className={`font-mono text-sm font-semibold w-20 text-right ${dev >= 0 ? 'text-accent' : 'text-white/70'}`}>
+              {dev >= 0 ? '+' : ''}{num(dev, 1)}pp
             </span>
-            <span className={`font-mono text-xs w-16 text-right ${r.ev > 0 ? 'text-accent' : 'text-white/70'}`}>
-              EV{r.ev_pct >= 0 ? '+' : ''}{num(r.ev_pct, 1)}%
-            </span>
-            <span className="font-mono text-xs text-white/70 w-12 text-right">k{num(r.kelly_half, 3)}</span>
+            {isTop && <span className="text-[10px] text-accent">分歧最大</span>}
           </div>
         )
       })}
@@ -34,37 +34,36 @@ export function VerdictMini({ label, card }: { label: string; card: TerminalDeci
     <div className="bg-accent-inner rounded-lg px-3 py-2">
       <div className="text-[10px] text-white/70 font-mono uppercase tracking-wider">{label}</div>
       <div className="flex items-center gap-2 mt-1">
-        <span className={`text-base font-black ${card.decision === 'BET' ? 'text-accent' : 'text-white/85'}`}>
-          {card.decision || '—'}
-        </span>
-        <span className="text-[12px] text-white/85">{card.direction || ''}</span>
+        <span className="text-base font-black text-white/85">{card.direction || '—'}</span>
+        {card.best_edge_pct !== undefined && Math.abs(card.best_edge_pct) >= 2 && (
+          <span className="font-mono text-[12px] text-accent">
+            偏差 {card.best_edge_pct > 0 ? '+' : ''}{num(card.best_edge_pct, 1)}pp
+          </span>
+        )}
       </div>
-      {card.best_edge_pct !== undefined && (
-        <div className="font-mono text-[12px] text-white/85 mt-0.5">
-          edge {card.best_edge_pct > 0 ? '+' : ''}{num(card.best_edge_pct, 1)}%
-        </div>
+      {card.best_edge_pct !== undefined && Math.abs(card.best_edge_pct) < 2 && (
+        <div className="font-mono text-[12px] text-white/60 mt-0.5">与市场基本一致</div>
       )}
     </div>
   )
 }
 
-// ── 决策结论条 ──
+// ── 分析结论条 (2026-09-18 去喊单化: 决策卡 → 模型倾向 + 偏差解释) ──
 export function DecisionVerdictBar({ card }: { card: TerminalDecisionCard }) {
+  const dev = card.best_edge_pct
+  const divergent = dev !== undefined && Math.abs(dev) >= 2
   return (
     <div className={`flex items-center justify-between rounded-xl px-5 py-4 ${
-      card.decision === 'BET'
-        ? 'bg-accent/10 border border-accent/20'
-        : 'bg-white/[0.03] border border-white/[0.06]'
+      divergent ? 'bg-accent/10 border border-accent/20' : 'bg-white/[0.03] border border-white/[0.06]'
     }`}>
       <div>
-        <div className="text-[11px] font-mono text-white/70 uppercase tracking-wider">全链路决策卡 · 决策</div>
+        <div className="text-[11px] font-mono text-white/70 uppercase tracking-wider">全链路分析 · 模型倾向</div>
         <div className="flex items-center gap-2 mt-1">
-          <span className={`text-2xl font-black ${card.decision === 'BET' ? 'text-accent' : 'text-white/85'}`}>
-            {card.decision}
-          </span>
-          <span className="text-sm text-white/85">· {card.direction}</span>
-          {card.best_edge_pct !== undefined && card.best_edge_pct > 0 && (
-            <span className="font-mono text-sm text-accent">edge +{num(card.best_edge_pct, 1)}%</span>
+          <span className="text-2xl font-black text-white/85">{card.direction || '—'}</span>
+          {dev !== undefined && (
+            <span className={`font-mono text-sm ${divergent ? 'text-accent' : 'text-white/60'}`}>
+              偏差 {dev > 0 ? '+' : ''}{num(dev, 1)}pp{!divergent && ' (与市场基本一致)'}
+            </span>
           )}
         </div>
         <p className="text-[12px] text-white/70 mt-1">{card.decision_text}</p>
@@ -97,12 +96,12 @@ export function MarketOddsGrid({ card }: { card: TerminalDecisionCard }) {
   )
 }
 
-// ── 价值层 (含标题) ──
+// ── 模型 vs 市场 (含标题) — 去喊单化后沿用原挂载点 ──
 export function ValueLayerBlock({ card }: { card: TerminalDecisionCard }) {
   if (!card.rows || card.rows.length === 0) return null
   return (
     <div>
-      <div className="text-[11px] font-mono text-accent tracking-widest uppercase mb-2">价值层 / VALUE LAYER</div>
+      <div className="text-[11px] font-mono text-accent tracking-widest uppercase mb-2">模型 vs 市场 / DEVIATION</div>
       <ValueRows rows={card.rows} />
     </div>
   )
@@ -216,26 +215,25 @@ export function OperatorView({ card }: { card: TerminalDecisionCard }) {
   )
 }
 
-// ── 操盘手结论蒸馏卡 (一行买/不买结论 + ≤3 条支撑) ──
-// 后端 terminal/analyze 返回的 operator_card (bridge_service.py:7420 distill_operator_card)。
-// IR-20 分析非预测 / IR-30 诚实边界: 只给结论与依据, 不标"稳赢", 不自动下注。
+// ── 综合结论蒸馏卡 (2026-09-18 去喊单化: 一句话模型读数 + ≤3 条支撑, 无买/不买语义) ──
+// 后端 terminal/analyze 返回的 operator_card (bridge_service.py distill_operator_card)。
+// IR-20 分析非预测 / IR-30 诚实边界: 只给读数与依据, 不标"稳赢", 无下注语义。
 export function OperatorCardSection({ card }: { card: TerminalDecisionCard }) {
   const oc = card.operator_card
   if (!oc) return null
-  const isBet = oc.decision === 'BET'
+  const divergent = oc.decision === 'BET'
   const trap = oc.trap_score ?? 0
   const trapColor = trap >= 70 ? 'text-danger-400' : trap >= 40 ? 'text-ember-400' : 'text-ink-muted'
   return (
-    <div className={`rounded-xl border p-3.5 ${isBet ? 'bg-accent/10 border-accent/20' : 'bg-white/[0.03] border-white/[0.06]'}`}>
+    <div className={`rounded-xl border p-3.5 ${divergent ? 'bg-accent/10 border-accent/20' : 'bg-white/[0.03] border-white/[0.06]'}`}>
       <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="text-[11px] font-mono text-accent tracking-widest uppercase">操盘手结论 · 一句话买不买</div>
-        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${isBet ? 'bg-accent/20 text-accent' : 'bg-white/[0.08] text-ink-secondary'}`}>
-          {oc.decision || '—'}
+        <div className="text-[11px] font-mono text-accent tracking-widest uppercase">综合结论 · 一句话读数</div>
+        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${divergent ? 'bg-accent/20 text-accent' : 'bg-white/[0.08] text-ink-secondary'}`}>
+          {divergent ? '分歧显著' : (oc.decision ? '与市场一致' : '—')}
         </span>
       </div>
       <p className="text-[14px] font-semibold text-white/90 leading-snug">{oc.verdict}</p>
       <div className="flex items-center gap-3 mt-2 flex-wrap text-[11px]">
-        <span className="text-ink-secondary">{oc.stake}</span>
         <span className="text-ink-muted">置信 {Math.round((oc.confidence ?? 0) * 100)}%</span>
         <span className={trapColor}>陷阱分 {trap}</span>
       </div>

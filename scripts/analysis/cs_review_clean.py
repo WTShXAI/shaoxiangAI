@@ -13,8 +13,8 @@
   "市场结构预期 vs 记录比分 的一致性", 严禁用于模型 λ 校准。
 """
 import sqlite3, datetime, html, json
-import gq_odds_filter as gq
-from gq_odds_filter import get_open, get_ht_close
+from pipeline import gq_odds_filter as gq
+from pipeline.gq_odds_filter import get_open, get_ht_close
 
 DB = 'data/events.db'
 OUT = '分析报告/CS复盘_双时点_clean_20260720.html'

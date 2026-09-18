@@ -1480,7 +1480,7 @@ async def ws_odds_ingest(ws: WebSocket):
                         "match": f"{home} vs {away}",
                         "books": len(accum),
                         "direction": result.get("direction", ""),
-                        "decision": result.get("value_layer", {}).get("decision", "PASS"),
+                        "decision": (result.get("value_layer") or {}).get("decision") or "N/A",
                     }))
                 except Exception as e:
                     logger.error(f"[WS-Ingest] 实时分析失败: {e}")
@@ -1671,132 +1671,20 @@ async def predict_single(req: SinglePredictRequest):
 
 # ── G4: 真 bet-split 源 (替代 rlm_proxy 代理); 无 key/id/异常→None 自动降级 ──
 def _resolve_rlm_real(match_id: Optional[str]) -> Optional[object]:
-    """按内部 match_id(=The Odds API event id)拉真投注分布; 无 key/id/异常→None.
-
-    上层 analyze_multi 收到 None → 自动用 rlm_proxy 代理(行为不变).
-    仅当环境变量 THEODDS_API_KEY 设置且 match_id 有效时才发起外部调用,
-    不消耗 quota / 不引入延迟 (无 key 时直接返回 None).
-    """
-    if not match_id:
-        return None
-    try:
-        from pipeline.bet_split_source import TheOddsApiBetSplit
-        if not os.environ.get('THEODDS_API_KEY'):
-            return None
-        src = TheOddsApiBetSplit(api_key=os.environ['THEODDS_API_KEY'])
-        return src.fetch(str(match_id))
-    except Exception:
-        return None
-
+    """[已禁用 2026-09-19 IR-32] 投注占比(bet-split)属量化系统, 永久禁止。恒 None。"""
+    return None
 
 # ── G10: 跨庄 soft-line 抽取 (供预测层 predict() 第7步回灌) ──
-def _compute_softline(match: MatchInput, match_id: Optional[str] = None) -> Optional[dict]:
-    """抽取跨庄 soft-line 调整(与 _odds_intel 同源逻辑), 供预测层 predict() 回灌。
 
-    仅当查到 >=2 庄(WH+IW)且 analyze_multi 产出 softline_adjusted_probs 时返回 dict,
-    否则返回 None (predict 退化纯 argmax)。异常安全: 任何 DB/解析错误返回 None。
-    """
-    try:
-        from pipeline.reverse_odds_engine import ReverseOddsEngine
-        engine = _get_reverse_engine()
-        books = engine.query_odds_multi(match.home, match.away)
-        if len(books) >= 2:
-            rlm_real = _resolve_rlm_real(match_id)
-            r = engine.analyze_multi(books, rlm_real=rlm_real)
-            if r.softline_adjusted_probs is not None:
-                return {
-                    "softline_adjusted_probs": [float(x) for x in r.softline_adjusted_probs],
-                    "disagreement_detected": bool(r.disagreement_detected),
-                    "softline_fade_applied": bool(r.softline_fade_applied),
-                }
-    except Exception:
-        return None
+def _compute_softline(match: MatchInput, match_id: Optional[str] = None) -> Optional[dict]:
+    """[已禁用 2026-09-19 IR-32] 跨庄 soft-line 抽取永久禁止。恒 None (predict 退化纯 argmax)。"""
     return None
 
 
-# ── Phase A: ReverseOddsEngine 赔率逆向分析 ──
-def _odds_intel(match: MatchInput, raw: dict, match_id: Optional[str] = None) -> Optional[dict]:
-    """调用 ReverseOddsEngine 分析赔率意图(多机构优先, 单机构兜底), 失败时返回 None。
-
-    操盘手框架: 多机构同步异动=真信号; 单机构独调=平衡动作(非陷阱)。
-    多机构时额外回传 cross_book_sync / confirmed / clv_beat(soft line edge) / rlm_proxy。
-    """
-    try:
-        from pipeline.reverse_odds_engine import ReverseOddsEngine, OddsInput
-        engine = _get_reverse_engine()
-
-        # 多机构优先: 跨机构同步判定(真信号) + CLV(soft line edge)
-        books = []
-        try:
-            books = engine.query_odds_multi(match.home, match.away)
-        except Exception:
-            books = []
-        if len(books) >= 2:
-            rlm_real = _resolve_rlm_real(match_id)
-            result = engine.analyze_multi(books, rlm_real=rlm_real)
-        else:
-            # 单机构(或无DB记录): 当前/查询赔率做单快照分析
-            odds_record = engine.query_odds_by_teams(match.home, match.away)
-            if odds_record:
-                # G6 修复: query_odds_by_teams 返回 OddsInput 对象(非dict), 用属性访问
-                odds_input = OddsInput(
-                    open_h=odds_record.open_h, open_d=odds_record.open_d, open_a=odds_record.open_a,
-                    close_h=odds_record.close_h, close_d=odds_record.close_d, close_a=odds_record.close_a,
-                )
-                had_open = True  # 初盘数据可用 → drift 可算, honest_def 可触发
-            else:
-                # 无初盘数据: open=close 兜底, 显式标注 drift 不可用
-                # (操盘手铁律: 不可把"无数据"当成"无陷阱")
-                odds_input = OddsInput(
-                    open_h=match.odds_h, open_d=match.odds_d, open_a=match.odds_a,
-                    close_h=match.odds_h, close_d=match.odds_d, close_a=match.odds_a,
-                )
-                had_open = False
-            result = engine.analyze(odds_input)
-
-        return {
-            "intent": result.intent.value if hasattr(result.intent, 'value') else str(result.intent),
-            "intent_confidence": round(result.intent_confidence, 3),
-            "drift_pattern": result.drift_pattern,
-            "mispricing_score": round(result.mispricing_score, 3),
-            "expected_edge": round(result.expected_edge, 3),
-            "kelly_fraction": round(result.kelly_fraction, 3),
-            "recommended_bet": result.recommended_bet,
-            "verdict": result.verdict,
-            # 操盘手框架扩展字段
-            "n_books": result.n_books,
-            "cross_book_sync": result.cross_book_sync,
-            "confirmed": result.confirmed,
-            "clv_beat": result.clv_beat,
-            "rlm_proxy": result.rlm_proxy,
-            "rlm_real": result.rlm_real,   # G4: 真 bet-split (None=用代理)
-            "single_book_only": result.single_book_only,
-            # 跨庄分歧 soft-line 概率调整 (OOS验证: 分歧→淡共识热门)
-            "softline_adjusted_probs": result.softline_adjusted_probs,
-            "disagreement_detected": result.disagreement_detected,
-            "softline_fade_applied": result.softline_fade_applied,
-            # honest_def 低权重次级修正 (仅DB路径有drift时激活)
-            "honest_def_target": result.honest_def_target,
-            "honest_def_applied": result.honest_def_applied,
-            "honest_def_weight": result.honest_def_weight,
-            # G6: drift 可用性显式标注 — True=初盘命中(可算drift/honest_def), False=无初盘(不可误判为"无陷阱")
-            "drift_available": had_open,
-        }
-    except Exception as e:
-        logger.warning(f"ReverseOddsEngine 分析失败 (降级): {e}")
-        return None
-
-# ═══ 实时 OIP 预测端点 (v6.0 锁定架构: 市场argmax方向 + OIP比分/OU + 平局信号) ═══
-#  这些端点直接复用 pipeline.score_model + pipeline.draw_signal, 独立于旧 v7 引擎。
-#  懒加载 pipeline, 任何导入异常只影响本组端点, 不破坏 bridge 启动。
-try:
-    from pipeline.draw_signal import DRAW_ALERT
-except Exception:
-    DRAW_ALERT = 0.24  # 回退: 与 pipeline/draw_signal.py:30 校准常量一致 (315k场walk-forward)
+# ── 常量区 (2026-09-19 误删恢复: 原 _compute_softline 与 _compute_trap_detector 之间的模块级常量) ──
+DRAW_ALERT = 0.24  # 回退: 与 pipeline/draw_signal.py:30 校准常量一致 (315k场walk-forward)
 HIGH_VIG = 0.12
-# P0-1 soft-line 决策闭环开关: False=灰度(soft-line仅展示, 主决策仍信共识argmax);
-# True=开启后, 跨庄方向性分歧触发淡化的概率回灌 compute_value_layer 驱动主 BET 决策.
-ENABLE_SOFTLINE_DECISION = False
+ENABLE_SOFTLINE_DECISION = False  # soft-line 已随量化系统删除, 恒 False
 _LIVE_DIRECTION = ["主胜", "平局", "客胜"]
 
 
@@ -2251,14 +2139,10 @@ def _live_predict(home, away, oh, od, oa,
     """真实1X2赔率 -> 全链路预测 (与 scripts/predict_live.py 同构)。返回结构化 dict。"""
     from pipeline.score_model import (predict_score, deoverround, score_matrix,
                                       WC_OIP_GOAL_SCALE, GENERAL_OIP_GOAL_SCALE)
-    from pipeline.draw_signal import market_draw_prob, consensus_draw_signal, draw_alert_with_booster
-    if extra_bookmakers:
-        from pipeline.draw_signal import multi_bookmaker_consensus
+    # 2026-09-19 量化系统删除 + 跨庄共识永久禁令 (IR-32):
+    # 移除 compute_value_layer / deep_report(EV/凯利/跨庄共识) / multi_bookmaker_consensus。
+    from pipeline.draw_signal import market_draw_prob
     import numpy as np
-    from pipeline.compute_value_layer import compute_value_layer
-    from pipeline.deep_report import (consensus_probs,
-                                      ou_value, draw_consensus_value,
-                                      correct_score_value)
     oh = float(oh); od = float(od); oa = float(oa)
     ph, pd, pa = deoverround(oh, od, oa)
     # 抽水(overround)必须用原始赔率倒数和算, deoverround 已去抽水(和为1)不能复用
@@ -2473,116 +2357,31 @@ def _live_predict(home, away, oh, od, oa,
     top5 = [tuple(int(x) for x in divmod(int(k), mg + 1)) for k in order]
     top5_prob = [float(flat[k]) for k in order]
 
-    # ⑩ 价值层 (L0 深度决策): 跨庄共识概率 vs 跨庄最优价 → edge/EV/凯利/情景PnL
-    # 诚实约束(v6铁律): 模型对1X2无超额信息优势 → "模型概率"取跨庄共识隐含概率;
-    # 真实 edge 仅来自跨庄价差(soft line)。
-    price_books = [[oh, od, oa]]
-    if extra_bookmakers:
-        for bk in extra_bookmakers:
-            if len(bk) >= 4:
-                try:
-                    hh, dd, aa = float(bk[1]), float(bk[2]), float(bk[3])
-                    inv = 1.0 / hh + 1.0 / dd + 1.0 / aa
-                    if 1.0 < inv < 1.30:    # 过滤混入的让球盘(负抽水), 仅留合法 1X2 价
-                        price_books.append([hh, dd, aa])
-                except (ValueError, TypeError):
-                    pass
-    best_odds = [max(p[0] for p in price_books),
-                 max(p[1] for p in price_books),
-                 max(p[2] for p in price_books)]
-    cons = consensus_probs(price_books)   # 跨庄共识隐含概率(诚实估计)
-
-    # ⑥.5 操盘手 soft-line 分歧检测 (前置: 结果同时驱动决策回灌与展示)
-    # 专测"跨庄对谁热门看法不一致" → 触发概率淡化(edge来自不平衡, OOS验证0.41).
-    # 开关ON且触发淡化 → cons 被 adjusted_probs 覆盖, 下方 compute_value_layer 用淡后概率(P0-1闭环);
-    # 无论开关, 始终挂 value_layer["softline"] 展示供人工复核(灰度期开关默认OFF).
-    _sl_fade = False
-    _sl_adj = None
-    _sl_display = None
-    if extra_bookmakers and len(extra_bookmakers) >= 2:
-        try:
-            from pipeline.reverse_odds_engine import ReverseOddsEngine as _ROE, OddsInput as _ROI
-            _eng = _ROE()
-            _books = []
-            for _bk in extra_bookmakers:
-                if len(_bk) >= 4:
-                    try:
-                        _hh, _dd, _aa = float(_bk[1]), float(_bk[2]), float(_bk[3])
-                        _inv = 1.0 / _hh + 1.0 / _dd + 1.0 / _aa
-                        if 1.0 < _inv < 1.30:   # 仅合法 1X2 盘, 过滤让球/变盘线
-                            _books.append(_ROI(open_h=_hh, open_d=_dd, open_a=_aa,
-                                               close_h=_hh, close_d=_dd, close_a=_aa))
-                    except (ValueError, TypeError, ZeroDivisionError):
-                        pass
-            if len(_books) >= 2:
-                _res = _eng.analyze_multi(_books)
-                _sl_fade = _res.softline_fade_applied
-                _sl_adj = _res.softline_adjusted_probs
-                _sl_display = {
-                    "n_books": _res.n_books,
-                    "disagreement_detected": _res.disagreement_detected,
-                    "softline_fade_applied": _res.softline_fade_applied,
-                    "consensus_probs": [round(float(x), 4) for x in _res.implied_probs],
-                    "adjusted_probs": ([round(float(x), 4) for x in _res.softline_adjusted_probs]
-                                       if _res.softline_adjusted_probs else None),
-                    "clv_beat": _res.clv_beat,
-                    "honest_def_target": _res.honest_def_target,
-                    "honest_def_applied": _res.honest_def_applied,
-                    "honest_def_weight": _res.honest_def_weight,
-                    "verdict": _res.verdict,
-                }
-        except Exception as _e:
-            logger.debug(f"soft-line 检测失败(非致命): {_e}")
-
-    # P0-1 闭环: 跨庄分歧触发淡化时, 用 soft-line 调整后概率覆盖共识, 驱动主 BET 决策
-    if ENABLE_SOFTLINE_DECISION and _sl_fade and _sl_adj:
-        cons = list(_sl_adj)
-
-    value_layer = compute_value_layer(
-        odds=best_odds,
-        model_probs=cons,
-        overround=overround,
-    )
-    value_layer["best_odds"] = [round(x, 3) for x in best_odds]
-    value_layer["books_count"] = len(price_books)
-    # soft-line 展示字段 (始终挂, 供人工复核; 决策是否采用由开关控制)
-    value_layer["softline"] = _sl_display
+    # ⑩ 模型 vs 市场 偏差层 (2026-09-19 量化系统删除: 无跨庄/无EV/无凯利/无注码)
+    # 永久禁令 (IRON_RULES IR-32): 跨庄共识不得进入生产判定/接口/测试, 仅离线训练回测可用。
+    # v6 铁律: 模型对 1X2 无超额信息优势 → 概率基准 = 本源盘去水隐含 (单庄, 零跨庄)。
+    best_odds = [round(oh, 3), round(od, 3), round(oa, 3)]
+    cons = [ph, pd, pa]
+    value_layer = {
+        "decision": None,
+        "best_direction": None,
+        "best_edge_pct": None,
+        "rows": None,
+        "decision_text": "量化系统已删除: 仅输出模型-市场概率对照, 无EV/凯利/注码",
+        "model_probs": [round(ph, 4), round(pd, 4), round(pa, 4)],
+        "market_probs": [round(ph, 4), round(pd, 4), round(pa, 4)],
+    }
+    value_layer["best_odds"] = best_odds
+    value_layer["books_count"] = 1
+    value_layer["softline"] = None
 
     # ④ 平局信号 (操盘手一手定价)
     m_pd = market_draw_prob(oh, od, oa)
     draw_alert = m_pd >= DRAW_ALERT
 
-    # ⑤ 跨庄家共识 (优先: extra_bookmakers > WH×IW > 回退市场P平)
-    # P1b④ WC 场景: 调用方未提供 extra_bookmakers 时, 自动从 The Odds API 快照解析跨庄盘口
-    if extra_bookmakers is None and sport_key and "world_cup" in str(sport_key).lower():
-        try:
-            extra_bookmakers = _resolve_wc_extra_bookmakers(home_canon, away_canon)
-        except Exception:
-            extra_bookmakers = None
+    # ⑤ 平局预警 (单庄) — 2026-09-19 跨庄共识按 IR-32 永久禁用, 仅保留本源盘 P(平) 阈值预警
+    draw_verdict_override = False
     consensus = None
-    if extra_bookmakers:
-        try:
-            consensus = multi_bookmaker_consensus(extra_bookmakers)
-            consensus["source"] = "multi_bookmaker"
-        except Exception:
-            consensus = None
-    if not consensus and home_norm and away_norm and date and league:
-        try:
-            consensus = consensus_draw_signal(home_canon, away_canon, oh, od, oa, date, league)
-            consensus["source"] = "WH×IW"
-        except Exception:
-            consensus = None
-
-    # G5 · consensus booster: 双庄共识 strong → 平局预警阈值 0.26→0.24 (设计见 draw_bookmaker_validation.md)
-    # consensus 不可用(无多庄/WC无IW→available=False/strong=False)时回退纯市场 P 平
-    draw_alert = draw_alert_with_booster(m_pd, consensus)
-    # P1b① 双庄共识 strong -> 主verdict覆写为平局 (解"永不选平"); 无共识时仅保留"配防平"文本提示
-    draw_verdict_override = bool(consensus and consensus.get("strong"))
-    if draw_verdict_override:
-        direction = "平局"
-        _dp = consensus.get("consensus") if consensus.get("source") != "multi_bookmaker" else consensus.get("mean_pd")
-        if _dp:
-            market_conf = max(market_conf, float(_dp))
 
     # ⑥ 风控护栏
     high_vig = overround > HIGH_VIG
@@ -2703,17 +2502,17 @@ def _live_predict(home, away, oh, od, oa,
     if hcp_ok and handicap.get("depth_color")=="deep":
         op_rules.append({"id":"R4","label":"深盘:信赢球避穿盘","detail":"深盘favorite穿盘率仅47%, 但赢球率高 → 赌赢球别追穿","rule":"深盘难穿,AH=Margin非Winner","color":"blue"})
     if market_conf >= 0.62:
-        op_rules.append({"id":"R5","label":"一边倒强队","detail":f"fav概率{round(market_conf*100,1)}% ≥ 62% → 正路稳, 可重仓","rule":"一边倒强队可重仓","color":"green"})
+        op_rules.append({"id":"R5","label":"一边倒强队","detail":f"fav概率{round(market_conf*100,1)}% ≥ 62% → 正路信号强","rule":"一边倒强队可重仓","color":"green"})
     if high_vig:
         op_rules.append({"id":"R6","label":"高抽水降权","detail":f"抽水{round(overround*100,1)}% > 12% → 信息质量差, 降权","rule":"高水降权","color":"red"})
     if hcp_ok and handicap.get("consistent_with_x12") and handicap.get("depth_color")!="deep":
         op_rules.append({"id":"R7","label":"亚盘增强维度","detail":"亚盘与1X2同向, 可作Margin置信增强","rule":"亚盘仅作增强维度","color":"blue"})
 
-    stake = "标准"
+    stake = "常规"
     if market_conf >= 0.62 and not (hcp_ok and handicap.get("consistent_with_x12") is False):
-        stake = "重仓"
+        stake = "强信号"
     if high_vig:
-        stake = "谨慎"
+        stake = "弱信号"
     verdict = [f"主信号: {direction}"]
     if draw_alert: verdict.append("配防平")
     if hcp_ok and handicap.get("consistent_with_x12") is False: verdict.append("弃亚盘信1X2")
@@ -2728,14 +2527,14 @@ def _live_predict(home, away, oh, od, oa,
         lambda_h=r.get("lh"), lambda_a=r.get("la"))
     trap_score = trap["trap_score"]
     if trap_score >= 70:
-        stake = "回避"
+        stake = "陷阱信号"
         op_rules.append({"id": "R8", "label": "初盘深让陷阱",
                          "detail": trap["trap_verdict"],
                          "rule": "深盘+大球组合诱盘", "color": "red"})
         verdict.append("初盘陷阱→回避")
     elif trap_score >= 40 and stake == "重仓":
-        stake = "谨慎"
-        verdict.append("陷阱信号→重仓降谨慎")
+        stake = "弱信号"
+        verdict.append("陷阱信号→强信号降级为弱信号")
 
     # 结论一致性仲裁-冲突标注 (2026-07-31): draw_alert触发时FadeDraw必然也在(pd>0.20)
     # 数据裁决: 此区实际平局率+2~4pp高于基线 → 信防平, 标注冲突(FadeDraw抑制在后段strategy_signals处理)
@@ -2754,53 +2553,18 @@ def _live_predict(home, away, oh, od, oa,
         "traps_fired": trap["traps_fired"],
     }
 
-    # ⑪ 子市场价值层 (P1): 大小球(跨市场不一致) / 平局共识(跨庄溢价) / 波胆(模型扫描)
-    # 诚实约束: 子市场 edge 只来自跨盘/跨庄价差, 绝不"模型 vs 同源盘"。
+    # ⑪ 子市场价值层已删除 (2026-09-19): ou_value/draw_consensus_value/correct_score_value
+    # 均为 EV/跨庄价差机器, 随量化系统移除 (IR-32: 跨庄禁令)。CS/OU 概率仍由 OIP 矩阵输出。
     sub_markets = {}
-    # 大小球: 需 OU 盘口 + 大/小水位
-    if ou_line is not None and over_water and under_water:
-        try:
-            sub_markets["ou"] = ou_value(
-                oh, od, oa, float(ou_line), float(over_water), float(under_water),
-                model_m=M.tolist())
-        except Exception:
-            pass
-    # 平局共识: 需跨庄/WH×IW 共识 P(平) (无共识时 consensus=None → 跳过, 不可证伪)
-    cons_pd = None
-    cons_strong = False
-    if consensus:
-        if consensus.get("source") == "multi_bookmaker":
-            cons_pd = consensus.get("mean_pd")
-            cons_strong = bool(consensus.get("strong"))
-        else:  # WH×IW
-            cons_pd = consensus.get("consensus") or consensus.get("mean_pd")
-            cons_strong = bool(consensus.get("strong"))
-    best_draw = min((p[1] for p in price_books), default=od)
-    if cons_pd is not None:
-        try:
-            sub_markets["draw"] = draw_consensus_value(
-                oh, od, oa, consensus_pd=cons_pd, strong=cons_strong,
-                best_draw_odds=best_draw)
-        except Exception:
-            pass
-    # 波胆价值层/扫描: 统一入口 correct_score_value。
-    # 有跨庄CS盘→真实edge(按EV排序); 无CS盘→诚实概率扫描(decision=SCAN, 不伪称edge)。
-    # cs_score_odds 始终定义({(i,j): odds} 元组键), 供 correct_score_value 与三角引擎复用
-    cs_score_odds = _build_cs_score_odds(correct_score_books) if correct_score_books else {}
-    # Phase B: GQ 单源 CS 无跨庄验证, 不进 correct_score_value 的 BET 分支(仅做诚实概率扫描)
-    # (2026-08-12 反推复盘: 单源CS价会产出+773%伪edge, 回归诚实 SCAN 才符铁律
-    # "子市场edge只来自跨庄价差"). GQ CS 仍用于上方三时点时间线/三角引擎.
-    if not cs_score_odds:
-        cs_score_odds = {}
-    # 三时点 CS 赔率时间线 (初盘/中场收盘/当前 + drift) — 仅 GQ 已采集比赛有值
-    # 用于前端实时赔率面板 + 临场漂移陷阱识别。低级别联赛(采集器未覆盖)为 None。
+    # cs_score_odds 恢复为空 dict (⑫⑬ 三角/跟庄信号仍引用; 原 _build_cs_score_odds(跨庄CS盘)已删)
+    cs_score_odds = {}
+    # 三时点 CS 赔率时间线 + 跟庄信号 (单源 GQ, 非跨庄 — 2026-09-19 误删恢复)
     _cs_timeline = None
     try:
         from pipeline.cs_odds_resolver import resolve_cs_odds_timeline
         _cs_timeline = resolve_cs_odds_timeline(home, away)
     except Exception:
         _cs_timeline = None
-    # ⑬c CS波胆跟庄信号 (基于初盘→当前赔率变动的 GREEN/AMBER/RED 三色分析)
     _cs_follow = None
     try:
         if _cs_timeline and _cs_timeline.get("open") and _cs_timeline.get("live"):
@@ -2815,27 +2579,6 @@ def _live_predict(home, away, oh, od, oa,
             )
     except Exception:
         _cs_follow = None
-    try:
-        sub_markets["correct_score"] = correct_score_value(
-            M.tolist(), score_odds=cs_score_odds if cs_score_odds else None, top_n=3,
-            overconf=WC_CS_OVERCONF if is_cup else None)
-    except Exception as e_cs:
-        # 模型崩溃 → 展示 prompt backfill 的简化波胆概率列表
-        try:
-            flat = [float(M[i][j]) for i in range(M.shape[0]) for j in range(M.shape[1])]
-            rows = [{"score": f"{i}-{j}", "prob": round(float(M[i][j]), 4),
-                     "edge": 0, "ev_pct": 0, "decision": "SCAN"}
-                    for i in range(min(6, M.shape[0]))
-                    for j in range(min(6, M.shape[1]))
-                    if float(M[i][j]) > 0.005]
-            rows.sort(key=lambda r: r["prob"], reverse=True)
-            sub_markets["correct_score"] = {
-                "decision": "SCAN", "edge_available": False,
-                "decision_text": f"波胆模型暂不可用({e_cs}), 显示概率估计",
-                "rows": rows[:20]}
-        except Exception:
-            pass
-
     # ⑫ 市场结构波胆三角定位 (涛哥亲授: OU×AH×1X2×CS 取交集, 输出可审计候选集)
     # cs_score_odds 元组键 → 字符串键 {'i-j': odds}; 无CS盘时传入 None(纯约束/Poisson)。
     # in-play 时透传 live_score/elapsed, 候选自动裁剪 h≥H,a≥A。
@@ -3058,7 +2801,7 @@ def _live_predict(home, away, oh, od, oa,
         "draw_signal": {"market_pdraw": round(m_pd, 4), "draw_alert": draw_alert},
         "strategy_signals": strategy_signals,   # 三方向策略信号(全联赛触发, 面板提示级, 不改verdict; 每项附 tier 溯源)
         "strategy_tier": _strat_tier,           # 信号溯源标签: obscure / main / cup (不再门控触发)
-        "consensus": consensus,
+        "consensus": None,          # IR-32 跨庄共识永久禁用
         "draw_override": draw_verdict_override,
         "risk": {"high_vig": high_vig},
         "handicap": handicap,
@@ -3066,9 +2809,7 @@ def _live_predict(home, away, oh, od, oa,
         "value_layer": value_layer,
         "sub_markets": sub_markets,
         "inplay": inplay_info,  # In-play 条件概率信息 (None=赛前模式/未裁剪)
-        "cross_book": _get_cross_book_signal(
-            home=home, away=away,
-            league=league or (sport_key if isinstance(sport_key, str) else "")),
+        "cross_book": None,  # IR-32 跨庄共识永久禁用 (2026-09-19)
         # 联赛/赛事进球水平先验 (2026-08-12 接入): 中心 λ 升级为联赛感知;
         # expected_total = 收缩混合后; expected_total_raw = 原 OIP(lh+la) (零回归审计用).
         "expected_total": (round(league_scoring["adjusted_total"], 3)
@@ -4911,13 +4652,8 @@ async def strategy_today_api():
         gq = sqlite3.connect(os.path.join(PROJECT_ROOT, "data", "events.db"), timeout=8)
         gq.execute("PRAGMA busy_timeout=8000")
         try:
-            rows = gq.execute("""
-                SELECT s.match_key, s.kickoff, s.detail, s.odds
-                FROM strategy_log s
-                WHERE s.strategy='让球+1' AND s.result IS NULL
-                  AND s.kickoff >= datetime('now')""").fetchall()
-            return {"ok": True, "data": {"candidates": [
-                {"match_key": r[0], "kickoff": r[1], "detail": r[2], "odds": r[3]} for r in rows]}}
+            # strategy_log 已随投注台账停用移除 (2026-09-18, 数据导出 archive/db_exports_20260918/)
+            return {"ok": True, "data": {"candidates": []}}
         finally:
             gq.close()
     try:
@@ -5147,12 +4883,22 @@ async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int =
                                               current_minute=minute) if _LIVE_GOAL_OK else None
                     _eh = (_pr_cs or {}).get('expected_home_goals')
                     _ea = (_pr_cs or {}).get('expected_away_goals')
-                    if _eh is None or _ea is None or float(_eh) <= 0 or float(_ea) <= 0:
-                        _eh, _ea = 1.35, 1.15
-                    _M = score_matrix(max(0.1, float(_eh)), max(0.1, float(_ea)), 6)
-                    _M = _M / _M.sum()
                     _sh0 = _cs_sh if _cs_sh is not None else 0
                     _sa0 = _cs_sa if _cs_sa is not None else 0
+                    # 2026-09-16 (用户实测 93' 0-0 仍推 1-1): 1.35/1.15 均势先验是
+                    # **整场 90 分钟**口径, 直接当"从当前比分起的增量"= 假设比赛重新
+                    # 开踢 —— 越接近终场错得越离谱。必须按剩余时间折算。
+                    _nu = (max(0.0, min(1.0, (95.0 - float(minute)) / 95.0))
+                           if minute else 1.0)
+                    if _eh is None or _ea is None or float(_eh) <= 0 or float(_ea) <= 0:
+                        _eh, _ea = _sh0 + 1.35 * _nu, _sa0 + 1.15 * _nu
+                    # 2026-09-16 修正双重计数: probe 的 expected_* 是**终场期望**
+                    # (= 当前比分 + 剩余再进, 见 live_goal_probe 1368 行), 而这里又把
+                    # 分布整体平移到当前比分之上 —— 已发生的进球被算了两次。改为先转成
+                    # 「剩余再进」再构增量分布: 93' 1-0 的场次不该再按打满 90 分钟铺开。
+                    _M = score_matrix(max(0.02, float(_eh) - _sh0),
+                                      max(0.02, float(_ea) - _sa0), 6)
+                    _M = _M / _M.sum()
                     _dist = {}
                     for _i in range(_M.shape[0]):
                         for _j in range(_M.shape[1]):
@@ -5162,7 +4908,12 @@ async def rollball_analyze_api(match_key: str, score: str = "0-0", minute: int =
                              for k, v in sorted(_dist.items(), key=lambda x: -x[1])[:5]]
                     _fb = {'found': True, 'mode': 'prior', 'top5': _top5,
                            'score': _top5[0]['score'] if _top5 else None,
-                           'basis': '无开盘三盘: 期望进球先验(诚实降级)'}
+                           'time_aware': {'nu': round(_nu, 3), 'minute': int(minute or 0),
+                                          'lam_rem': round(max(0.02, float(_eh) - _sh0)
+                                                           + max(0.02, float(_ea) - _sa0), 2)},
+                           'basis': (f'无开盘三盘: 期望进球先验(诚实降级)'
+                                     + (f'; 已按剩余时间条件化(剩 {max(0, 95 - int(minute or 0))}′ '
+                                        f'ν={_nu:.2f})' if minute else ''))}
                     _fb, _force = _apply_constraints_stage(_fb, _cs_str, _ou_hint, _dir_winner)
                     _fb = _finalize_arbitrate(_fb, force_dir=_force)
                     out["cs"] = _fb
@@ -6495,6 +6246,69 @@ async def all_fixtures_api(days: int = 7):
     return _wrap_data({"fixtures": out, "count": len(out), "days": days})
 
 
+# ── 预测产品层 (2026-09-18 改造): 纯概率输出, 无投注语义 ──
+# 数据源 = pipeline.predict_export 落库的 daily_predictions (开赛即冻结, 校准台账口径)。
+# 缺行时走轻路径补算: 只读已定格的K线判定 + OIP矩阵派生 (不现算torch模型, 不阻塞请求)。
+_PRED_CACHE: Dict[str, tuple] = {}   # date -> (fetched_at, response_dict)
+
+
+def _build_predictions_payload(target: str) -> Dict[str, Any]:
+    import json as _json
+    from pipeline.predict_export import TABLE_DDL, read_for_date, predict_match_full
+    from gq.db import conn as gq_conn
+    rows = []
+    try:
+        with gq_conn(readonly=True) as con:
+            rows = read_for_date(con, target)
+    except Exception:
+        rows = []
+    if not rows:
+        # 轻路径补算 (allow_candles_compute=False → 不加载torch)
+        try:
+            with gq_conn() as con:
+                con.executescript(TABLE_DDL)
+                from pipeline.predict_export import build_for_date
+                build_for_date(con, target, allow_candles_compute=False)
+            with gq_conn(readonly=True) as con:
+                rows = read_for_date(con, target)
+        except Exception as _e:
+            logger.warning(f"[predictions] {target} 补算失败: {_e}")
+    return {"date": target, "count": len(rows), "predictions": rows,
+            "note": "概率预测 · 仅供分析参考 · 非投注建议",
+            "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+
+
+@app.get("/api/predictions")
+async def predictions_api(date: str = "", refresh: int = 0):
+    """预测产品: 指定日期逐场概率输出 (1X2/期望进球/OU2.5/BTTS/总进球分布/市场对照/偏差说明)。
+    date 缺省=今天(本地); refresh=1 绕过5分钟缓存重读库。"""
+    target = (date or datetime.now().strftime("%Y-%m-%d")).strip()[:10]
+    now = time.time()
+    cached = _PRED_CACHE.get(target)
+    if refresh or not cached or now - cached[0] > 300:
+        payload = await asyncio.to_thread(_build_predictions_payload, target)
+        _PRED_CACHE[target] = (now, payload)
+    else:
+        payload = cached[1]
+    return _wrap_data(payload)
+
+
+@app.get("/api/predictions/calibration")
+async def predictions_calibration_api():
+    """系统级校准指标 (LogLoss/Brier/可靠性, 来自 scripts/eval_prediction_calibration.py 的报告)。"""
+    import json as _json
+    import os as _os
+    rp = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "reports",
+                       "prediction_calibration_report.json")
+    if not _os.path.exists(rp):
+        return _wrap_data({"error": "校准报告未生成 — 先跑 scripts/eval_prediction_calibration.py"})
+    try:
+        with open(rp, encoding="utf-8") as f:
+            return _wrap_data(_json.load(f))
+    except Exception as _e:
+        return _wrap_data({"error": f"校准报告读取失败: {_e}"})
+
+
 # ── 自动赛果查询 (Req3: 替代手动赛果查询, 直接对接盘口自动记录) ──
 @app.get("/api/auto-results")
 async def auto_results_api(league: str = "", date: str = "", limit: int = 100):
@@ -6531,153 +6345,11 @@ async def water_signals_api(limit: int = 30, min_delta_pct: float = 1.0):
 
 
 # ═══ 跨庄软线偏离信号 (真 edge 源: 多机构赔率 consensus 偏离检测) ═══
-@app.get("/api/cross-book/signals")
-async def cross_book_signals_api(limit: int = 50, min_spread_pp: float = 3.0,
-                                 source: str = "long_images",
-                                 min_severity: str = "any",
-                                 actionable_only: bool = False,
-                                 market: str = "1X2"):
-    """跨庄软线信号 — 多机构赔率逐庄去水, 共识偏离 ≥ min_spread_pp 标记.
-
-    数据源:
-      - long_images: data/long_images.db.cross_book_odds (OCR 截图, obscure 联赛)
-      - leisu:       data/football_data.db.leisu_odds (雷速多庄实时源, 真 edge 主源)
-    min_severity: any/LOW/MED/HIGH — 仅返回达到该严重度的场次.
-    actionable_only: 只返回 gate 结果(scan_actionable, 默认仅 HIGH≥15pp 放注级可下注).
-    market: 1X2 / OU / AH — 检测市场(仅 source=leisu 生效; long_images 仅 1X2).
-    """
-    try:
-        from pipeline.cross_book_edge import (
-            analyze_all, to_report, analyze_all_leisu, to_report_leisu,
-            scan_actionable,
-        )
-        if source == "leisu":
-            edges = analyze_all_leisu(market=market)
-            report = to_report_leisu(edges, with_actionable=True)
-        else:
-            edges = analyze_all(market="1X2")
-            report = to_report(edges, with_actionable=True)
-        # gate: 仅 HIGH(≥15pp) 放注级可下注
-        if actionable_only:
-            scan = scan_actionable(edges, min_severity="HIGH")
-            return _wrap_data({"source": source, "market": market, "actionable": scan,
-                               "n_actionable": len(scan)})
-        # 按 max_spread_pp 筛选
-        report["matches"] = [m for m in report["matches"] if m["max_spread_pp"] >= min_spread_pp]
-        if min_severity != "any":
-            report["matches"] = [m for m in report["matches"]
-                                 if m.get("severity") == min_severity]
-        if limit and len(report["matches"]) > limit:
-            report["matches"] = report["matches"][:limit]
-        report["filter_min_spread_pp"] = min_spread_pp
-        report["filter_min_severity"] = min_severity
-        report["source"] = source
-        report["market"] = market
-        return _wrap_data(report)
-    except Exception as e:
-        return _wrap_data({"error": str(e), "matches": [], "n_matches": 0})
-
-
-@app.get("/api/cross-book/lookup")
-async def cross_book_lookup_api(home: str = "", away: str = "", league: str = ""):
-    """按主客队/联赛查跨庄软线."""
-    try:
-        from pipeline.cross_book_edge import load_matches, analyze_match
-        all_matches = load_matches()
-        candidates = []
-        for m in all_matches:
-            if home and home.lower() not in m["home"].lower(): continue
-            if away and away.lower() not in m["away"].lower(): continue
-            if league and league.lower() not in (m.get("league") or "").lower(): continue
-            candidates.append(m)
-        results = [asdict(analyze_match(m)) for m in candidates]
-        for r in results:
-            r.pop("books", None)  # 精简输出
-        return _wrap_data({"matches": results, "count": len(results)})
-    except Exception as e:
-        return _wrap_data({"error": str(e), "matches": [], "count": 0})
-
-
-def _get_cross_book_signal(home: str = "", away: str = "", league: str = ""):
-    """从 cross_book_edge 查单场软线信号 (供 _live_predict 内联调用)."""
-    try:
-        from pipeline.cross_book_edge import load_matches, analyze_match
-        all_matches = load_matches()
-        for m in all_matches:
-            if home.lower() not in m["home"].lower(): continue
-            if away.lower() not in m["away"].lower(): continue
-            if league and league.lower() not in (m.get("league") or "").lower(): continue
-            edge = analyze_match(m)
-            if edge.soft_lines or edge.n_books >= 2:
-                return {
-                    "n_books": edge.n_books,
-                    "consensus": edge.consensus,
-                    "best": edge.best,
-                    "max_spread_pp": edge.max_spread_pp,
-                    "n_soft_lines": len(edge.soft_lines),
-                    "soft_lines": edge.soft_lines,
-                }
-        return None
-    except Exception:
-        return None
-
+# /api/cross-book/* 与 _get_cross_book_signal 已删除 (2026-09-19, IR-32 跨庄共识永久禁令)
 
 def _lookup_multibook_consensus(home: str, away: str):
-    """从 leisu_odds 查多庄 sharp/retail 共识 (供 terminal_analyze_api 内联).
-
-    模糊匹配 home/away 队名, 找到后跑 pipeline.multibook_consensus.analyze_match.
-    返回 dict 或 None (leisu 无该比赛数据时).
-    """
-    try:
-        import sqlite3, os
-        db = os.path.join(PROJECT_ROOT, "data", "football_data.db")
-        if not os.path.exists(db):
-            return None
-        conn = sqlite3.connect(db); conn.row_factory = sqlite3.Row
-        rows = conn.execute("""
-            SELECT DISTINCT home_raw, away_raw FROM leisu_odds WHERE market='1X2'
-              AND ((home_raw LIKE ? AND away_raw LIKE ?) OR (home_raw LIKE ? AND away_raw LIKE ?))
-            LIMIT 5
-        """, (f"%{home}%", f"%{away}%", f"%{away}%", f"%{home}%")).fetchall()
-        if not rows:
-            conn.close(); return None
-        matches = [(r['home_raw'], r['away_raw']) for r in rows]
-        conn.close()
-
-        from pipeline.multibook_consensus import load_leisu_groups, analyze_match
-        groups = load_leisu_groups(market="1X2")
-        for g in groups:
-            for mh, ma in matches:
-                if mh == g['home'] and ma == g['away']:
-                    res = analyze_match(g)
-                    if res.n_books < 2:
-                        return None
-                    dv = res.divergences or []
-                    return {
-                        "n_books": res.n_books,
-                        "n_sharp": res.n_sharp,
-                        "has_true_sharp": res.has_true_sharp,
-                        "sharp_books": res.sharp_books,
-                        "sharp_consensus": {
-                            "h": round(res.sharp_consensus['h'] * 100, 1),
-                            "d": round(res.sharp_consensus['d'] * 100, 1),
-                            "a": round(res.sharp_consensus['a'] * 100, 1),
-                        },
-                        "retail_mean": {
-                            "h": round(res.retail_mean['h'] * 100, 1),
-                            "d": round(res.retail_mean['d'] * 100, 1),
-                            "a": round(res.retail_mean['a'] * 100, 1),
-                        },
-                        "value_side": {"outcome": res.value_side['outcome'], "pp": res.value_side['pp']},
-                        "fade_side": {"outcome": res.fade_side['outcome'], "pp": res.fade_side['pp']},
-                        "max_spread_pp": res.max_spread_pp,
-                        "divergences": dv[:5],
-                    }
-        return None
-    except Exception:
-        return None
-
-
+    """[已禁用 2026-09-19 IR-32] 跨庄共识永久禁止 — 生产/接口/测试全禁, 仅离线训练回测可用。"""
+    return None
 def _get_operator_signals(home: str, away: str,
                           live_h: float = None, live_d: float = None, live_a: float = None,
                           home_goals: int = None, away_goals: int = None, elapsed: int = None):
@@ -7316,9 +6988,9 @@ async def _live_scores_compute(limit: int = 5000):
         matches = _filter_football_matches(matches)
         if limit and len(matches) > limit:
             matches = matches[:limit]
-        return _wrap_data({"matches": matches, "count": len(matches)})
+        return _wrap_data({"matches": matches, "count": len(matches), "server_now": time.time()})
     except Exception as e:
-        return _wrap_data({"error": str(e), "matches": [], "count": 0})
+        return _wrap_data({"error": str(e), "matches": [], "count": 0, "server_now": time.time()})
 
 
 @app.get("/api/live-score/{mid}")
@@ -8245,35 +7917,8 @@ async def multi_market_match_api(
 # ═══ 乐鱼实时价值投注信号 (LIVE 落地) ═══
 # 2026-08-12 反推复盘: 此前该端点从未注册 handler → 前端 POST 命中 SPA GET-only 兜底 → 405,
 # 导致全链路 PASS 实为工程故障. 补齐 POST handler 让信号跑通.
-@app.post("/api/leyu/value-signal")
-async def leyu_value_signal_api(request: Request):
-    """乐鱼实时价值投注信号. evaluate 如实 PASS(分歧≈0时), 不再 405."""
-    try:
-        body = await request.json()
-    except Exception:
-        body = {}
-    home = body.get("home", "")
-    away = body.get("away", "")
-    oh = body.get("odds_h"); od = body.get("odds_d"); oa = body.get("odds_a")
-    league = body.get("league", "")
-    ah_line = body.get("ah_line"); ah_home = body.get("ah_home"); ah_away = body.get("ah_away")
-    ou_line = body.get("ou_line"); ou_over = body.get("ou_over")
-    use_sharp = bool(body.get("use_sharp", False))
-    if not (home and away and oh and od and oa):
-        return {"decision": "PASS", "reason": "missing odds/home/away", "signals": []}
-    from pipeline.leyu_value_signal import evaluate
-    import asyncio
-    try:
-        res = await asyncio.to_thread(
-            evaluate, home, away, float(oh), float(od), float(oa),
-            league=league, ah_line=ah_line, ah_home=ah_home, ah_away=ah_away,
-            ou_line=ou_line, ou_over=ou_over, use_sharp=use_sharp)
-    except Exception as _e:
-        return {"decision": "ERROR", "reason": str(_e), "signals": []}
-    return res
+# /api/leyu/value-signal 已删除 (2026-09-19, 量化系统删除 + IR-32)
 
-
-# ═══ 自主巡航 Agent 告警 — 前端轮询展示(最新在前) ═══
 @app.get("/api/agent/alerts")
 async def agent_alerts_api(limit: int = 50):
     """返回最近 N 条 Agent 告警(内存队列, Agent 后台循环产生)。"""

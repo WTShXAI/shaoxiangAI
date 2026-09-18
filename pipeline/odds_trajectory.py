@@ -18,11 +18,6 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 
-def _devig3(h, d, a):
-    s = 1/h + 1/d + 1/a
-    return [x/s for x in inv]
-
-
 def _devig3(h: float, d: float, a: float) -> Tuple[float, float, float]:
     s = 1/h + 1/d + 1/a
     return (1/h)/s, (1/d)/s, (1/a)/s
@@ -49,7 +44,7 @@ def build_market_series(events: List[dict], t0: float) -> Dict[str, List[Tuple[f
         ts = e.get('captured_at', 0)
         elapsed = (ts - t0) / 60.0
         k = f'{mkt}|{sel}'
-        out.setdefault(k, []).append((elapsed, float(to_odds), ts))
+        out.setdefault(k, []).append((elapsed, float(to_o), ts))
     return out
 
 
@@ -120,9 +115,12 @@ def trajectory_features(events_1x2: List[dict], t0: float) -> Optional[Dict[str,
     tail_change = float(np.sum(np.abs(dph[tail_idx[0]:]))) if len(tail_idx) else 0.0
     tail_ratio = tail_change / max(total_change, 0.001)
 
-    # ── 早期大波动计数(前30分钟 |Δp|>0.03) ──
-    early_idx = np.where(elapsed <= 30.0)[0]
-    early_big = int(np.sum(np.abs(dph[early_idx]) > 0.03)) if len(early_idx) else 0
+    # ── 早期大波动计数(观测开始后30分钟内 |Δp|>0.03; 相对首次变化, 对t0不敏感) ──
+    elapsed_rel = elapsed - elapsed[0]
+    early_idx = np.where(elapsed_rel <= 30.0)[0]
+    # dph 比 elapsed 短一 (差分), 索引须截断
+    early_valid = early_idx[early_idx < len(dph)]
+    early_big = int(np.sum(np.abs(dph[early_valid]) > 0.03)) if len(early_valid) else 0
 
     # ── 波动率 ──
     vol = float(np.std(ph))

@@ -1,5 +1,55 @@
 # AGENTS.md
 
+## IR-32 跨庄共识永久禁令（2026-09-19，任何操作前必读）
+
+跨庄共识/跨庄edge/投注占比（cross_book_edge、multibook_consensus、leyu_value_signal、
+bet_split_source、compute_value_layer、bet_core）**永久禁止**进入生产判定、API、前端、
+测试与实验；仅限自有训练/回测脚本离线后台对照。已随量化系统整体归档
+archive/quant_system_20260919/；tests/test_no_crossbook.py 为自动守卫，见到相关字样
+进入生产 import 图 = 最高级事故。
+
+## 量化系统已删除（2026-09-19）
+
+compute_value_layer / deep_report / bet_core / execution(早已不存在) / database.py(不存在) /
+bookmaker_sim / quant_trading.db / strategy_log / beat_under_log 全部删除或归档。
+bridge 的 value_layer 已改为模型-市场偏差-only。**修复 bug 时不得从 archive 引回任何量化逻辑。**
+
+## 智能化数据底座（2026-09-19）
+
+- **统一数据库**：训练面收敛到 events.db（historical_matches 31.2万 + odds_features 32.7万 +
+  rb_matches 31.9万 已迁入；迁移脚本 scripts/migrate_unify_db.py）；KNN 生产读方已重指。
+- **叙事特征**：gq/match_narrative.py → match_narrative 表 15848 场（平局回合/追平/反超/
+  进球后干旱/热门失分，verified 治理假0-0：7267 verified + 369 可信改判 + 301 存疑）。
+  每日 recheck_analysis 自动增量。训练一律 verified=1。
+- **已知最高优先级 bug**：halftime_conclusion.ou_prob 未条件化（486 场确定态平均读数 0.556，
+  证据 reports/ht_ou_isotonic_eval.json）——修复前禁止任何模块直接消费该列原始值。
+
+## 预测产品层 (2026-09-18 改造: 博彩量化 → 预测系统)
+
+投注决策外围 42 文件已归档 `archive/betting_decisions/` (零生产引用, 审计记录见
+`docs/prediction_refactor_checklist.md`)。**系统主指标 = LogLoss / Brier / 校准(ECE), 不再是 ROI**。
+新概率输出只准复用已回测模型 (铁律), 市场赔率仅作对照, 输出只解释不喊单。
+
+```bash
+PY=.venv/Scripts/python.exe
+$PY -m pipeline.predict_export --date 2026-09-20      # 每日预测 → events.db daily_predictions (开赛冻结)
+$PY -m pipeline.predict_export --backfill-days 45     # 历史回填 (回测口径, 只补空行; 已回填45天9437场)
+$PY scripts/eval_prediction_calibration.py            # 校准评估 → reports/prediction_calibration_report.{json,md}
+```
+
+- API: `GET /api/predictions?date=` · `GET /api/predictions/calibration`; 前端「预测中心」页 (/predictions)
+- 结算原语 SSoT: `pipeline/settle.py` (纯赛果判定); 投注 ROI 报表已归档, 勿再新建
+- 派生市场 (O2.5/BTTS/期望进球) 用 goal_scale=1.0 诚实锚 (A/B 实证见清单§四; score_model 默认 1.2 仅波胆 top3 口径)
+- **训练负结论存档** (清单§五/附, 2026-09-18): LGB/stacking/移动特征/isotonic(派生市场)/联赛收缩/KNN+K线stacking
+  全部不敌现役源, 勿重复; **两例外已采纳**: K线集成升 70 天全语料 (LL 1.0264), HT锚 OU 全面胜现任
+  (76.8% vs 50.2%, HT-OU 读数应以 ht_model_verdict 为准); 半场OU读数疑似上游 bug (见 reports/ht_ou_isotonic_eval.json)
+- **devig SSoT**: pipeline/odds_math.py (devig_n/devig2/devig3/devig_power); 新代码禁再写本地去水
+- 工程规范: 测试 `.venv/Scripts/python -m pytest tests/ -q --timeout=120` (79 用例); 规范化+待办见
+  docs/prediction_refactor_checklist.md 与 docs/pending_cleanup_backlog.md; ARCHITECTURE.md 已重写为预测系统版
+- 预测刷新/校准评估为**手动执行** (无定时自动化, 2026-09-18 按用户要求移除)
+- 前端已去喊单化 (价值层/决策/操盘手/天眼镜 → 概率偏差解释表达); 二期剩余见清单§五:
+  `_live_predict` 摘除 value_layer、bookmaker_sim 解耦、bet_core 归档
+
 ## 双 AI 协作黑板 (2026-09-13 生产接入, 必读)
 
 哨响(观察 AI)与执行 AI 通过共享黑板协作: `data/collab_journal.jsonl`。
@@ -18,3 +68,13 @@ $PY sandbox/collab/collab.py --journal data/collab_journal.jsonl verify    # 不
 铁律(详见章程): 先复现→最小修复→必验证(不过则如实 reject); 禁止覆盖
 is_override / git push / 无回测的模型改动 / 删生产数据。
 前端"协作面板"Tab 可视化全部条目; ⚡一键检测上报可将页面异常直写黑板。
+
+## K线集成赛前模型 (2026-09-15 采纳, 对照运行中)
+
+Kronos 移植: 赔率K线化(pipeline/odds_candles.py) + LightGBM/transformer 双模型概率平均。
+4轮walkforward验证过线(平均+3.15pp vs 旧static+traj)后采纳。
+- 生产入口: `pipeline/odds_candles_predict.py` → `predict_match(con, match_key)`
+- 收集器每轮对临场≤2h的scheduled场刷新判定 → `prematch_candles_verdict` 表 (开赛定格)
+- 对照台账: `scripts/settle_candles_vs_knn.py` (vs KNN prematch_conclusion 逐场比对)
+- 注意: 赛前任务严格剔除滚球tick(captured_at≤kickoff); 与混入滚球数据的旧85.7%口径不可比
+- 待对照台账积累≥300场后, 决定是否升级为主赛前锚点 (在那之前 KNN 结论仍是展示主口径)

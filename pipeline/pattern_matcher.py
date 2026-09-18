@@ -92,7 +92,10 @@ def classify_verbose(open_h: float, open_d: float, open_a: float) -> dict:
 # ── 模型注册中心桥接 ──
 def register_in_registry():
     """将规则引擎注册到 model_registry"""
-    from pipeline.model_registry import register as _reg
+    try:
+        from pipeline.model_registry import register as _reg
+    except ImportError:  # 2026-09-18 model_registry 已归档 (两套注册表收敛到 model_catalog)
+        return False
     _reg("pattern_engine_rules",
          lambda: _RULES,
          f"赔率→比分规则引擎({len(_RULES)}条, 30万场统计)",

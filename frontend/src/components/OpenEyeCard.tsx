@@ -1,8 +1,9 @@
 /**
- * 开盘天眼 +EV 裁判卡 (2026-08-31 部署, IR-20/IR-21/IR-30)
+ * 开盘天眼 · 模型 vs 市场卡 (2026-08-31 部署; 2026-09-18 去喊单化改表达, IR-20/IR-21/IR-30)
  *
  * 消费 /api/open-eye/recommend 返回的 pipeline.open_eye_predictor.recommend 结果。
- * 诚实边界: 分析结论, 非下注建议; 不标稳赢; 覆盖不足(未知/冷门队)或 edge<=0 -> PASS。
+ * 诚实边界: 分析结论, 非下注建议; 不标稳赢; 覆盖不足(未知/冷门队)或与市场无分歧 -> 仅观察。
+ * 展示口径: 模型概率 vs 市场隐含的概率偏差 (pp), 不渲染 kelly/注码/下注语义。
  */
 
 const SIDE_LABEL: Record<string, string> = { H: '主胜', D: '平局', A: '客胜' }
@@ -27,19 +28,19 @@ export default function OpenEyeCard({ result }: { result: OpenEyeRecommend | nul
 
   // PASS / 异常: 覆盖门不达标 或 无赔率
   if (!result.ok) {
-    const reason = result.reason || '本场不满足天眼 +EV 判定边界'
+    const reason = result.reason || '本场不满足天眼分歧判定边界'
     return (
       <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.04] p-4">
         <div className="flex items-center justify-between mb-2 flex-wrap gap-1.5">
-          <span className="text-[12px] font-semibold text-indigo-300">开盘天眼 · +EV 裁判</span>
+          <span className="text-[12px] font-semibold text-indigo-300">开盘天眼 · 模型 vs 市场</span>
           <span className="text-[10px] text-ink-muted font-mono">来源: 独立实力特征 + 开盘盘口</span>
         </div>
         <div className="rounded-lg border border-amber-500/20 bg-surface-card/40 p-2.5">
-          <span className="text-[10px] px-1.5 py-0.5 rounded border border-amber-500/40 bg-amber-500/15 text-amber-300">天眼 PASS · 本场不介入</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded border border-amber-500/40 bg-amber-500/15 text-amber-300">无分歧读数 · 仅观察</span>
           <div className="text-[11px] text-ink-secondary mt-1.5 leading-relaxed">{reason}</div>
         </div>
         <div className="text-[10px] text-ink-muted/70 mt-2 leading-relaxed">
-          天眼仅对"两队均有可靠独立实力历史"的比赛有效(覆盖门); 未知/冷门队自动 PASS, 宁可不出手不错判。
+          天眼仅对"两队均有可靠独立实力历史"的比赛有效(覆盖门); 未知/冷门队自动跳过, 宁可不出读数不错判。
           分析结论, 非下注建议; 不标稳赢 (IR-30)。
         </div>
       </div>
@@ -51,7 +52,7 @@ export default function OpenEyeCard({ result }: { result: OpenEyeRecommend | nul
   return (
     <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/[0.04] p-4">
       <div className="flex items-center justify-between mb-2 flex-wrap gap-1.5">
-        <span className="text-[12px] font-semibold text-indigo-300">开盘天眼 · +EV 裁判</span>
+        <span className="text-[12px] font-semibold text-indigo-300">开盘天眼 · 模型 vs 市场</span>
         <span className="text-[10px] text-ink-muted font-mono">
           来源: 独立实力特征 + {result.price_source === 'gq_lookup' || result.price_source === 'opening_gq' ? 'GQ开盘盘口' : '开盘盘口'}
         </span>
@@ -60,14 +61,14 @@ export default function OpenEyeCard({ result }: { result: OpenEyeRecommend | nul
       {/* 主判定 */}
       <div className="rounded-lg border border-indigo-500/20 bg-surface-card/40 p-2.5">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[10px] font-semibold text-indigo-300">建议边 (EYE_OPEN_RESID)</span>
+          <span className="text-[10px] font-semibold text-indigo-300">模型倾向 (EYE_OPEN_RESID)</span>
           <span className={`text-[9px] px-1.5 py-0.5 rounded border ${edgePos ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300' : 'border-white/10 bg-white/5 text-ink-muted'}`}>
-            {edgePos ? '有 +EV' : '无 edge'}
+            {edgePos ? '分歧显著' : '与市场一致'}
           </span>
         </div>
         <div className="flex justify-between items-baseline text-[11px] font-mono mb-1">
-          <span className="text-ink-primary">倾向 <b className="text-indigo-300">{side}</b> @ {Number(result.odds ?? 0).toFixed(2)}</span>
-          <span className={edgePos ? 'text-amber-300' : 'text-ink-muted'}>edge {result.edge_pp ?? 0} pp</span>
+          <span className="text-ink-primary">倾向 <b className="text-indigo-300">{side}</b> (市场价 @{Number(result.odds ?? 0).toFixed(2)})</span>
+          <span className={edgePos ? 'text-amber-300' : 'text-ink-muted'}>偏差 {result.edge_pp ?? 0} pp</span>
         </div>
         <div className="flex justify-between text-[11px] font-mono mb-1">
           <span className="text-ink-primary">模型P {((result.model_prob ?? 0) * 100).toFixed(1)}%</span>
@@ -86,7 +87,7 @@ export default function OpenEyeCard({ result }: { result: OpenEyeRecommend | nul
       </div>
 
       <div className="text-[10px] text-ink-muted/70 mt-2 leading-relaxed">
-        {result.compliant} · 天眼在"两队已知"干净子集验证 ROI +10.05% (CI 正, pos_ev=True); 未知队子集为负 → 自动 PASS。分析结论, 非下注建议 (IR-30), 不得标注稳赢 (IR-30)。
+        {result.compliant} · 天眼在"两队已知"干净子集的历史校准中概率质量优于市场 (pos_ev=True); 未知队子集无优势 → 自动跳过。分析结论, 非下注建议 (IR-30), 不得标注稳赢 (IR-30)。
       </div>
     </div>
   )

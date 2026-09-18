@@ -34,6 +34,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import poisson
 from scipy.optimize import minimize
+from pipeline.odds_math import devig2, devig3
 
 # Paths
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -295,10 +296,11 @@ class MarginTemplateFitter:
 
     @staticmethod
     def deoverround_1x2(oh: float, od: float, oa: float) -> Tuple[float, float, float, float]:
-        """1X2 去抽水, 返回 (p_h, p_d, p_a, overround)."""
-        inv = 1.0 / oh + 1.0 / od + 1.0 / oa
-        overround = inv - 1.0
-        return (1.0 / oh) / inv, (1.0 / od) / inv, (1.0 / oa) / inv, overround
+        """1X2 去抽水, 返回 (p_h, p_d, p_a, overround). (委托 odds_math SSoT)"""
+        p = devig3(oh, od, oa)
+        if p is None:
+            raise ValueError(f"非法赔率: {oh}, {od}, {oa}")
+        return p[0], p[1], p[2], (1.0 / oh + 1.0 / od + 1.0 / oa) - 1.0
 
     @staticmethod
     def fit_margin_curve(implied_probs: np.ndarray, fair_probs: np.ndarray) -> Dict:

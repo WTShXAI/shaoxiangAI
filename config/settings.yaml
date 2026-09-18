@@ -73,10 +73,10 @@ paths:
   data_dir: "data"
   db_path: "data/football_data.db"
   sp_db_path: "D:/AI/SP/data/sp_data.db"
-  v41_model: "saved_models/football_balanced_production.joblib"  # 原 football_v4.1_production 已隔离(加载失败: 依赖已删模块)
-  v32_model: "saved_models/football_balanced_production.joblib"
-  draw_expert: "saved_models/draw_expert_v1.joblib"
-  nn_model: "saved_models/football_nn_20260616_125617.pth"
+  # 2026-09-18: 旧 v41/v32/draw_expert_v1/nn 四条指向已删除的投注时代模型, 改指现役生产模型
+  candles_lgb: "data/models/candles_ensemble/lgb_candles_static.joblib"
+  ht_anchor_1x2: "data/models/ht_anchor/lgb_1x2.joblib"
+  ht_anchor_ou: "data/models/ht_anchor/lgb_ou.joblib"
   output_dir: "output"
   log_dir: "logs"
   sandbox_dir: "sandbox"

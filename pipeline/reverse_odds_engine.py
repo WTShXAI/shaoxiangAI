@@ -318,18 +318,8 @@ class ReverseOddsEngine:
         f* = (b*p - q) / b, b=赔率-1, p=真实胜率, q=1-p
         半凯利 (FRAC_KELLY=0.5), 返回 (kelly_fraction, recommended_side)。负=不下注。
         """
-        from scripts.bet_core import kelly_fraction, FRAC_KELLY
-        close_odds = [odds.close_h, odds.close_d, odds.close_a]
-        best_frac = 0.0
-        best_side = None
-        for i, (p, o, side) in enumerate(zip(true_probs, close_odds, ['H', 'D', 'A'])):
-            if p <= 0 or o <= 1:
-                continue
-            f = kelly_fraction(p, o)
-            if f > best_frac:
-                best_frac = f
-                best_side = side
-        return best_frac * FRAC_KELLY, best_side
+        # 2026-09-19 量化系统删除: 凯利注码建议停用 (IR-32 关联清理), 恒返回不下注
+        return 0.0, None
 
     # ──────────────────────────────────────────
     # 多机构分析 (操盘手框架: 跨机构同步=真信号, 单机构独调=平衡动作)

@@ -2,7 +2,7 @@
 """CS(波胆)派生特征能否识别平局? 仅GQ有op_cs解析字段。"""
 import sqlite3, math
 
-con = sqlite3.connect("data/rollball_training.db"); con.row_factory=sqlite3.Row
+con = sqlite3.connect("data/events.db"); con.row_factory=sqlite3.Row
 rows=[dict(r) for r in con.execute(
   "SELECT cs_fav_odds, cs00_odds, cs_low_avg, is_draw FROM rb_matches WHERE src='gq' AND cs_fav_odds IS NOT NULL")]
 con.close()

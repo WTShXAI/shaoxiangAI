@@ -7,7 +7,7 @@
   .venv/Scripts/python.exe scripts/recheck_analysis.py            # 干跑统计
   .venv/Scripts/python.exe scripts/recheck_analysis.py --apply    # 执行写库
 """
-import sys, os, argparse, sqlite3
+import sys, os, argparse, sqlite3, time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import gq.db as db
@@ -33,7 +33,17 @@ def recheck_cs(apply):
             if db.freeze_pre_match_cs(mk):
                 n_frozen += 1
         for mk in fin:
-            vr = db.verify_cs(mk, source='recheck')
+            vr = None
+            for attempt in range(3):
+                # 收集器整轮持写锁可达60s+, 撞锁重试跨轮见缝插针 (2026-09-15)
+                try:
+                    vr = db.verify_cs(mk, source='recheck')
+                    break
+                except Exception:
+                    if attempt < 2:
+                        time.sleep(6)
+                    else:
+                        n_no_market += 1
             if vr is None:
                 n_no_market += 1
             else:
@@ -96,7 +106,12 @@ def main():
                 if row.get("roi") is not None: with_roi += 1
                 if row.get("label") is not None: with_label += 1
             continue
-        res = db.correct_analysis(mid)
+        try:
+            res = db.correct_analysis(mid)
+        except Exception:
+            # 单场坏数据 (如 NULL 比分) 不杀死整批复核 (2026-09-15)
+            no_outcome += 1
+            continue
         if res is None:
             no_outcome += 1
             continue
@@ -122,6 +137,17 @@ def main():
 
     # 缺口#7 自动护栏: 每日扫描 kickoff=0/应归档漏档并自动补档
     recheck_missing_outcomes(args.apply)
+
+    # 2026-09-19 叙事特征记录 (架构升级B1): 对新完赛场沉淀平局/反超/进球干旱等训练特征
+    if args.apply:
+        try:
+            from gq.match_narrative import ensure_narrative_table, backfill as _narr_backfill
+            with db.conn() as _c:
+                ensure_narrative_table(_c)
+            _n = _narr_backfill(8, only_missing=True)
+            print(f"  叙事特征: 新记录 {_n} 场")
+        except Exception as _ne:
+            print(f"  叙事特征失败(不影响主流程): {_ne}")
 
     if not args.apply:
         print("(干跑, 未写库。加 --apply 执行)")

@@ -11,7 +11,7 @@ import Skeleton from '@/components/shared/Skeleton'
 import EmptyState from '@/components/shared/EmptyState'
 import TeamLogo from '@/components/shared/TeamLogo'
 import type { FixtureEntry } from '@/types'
-import { stateOf, FAKE_LEAGUE, liveToFixture } from '@/pages/LiveScores/fixtureUtils'
+import { stateOf, FAKE_LEAGUE, liveToFixture, serverNow } from '@/pages/LiveScores/fixtureUtils'
 
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
@@ -76,7 +76,7 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [updatedAt, setUpdatedAt] = useState<number | null>(null)
-  const [now, setNow] = useState(() => Date.now())
+  const [now, setNow] = useState(() => serverNow())
 
   const dateTabs = useMemo(() => generateDateTabs(now), [now])
   const [selectedDate, setSelectedDate] = useState(dateTabs[2]) // 默认今天
@@ -142,7 +142,7 @@ export default function SchedulePage() {
     const ac = new AbortController()
     fetchAll(ac.signal)
     const t = setInterval(() => fetchAll(), 30000)
-    const clock = setInterval(() => setNow(Date.now()), 30000)
+    const clock = setInterval(() => setNow(serverNow()), 30000)
     return () => { ac.abort(); clearInterval(t); clearInterval(clock) }
   }, [fetchAll])
 

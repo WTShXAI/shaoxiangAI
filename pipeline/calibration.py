@@ -17,8 +17,9 @@ from __future__ import annotations
 import math
 from typing import List, Dict, Any, Tuple, Optional
 
-# 避免循环依赖: 仅从 roi_report 导入结算函数(roi_report 不反向 import 本模块)
-from pipeline.roi_report import settle_1x2, settle_submarket
+# 预测系统改造 (2026-09-18): 结算原语迁至 pipeline/settle (纯赛果判定, 零投注语义);
+# 原 pipeline/roi_report (投注ROI报表) 已归档 archive/betting_decisions/。
+from pipeline.settle import line_from_sel, parse_score, total_goals
 
 
 # ───────────────────────────────────────────────────────────────────────────
@@ -120,13 +121,11 @@ def fetch_live_points(cur) -> List[Tuple[float, int]]:
         if mkt == "DRAW_CONSENSUS":
             win = 1 if act == "D" else 0
         elif mkt == "OU":
-            from pipeline.roi_report import parse_score, total_goals, line_from_sel
             side = "over" if sel.startswith("over") else ("under" if sel.startswith("under") else None)
             line = line_from_sel(sel); tg = total_goals(asc_)
             if side and line is not None and tg is not None:
                 win = 1 if (tg > line if side == "over" else tg < line) else 0
         elif mkt == "CS":
-            from pipeline.roi_report import parse_score
             win = 1 if parse_score(sel) == parse_score(asc_) else 0
         if win is not None:
             pts.append((float(mp), win))

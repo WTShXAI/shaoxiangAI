@@ -750,7 +750,9 @@ def record_match_odds(decoded: dict, it: dict = None) -> Optional[str]:
     # 写比赛元信息 + kickoff/score/status/minute (+半场比分 ht)
     upsert_match(match_key, mhn, man, tn, kickoff=_kickoff_iso(mgt), status=st,
                  score_home=sh, score_away=sa,
-                 ht_score_home=ht_sh, ht_score_away=ht_sa, minute=minute)
+                 ht_score_home=(ht_sh if (ht_sh is None or sh is None or (ht_sh <= sh and ht_sa <= sa)) else None),
+                 ht_score_away=(ht_sa if (ht_sh is None or sh is None or (ht_sh <= sh and ht_sa <= sa)) else None),
+                 minute=minute)
 
     # 2026-08-20 分钟级数据流修复: 把已解析的滚球分钟/比分带入每笔赔率快照,
     # 使 odds_snapshots.minute_at/score_at 记录真实滚球状态(此前全为0/空, 导致
@@ -772,7 +774,8 @@ def record_match_odds(decoded: dict, it: dict = None) -> Optional[str]:
             outcome = record_match_outcome(mid, mhn, man, tn,
                                            kickoff=_kickoff_iso(mgt),
                                            score_home=sh, score_away=sa,
-                                           ht_score_home=ht_sh, ht_score_away=ht_sa,
+                                           ht_score_home=(ht_sh if (ht_sh is None or sh is None or (ht_sh <= sh and ht_sa <= sa)) else None),
+                                           ht_score_away=(ht_sa if (ht_sh is None or sh is None or (ht_sh <= sh and ht_sa <= sa)) else None),
                                            match_key_override=match_key)
             if outcome:
                 _log_msg = f"初盘归档: {mhn} vs {man} {sh}-{sa} [{outcome['result']}] type={outcome['odds_type']}"
@@ -907,15 +910,39 @@ def _append_report_result(journal, task, result_text):
     import json as _j
     import time as _t
     import uuid as _uuid
+    # 状态机要求: open → claimed → fixed → done (缺 claim 则卡 open)
+    # I1 防重复认领 (2026-09-18): 追加前重放账本, 任务非 open 态则跳过 claim (他方已认领)
+    try:
+        _events = []
+        with open(journal, encoding='utf-8') as _jf:
+            for _line in _jf:
+                _line = _line.strip()
+                if _line:
+                    _events.append(_j.loads(_line))
+        _st = None
+        for _e in _events:
+            if _e.get('task') != task:
+                continue
+            _act = _e.get('act')
+            if _act == 'observation' and _st is None: _st = 'open'
+            elif _act == 'reopen' and _st == 'rejected': _st = 'open'
+            elif _act == 'claim' and _st == 'open': _st = 'claimed'
+            elif _act == 'fix' and _st == 'claimed': _st = 'fixed'
+            elif _act == 'validate' and _st == 'fixed': _st = 'done' if _e.get('ok') else 'rejected'
+        if _st != 'open':
+            return  # 已被认领/处理, 让路避免 I1 重复认领
+    except Exception:
+        pass
+    ev0 = {'act': 'claim', 'task': task, 'by': 'collector_auto', 'author': 'collector_auto',
+           'ts': _t.time(), 'eid': _uuid.uuid4().hex[:12]}
     ev = {'act': 'fix', 'task': task, 'note': result_text,
           'author': 'executor_zcode', 'ts': _t.time(), 'eid': _uuid.uuid4().hex[:12]}
-    with open(journal, 'a', encoding='utf-8') as f:
-        f.write(_j.dumps(ev, ensure_ascii=False) + chr(10))
     ev2 = {'act': 'validate', 'task': task, 'ok': True,
            'note': '已分析并写回结果', 'author': 'executor_zcode',
            'ts': _t.time(), 'eid': _uuid.uuid4().hex[:12]}
     with open(journal, 'a', encoding='utf-8') as f:
-        f.write(_j.dumps(ev2, ensure_ascii=False) + chr(10))
+        for e in (ev0, ev, ev2):
+            f.write(_j.dumps(e, ensure_ascii=False) + chr(10))
 
 
 class GQCollector:
@@ -1535,6 +1562,7 @@ class GQCollector:
             finally:
                 con.close()
             targets = []
+            _ht_tko = {}
             for r in rows:
                 if r["match_key"] in done:
                     continue
@@ -1564,6 +1592,7 @@ class GQCollector:
                     finally:
                         _con2.close()
                     targets.append((r["match_key"], int(r["score_home"]), int(r["score_away"])))
+                    _ht_tko[r["match_key"]] = r["kickoff"]
             if not targets:
                 return
             from gq import db as _db
@@ -1659,6 +1688,20 @@ class GQCollector:
                             "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(match_key) DO NOTHING",
                             (mk, sh, sa, ou_line, ou_dir, ou_prob,
                              ph, pd_, pa, x2_dir, cs_top1, cs_top3, time.time()))
+                    # HT锚模型对照 (2026-09-16 实验B采纳: 同集+3.1pp/HT平+7.8pp/OU+8.9pp)
+                    try:
+                        from pipeline.ht_anchor_predict import predict_ht
+                        from pipeline.odds_candles import parse_kickoff_ts as _pkt
+                        _ko_str = _ht_tko.get(mk)
+                        _kots2 = _pkt(_ko_str) if _ko_str else None
+                        _mv = predict_ht(_gqcon, mk, _kots2, sh, sa) if _kots2 else {'ok': False}
+                        if _mv.get('ok'):
+                            from gq.db import store_ht_model_verdict as _shmv
+                            _shmv(mk, _ko_str, sh, sa, _mv['x2_dir'], _mv['x2_probs'],
+                                  _mv.get('ou_dir'), _mv.get('ou_probs'), _mv.get('ou_line'))
+                            self.log(f"[HT模型对照] {mk} {_mv['x2_dir']}/{_mv.get('ou_dir')}")
+                    except Exception as _he:
+                        self.log(f"[HT模型对照] 失败({type(_he).__name__}: {_he})")
                     self.log(f"[HT冻结] {mk} HT {sh}-{sa} → OU {ou_dir or '—'}({ou_line}) "
                              f"1X2 {x2_dir or '—'} CS {cs_top1 or '—'}")
                 except Exception as _e:
@@ -1831,11 +1874,12 @@ class GQCollector:
             with conn() as c:
                 c.row_factory = sqlite3.Row
                 sched = c.execute(
-                    "SELECT match_key, league FROM matches WHERE status='scheduled'"
+                    "SELECT match_key, league, kickoff FROM matches WHERE status='scheduled'"
                 ).fetchall()
                 captured = {r["match_key"] for r in c.execute(
                     "SELECT match_key FROM prematch_conclusion").fetchall()}
             n = 0
+            _err_total = 0
             for row in sched:
                 mk = row["match_key"]
                 if mk in captured:          # 已固化 → 跳过 (每场只算一次)
@@ -1845,6 +1889,7 @@ class GQCollector:
                 try:
                     r = query_match(mk, k=DEFAULT_K, draw_upgrade=True)
                 except Exception:
+                    _err_total += 1
                     continue
                 if not r.get('applicable'):
                     continue
@@ -1853,10 +1898,48 @@ class GQCollector:
                         mk, r['verdict'], r['verdict_cn'], r.get('excess'),
                         r.get('roi'), int(r.get('draw_alert') or 0))
                     n += 1
-                except Exception:
+                except Exception as _pe:
+                    _err_total += 1
+                    if _err_total <= 2:
+                        self.log(f"[赛前固化] 单场失败({type(_pe).__name__}: {_pe}): {mk[:40]}")
                     continue
             if n:
                 self.log(f"[赛前固化] 已固化 {n} 场未开赛赛前结论 (机关零遗漏)")
+            if _err_total:
+                self.log(f"[赛前固化] ⚠ 共 {_err_total} 场单场失败, 详见上方样例")
+
+            # K线集成对照运行 (2026-09-15 Kronos 移植采纳): 临场≤2h窗口每轮 upsert 刷新,
+            # 开赛瞬间定格; 与 KNN prematch_conclusion 并行, 赛后对照台账逐场比对.
+            try:
+                from gq.db import store_prematch_candles_verdict
+                from pipeline.odds_candles_predict import predict_match
+                from pipeline.odds_candles import parse_kickoff_ts
+                now2 = time.time()
+                m = 0
+                with conn() as c2:
+                    for row in sched:
+                        ko = row["kickoff"]
+                        ko_ts = parse_kickoff_ts(ko) if ko else None
+                        if ko_ts is None or not (0 < ko_ts - now2 <= 2 * 3600):
+                            continue
+                        try:
+                            r = predict_match(c2, row["match_key"], ko_ts)
+                        except Exception:
+                            continue
+                        if not r.get('ok'):
+                            continue
+                        try:
+                            store_prematch_candles_verdict(
+                                row["match_key"], ko, r['direction'], r['probs'],
+                                r['confidence'], r['margin'], r.get('n_ticks') or 0,
+                                r.get('models'))
+                            m += 1
+                        except Exception:
+                            continue
+                if m:
+                    self.log(f"[K线对照] 已刷新 {m} 场赛前判定 (临场≤2h窗口)")
+            except Exception as e:
+                self.log(f"[K线对照] 异常: {e}")
         except Exception as e:
             self.log(f"[赛前固化] 扫描异常: {e}")
 
@@ -1902,7 +1985,7 @@ class GQCollector:
             conn_db.row_factory = sqlite3.Row
             now_s = time.time()
             rows = conn_db.execute("""
-                SELECT match_key, home, away, league, kickoff, score_home, score_away, mid, minute, last_seen
+                SELECT match_key, home, away, league, kickoff, score_home, score_away, mid, minute, last_seen, status
                 FROM matches
                 WHERE status = 'live'
                    OR (status = 'finished' AND score_home IS NULL AND mid IS NOT NULL)
@@ -2033,7 +2116,8 @@ class GQCollector:
             # 安全网(scheduled→live/finished)抽到 _sweep_scheduled(), 在 finally 中调用,
             # 确保无论主循环是否异常, 状态纠正都必定执行(防御性, 修复"开赛不显示").
         except Exception as e:
-            self.log(f"库存兜底异常: {e}")
+            import traceback as _tb
+            self.log(f"库存兜底异常: {e} | {_tb.format_exc(limit=6).replace(chr(10), ' <- ')}")
         finally:
             # 状态纠正安全网: 必定执行(主循环异常也不跳过), 独立连接不影响上方事务
             try:

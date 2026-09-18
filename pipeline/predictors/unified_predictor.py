@@ -32,6 +32,7 @@ unified_predictor.py — v7.4 盘口锚定预测器 (操盘手优先)
 import os
 import warnings
 import numpy as np
+from pipeline.odds_math import devig2, devig3
 
 warnings.filterwarnings("ignore")
 
@@ -75,8 +76,11 @@ _lbl = ["H", "D", "A"]
 
 
 def devig(h, d, a):
-    inv = 1.0 / float(h) + 1.0 / float(d) + 1.0 / float(a)
-    return np.array([(1.0 / float(h)) / inv, (1.0 / float(d)) / inv, (1.0 / float(a)) / inv])
+    """比例法去水 (委托 odds_math SSoT)。"""
+    p = devig3(float(h), float(d), float(a))
+    if p is None:
+        raise ValueError(f"非法赔率: {h}, {d}, {a}")
+    return np.array(p)
 
 
 # 温度缩放校准常量 (开源借脑落地: worldcup-predictor calibration.py 的温度缩放思路)

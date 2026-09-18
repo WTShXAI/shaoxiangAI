@@ -1,0 +1,62 @@
+%% 哨响AI 端到端架构 / 数据流图（P3-2 补全）
+%% 覆盖：采集 → 存储 → 建模/分析 → 服务 → 验证监控
+%% 约定：实线=主数据流；虚线=评估反馈/真赛果回流
+flowchart TB
+
+  subgraph COLLECT["① 采集层（乐鱼 GQ · WS 推流）"]
+    WS["ws_collector.py<br/>playwright + Edge 拦截帧"]
+    SC["start_collector.py<br/>collector_supervisor.py"]
+    NW["network_watchdog.py<br/>（IPv6→IPv4 自愈）"]
+  end
+  WS --> SC
+  SC -->|"实时盘口 + 赛果"| EDB
+  SC -->|"2026 同期赛果"| GQ
+  NW -.->|"保活"| WS
+
+  subgraph STORE["② 存储层（data/）"]
+    EDB["events.db<br/>odds_snapshots 1.04亿 / odds_changes 3585万<br/>matches / prediction_ledger<br/>⚠ 生产赔率主源 + 滚球实时源"]
+    GQ["GQ.db<br/>matches 1.1万 / outcomes<br/>⚠ P0 干净真相源（平局率26.7%真实）"]
+    FD["football_data.db<br/>historical_matches / indep_features<br/>william_ht 45.8万"]
+    IG["indep_features_gq.db<br/>P0-9b/10 的 2026 独立特征"]
+    FL["shaoxiang_feature_library.db<br/>+ rollball_training.db"]
+  end
+
+  subgraph MODEL["③ 建模 / 分析层（pipeline/）"]
+    WI["william_inter_model<br/>收盘线校准镜（无 pick-edge）"]
+    IP["independent_predictor<br/>+ independent_model.joblib<br/>（独立信息路径，P0 已证伪）"]
+    UP["unified_predictor v7.4<br/>编排锚"]
+    WA["world_analyzer v1.2<br/>市场锚+模型矩阵+Edge三件套+平局层"]
+    TR["train_independent_model.py<br/>+ evolution.py 五道关（医师资格考试）"]
+  end
+  EDB -->|"开/收盘赔率"| WI
+  EDB -->|"1X2 时序"| IP
+  GQ -->|"真赛果（标签）"| TR
+  FD -->|"历史独立特征"| IP
+  IG -->|"2026 独立特征"| IP
+  TR -.->|"训练产出"| IP
+  WI --> UP
+  IP --> UP
+  UP --> WA
+
+  subgraph SERVE["④ 服务层"]
+    BR["bridge_service.py :9000<br/>FastAPI + ErrorEnvelope 中间件"]
+    LP["/api/terminal/analyze<br/>/api/live-goal-probe<br/>/health"]
+    FE["frontend Vite+React :3000<br/>LiveScores / 滚球 / 诊断透镜"]
+  end
+  WA -->|"预测 / 分析"| BR
+  BR --> LP
+  LP --> FE
+
+  subgraph VERIFY["⑤ 验证 / 监控层（禁实盘 IR-21）"]
+    PM["scripts/p0_paper_monitor.py<br/>前向纸盘累积（859/2500 阈值）"]
+    P10["scripts/p0_10_retrain<br/>walk-forward 干净真相"]
+    AUTO["自动化 1850422d<br/>每日 06:07 复评 + 企微推送"]
+  end
+  FE -.->|"用户真实赛果回流"| EDB
+  PM -.->|"评估反馈"| MODEL
+  P10 -.->|"能力验证"| MODEL
+  AUTO --> PM
+
+  %% 铁律标注
+  RF["IR-20 分析非预测 · IR-21 禁实盘 · IR-30 宁PASS不伪造<br/>系统定位=辅助诊断透镜（非开处方）"]
+  RF -.-> VERIFY

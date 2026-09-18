@@ -1194,7 +1194,8 @@ def correct_analysis(mid: str) -> Optional[dict]:
     ph = row.get("pred_score_home")
     pa = row.get("pred_score_away")
     score_err = None
-    if ph is not None and pa is not None:
+    # 实际比分可能缺失 (丢比分僵尸场), 双侧齐全才算误差 (2026-09-15 DailyRecheck 崩溃修复)
+    if ph is not None and pa is not None and score_h is not None and score_a is not None:
         score_err = abs(int(ph) - int(score_h)) + abs(int(pa) - int(score_a))
 
     # ── stake_pnl (硬结算) ──
@@ -1502,6 +1503,76 @@ def store_halftime_conclusion(match_key, ht_home, ht_away,
                      ON CONFLICT(match_key) DO NOTHING""",
                   (match_key, ht_home, ht_away, ou_line, ou_direction, ou_prob,
                    x2_home, x2_draw, x2_away, x2_direction, cs_top1, cs_top3, now))
+
+
+def ensure_ht_model_table():
+    """HT锚模型对照表 (2026-09-16 实验B: 与现任 halftime_conclusion 并行对照, 不动展示口径)."""
+    with conn() as c:
+        c.execute("""CREATE TABLE IF NOT EXISTS ht_model_verdict (
+            match_key   TEXT PRIMARY KEY,
+            kickoff     TEXT,
+            ht_home     INTEGER,
+            ht_away     INTEGER,
+            x2_dir      TEXT,
+            x2_probs    TEXT,
+            ou_dir      TEXT,
+            ou_probs    TEXT,
+            ou_line     REAL,
+            captured_at REAL
+        )""")
+
+
+def store_ht_model_verdict(match_key, kickoff, ht_home, ht_away, x2_dir, x2_probs,
+                           ou_dir, ou_probs, ou_line):
+    ensure_ht_model_table()
+    with conn() as c:
+        c.execute("""INSERT INTO ht_model_verdict
+            (match_key, kickoff, ht_home, ht_away, x2_dir, x2_probs, ou_dir, ou_probs, ou_line, captured_at)
+            VALUES(?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(match_key) DO UPDATE SET
+                x2_dir=excluded.x2_dir, x2_probs=excluded.x2_probs,
+                ou_dir=excluded.ou_dir, ou_probs=excluded.ou_probs,
+                ou_line=excluded.ou_line, captured_at=excluded.captured_at""",
+            (match_key, kickoff, int(ht_home), int(ht_away), x2_dir,
+             json.dumps(x2_probs), ou_dir, json.dumps(ou_probs), ou_line, time.time()))
+    return True
+
+
+def ensure_prematch_candles_table():
+    """K线集成赛前判定表 (2026-09-15 Kronos 移植采纳: 与 KNN prematch_conclusion 并行对照).
+    临场≤2h窗口每轮 upsert 刷新, 开赛瞬间定格为最终赛前判定; 赛后对照台账逐场比对."""
+    with conn() as c:
+        c.execute("""CREATE TABLE IF NOT EXISTS prematch_candles_verdict (
+            match_key   TEXT PRIMARY KEY,
+            kickoff     TEXT,
+            direction   TEXT,            -- home/draw/away
+            probs       TEXT,            -- JSON {home,draw,away}
+            confidence  REAL,
+            margin      REAL,
+            n_ticks     INTEGER,
+            models      TEXT,            -- JSON {lgb_top, transformer_top}
+            captured_at REAL
+        )""")
+
+
+def store_prematch_candles_verdict(match_key, kickoff, direction, probs, confidence,
+                                   margin, n_ticks, models=None):
+    """upsert K线集成赛前判定 (临场窗口每轮刷新, 赛后机关对照)."""
+    ensure_prematch_candles_table()
+    with conn() as c:
+        c.execute("""INSERT INTO prematch_candles_verdict
+            (match_key, kickoff, direction, probs, confidence, margin, n_ticks, models, captured_at)
+            VALUES(?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(match_key) DO UPDATE SET
+                direction=excluded.direction, probs=excluded.probs,
+                confidence=excluded.confidence, margin=excluded.margin,
+                n_ticks=excluded.n_ticks, models=excluded.models,
+                captured_at=excluded.captured_at""",
+            (match_key, kickoff, direction,
+             json.dumps(probs, ensure_ascii=False), float(confidence), float(margin),
+             int(n_ticks), json.dumps(models, ensure_ascii=False) if models else None,
+             time.time()))
+    return True
 
 
 def store_prematch_conclusion(match_key, verdict_code, verdict_cn, excess, roi,

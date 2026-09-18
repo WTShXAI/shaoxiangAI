@@ -35,9 +35,14 @@ def test_import_league_engine():
     _assert_importable("pipeline.league_engine")
 
 
-def test_import_bet_core():
-    """价值层/注码单一事实源 (SSoT) — E6 P0-2 白名单 + E2 SSoT 收敛."""
-    _assert_importable("scripts.bet_core")
+def test_bet_core_removed():
+    """2026-09-19 量化系统删除: bet_core/凯利已归档 archive/quant_system_20260919/。
+    反向守卫: 确保它不会回潮进生产 import 图。"""
+    try:
+        importlib.import_module("scripts.bet_core")
+        raise AssertionError("scripts.bet_core 已删除, 不应可导入")
+    except ModuleNotFoundError:
+        pass
 
 
 def test_import_score_model():

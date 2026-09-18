@@ -22,15 +22,19 @@ def _load(p):
 
 
 def test_no_broken_production_models():
-    prod = glob.glob(os.path.join(SM, "*production*.joblib"))
-    assert prod, "未找到任何 production 模型（预期至少 football_balanced_production）"
+    """守现役生产模型 (2026-09-18 起): data/models/ 下的 joblib 必须可加载;
+    saved_models 仅守 bridge 启动硬依赖的 LEGACY_PINNED 两件。"""
+    cur = glob.glob(os.path.join(ROOT, "data", "models", "*", "*.joblib"))
+    legacy = [os.path.join(SM, f) for f in ("wc_main_v1.joblib", "draw_expert_v3_focal.joblib")]
+    models = [p for p in cur + legacy if os.path.exists(p)]
+    assert models, "未找到任何现役/LEGACY_PINNED 模型文件"
     broken = []
-    for f in prod:
+    for f in models:
         try:
             _load(f)
         except Exception as e:
-            broken.append((os.path.basename(f), f"{type(e).__name__}: {e}"))
-    assert not broken, f"存在无法加载的 production 模型: {broken}"
+            broken.append((os.path.relpath(f, ROOT), f"{type(e).__name__}: {e}"))
+    assert not broken, f"存在无法加载的生产模型: {broken}"
 
 
 def test_config_model_paths_loadable():

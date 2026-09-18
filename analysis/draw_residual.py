@@ -5,7 +5,7 @@
 """
 import sqlite3, numpy as np, math
 
-con = sqlite3.connect("data/rollball_training.db"); con.row_factory=sqlite3.Row
+con = sqlite3.connect("data/events.db"); con.row_factory=sqlite3.Row
 rows=[dict(r) for r in con.execute(
   "SELECT p_h,p_d,p_a,ou_line,ou_over,ou_under,is_draw,src FROM rb_matches WHERE p_h IS NOT NULL AND p_d IS NOT NULL AND p_a IS NOT NULL")]
 con.close()

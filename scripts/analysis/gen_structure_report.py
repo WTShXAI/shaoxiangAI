@@ -2,7 +2,7 @@
 """赔率结构审计 + 报告生成 (clean 集). 输出 分析报告/赔率结构审计_20260720.html"""
 import sqlite3, datetime, json, html
 from collections import Counter, defaultdict
-from gq_odds_filter import get_open
+from pipeline.gq_odds_filter import get_open
 
 DB='data/events.db'
 WIN=datetime.datetime(2026,7,16,0,0,0).timestamp()

@@ -433,6 +433,19 @@ def resolve_true_minute(kickoff, feed_minute=None, now_ts=None):
         return {'minute': 0, 'phase': 'pre', 'is_halftime': False,
                 'source': 'kickoff', 'elapsed': elapsed}
 
+    # ── 2026-09-15 修正: feed 真实递增值即盘口来源真值, 直接采信 ──
+    # 2026-08-21 实测 feed 上半场恒报45/下半场恒报90(占位垃圾, 97.7%) → 当时推翻"信feed"改 kickoff
+    # 墙钟 SSoT。但现网 GQ 已回报真实进度(如 66:40/70:32 → 整数 66/70), 旧逻辑"纯 kickoff 推算"
+    # 分支会静默丢弃该真值、改用可能偏差的 kickoff 墙钟(kickoff 偏差时分钟错得更多),
+    # 导致盘口页显示 71' 而盘口来源显示 66:40。判定: fm 为合法进度(1..89 且非 45/90 恒值占位)
+    # → 采信 feed(来源即盘口真值); 仅当 feed 与墙钟阶段严重矛盾(墙钟已深入 2H 但 feed 仍<15,
+    # 典型脏值 6/7)才退回墙钟兜底。
+    if fm is not None and 1 <= fm <= 89 and fm not in (45, 90):
+        if not (elapsed > 75 and fm < 15):
+            _ph = 'first' if fm < 45 else ('ht' if 45 <= fm < 47 else 'second')
+            return {'minute': int(fm), 'phase': _ph, 'is_halftime': (45 <= fm < 47),
+                    'source': 'feed', 'elapsed': elapsed}
+
     # feed 半场标识: 45=上半场进行中, 90=下半场进行中(仅作 phase 提示, 不作分钟)
     feed_half = 1 if fm == 45 else (2 if fm == 90 else None)
 

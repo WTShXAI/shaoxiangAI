@@ -454,14 +454,7 @@ def predict(home: str, away: str,
 
     # 先后·覆盖级: 跨庄软线价差(真 edge) 检测到即覆盖集成结果 (优雅降级: 无跨庄数据则 None)
     override = None
-    if params.get("priority_override") == "cross_book_edge":
-        try:
-            from pipeline.cross_book_edge import detect_edge
-            ov = detect_edge(home, away, h, d, a)
-            if ov and isinstance(ov, (list, tuple)) and len(ov) == 3:
-                override = [float(x) for x in ov]
-        except Exception:
-            override = None
+    # 2026-09-19 IR-32: 跨庄共识/跨庄edge永久禁止 (原 cross_book_edge 覆盖分支移除)
 
     blended, overridden = blend_1x2(components, e1, override=override)
     p_h, p_d, p_a = blended

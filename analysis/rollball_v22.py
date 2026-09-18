@@ -16,7 +16,7 @@
 import sqlite3, math, pickle
 from collections import defaultdict
 
-DB = "data/rollball_training.db"
+DB = "data/events.db"
 SEED = 20260821
 
 def ah_b(x):

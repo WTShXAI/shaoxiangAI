@@ -18,6 +18,7 @@ import math
 import numpy as np
 from scipy.optimize import root
 from typing import Any, Dict, List, Tuple
+from pipeline.odds_math import devig2, devig3
 
 MAX_GOAL_DEFAULT = 8
 
@@ -44,9 +45,11 @@ GENERAL_OIP_GOAL_SCALE = 1.2
 CS_PROB_TEMPERATURE = 0.90
 
 def deoverround(oh: float, od: float, oa: float) -> Tuple[float, float, float]:
-    """1X2 去抽水 → 隐含 P(H),P(D),P(A)"""
-    o = 1.0/oh + 1.0/od + 1.0/oa
-    return (1.0/oh)/o, (1.0/od)/o, (1.0/oa)/o
+    """1X2 去抽水 → 隐含 P(H),P(D),P(A) (比例法, 委托 odds_math SSoT)"""
+    p = devig3(oh, od, oa)
+    if p is None:
+        raise ValueError(f"非法赔率: {oh}, {od}, {oa}")
+    return p
 
 def _poisson_marginal(lh: float, la: float, maxg: int) -> Tuple[float, float, float]:
     ph = pd_ = pa = 0.0

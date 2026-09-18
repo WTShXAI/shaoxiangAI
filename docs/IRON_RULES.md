@@ -16,7 +16,7 @@
 比分统一英文冒号 `0:0`（`normalize_cs_score` 唯一入口）；CS 赔率仅赛前（scheduled）采集，开赛后停采；写入须 normalize + 赔率 `(0,1000]` 边界。
 
 ### IR-03 CS 波胆 = 庄家资金引导器（非诚实锚）
-最便宜波胆命中率仅 9.4%（诱导层）；真实 91.2% 真实比分被开出（2026-08-18 全量重验）。OU 是诚实锚，CS 是诱导层。抓跨庄价差需 `leyu_value_signal`（M4 点亮）。校准器 `models/cs_favorite_isotonic.joblib`。
+最便宜波胆命中率仅 9.4%（诱导层）；真实 91.2% 真实比分被开出（2026-08-18 全量重验）。OU 是诚实锚，CS 是诱导层。抓跨庄价差需 `leyu_value_signal`（M4 点亮）。~~校准器 `models/cs_favorite_isotonic.joblib`~~（2026-09-18 勘误：该文件全库不存在且零引用，已删除此引用）。
 
 ### IR-04 分析口径三件套（2026-08-20，最高优先）
 废止"OU 方向无稳定 edge / 只做对照不做决策"概括性铁律。废止"单庄必无 edge"前提。
@@ -58,7 +58,7 @@ token = 乐鱼登录 URL 中 `token=` 后十六进制串 = requestid（前 18 �
 ### IR-10 复训 live 滚球模型后必须重启 bridge（2026-08-24）
 live 模型被 `analysis/model_match_analysis.py` 模块全局 `_LIVE_MODELS` **懒加载并缓存**，复训写新模型文件后不重启 bridge 则永远用旧模型。
 - 重启须手术刀式，**绝不能杀 gq 采集器**：用 `scripts/restart_bridge.py`（按命令行匹配 `bridge_service` 杀进程树，不碰 `auto_collector`），再 `.venv/Scripts/python.exe bridge_service.py --port 9000` 自举。
-- 持续学习自动化 `automation-1787546872604`（每 6h 复训 + 核对 AUC + 重启）。
+- ~~持续学习自动化 `automation-1787546872604`~~（2026-09-18 勘误：该自动化已不存在且预测刷新/校准评估已改手动执行，本条自动化要求失效；复训仍须重启 bridge 的规则保留）。
 
 ### IR-11 采集器日志 ASCII 铁律（2026-08-15）
 关键路径禁打 `⚠`/emoji（GBK 崩整轮 → 提前 return 跳过 `_sweep_finished` → scheduled 永不翻 live → 前端"刚开赛不显示"）。日志一律 ASCII（`[!]`/`[WARN]`），`log()` 须 `try/except UnicodeEncodeError` 兜底。
@@ -166,3 +166,19 @@ git/curl 强制 IPv4 → `20.205.243.166:443`（`git config http.curloptResolve`
 
 > 本文件位置：`D:\Architecture\docs\IRON_RULES.md`
 > 同步更新至：`D:\Architecture\.workbuddy\memory\MEMORY.md`（索引摘要）
+
+---
+
+## IR-32 跨庄共识永久禁令（2026-09-19，最高级）
+
+- **禁令**：跨庄共识（multi-book consensus）、跨庄价差 edge（cross-book edge）、多庄 divergences、
+  投注占比 bet-split、以及一切"从第二家盘口提取信号"的做法，**永久禁止**进入：
+  生产判定、任何 API、前端展示、测试用例、实验代码。
+- **唯一例外**：自有训练/回测脚本在**离线后台**做研究对照（产物只许作对照数字，不得接线）。
+- **背景**：本系统为单庄（乐鱼/GQ）数据宇宙；一切跨庄"真 edge"叙事在 v6 框架下均被证伪
+  （+773% 伪edge事故、派生市场三轮全败、soft-line OOS 0.41 无效）；跨庄路线已随量化系统
+  整体删除（archive/quant_system_20260919/：compute_value_layer/bet_core/cross_book_edge/
+  multibook_consensus/leyu_value_signal/bet_split_source/bookmaker_sim）。
+- **违反代价**：伪 edge（83min +773% 事故）、诱导跟单、判据失真。
+- **强制提示**：任何会话/代码评审看到 cross_book/multibook/leyu_value/bet_split 字样进入
+  生产 import 图即属违规；tests/test_no_crossbook.py 为自动反向守卫。

@@ -171,6 +171,9 @@ def train_draw_expert(X, y, cols):
 
 def update_registry(main_acc, main_f1, draw_f1, n_features, n_samples):
     reg_path = os.path.join(SAVED, 'model_registry.json')
+    # 2026-09-18 冻结: model_registry.json 已成只读历史快照, SSoT = pipeline/model_catalog.py
+    print("[registry] 已冻结, 跳过写入 (SSoT=pipeline/model_catalog.py)")
+    return
     reg = json.load(open(reg_path, encoding='utf-8'))
     entry = {
         'version': 'wc_v1',

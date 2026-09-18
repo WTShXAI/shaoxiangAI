@@ -3,6 +3,7 @@ import type {
   ApiResponse, LeaguesResponse, LeagueFixturesResponse, LiveScoresResponse,
 } from '@/types'
 import type { CsTrustCardData } from '@/components/CSTrustCard'
+import { syncServerNow } from '@/pages/LiveScores/fixtureUtils'
 
 // ── 运行时客户端 (单一真相源) ──
 // 系统唯一后端 = bridge_service (:9000)。所有真实端点都建在它之上, 无 /api/v1 前缀:
@@ -182,6 +183,7 @@ export const liveGoalProbeService = {
       .get<BridgeResponse<{ matches: any[]; max_last_seen: number | null; server_now: number | null; total_live: number; total_scheduled: number; offset: number; limit: number }>>('/api/live-goal-probe/matches', { params: { limit, offset }, timeout: 60000 })
       .then((res) => {
         const d = res.data?.data
+        if (d && typeof d.server_now === 'number') syncServerNow(d.server_now)
         if (d && Array.isArray(d.matches)) {
           d.matches = d.matches.filter((m: any) => {
             if (isVirtualLeague(m?.league) || isVirtualLeague(m?.sport_key)) return false
@@ -308,7 +310,12 @@ export const timelineService = {
 export const liveScoreService = {
   /** 最近 180s 内更新的全部进行中比赛 (mststi>0), 含实时赔率 */
   getLiveMatches: (limit: number = 5000, signal?: AbortSignal) =>
-    bridgeApi.get<ApiResponse<LiveScoresResponse>>('/api/live-scores', { params: { limit }, signal }),
+    bridgeApi.get<ApiResponse<LiveScoresResponse>>('/api/live-scores', { params: { limit }, signal })
+      .then((res) => {
+        const d = (res.data as any)?.data
+        if (d && typeof d.server_now === 'number') syncServerNow(d.server_now)
+        return res
+      }),
 }
 
 // ============================================
@@ -461,3 +468,58 @@ export const csTrustCardService = {
     ),
 }
 
+
+// ============================================
+// 预测产品层服务 — bridge_service:9000 /api/predictions (2026-09-18 改造)
+// 纯概率输出: 1X2 / 期望进球 / OU2.5 / BTTS / 总进球分布 / 市场对照 / 偏差说明。
+// 只解释, 不喊单 — 无 stake / kelly / 投注语义。
+// ============================================
+export interface PredictionEntry {
+  match_key: string
+  home: string
+  away: string
+  league: string | null
+  kickoff: string
+  status: string
+  model_source: 'candles_ensemble' | 'market_baseline'
+  model_confidence: 'high' | 'medium' | 'low' | 'baseline'
+  model_confidence_value: number | null
+  p_home: number
+  p_draw: number
+  p_away: number
+  expected_home_goals: number
+  expected_away_goals: number
+  over_2_5: number
+  btts: number
+  total_goals_distribution: Record<string, number>
+  top_scorelines: [string, number][]
+  market_implied: {
+    home: number; draw: number; away: number
+    ou_line: number | null; p_over: number | null
+    odds_1x2?: [number, number, number]
+  }
+  deviation_note: string
+  generated_at: string
+}
+
+export interface PredictionCalibrationSection {
+  n?: number
+  accuracy?: number
+  log_loss?: number
+  brier_multiclass?: number
+  note?: string
+  per_outcome?: Record<string, { ece?: number; slope?: number | null }>
+}
+
+export const predictionsService = {
+  /** 指定日期的逐场概率预测 (date=YYYY-MM-DD, 缺省今天) */
+  getByDate: (date: string, refresh = false, signal?: AbortSignal) =>
+    bridgeApi.get<ApiResponse<{ date: string; count: number; predictions: PredictionEntry[]; note?: string }>>(
+      `/api/predictions?date=${date}${refresh ? '&refresh=1' : ''}`, { signal },
+    ),
+  /** 系统级校准指标 (LogLoss/Brier/可靠性 — 预测系统的主指标口径) */
+  calibration: (signal?: AbortSignal) =>
+    bridgeApi.get<ApiResponse<Record<string, PredictionCalibrationSection | string>>>(
+      '/api/predictions/calibration', { signal },
+    ),
+}

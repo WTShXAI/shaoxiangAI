@@ -27,7 +27,7 @@ pipeline.model_catalog — 模型资产单一真相源 (SSoT, 2026-08-05 收敛)
   /api/predict/ranked        → ranked_predictor 编排 → M1 M2 M3 M5 M6 M7
   /api/analysis/scan         → M7
   /api/template-deviation    → M7
-  /api/leyu/value-signal     → M6
+  (M6 原leyu价值信号端点已随量化系统删除, 2026-09-19)
   /api/terminal/analyze      → M3 M4
 """
 from __future__ import annotations
@@ -112,16 +112,14 @@ CATALOG: Dict[str, ModelSpec] = {
     ),
     "M6": ModelSpec(
         mid="M6",
-        name="ValueSignal 价值信号",
-        role="跨庄/跨市场软线价差 → 真 +EV 识别",
-        module="pipeline.leyu_value_signal",
-        weights=[],
-        tasks=["VALUE", "EV"],
-        status="degraded",
-        note="数学铁律: +EV ⇔ sharp_prob × odds − 1 > 0 ⇔ divergence > book_margin. "
-             "乐鱼(GQ)为纯单庄, 无第二家盘口 ⇒ 当前分歧恒 0, 如实 PASS. "
-             "尖庄钩子 SHARP_CONSENSUS_PROVIDER 预留待接. "
-             "并入 cross_book_edge / multibook_consensus 两个同源子模块.",
+        name="HTAnchor HT锚读数",
+        role="半场冻结时点 1X2 + OU 方向概率 (对照运行胜现任, 2026-09-18 同集重验 76.8% vs 50.2%)",
+        module="pipeline.ht_anchor_predict",
+        weights=["data/models/ht_anchor/lgb_1x2.joblib", "data/models/ht_anchor/lgb_ou.joblib"],
+        tasks=["1X2", "OU"],
+        status="active",
+        note="2026-09-19 替换原 M6 ValueSignal (跨庄+EV, 已随量化系统删除+IR-32 归档)。"
+             "HT锚为纯概率模型, 与跨庄无关; 原槽位语义(价值信号)与预测系统定位冲突, 就此退役。",
     ),
     "M7": ModelSpec(
         mid="M7",

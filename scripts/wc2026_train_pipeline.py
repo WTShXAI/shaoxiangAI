@@ -230,6 +230,9 @@ def binning_monotonic(y_true, y_cal, n_bins=5):
 # ---------------------------------------------------------------- 注册
 def update_registry(metrics):
     reg_path = os.path.join(SAVED, "model_registry.json")
+    # 2026-09-18 冻结: model_registry.json 已成只读历史快照, SSoT = pipeline/model_catalog.py
+    print("[registry] 已冻结, 跳过写入 (SSoT=pipeline/model_catalog.py)")
+    return
     reg = {"active": "wc_v1", "current": None, "versions": []}
     if os.path.exists(reg_path):
         try:

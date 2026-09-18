@@ -190,7 +190,7 @@ def recommend(home, away, open_h, open_d, open_a, kickoff=None, league=None) -> 
     model_prob = proba[side_idx]
     market_implied = impl[side_idx]
     edge_pp = round(100 * (model_prob - market_implied), 2)
-    kf = kelly_fraction(model_prob, odds) if edge_pp > MIN_EDGE_PP else 0.0
+    # 2026-09-19 量化系统删除: kelly_frac 不再输出 (字段保留为 None 兼容旧前端类型)
     return {
         "ok": True,
         "side": side,
@@ -198,7 +198,7 @@ def recommend(home, away, open_h, open_d, open_a, kickoff=None, league=None) -> 
         "market_implied": round(market_implied, 4),
         "edge_pp": edge_pp,
         "odds": odds,
-        "kelly_frac": kf,
+        "kelly_frac": None,
         "prob_hda": [round(p, 4) for p in proba],
         "compliant": "建议仅; 需人工审批(IR-21) 且不得标注稳赢(IR-30)",
     }

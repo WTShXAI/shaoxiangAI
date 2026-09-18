@@ -1,5 +1,27 @@
 import type { FixtureEntry } from '@/types'
 
+// ═══ 服务器时钟对齐 (校准前端比赛时间 / 盘口相位对齐) ═══
+// 后端 kickoff / 赔率快照 / 比赛分钟均以服务器 GMT+8 墙钟为准, 并在
+// /api/live-goal-probe/matches 与 /api/live-scores 响应返回 server_now(Unix 秒)。
+// 前端默认用本机 Date.now() 推算"已进行分钟/倒计时", 一旦本机时钟漂移或非 GMT+8 时区,
+// 推算分钟与盘口相位就会和服务器错位。故所有"当前时间"比较统一走 serverNow() (= Date.now() + 与服务器偏差)。
+let _skewMs = 0            // server_now - 本机 now(毫秒)
+let _clockSynced = false
+export function syncServerNow(serverNowSec: number | null | undefined): void {
+  if (serverNowSec == null || !isFinite(serverNowSec)) return
+  _skewMs = serverNowSec * 1000 - Date.now()
+  _clockSynced = true
+}
+export function serverNow(): number {
+  return Date.now() + _skewMs
+}
+export function isClockSynced(): boolean {
+  return _clockSynced
+}
+export function clockSkewMs(): number {
+  return _skewMs
+}
+
 // ═══ 工具 (统一用 timeZone:'Asia/Shanghai', 不依赖本机时区, 任意机器都正确) ═══
 export function fmtClockGMT8(now: number) {
   return new Date(now).toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
@@ -15,6 +37,18 @@ export function fmtOdds(v: number | undefined | null) {
   return typeof v === 'number' && !isNaN(v) ? v.toFixed(2) : '——'
 }
 
+// 把 kickoff 字符串解析为绝对毫秒(显式 GMT+8, 与后端口径一致)。
+// 后端 commence_time/kickoff 多为 "YYYY-MM-DD HH:MM"(GMT+8 墙钟, 无时区后缀);
+// 若直接 new Date("...T...") 会被当成"本机时区"解析 → 非 GMT+8 机器偏差一个时区偏移。
+// 已带 Z/+HH/-HH 的 ISO 原样解析; 纯墙钟补 +08:00。
+export function parseKickoffGMT8(s: string | null | undefined): number {
+  if (!s) return NaN
+  const str = String(s).trim().replace(' ', 'T')
+  if (/[Zz]|[+\-]\d{2}:?\d{2}$/.test(str)) return new Date(str).getTime()
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(str)) return new Date(str + '+08:00').getTime()
+  return new Date(str).getTime()
+}
+
 // 比赛状态机 (IR-24 实时比分=真相; 前端按时间兜底纠正僵尸卡盘)
 // mststi: 0=未开赛 1=上半场 2=中场 3=下半场 4=加时 5=点球 6+=异常(中断/延期/取消) <0=结束
 // 注意:
@@ -27,7 +61,7 @@ export function stateOf(fx: FixtureEntry, now: number): { live: boolean; finishe
   if (isNaN(st)) st = 0
   // 前端兜底: 开赛时间在未来 → 不可能是进行中/已结束 (修正 GQ 偶发把未来赛程标成 live+minute=45)
   if (fx.commence_time) {
-    const ko = new Date(fx.commence_time).getTime()
+    const ko = parseKickoffGMT8(fx.commence_time)
     if (ko > now + 60000) {
       return { live: false, finished: false, pending: false, halftime: false, min: null, label: `${fmtGMT8(fx.commence_time)} 开赛` }
     }
@@ -43,7 +77,7 @@ export function stateOf(fx: FixtureEntry, now: number): { live: boolean; finishe
   }
   // feed 状态滞后兜底: state=0 但开赛已过 10-180min → 视为进行中
   if (st === 0 && fx.commence_time) {
-    const elapsedMin = (now - new Date(fx.commence_time).getTime()) / 60000
+    const elapsedMin = (now - parseKickoffGMT8(fx.commence_time)) / 60000
     if (elapsedMin > 10 && elapsedMin < 180) {
       st = 1 // 视为上半场
     }
@@ -51,7 +85,7 @@ export function stateOf(fx: FixtureEntry, now: number): { live: boolean; finishe
   // 开赛已超 150min → 视为已结束 (足球最长含加时点球≈150min; 超过仍标live=僵尸卡盘,
   // 前端按时间兜底纠正。原180min放宽是为兼容 feed 滞后, 现结合后端僵尸清理可收紧)
   if (fx.commence_time) {
-    const elapsedMin = (now - new Date(fx.commence_time).getTime()) / 60000
+    const elapsedMin = (now - parseKickoffGMT8(fx.commence_time)) / 60000
     if (elapsedMin > 150 && st > 0) st = -1
   }
   // 后端快照时间兜底: snapshot_at 过老说明采集器已失联
@@ -65,7 +99,7 @@ export function stateOf(fx: FixtureEntry, now: number): { live: boolean; finishe
   const isHalftime = st === 2 || raw === 'HT' || raw === '中场' || raw === 'PB'
   let label = ''
   if (isHalftime) label = '中场休息'
-  else if (st === 1) label = `上半场 ${minStr || `~${Math.round((now - new Date(fx.commence_time).getTime()) / 60000)}'`}`.trim()
+  else if (st === 1) label = `上半场 ${minStr || `~${Math.round((now - parseKickoffGMT8(fx.commence_time)) / 60000)}'`}`.trim()
   else if (st === 3) label = `下半场 ${minStr}`.trim()
   else if (st === 4) label = `加时 ${minStr}`.trim()
   else if (st === 5) label = '点球大战'
@@ -75,7 +109,7 @@ export function stateOf(fx: FixtureEntry, now: number): { live: boolean; finishe
 
 // 倒计时 (距开赛)
 export function countdown(iso: string, now: number): string | null {
-  const ko = new Date(iso).getTime()
+  const ko = parseKickoffGMT8(iso)
   if (isNaN(ko)) return null // 空/无效开赛时间 → 不显示倒计时 (修复 "距开赛 NaNm")
   const remain = ko - now
   if (remain <= 0) return null

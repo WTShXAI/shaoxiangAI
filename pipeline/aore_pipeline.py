@@ -35,7 +35,11 @@ def run_aore_pipeline(match_ids: List[int] = None, league_name: str = None,
     Returns:
         统计摘要
     """
-    from bookmaker_sim import AdversarialOddsVerifier
+    try:
+        from bookmaker_sim import AdversarialOddsVerifier
+    except ImportError:  # 2026-09-19 bookmaker_sim 已归档 (量化系统删除)
+        logger.warning("bookmaker_sim 已归档, 对抗推演不可用")
+        return {}
     
     # 如果未指定 match_ids, 从数据库获取 upcoming 比赛
     if not match_ids:

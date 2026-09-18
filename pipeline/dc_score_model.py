@@ -32,6 +32,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 from typing import Dict, Any, Optional, Tuple
+from pipeline.odds_math import devig2, devig3
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "football_data.db")
 
@@ -150,8 +151,11 @@ def scoreline_matrix(lam: float, mu: float, rho: float, maxg: int = 8) -> np.nda
 
 
 def deoverround(oh, od, oa):
-    inv = 1.0 / oh + 1.0 / od + 1.0 / oa
-    return np.array([(1.0 / oh) / inv, (1.0 / od) / inv, (1.0 / oa) / inv])
+    """比例法去水 (委托 odds_math SSoT, 2026-09-18 收敛)。"""
+    p = devig3(oh, od, oa)
+    if p is None:
+        raise ValueError(f"非法赔率: {oh}, {od}, {oa}")
+    return np.array(p)
 
 
 def tilt_to_outcomes(M: np.ndarray, target: np.ndarray) -> np.ndarray:

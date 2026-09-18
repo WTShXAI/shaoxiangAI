@@ -1,255 +1,169 @@
-# 哨响AI · 第一性原理架构文档
+# 哨响AI · 架构文档（预测系统）
 
-> 最后更新：2026-08-12 · 方法：第一性原理（First Principles）
-> 本文档描述系统的**真实状态**。一切结论来自实际代码 import 图、进程探查与数据库实测。
-> 前版（2026-07-16）已严重过时：GQ.db 当时记 2.45MB（实为 6.09GB）、football_data.db 记 523MB（实为 661MB）、且 8 月全部修复与链路训练均未录入。本次全盘核查后重写。
+> 最后更新：2026-09-18 · 方法：实际代码 import 图 + 进程探查 + 数据库实测
+> 2026-09-18 系统转型：博彩量化 → **预测系统**。主指标 = LogLoss / Brier / 校准(ECE·斜率) / TOP1 准确率；
+> ROI / CLV / 凯利已随投注决策外围归档 `archive/betting_decisions/`（判据见 docs/prediction_refactor_checklist.md）。
+> 前版（2026-08-12）描述的 strategy/execution/database 执行闭环已不存在，本文档全面取代。
 
 ---
 
-## 0. 第一性原理（系统存在的根本理由）
+## 0. 第一性原理（2026-09-19 修订：智能化 + 实测值 + IR-32 跨庄禁令）
 
 ```
 系统存在的唯一理由 =
-    把赔率数据  →  变成  →  可执行的、有正期望的下注决策
+    把赔率数据  →  变成  →  经校准、可自学习的概率预测（质量由 LogLoss 度量）
 ```
 
-| # | 第一性原理 | 对系统的约束 |
-|---|-----------|-------------|
-| 1 | **数据是唯一的资产** | 没有实时、跨庄、干净的赔率，模型/策略全是空中楼阁 |
-| 2 | **1X2 市场是有效的** | edge 只存在于：①跨庄价差（soft-line 不平衡）②时序失衡（开盘→临场→滚盘漂移） |
-| 3 | **模型是统计摘要器，不是智能** | OOS AUC：让球 ~0.72~0.76、平局 ~0.50（市场效率天花板）。ML 真实价值=跨赛事概率校准，不是"预测胜负" |
-| 4 | **执行闭环 > 预测精度** | 行情→扫描→决策→注码→执行→风控→绩效。一个 7×24 稳定跑的闭环 >> 95% 精确但崩的模型 |
-| 5 | **可靠性 > 功能数量** | 50 功能 + 崩 = 0；10 功能 + 永不停 = 10 |
-
-### 铁律（最高指令，SSoT 于 `.workbuddy/memory/MEMORY.md`）
-1. 数据有据可查；未知填 `--` 不填 0；不拿即时比分冒充半场；派生特征独立成集。
-2. 盘口锚定操盘手，默认 100% 跟盘，去水分歧 ≥0.10 才降权。
-4. 用户实时观测 = 地面真相；web 仅辅证。AH/OU split 取均值；负=主让。
-5-7. 禁 Beta 校准/虚拟数据；命中率并排 naive 基线；评估用重复 CV + AUC + 分箱。
-8-9. OU 概率分箱（完美单调）；AH 任务已下线的旧结论已被推翻（见 §9）。建模库禁收「终场 0-0 且半场缺失」假 0-0。
-10. SQLite 字符串用单引号。
-11-12. GQ 僵尸判定（开赛 3h 内不杀）；波胆用市场 CS 赔率为主（93.2% 覆盖），泊松回退。
-13-14. 修 bug 必追问"历史数据回填了吗"（dry-run + --apply + 审计可回滚）；零方差盘口线 = 采集伪造，market_health_check 护栏。
-15. AUC 突高先疑任务退化，用消融证伪。
+| # | 原理 | 实测约束（数字为 2026-09-19 实测，非占位） |
+|---|------|------|
+| 1 | **市场是有效的** | 1X2/OU/派生市场实证：无新信息源时，去水隐含/OIP 诚实锚即最优概率源（负结论台账 §8，M3/M4/M5-knn 三轮再证） |
+| 2 | **智能化：模型从统计摘要器进化为自学习体** | ①多源特征（K线39M tick + KNN 31.2万库 + 叙事特征 15848 场）②统一库 events.db 单一训练面 ③校准闭环（每日可跑 eval→发现偏差→walkforward 修正）④新特征层 match_narrative 直接为下一代表模型供料。智能化=自学习闭环，非堆模型 |
+| 3 | **概率质量 > 选边准确率（实测）** | K线集成(70d全语料): LogLoss 1.0264 优于市场、TOP1 47.5%（不追命中率）；HT锚OU 同集 76.8% vs 现任 50.2% |
+| 4 | **只解释，不喊单** | 量化系统已删除（2026-09-19）：compute_value_layer/bet_core/凯利/EV/执行层/投注库全部归档 archive/quant_system_20260919/；输出仅概率+偏差说明 |
+| 5 | **闭环可靠性（实测值）** | 常驻=bridge+采集器双 watchdog（巡检即拉起）；测试 41 用例全绿；API 80 条（前端活路径约 15 条，瘦身待办）；采集 23539 场/3927 万 tick，叙事覆盖 15848 场 |
+| 6 | **IR-32 跨庄共识永久禁令** | 跨庄共识/跨庄edge永久禁止进入生产判定、API、前端、测试与实验；仅限自有训练/回测脚本在离线后台使用。违规=最高级事故（本条写入 IRON_RULES/AGENTS.md，并有 tests/test_no_crossbook.py 反向守卫） |
 
 ---
 
 ## 1. 真实 SSoT 地图（单一事实源）
 
-被 ≥3 处 import 且无竞争实现的权威模块：
+| 模块 | 路径 | 职责 |
+|------|------|------|
+| **OIP 比分模型** | `pipeline/score_model.py` | 赔率隐含 Poisson：`predict_score`(比分矩阵/λ) + `deoverround`；派生市场概率源 |
+| **K线集成 1X2** | `pipeline/odds_candles_predict.py` + `data/models/candles_ensemble/` | LGB+transformer 概率平均，4轮walkforward采纳 |
+| **HT锚** | `pipeline/ht_anchor_predict.py` + `data/models/ht_anchor/` | 半场冻结时点 1X2+OU 方向 |
+| **KNN 相似** | `pipeline/prematch_similarity.py` | football_data.db 31.2万场历史结构检索 |
+| **预测产品层** | `pipeline/predict_export.py` | 逐场概率输出（1X2/xG/O2.5/BTTS/分布/偏差说明）→ `daily_predictions` 表（开赛冻结）；支持 `--backfill-days` 回填 |
+| **结算原语** | `pipeline/settle.py` | 纯赛果判定（parse_score/result_1x2/settle_ou），零投注语义 |
+| **校准工具** | `pipeline/calibration.py` | reliability/brier/log_loss/ece/slope |
+| **模型治理** | `pipeline/model_catalog.py` | M1–M7 唯一注册表（≤7 强制校验）；旧 model_registry.json 已冻结为只读快照 |
+| **偏差层(内置)** | `bridge_service._live_predict` | 模型-市场概率对照（量化系统已删除, value_layer=偏差-only） |
+| **主入口** | `bridge_service.py` | FastAPI :9000，全部 API；`ShaoxiangBridge_Watchdog` 计划任务守护 |
+| **采集器** | `gq/auto_collector.py` + `gq/db.py` + `gq/watchdog_collector.py` | 乐鱼实时采集 → events.db；四类冻结快照（赛前KNN/临场K线/开赛CS/半场） |
+| **赔率双时点** | `pipeline/gq_odds_filter.py` | 初盘/中场收盘提取（2026-09-18 自根目录迁入） |
+| **去水数学** | `pipeline/odds_math.py` | devig_n/devig2/devig3/devig_power 唯一实现（2026-09-19 收敛 8 副本） |
+| **叙事特征** | `gq/match_narrative.py` | 平局/反超/进球干旱/热门失分特征记录 → match_narrative 表（15848 场），为下一代模型供料 |
 
-| 模块 | 路径 | 职责 | 状态 |
-|------|------|------|------|
-| **注码核心** | `scripts/bet_core.py` | 半凯利注码 `decide_dir`/`safe_stake`/`kelly_fraction` | ✅ |
-| **赔率破解** | `pipeline/reverse_odds_engine.py` | 庄家意图解码 `ReverseOddsEngine.analyze_multi` | ✅ |
-| **预测核心（旧链路）** | `pipeline/engine.py` | `create_engine`（标称 v7.1 规则管线）。前端 `/api/terminal/analyze` **不经此**（见 §2 双链路） | ✅ |
-| **OIP 波胆** | `pipeline/score_model.py` | `_live_predict` 实际调用（`predict_score` OIP Poisson，前端唯一活路径） | ✅（生产） |
-| **投注库** | `database.py` | SQLite 资金曲线/风控/报表（→ `data/bets.db`） | ✅ |
-| **价值层** | `pipeline/compute_value_layer.py` | `compute_value_layer()` 纯函数 | ✅ |
-| **策略层+组合层** | `pipeline/strategy.py` | 多策略注册 + 组合聚合 → BetPlan | ✅ |
-| **执行层+手动确认闸** | `pipeline/execution.py` | 消费 BetPlan；`ManualConfirmationGate` 绝不无确认打出 | ✅ |
-| **主入口** | `bridge_service.py` | FastAPI 服务（端口 9000），暴露全部 API（见 §4） | ✅（运行主场） |
-| **采集器** | `gq/auto_collector.py` + `gq/launcher.py` | 乐鱼(GQ)实时赔率采集守护进程 | ✅（运行主场） |
-| **采集 DB 层** | `gq/db.py` | `is_virtual_league`(227) 虚拟盘拦截 · `is_override`(206-410) 人工纠偏锁 · `record_match_outcome`(571) 归档 · `result="home/draw/away"`(723-727) 规范 · CS 三表(1514/1594/1623) | ✅ |
-| **模型注册表** | `saved_models/model_registry.json` | 版本/chains/active 指针 | ⚠️ 含重复空壳条目（见 §7） |
-| **联赛链路训练** | `scripts/league_train_pipeline.py` | 剔世界杯/友谊赛，训 1X2+OU+AH+DrawExpert | ✅（8-12 落地） |
-| **WC2026 链路训练** | `scripts/wc2026_train_pipeline.py` | 读 `wc2026_merged.json`，GroupKFold 防泄漏 | ✅（8-12 落地） |
-| **WC2026 合并** | `scripts/merge_wc2026_odds.py` | 软件 `wc_all_matches` ∩ 截图盘口，队名规范化 | ✅（8-12 落地） |
-| **回档** | `scripts/backfill_outcomes.py` | 漏档补 `match_outcomes`（dry-run + --apply + 审计） | ✅（8-12 用） |
-| **重启守护** | `restart_bridge.py` | Popen DETACHED 自举，单实例收口 | ✅（8-10 用） |
-
-**铁律**：所有新代码必须消费以上 SSoT，禁止平行重造。
+**铁律**：新代码必须消费以上 SSoT，禁止平行重造（devig 收敛进行中：`pipeline/odds_math.py`）。
 
 ---
 
-## 2. 真实数据流（2026-08-12 实测）
+## 2. 数据流（2026-09-18 实测）
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│ 采集层  gq/auto_collector.py (launcher.py 守护, 60s 轮询)         │
-│   乐鱼(GQ) H5 实时赔率 → GQ.db (6.09 GB, 主采集库)               │
-│   - matches(权威, mid NULL) / match_outcomes(归档, mid 数字)      │
-│   - odds_snapshots(盘口/赔率, market=1X2/AH/OU/CS)               │
-│   - pre_match_cs(赛前波胆冻结) / cs_verification(赛果验证)        │
-│   - analysis_cache(复盘) / 虚拟盘 is_virtual 拦截                  │
-└───────────────────────────┬─────────────────────────────────────┘
-                             │  odds + 终场赛果
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 历史库  football_data.db (661 MB)                                │
-│   wc_all_matches(edition='2026' 136场, 含1X2临盘赔率+真实赛果)    │
-│   interwetten_odds / william_ht / live_odds_raw 等赔率表          │
-└───────────────────────────┬─────────────────────────────────────┘
-                             │ 特征
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 特征库  shaoxiang_feature_library.db (3275场)                    │
-│   labeled_1x2=3275 / ou=2413 / ah=0；x1_h/d/a 去水概率(和≡1)     │
-│   xspread 跨市场价差（真 edge 来源）                              │
-└───────────────────────────┬─────────────────────────────────────┘
-                             │ 训练
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 训练层  scripts/{league,wc2026}_train_pipeline.py                │
-│   派生 ~12 维赔率特征 → Stacking(LGB+XGB→LR) + DrawExpert + OU   │
-│   GroupKFold(按对阵分组) 防泄漏；并排 naive 基线                  │
-│   落盘 data/*.joblib → 注册 model_registry (chains: league/wc)   │
-└───────────────────────────┬─────────────────────────────────────┘
-                             │ 推理
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 预测层  (⚠️ 多链路并存, 见 §4)                                   │
-│   链路A(旧 /predict* 端点): create_engine → wc_main_v1 + draw    │
-│   链路B(生产 /api/terminal/analyze, 前端唯一活路径):              │
-│        bridge._live_predict → score_model.predict_score (OIP)     │
-│   链路C(8月新增 /api/predict/live, /api/predict/ranked):          │
-│        ranked_predictor / model_dispatcher 编排                   │
-└───────────────────────────┬─────────────────────────────────────┘
-                             │ 预测 + 赔率
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 价值层  compute_value_layer → 执行层 execution → 前端 Vite+PWA    │
-└─────────────────────────────────────────────────────────────────┘
+采集层 gq/auto_collector.py (watchdog 守护)
+  乐鱼(GQ) H5 → data/events.db (37.3 GB 主库, WAL)
+    matches(23.5k) / odds_changes(38.9M行,14.5k场有1X2) / odds_snapshots(112M行)
+    match_outcomes(17.8k归档) / 四类冻结快照表
+        │
+        ├─ 赛前: prematch_conclusion(KNN) / prematch_candles_verdict(临场≤2h K线)
+        ├─ 开赛: pre_match_cs(CS冻结)
+        └─ 半场: halftime_conclusion + ht_model_verdict
+        │
+        ▼
+预测层 pipeline/predict_export.py
+  市场去水基准 + K线判定 + OIP矩阵派生(O2.5/BTTS/xG, goal_scale=1.0诚实锚)
+  → daily_predictions (开赛冻结; --backfill-days 历史回填, 已45天9437场)
+        │
+        ▼
+叙事层 gq/match_narrative.py
+  完赛场 → match_narrative (平局回合/追平/反超/进球后干旱/热门失分, verified 治理假0-0)
+        │
+        ▼
+评估层 scripts/eval_prediction_calibration.py
+  六路判定源 LogLoss/Brier/ECE vs 市场基准 → reports/prediction_calibration_report.{json,md}
+  scripts/settle_candles_vs_knn.py (K线vs KNN 双判定对照台账)
+        │
+        ▼
+表达层 bridge_service.py :9000 → frontend/ (React+Vite, dist 由 bridge 托管)
+  /predictions 预测中心 + 比赛弹窗(模型vs市场偏差解释, 无喊单)
 ```
 
 ---
 
-## 3. 执行闭环（量化系统）
+## 3. 指标体系（预测系统主指标）
+
+- **多分类 LogLoss**（随机基线 ln3≈1.0986）/ **多分类 Brier** / TOP1 准确率
+- **分结果校准**：reliability 分桶 + ECE + 校准斜率（≈1 为佳）
+- **对照口径**：模型 vs 市场去水隐含，**同一场集**对照
+- 首份基线（2026-09-18）：K线集成 LogLoss 1.0120 vs 市场 1.0341（-0.022）；O2.5(诚实锚) 0.677 vs 市场 0.696；期望进球残余偏差 -0.59 球（待联赛收缩）
+
+---
+
+## 4. API 端点（前端活路径，其余 65+ 端点待瘦身清单）
+
+- **预测**：`GET /api/predictions?date=` · `GET /api/predictions/calibration`
+- **分析**：`POST /api/terminal/analyze`（比赛弹窗全链路）· `POST /api/predict/ranked`
+- **赛程**：`GET /api/all-fixtures` · `/api/leagues/{sport}/fixtures` · `/api/live-scores`
+- **滚球**：`/api/rollball/analyze` · `/api/live-goal-probe/*` · `/api/cs/trust-card`
+- **运维**：`GET /health` · `/ready`
+- 遗留保活：`/predict`、`/predict/simple`、`/predict/single`（前端零调用，engine.py 已挂牌 DEPRECATED）
+
+---
+
+## 5. 启动与守护（2026-09-18 实测）
 
 ```
-实时赔率 ──→ 全市场扫描 ──→ 价值层打分(compute_value_layer) ──→ 策略层+组合层(strategy.py) ──→ BetPlan
-   │                                                                                    │
-   │                                                                          bet_core 算注码(半凯利,单注封顶10%)
-   │                                                                                    │
-   └─────────────────── 执行层(execution.py) ─────────────────┐                        │
-      ┌─ 模拟盘(sim): 自动执行+自动结算 → database(equity)     │                        │
-      └─ 真实盘(real): ManualConfirmationGate → 确认才落库      │                        │
-                                                                  ▼                        │
-                                                            绩效归因(equity/sharpe/DD) ◄┘
+后端主服务:  bridge_service.py :9000 (start_backend.py DETACHED 拉起, 日志 logs/backend_daemon.log)
+采集守护:    gq/watchdog_collector.py (ShaoxiangGQ_Watchdog)
+bridge守护:  scripts/bridge_watchdog.py (ShaoxiangBridge_Watchdog; 日志10MB轮转)
+网络监护:    scripts/network_watchdog.py (ShaoxiangAI_NetWatch)
+每日复盘:    ShaoxiangAI_DailyRecheck 00:00 → scripts/recheck_analysis.py --apply
+预测日更:    手动 $PY -m pipeline.predict_export --date YYYY-MM-DD (--refresh / --backfill-days N)
+校准评估:    手动 $PY scripts/eval_prediction_calibration.py   (2026-09-18 起无定时自动化, 按用户要求)
+前端:        dist 由 bridge 托管; 改前端后 cd frontend && npm run build
+测试:        .venv/Scripts/python -m pytest tests/ -q --timeout=120
+已禁用:      ShaoXiangOddsAssetDaily (指向已不存在的 pipeline/oddset_asset.py, 2026-09-18)
 ```
 
 ---
 
-## 4. 当前 API 端点（bridge_service.py 实测，2026-08-12）
+## 6. 数据资产（2026-09-18 实测）
 
-**核心端点**（按触发范围分组）：
-- **预测**：`POST /predict`、`/predict/simple`、`/predict/single`（旧链路A）；`POST /api/terminal/analyze`（链路B，前端活路径）；`POST /api/predict/live`、`POST /api/predict/ranked`（链路C）；`GET /api/live/wc`
-- **价值/信号**：`POST /api/leyu/value-signal`（8-12 修复 405→200）、`GET /api/cross-book/signals`、`GET /api/cross-book/lookup`、`GET /api/water-signals`、`GET /api/template-deviation`
-- **实时比分**：`GET /api/live-scores`、`/api/live-score/{mid}`、`/api/live-update/{mid}`（**缺失 `GET /api/matches/state`**，见 §7 缺口#1）
-- **赛程/赛果**：`GET /api/all-fixtures`、`/api/leagues`、`/api/leagues/{sport}/fixtures`、`/api/match-results`、`/api/auto-results`、`/api/timeline/*`
-- **复盘/CS**：`GET /api/analysis/cache`、`/api/analysis/scan`、`/api/cs/pre-match`、`/api/cs/verification`（CS 端点实测正常）
-- **组合/执行**：`POST /api/portfolio`、`POST /api/execute/confirm`、`GET /api/execute/pending`、`POST /api/execute/settle`
-- **运维**：`GET /health`、`/ready`、`GET /api/data-growth/stats`、`/api/quota`、`/api/report/*`
-
-> ⚠️ 共 ~55 个端点，远超 2026-07-16 文档记录的"双链路"描述。文档当时未记录 8 月新增的 `/api/leyu/value-signal`、`/api/predict/live`、`/api/predict/ranked`、`/api/cross-book/*`、`/api/template-deviation`、`/api/water-signals` 等。
+| 文件 | 大小 | 内容 |
+|------|------|------|
+| `data/events.db` | **37.3 GB** | 主库：采集+赛果+四类冻结快照+daily_predictions+prediction_ledger；含两个亿级 bak 表（odds_snapshots_bak 41.7M行 / odds_changes_bak 12.1M行，留维护窗口处理） |
+| `data/GQ.db` | 6.2 GB | events.db 的 09-01 冻结子集（11,495 场全 ⊂ events.db），仅历史归档 |
+| `data/football_data.db` | 724 MB | historical_matches 31.2万（KNN库）/ odds_features 32.6万 |
+| `data/rollball_training.db` | 61 MB | rb_matches 31.9万（滚球训练集，date 止 2026-08-20，同步已停） |
+| `archive/db_exports_20260918/` | — | 已删投注台账的 CSV 导出（strategy_log/beat_under_log 等 6 表） |
 
 ---
 
-## 5. 启动方式（2026-08-12 真实入口）
+## 7. 已知缺口 / 待办（2026-09-19 更新）
 
-```
-后端主服务:   bridge_service.py  (端口 9000, 单实例, 已收口)
-启动命令:     .venv/Scripts/python.exe bridge_service.py --port 9000
-采集守护:     .venv/Scripts/python.exe gq/launcher.py  (后台守护, 60s 轮询)
-重启(生产):   restart_bridge.py  (Popen DETACHED 自举, 单实例收口)
-前端开发:     cd frontend && npm run dev  (端口 3000, 代理 /api → 9000)
-前端生产:     cd frontend && npm run build  (dist/ 后端托管)
-乐鱼 token:   gq/.env 的 GQ_REQUEST_ID (gitignore, 不入库)
-```
-
-> **双实例已收口（2026-08-10）**：原 4 进程（9000×2 + 9100×2）乱象，经批准整合为单实例 9000（restart_bridge.py 启动）；9100 已关闭不可达。无 supervisor 自动重启（计划任务仅 DailyRecheck + OddsAssetDaily）。
+- **【最高优先级 bug】半场OU读数未条件化**：halftime_conclusion.ou_prob 在 486 场"冻结时 OVER 已数学确定"的场次平均读数仅 0.556（应为≈1.0），0/609 测试场反映确定性 — 上游采集器 HT 冻结写入的是未条件化概率（证据 reports/ht_ou_isotonic_eval.json）。缓解：M6 HTAnchor OU 已全面可用；isotonic 校准器已存档。修复需重设计冻结读数语义
+- ~~二期：_live_predict 摘除 compute_value_layer、bet_core 归档、bookmaker_sim 解耦~~ **已完成（2026-09-19 量化系统删除）**；去水收敛完成（pipeline/odds_math.py）
+- **端点瘦身**：65 个前端零调用端点 + 前端废弃类型（清单见 docs/prediction_refactor_checklist.md §七）
+- **模型升级路线图**（按序）：HT锚OU分任务(+16.6pp 待同集复验) → K线全语料重训(3223→~3900)+draw校准 → KNN+K线 stacking(sweep 11518 场就绪) → 期望进球联赛收缩(-0.59) → 半场OU校准(ECE 0.39)
+- **数据杠杆**：采集赛前提频（赛前≥20 tick 场次仅 32% → 目标 60%+）
+- **CI**: mypy 门禁未启用；events.db 亿级 bak 表清理需停机窗口 + VACUUM
 
 ---
 
-## 6. 数据资产清单（诚实版，2026-08-12 实测）
+## 8. 负结论台账（勿重试，除非前提变化）
 
-| 文件 | 实测大小 | 状态 / 内容 |
-|------|---------|------------|
-| `data/GQ.db` | **6.09 GB** | ✅ 乐鱼实时赔率主采集库（matches/match_outcomes/odds_snapshots/pre_match_cs/cs_verification/analysis_cache） |
-| `data/football_data.db` | **661 MB** | ✅ 历史赛果+赔率（wc_all_matches 2026 共 136 场带临盘赔率+赛果；interwetten_odds 等） |
-| `data/shaoxiang_feature_library.db` | ~978 KB | ✅ 特征库 3275 场（labeled_1x2=3275/ou=2413/ah=0），x1 去水概率 + xspread 跨市场价差 |
-| `data/worldcup_screenshots.db` | ~319 KB | ✅ 70 张世界杯赔率截图 OCR（含盘口细节，无赛果） |
-| `data/hist_feature_matrix.db` | ~50 MB | ✅ 历史特征矩阵 |
-| `data/bets.db` | 81 KB | ✅ 投注记录 |
-| `data/quant_trading.db` | 110 KB | ✅ 量化交易 |
-| `data/leisu_odds.db` | 7 MB | ✅ 雷速赔率 |
-| `data/electronic_poll_*.db` (20+) | 各 3-4 MB | ⚠️ 乐鱼轮询实验库（散落，待清理） |
-| `data/live_poll_*.db` | 153 MB | ⚠️ 实时轮询实验库（散落） |
-| `data/_verify_sandbox.db` | 355 MB | ⚠️ 验证沙箱（可清理） |
-| 根目录同名 `GQ.db`/`football_data.db` (0字节) | 0 | ❌ 占位（真库在 data/） |
-| `data/wc2026_*.db`/`leisu_live.db`/`live_scores.db` 等 | 0 | ❌ 空占位 |
+| 结论 | 证据 |
+|------|------|
+| 市场效率：1X2/OU/派生市场均无超越赔率的稳定信息 | v6 框架；p0_10 独立路径 LL 1.0117 vs 市场 0.9411；派生市场 LGB/stacking/isotonic 三轮全输 OIP 锚（2026-09-18） |
+| Dixon-Coles 小样本过拟合 | OOS LL 3.85 vs OIP 2.83 |
+| XGB Poisson λ 不敌 OIP | OU@2.5 AUC 0.584 < 0.70 gate，已封存 |
+| Kronos 预训练迁移无增益 | probe 与随机初始化差 0.1~1.0pp = 噪音（reports/kronos_transfer_falsified_20260916.md） |
+| 多通道K线 E6 | 1X2 +0.1/+0.3pp、OU 低于多数类；重开条件=语料×10 |
+| 微观结构"读盘"信号 | R1 6,000场三假设全证伪 |
+| goal_scale 语义分离 | 1.2 仅波胆 top3 口径；期望/大小球必须用 1.0 诚实锚（A/B n=8194） |
 
-**注意**：根目录下有大量临时/实验文件（`_bzy_*.py`、`_diag_*.png`、`_zcode_deleted_manifest_*.txt`(1.4MB)、各类 `_*.py`/`_*.txt`），属历史调试残留，非系统组成部分。
-
----
-
-## 7. 已知缺口 / 待修（2026-08-12 盘点）
-
-| # | 缺口 | 真相 | 优先级 |
-|---|------|------|-------|
-| 1 | ~~`GET /api/matches/state` 缺失~~ | **已修复(2026-08-13)**：补端点复用 enrich_match_state + 同源 feed，实测 200 返回 2655 场(2566 finished/40 live/47 scheduled/2 unknown)，WS1 重合并生效 | — |
-| 2 | ~~DT 推理维度不匹配~~ | **已修复**：fl_model_1x2=37维，fl_predictor 改用 extract_features(N_FEAT=37) 动态维度对齐，predict_from_odds 返回有效归一化概率，dt_vote 生效（记忆旧"22维喂30维"数字均过时） | — |
-| 3 | ~~`league_scoring_prior` 中文匹配 bug~~ | **已修复**：实测英超/法甲/西甲/德甲/意甲/中超 exact 命中 prior_n=1300~1670；巴西甲/欧冠聚合命中；仅 WC2026 特殊长联赛名会误匹墨西哥杯(权重极低可忽略) | — |
-| 4 | ~~model_registry 脏数据~~ | **已修复(2026-08-13)**：去重 9→4 版本（删 5 个 wc_v1 重复副本 + 1 个 league_v1 缺AUC 副本），保留 `6.0-rule`/`wc_v1`(legacy 指针锚)/`league_v1`(完整AUC)/`wc2026_v1`；所有指针解析 OK 无悬空；备份 `model_registry.json.bak_20260813_*` | — |
-| 5 | **WC2026 链路 AH 未训** | `wc_all_matches` 无一致 AH 盘口线；截图 AH 线变参 → 暂不训 AH | P2 |
-| 7 | ~~`kickoff=epoch 0` 漏档风险~~ | **已修复(2026-08-13)**：`recheck_analysis.py` 加 `recheck_missing_outcomes` 阶段（每日 00:00 `ShaoxiangAI_DailyRecheck` 自动扫描 `finished`+非虚拟+无 `match_outcomes` 应归档缺档并补档，复用 `record_match_outcome` 幂等）。**关键 bug 修正**：必须限定 `status='finished'`，否则 live 场实时比分被误当终场锁死。当前实时库补 20 场 finished 漏档（写20/失败0），复查归零；备份 `GQ.db.bak_20260813_085629`。根因：采集器归档**持续漏档**（非仅 kickoff=0），护栏每日兜底 | — |
-
----
-
-## 8. 模型迭代诚实基线（截至 2026-08-12）
-
-### 三条链路现状
-| 链路 | 训练数据 | 关键指标 | 结论 |
-|------|---------|---------|------|
-| **league_v1** (8-12) | 剔世界杯310+友谊259 → 1X2/2999, OU/2469, AH/1274 | 1X2 AUC **0.6445**(acc 0.5245 vs 0.4565 +6.8pp) · **AH AUC 0.7602 强 edge** · OU AUC 0.5456≈基线(无 edge) | AH 有真信号；1X2/OU 从赔率拿不到稳定 edge |
-| **wc2026_v1** (8-12) | `wc2026_merged.json` 115 场(GroupKFold) | 1X2 acc **0.5739** vs 押最热方 **0.6000**（−2.6pp）· AUC 0.6825 · OU AUC 0.5046≈随机 | **ML 打不过市场**，WC 主链路应锚定赔率，ML 仅次级叠加 |
-| **wc_v1** (旧, legacy active 指针) | ~116 场早期 WC | wc_main_v1 + DrawExpert_v3_focal 双 ML | registry 已去重(5→1 副本)；指针仍指向它但无磁盘文件(孤儿)，未激活生产，符合既有"WC 锚定赔率"决定 |
-
-
-### 波胆(OIP Poisson) 校准（2026-07-18 walkforward，仍有效）
-- 通用联赛 `goal_scale=1.2`（test OOS top3 34.41%）；WC 独立 `1.35`
-- 天花板确凿：最常用 1-1 实际占 11.9%，模型 top1=12.9% 已贴近上限
+**重试前提**：新信息源（xG/伤停/第二庄家）或语料×10。
 
 ---
 
 ## 9. 技术栈
-- **后端**：Python 3.11/3.13（.venv）+ FastAPI + uvicorn
-- **预测**：XGBoost / LightGBM / PyTorch（score_model OIP）
-- **前端**：React 18 + TypeScript + Vite 5 + Tailwind + ECharts + framer-motion
-- **数据**：SQLite（GQ.db / football_data.db / shaoxiang_feature_library.db / bets.db）
-- **采集**：乐鱼(GQ) H5（auto_collector + launcher 守护）；历史 The Odds API / interwetten / william
-- **CI**：GitHub Actions（flake8 + pytest + tsc + vite build）
+- **后端**：Python 3.12 (.venv) + FastAPI + uvicorn；SQLite (WAL, 单写者 gq/db.py)
+- **建模**：LightGBM / XGBoost / sklearn / PyTorch(CPU, transformer) / scipy(OIP 求解)
+- **前端**：React 18 + TypeScript + Vite + Tailwind（dist 由 bridge 托管）
+- **采集**：乐鱼(GQ) H5（auto_collector + watchdog）；CI：GitHub Actions（pytest+tsc+vite build）
 
 ---
 
-## 10. 优化路线图（按第一性原理排序）
-
-### P0 — 系统必须能启动且文档真实
-- [x] 本架构文档重写（2026-08-12，取代 7-16 过时版）
-- [x] 入口统一为 `bridge_service.py`（单实例 9000）
-- [x] 双实例收口（restart_bridge.py）
-
-### P1 — 消除 SSoT 名实不符 + 关键 bug
-- [x] `compute_value_layer` 提取为独立模块
-- [x] 事件循环冻结修复（to_thread + LRU 缓存，2026-08-06）
-- [x] 虚拟盘根拦截 `is_virtual_league`（8-07）
-- [x] 赛前 CS 归档 + 赛果验证（8-08）
-- [x] `kickoff=0` 漏档 backfill 57 场（8-12）
-- [x] **修 `/api/matches/state` 缺失**（缺口#1，2026-08-13 实测生效）
-- [x] **修 DT 维度不匹配**（缺口#2，实测已生效，记忆旧数字过时）
-- [x] **修 `league_scoring_prior` 中文匹配**（缺口#3，实测已生效）
-
-### P2 — 注册表与数据清理
-- [x] 清理 model_registry 空壳/重复条目（缺口#4，9→4 版本，2026-08-13）
-- [ ] 清理散落实验 db（electronic_poll_*/live_poll_*/_verify_sandbox）
-- [ ] 清理根目录临时 `_*.py`/`_*.png`/`_*.txt`
-- [ ] 接入跨庄共识(尖庄源)点亮 +EV（缺口#6，待数据）
-
-### P3 — 可靠性加固
-- [x] `kickoff=0` 漏档自动检测（缺口#7，已做护栏 8-13：每日 00:00 自动扫描 finished 漏档并补档）
-- [ ] CI 加 mypy 门禁（SSoT 模块）
-- [ ] 前端三页合并（TradingHub）
-
----
-
-*本文档由赵统筹（总工）按第一性原理维护。任何与本文档矛盾的旧文档/旧假设，以本文档为准。规则铁律详见于 `.workbuddy/memory/MEMORY.md`。*
+*本文档为预测系统的唯一权威架构描述。与本文档矛盾的旧文档/旧假设，以本文档为准。
+规范化执行记录与模型升级路线图：`docs/prediction_refactor_checklist.md`；铁律：`docs/IRON_RULES.md`。*

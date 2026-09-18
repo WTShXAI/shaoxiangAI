@@ -12,7 +12,7 @@ import subprocess, sys, os, time
 ROOT = os.path.dirname(os.path.abspath(__file__))
 VENV_PY = os.path.join(ROOT, ".venv", "Scripts", "pythonw.exe")  # 2026-08-28: pythonw 无窗口不抢焦点
 script = os.path.join(ROOT, "bridge_service.py")
-log = os.path.join(ROOT, "backend_daemon.log")
+log = os.path.join(ROOT, "logs", "backend_daemon.log")
 
 if not os.path.exists(VENV_PY):
     print(f"[ERR] 找不到 venv python: {VENV_PY}")

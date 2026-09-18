@@ -113,8 +113,40 @@ def token_alive() -> Optional[bool]:
         log(f"token 探针异常(按未知处理, 不告警): {e}")
         return None
 
+def kill_orphan_browsers():
+    """清掉已死采集器遗留的 Edge/Chromium 浏览器孤儿进程, 防 OOM 死亡螺旋。
+
+    根因: 采集器(python)崩溃/被强杀时, 其 headless Edge 子进程不一定随之退出,
+    变成父进程已死的孤儿, 持续占用内存; 多次重启后孤儿堆积 → 新实例 Edge 冷启即
+    因内存不足崩溃 → 重启死循环。本函数在杀 python 之后清这些孤儿。
+
+    判定准则: 浏览器进程(msedge/chrome/headless)的父进程已死(或不存在) → 即孤儿 → 强杀。
+    父进程仍存活的浏览器(用户自己的 Edge / 当前存活采集器的浏览器)不受影响, 安全。
+    """
+    killed = 0
+    if psutil is None:
+        return 0
+    for p in psutil.process_iter(["pid", "name"]):
+        try:
+            nm = (p.info["name"] or "").lower()
+        except Exception:
+            continue
+        if not ("msedge" in nm or "chrome" in nm or "headless" in nm):
+            continue
+        try:
+            parent = p.parent()
+        except Exception:
+            parent = None
+        if parent is None or not parent.is_running():
+            try:
+                p.kill()
+                killed += 1
+            except Exception:
+                pass
+    return killed
+
 def kill_residual():
-    """杀掉残留的 ws_collector 进程, 防双实例"""
+    """杀掉残留的 ws_collector 进程, 防双实例; 并清其遗留的浏览器孤儿(防 OOM 螺旋)"""
     killed = 0
     if psutil is not None:
         for p in psutil.process_iter(["pid", "name", "cmdline"]):
@@ -127,7 +159,11 @@ def kill_residual():
             except Exception:
                 continue
     if killed:
-        time.sleep(2)  # 等进程退出
+        time.sleep(2)  # 等进程退出; 此后其浏览器子进程变孤儿
+    # 清孤儿浏览器(防 OOM 螺旋) — 必须在杀 python 之后
+    ob = kill_orphan_browsers()
+    if ob:
+        log(f"已清理孤儿浏览器进程 {ob} 个 (防 OOM)")
     return killed
 
 def restart():

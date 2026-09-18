@@ -229,7 +229,7 @@ def resolve_cs_odds_timeline(home: str, away: str, db_path: str = DB_PATH) -> di
                 return None
             ko = c.execute("SELECT kickoff FROM matches WHERE match_key=?", (mk,)).fetchone()
             ko = ko[0] if ko else None
-            import gq_odds_filter as gq
+            from pipeline import gq_odds_filter as gq  # 2026-09-18 迁入 pipeline/ (原根目录, 消除 cwd 依赖)
             op = gq.get_open(mk, "CS")
             ht = gq.get_ht_close(mk, "CS", ko) if ko else {}
             live = _robust_cs_for_matchkey(c, mk)

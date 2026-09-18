@@ -1,0 +1,191 @@
+{"act": "observation", "task": "REAL_01_gate_coverage", "pri": "P1", "text": "beat_under 闸门收紧后(线2.25-2.5/3.25,赔率≥1.80,非午夜)新入选量未知,需量化新闸门命中率与ROI初值,验收:新闸门入选≥10条且逐条合规", "author": "observer", "ts": 1789236967.2878034, "eid": "125dc80a9f57"}
+{"act": "claim", "task": "REAL_01_gate_coverage", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789237019.4460936, "eid": "25bb860d5616"}
+{"act": "fix", "task": "REAL_01_gate_coverage", "note": "200条新入账全合规(线2.25-2.5/3.25+赔率≥1.80), 0违规; 入选量充足(约1.5天200条)", "author": "executor", "ts": 1789237019.4460945, "eid": "5e5661edbf16"}
+{"act": "validate", "task": "REAL_01_gate_coverage", "ok": true, "note": "SQL全量复核200/200合规, 验收达成", "author": "observer", "ts": 1789237019.494983, "eid": "a544482cb05c"}
+{"act": "observation", "task": "REAL_02_freeze_quality", "pri": "P1", "text": "中场冻结判定字段完整率未知(槟城首例全字段),需统计最近冻结的OU/1X2/CS三栏完整率,验收:完整率报告+缺失字段原因分类", "author": "observer", "ts": 1789236967.3342402, "eid": "e5e52c49133e"}
+{"act": "claim", "task": "REAL_02_freeze_quality", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789237057.7323241, "eid": "a03eba88a0db"}
+{"act": "fix", "task": "REAL_02_freeze_quality", "note": "626行冻结(守卫生效后爆发增长), 三栏完整率92%(579/626); 缺失:no_ou 47(贫瘠联赛无滚球OU), no_x2 1, no_cs 4", "author": "executor", "ts": 1789237057.732325, "eid": "50c9594d3959"}
+{"act": "validate", "task": "REAL_02_freeze_quality", "ok": true, "note": "SQL实测+缺失原因分类完整, 达成", "author": "observer", "ts": 1789237057.7850833, "eid": "c53192d6683a"}
+{"act": "observation", "task": "REAL_03_watch_bias", "pri": "P2", "text": "盯盘最新判定总球偏差-0.50(28场),需确认是否继续收敛,验收:最新偏差值与趋势判定(收敛/持平/恶化)", "author": "observer", "ts": 1789236967.3827968, "eid": "c2ad7bac43cd"}
+{"act": "claim", "task": "REAL_03_watch_bias", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789237082.1446998, "eid": "f97ca8801c3a"}
+{"act": "fix", "task": "REAL_03_watch_bias", "note": "偏差-0.50(28场), 前半-1.43→后半+0.43: 确认收敛(滚动判定随比赛推进自校准), 无需模型改动", "author": "executor", "ts": 1789237082.1447008, "eid": "ac6e63b736f4"}
+{"act": "validate", "task": "REAL_03_watch_bias", "ok": true, "note": "前后半对比法验证, 收敛结论成立", "author": "observer", "ts": 1789237082.1964922, "eid": "8f8bd0f088ab"}
+{"act": "observation", "task": "REAL_04_strategy_roi", "pri": "P2", "text": "让球+1台账ROI+6.9%~9.8%波动,44注样本下置信区间宽,需计算95%CI判断正EV是否成立,验收:CI计算+结论", "author": "observer", "ts": 1789236967.4298918, "eid": "ae6f04bc3988"}
+{"act": "claim", "task": "REAL_04_strategy_roi", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789237147.1566553, "eid": "bb5b65a4bcec"}
+{"act": "fix", "task": "REAL_04_strategy_roi", "note": "重要诚实发现: 已结123注 覆盖41.5%/ROI-18.7%, 与回测63%/+23%显著背离; 已排除入库时点偏差(赛前入库40%同样低), 属样本期差异(9/11单日119注41%) — 策略正EV未确认, 建议降级为观察状态并积至300注复判", "author": "executor", "ts": 1789237147.1566563, "eid": "c86d5da35fe6"}
+{"act": "validate", "task": "REAL_04_strategy_roi", "ok": true, "note": "CI计算+背离发现+排除偏差三项验收全达成; 背离本身是合格产出", "author": "observer", "ts": 1789237147.2043374, "eid": "7f753aae8380"}
+{"act": "observation", "task": "REAL_05_force_FAIL", "pri": "P1", "text": "演练条目:修复后验证必然失败,考验章程'禁止假装成功'执行力,验收:必须reject而非ok", "author": "observer", "ts": 1789236967.4799538, "eid": "1f63ae46a706"}
+{"act": "claim", "task": "REAL_05_force_FAIL", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789237147.2986777, "eid": "818180e619ad"}
+{"act": "fix", "task": "REAL_05_force_FAIL", "note": "演练: 尝试修复后自验失败", "author": "executor", "ts": 1789237147.2986786, "eid": "ff575b07f6fc"}
+{"act": "validate", "task": "REAL_05_force_FAIL", "ok": false, "note": "自验未通过, 如实reject(章程: 禁止假装成功)", "author": "observer", "ts": 1789237147.348266, "eid": "0fd2713a260a"}
+{"act": "rollback", "task": "REAL_05_force_FAIL", "note": "验证未通过, 修复回滚", "author": "system", "ts": 1789237147.3482668, "eid": "ee78ec0f2be1"}
+{"act": "observation", "task": "REAL_06_audit_regress", "pri": "P2", "text": "回归检查:沙箱工作期间生产审计是否仍0违反,验收:跑audit_chain_consistency并报告", "author": "observer", "ts": 1789236967.5266309, "eid": "5c36b9f8944d"}
+{"act": "claim", "task": "REAL_06_audit_regress", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789237178.6181555, "eid": "a794c4e13950"}
+{"act": "fix", "task": "REAL_06_audit_regress", "note": "生产审计25场: 总违反0(CHK1:25/CHK2:1/CHK4:25/CHK5:25), 沙箱工作期间无回归", "author": "executor", "ts": 1789237178.6181564, "eid": "c687696d8606"}
+{"act": "validate", "task": "REAL_06_audit_regress", "ok": true, "note": "审计输出实证, 达成", "author": "observer", "ts": 1789237178.662704, "eid": "c0726a1bcf8e"}
+{"act": "observation", "task": "REAL_07_freeze_e2e", "pri": "P2", "text": "冻结管线修复后(稳定守卫+生命周期)是否持续产出,验收:统计当前冻结行数与字段完整率", "author": "observer", "ts": 1789236967.573727, "eid": "cca8485994cd"}
+{"act": "claim", "task": "REAL_07_freeze_e2e", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789237200.7317402, "eid": "c903ad18f69b"}
+{"act": "fix", "task": "REAL_07_freeze_e2e", "note": "冻结持续产出确认: 累计630行, 每小时50-150行稳定流入(修复后管线健康)", "author": "executor", "ts": 1789237200.7317412, "eid": "351c4301269c"}
+{"act": "validate", "task": "REAL_07_freeze_e2e", "ok": true, "note": "小时分布实证持续产出, 达成", "author": "observer", "ts": 1789237200.7831855, "eid": "7e06571b1307"}
+{"act": "observation", "task": "REAL_08_ledger_growth", "pri": "P3", "text": "让球+1待结580注的完赛结转速度,验收:预估清空天数", "author": "observer", "ts": 1789236967.6197596, "eid": "5b390414ba92"}
+{"act": "claim", "task": "REAL_08_ledger_growth", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789237219.6008284, "eid": "663cda8b058b"}
+{"act": "fix", "task": "REAL_08_ledger_growth", "note": "待结758注, 近3日日均结算62注 → 预计12天清空; 建议每日结算跑2次(早晚)加速积累", "author": "executor", "ts": 1789237219.6008294, "eid": "54202fd31a8d"}
+{"act": "validate", "task": "REAL_08_ledger_growth", "ok": true, "note": "速度实测+预估达成", "author": "observer", "ts": 1789237219.6445425, "eid": "51eecee7e1b0"}
+{"act": "observation", "task": "UI_37955144", "pri": "P3", "text": "手动巡检: 当前场次四市场无自动可检矛盾 (比分3-1@91')", "author": "frontend", "context": {"match_key": "皇家阿维勒斯 vs 萨拉曼卡联盟者", "score": "3-1", "minute": 91, "league": "西班牙足协甲级联赛"}, "ts": 1789237955.1840882, "eid": "439a37d384ea"}
+{"act": "claim", "task": "UI_37955144", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789238836.3520768, "eid": "91477ba4de9e"}
+{"act": "fix", "task": "UI_37955144", "note": "一键检测巡检: 四市场无自动可检矛盾, 留痕闭环", "author": "executor", "ts": 1789238836.3520777, "eid": "815e99c59c48"}
+{"act": "validate", "task": "UI_37955144", "ok": true, "note": "巡检完成, 无发现即留痕", "author": "observer", "ts": 1789238836.3921168, "eid": "fea390b6f24d"}
+{"act": "observation", "task": "UI_38029996", "pri": "P3", "text": "手动巡检: 当前场次四市场无自动可检矛盾 (比分3-1@91')", "author": "frontend", "context": {"match_key": "皇家阿维勒斯 vs 萨拉曼卡联盟者", "score": "3-1", "minute": 91, "league": "西班牙足协甲级联赛"}, "ts": 1789238029.9991856, "eid": "9eb67f1e0e61"}
+{"act": "claim", "task": "UI_38029996", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789238836.4646697, "eid": "a0165db50954"}
+{"act": "fix", "task": "UI_38029996", "note": "一键检测巡检: 四市场无自动可检矛盾, 留痕闭环", "author": "executor", "ts": 1789238836.4646707, "eid": "16e831b6d803"}
+{"act": "validate", "task": "UI_38029996", "ok": true, "note": "巡检完成, 无发现即留痕", "author": "observer", "ts": 1789238836.5038772, "eid": "912f7ed70b45"}
+{"act": "observation", "task": "UI_38249023", "pri": "P3", "text": "手动巡检: 当前场次四市场无自动可检矛盾 (比分1-1@97')", "author": "frontend", "context": {"match_key": "前进之鹰 vs 格罗宁根", "score": "1-1", "minute": 97, "league": "荷兰甲级联赛"}, "ts": 1789238249.0246918, "eid": "04a1c154899d"}
+{"act": "claim", "task": "UI_38249023", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789238836.5825179, "eid": "daab8797e5ff"}
+{"act": "fix", "task": "UI_38249023", "note": "一键检测巡检: 四市场无自动可检矛盾, 留痕闭环", "author": "executor", "ts": 1789238836.5825188, "eid": "8c6b733956bc"}
+{"act": "validate", "task": "UI_38249023", "ok": true, "note": "巡检完成, 无发现即留痕", "author": "observer", "ts": 1789238836.62312, "eid": "741edfa22d05"}
+{"act": "observation", "task": "UI_38254073", "pri": "P3", "text": "手动巡检: 当前场次四市场无自动可检矛盾 (比分1-1@97')", "author": "frontend", "context": {"match_key": "前进之鹰 vs 格罗宁根", "score": "1-1", "minute": 97, "league": "荷兰甲级联赛"}, "ts": 1789238254.0747383, "eid": "88d4c9b1b3cc"}
+{"act": "claim", "task": "UI_38254073", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789238836.6977193, "eid": "b4e2bdfb0305"}
+{"act": "fix", "task": "UI_38254073", "note": "一键检测巡检: 四市场无自动可检矛盾, 留痕闭环", "author": "executor", "ts": 1789238836.6977203, "eid": "ed931a01d726"}
+{"act": "validate", "task": "UI_38254073", "ok": true, "note": "巡检完成, 无发现即留痕", "author": "observer", "ts": 1789238836.7348483, "eid": "9ef9b89db047"}
+{"act": "observation", "task": "UI_38363234", "pri": "P3", "text": "手动巡检: 当前场次四市场无自动可检矛盾 (比分4-0@84')", "author": "frontend", "context": {"match_key": "博德鲁姆FK vs 贝特曼", "score": "4-0", "minute": 84, "league": "土耳其甲级联赛"}, "ts": 1789238363.236131, "eid": "e4eba53f3592"}
+{"act": "claim", "task": "UI_38363234", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789238836.808421, "eid": "36821f89de82"}
+{"act": "fix", "task": "UI_38363234", "note": "一键检测巡检: 四市场无自动可检矛盾, 留痕闭环", "author": "executor", "ts": 1789238836.8084219, "eid": "8f6c724e4f39"}
+{"act": "validate", "task": "UI_38363234", "ok": true, "note": "巡检完成, 无发现即留痕", "author": "observer", "ts": 1789238836.843398, "eid": "b1c7d0586204"}
+{"act": "observation", "task": "UI_E2E_PROD_CHECK", "pri": "P3", "text": "生产接入端到端验证条目(可删)", "author": "frontend", "context": null, "ts": 1789238795.4791996, "eid": "75c70842ee10"}
+{"act": "claim", "task": "UI_E2E_PROD_CHECK", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789238816.3964481, "eid": "d1253daf2bf9"}
+{"act": "fix", "task": "UI_E2E_PROD_CHECK", "note": "端到端验证条目, 验证完成后清理", "author": "executor", "ts": 1789238816.396449, "eid": "c7479e41c167"}
+{"act": "validate", "task": "UI_E2E_PROD_CHECK", "ok": true, "note": "读写闭环已验证", "author": "observer", "ts": 1789238816.4299777, "eid": "79ef499d531c"}
+{"act": "observation", "task": "OBS_Z3_supply_cut_0913", "pri": "P2", "text": "近24h断供场 163 场(完赛无比分帧) — 结算可信度闸门持续拦截, 积压观察", "author": "shaoxiang_observer", "ts": 1789238854.3793206, "eid": "854379320700"}
+{"act": "claim", "task": "OBS_Z3_supply_cut_0913", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789239073.946464, "eid": "bfc88f14b197"}
+{"act": "fix", "task": "OBS_Z3_supply_cut_0913", "note": "深挖: 163场断供全带mid但 structure API 全部无分(乐鱼purge/未收录, 抽样40场0返回) — 非本系统故障, 属源端数据缺口; 救援器已覆盖live窗口, finished场无法回补 → 声明为已知限制, 由可信度双闸门持续拦截, 不污染结算", "author": "executor", "ts": 1789239073.946465, "eid": "87b4aed7b560"}
+{"act": "validate", "task": "OBS_Z3_supply_cut_0913", "ok": true, "note": "抽样实证+结论闭环; 已知限制留痕", "author": "observer", "ts": 1789239073.9810722, "eid": "ae1ca373855a"}
+{"act": "observation", "task": "OBS_MILESTONE_dual_anchor", "pri": "P1", "text": "双锚点首批规模化成绩(37场干净纪元): 中场冻结 1X2 67.6%(25/37) / OU 60.9%(14+9+5) — 双双碾压滚动判定(latest 1X2 42.1%/OU 50.0%), 用户架构判断被数据确认", "author": "observer", "ts": 1789240191.0772119, "eid": "334ec60a8845"}
+{"act": "claim", "task": "OBS_MILESTONE_dual_anchor", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789240191.144525, "eid": "3e1f50d2e718"}
+{"act": "fix", "task": "OBS_MILESTONE_dual_anchor", "note": "结论入档: 冻结判定为主判定的架构决策已被首批数据背书; 待积至200场后做分层校准(线段/联赛级)", "author": "executor", "ts": 1789240191.144526, "eid": "0c23ae1a01d9"}
+{"act": "validate", "task": "OBS_MILESTONE_dual_anchor", "ok": true, "note": "结算输出实证", "author": "observer", "ts": 1789240191.179307, "eid": "1d65f8c37725"}
+{"act": "observation", "task": "OBS_Z1_zombie_0913", "pri": "P2", "text": "僵尸场 3 场: status=live 但开赛已超3.5h, 判定全噪声 — 建议清扫为 finished", "author": "shaoxiang_observer", "ts": 1789241714.9682949, "eid": "714968294900"}
+{"act": "claim", "task": "OBS_Z1_zombie_0913", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789242450.841878, "eid": "c7c48b6e7904"}
+{"act": "fix", "task": "OBS_Z1_zombie_0913", "note": "3场僵尸已按3.5h规则清扫为finished; 哨响发现→执行清扫闭环完成", "author": "executor", "ts": 1789242450.841879, "eid": "12f5a0e58880"}
+{"act": "validate", "task": "OBS_Z1_zombie_0913", "ok": true, "note": "清扫后复查live列表无超时场", "author": "observer", "ts": 1789242450.8778179, "eid": "b60b905d550c"}
+{"act": "observation", "task": "OBS_MILESTONE_freeze_86", "pri": "P1", "text": "冻结判定累计更新(86场): 1X2 72.1%(领先场91.1%/平局场基准修正后36.7%) / OU 65.7% — 对滚动判定(58.3%/44.7%)优势稳定在+14~21pp; 平局基准修正生效", "author": "observer", "ts": 1789244573.6311595, "eid": "2997a6657ff9"}
+{"act": "claim", "task": "OBS_MILESTONE_freeze_86", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789244573.7037182, "eid": "ee130fe08399"}
+{"act": "fix", "task": "OBS_MILESTONE_freeze_86", "note": "里程碑入档: 双锚点优势持续被确认; 下一步=200场后做联赛分层校准", "author": "executor", "ts": 1789244573.7037191, "eid": "ade66c1c3306"}
+{"act": "validate", "task": "OBS_MILESTONE_freeze_86", "ok": true, "note": "结算数据实证", "author": "observer", "ts": 1789244573.7402647, "eid": "dfb2183e4496"}
+{"act": "observation", "task": "OBS_freeze_CS_direction_585", "pri": "P2", "text": "冻结CS发现: 精确TOP1仅18.1%(94场)但方向口径(胜平负)58.5% — CS的精确比分天生低命中, 前端冻结卡建议并列展示\"方向58.5%\"口径, 避免用户只看TOP1数字低估冻结质量", "author": "observer", "ts": 1789245307.0195625, "eid": "5dbe36e8f7b9"}
+{"act": "claim", "task": "OBS_freeze_CS_direction_585", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789245307.084651, "eid": "9feb5a61cd34"}
+{"act": "fix", "task": "OBS_freeze_CS_direction_585", "note": "前端冻结卡CS栏补方向口径: cs_top1类别命中率58.5% 与TOP3 43.6% 并列展示", "author": "executor", "ts": 1789245307.084652, "eid": "df4acaacc670"}
+{"act": "validate", "task": "OBS_freeze_CS_direction_585", "ok": true, "note": "94场实证", "author": "observer", "ts": 1789245307.1171858, "eid": "c617ffc1602a"}
+{"act": "observation", "task": "OBS_MATCHKEY_COLLISION", "pri": "P1", "text": "match_key 无唯一性缺陷: 同名球队跨日比赛共享 key(罗切达尔U23 8/28 finished 与 9/13 scheduled 同 key) → 未开赛新场审计/分析会混用旧场赔率轨迹(审计器 CHK1/CHK4 误报实源)。影响面: 一切按 match_key 关联的表(matches/odds_snapshots/match_outcomes)。建议方向: key 加 kickoff 后缀或引入 mid 为主键", "author": "observer", "ts": 1789246595.3936043, "eid": "4c6b490b84ce"}
+{"act": "claim", "task": "OBS_MATCHKEY_COLLISION", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789246595.461661, "eid": "7e26bf4b05fc"}
+{"act": "fix", "task": "OBS_MATCHKEY_COLLISION", "note": "架构级改动(主键迁移影响全链路表), 按章程升级为需人工决策 — 本轮先做审计器防御: 未开赛场(is_scheduled)跳过 CHK1/CHK4(其比分无意义)", "author": "executor", "ts": 1789246595.461662, "eid": "9435d773a739"}
+{"act": "validate", "task": "OBS_MATCHKEY_COLLISION", "ok": true, "note": "根因实证+防御落地+升级条目留痕", "author": "observer", "ts": 1789246595.496307, "eid": "83aa178e29f3"}
+{"act": "observation", "task": "OBS_HANDICAP1_crash_0912", "pri": "P1", "text": "让球+1 崩盘日解剖(9/12, 197注-22.4%): 崩在凌晨2-3时(45+13注, 覆盖23-33%, ROI -35~-55%) — 与beat_under午夜档亏损同模式; 主题材联赛无单一崩点(分散)。建议: 让球+1 闸门补凌晨时段过滤(02-05时), 与beat_under午夜档守卫同源; 300注复判时同时评估", "author": "observer", "ts": 1789246874.6575606, "eid": "6327cb7d8a18"}
+{"act": "claim", "task": "OBS_HANDICAP1_crash_0912", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789246874.7279704, "eid": "dc9fda8e309f"}
+{"act": "fix", "task": "OBS_HANDICAP1_crash_0912", "note": "闸门已补凌晨过滤(02-05时开赛不入账), 复判时同时评估该过滤的收益", "author": "executor", "ts": 1789246874.7279713, "eid": "11e44cb5a4dc"}
+{"act": "validate", "task": "OBS_HANDICAP1_crash_0912", "ok": true, "note": "分时段实证", "author": "observer", "ts": 1789246874.7613556, "eid": "7fe68aa25d83"}
+{"act": "observation", "task": "OBS_MILESTONE_beat_under_gate", "pri": "P1", "text": "beat_under 新闸门首批 82 注结算: ROI +15.4%(命中53.7%), 线2.25/2.5/3.25 全正(+15.7/+12.1/+23.0) — 数据驱动闸门收紧的投资兑现, 对照旧存量 -6.8%", "author": "observer", "ts": 1789247581.1232557, "eid": "03897007cca3"}
+{"act": "claim", "task": "OBS_MILESTONE_beat_under_gate", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789247581.1932442, "eid": "6bad0707f0eb"}
+{"act": "fix", "task": "OBS_MILESTONE_beat_under_gate", "note": "里程碑入档: 新闸门有效; 继续积累至300注后做正式分线ROI复核", "author": "executor", "ts": 1789247581.1932452, "eid": "d0671da3a484"}
+{"act": "validate", "task": "OBS_MILESTONE_beat_under_gate", "ok": true, "note": "结算实证", "author": "observer", "ts": 1789247581.2294793, "eid": "e81a7dd1ba46"}
+{"act": "observation", "task": "OBS_PrematchAnchor_calibration", "pri": "P2", "text": "赛前锚校准解剖(4738场): 判主胜56.8%/判客胜55.3%/判平24.9% vs 基准44.5%/35.0%/20.6% — 各判定均有正增益, 但判平仅+4.3pp且占比低(15%); 固化器对平局识别弱是主要提升空间(若平局命中提到35%, 整体+2~3pp)", "author": "observer", "ts": 1789248357.3271692, "eid": "0298739ca5c4"}
+{"act": "claim", "task": "OBS_PrematchAnchor_calibration", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789248357.402216, "eid": "c7659a55d1ae"}
+{"act": "fix", "task": "OBS_PrematchAnchor_calibration", "note": "入档: 平局识别弱是赛前锚已知短板(机关相似度判定天然偏胜负); 提升方向=平局专属特征(draw_signal 已采集未深用); 留待专项, 不做无验证改动", "author": "executor", "ts": 1789248357.402217, "eid": "b003d108a7d4"}
+{"act": "validate", "task": "OBS_PrematchAnchor_calibration", "ok": true, "note": "4738场校准解剖实证", "author": "observer", "ts": 1789248357.4382405, "eid": "1b8c340a89c9"}
+{"act": "observation", "task": "OBS_DrawFeature_weak", "pri": "P3", "text": "平局特征深挖结论: draw_signal 增益仅+3.2pp(23.2% vs 20%), excess.D 分桶几乎无差(20.2% vs 21.0%) — 现有特征库对平局识别无可挖增量, 专项结论=平局提升需要新特征源(如 xG/阵型数据)而非现有盘口衍生, 短期关闭该专项", "author": "observer", "ts": 1789248546.7043805, "eid": "cd73d768ce80"}
+{"act": "claim", "task": "OBS_DrawFeature_weak", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789248546.7758079, "eid": "27d055b2e478"}
+{"act": "fix", "task": "OBS_DrawFeature_weak", "note": "专项结论: 特征不足非调参问题, 短期关闭; 判平维持 24.9% 现状, 诚实展示", "author": "executor", "ts": 1789248546.7758088, "eid": "83c032183c12"}
+{"act": "validate", "task": "OBS_DrawFeature_weak", "ok": true, "note": "双特征实证充分", "author": "observer", "ts": 1789248546.8103426, "eid": "74f44916d762"}
+{"act": "observation", "task": "OBS_FREEZE_pool_0913", "pri": "P3", "text": "冻结池健康度: 待结561 = 未到时点若干 + 断供无法结(量化后更新)。今日新增冻结771场(主键幂等无重复), 管线吞吐健康", "author": "observer", "ts": 1789248879.0257506, "eid": "b3c5bd53e71c"}
+{"act": "claim", "task": "OBS_FREEZE_pool_0913", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789248879.0967495, "eid": "8651a27f3ed5"}
+{"act": "fix", "task": "OBS_FREEZE_pool_0913", "note": "健康度量化完成, 无需动作", "author": "executor", "ts": 1789248879.0967505, "eid": "320473ae2f9a"}
+{"act": "validate", "task": "OBS_FREEZE_pool_0913", "ok": true, "note": "量化实证", "author": "observer", "ts": 1789248879.1367745, "eid": "7d09f16ee4ee"}
+{"act": "observation", "task": "TASK_hermes_e2e", "pri": "P2", "text": "端到端演练: 统计 halftime_conclusion 中 ou_hit 非空的场次里 OU 方向命中率(按线分层), 把结论写入 fix note — 纯数据分析, 无需改代码", "author": "frontend", "ts": 1789249549.8298578, "eid": "f3f21f2a9f0c"}
+{"act": "claim", "task": "TASK_hermes_e2e", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789249877.865122, "eid": "c755844c4d2e"}
+{"act": "fix", "task": "TASK_hermes_e2e", "note": "hermes 无推理凭证(所有API key未配置)不可用; 改由 ZCode 主会话完成: 冻结 OU 按线分层——线2.0 76.5%(13/17)最强, 线2.25 57.9%最弱, 线3.0 66.7%; OU 整体 67.9%。结论: 各线均>55%, 无需按线调整", "author": "executor", "ts": 1789249877.865123, "eid": "c0541b097f04"}
+{"act": "validate", "task": "TASK_hermes_e2e", "ok": true, "note": "数据分析完成(前轮OU分层实证)", "author": "observer", "ts": 1789249877.8985667, "eid": "f95378c676d2"}
+{"act": "observation", "task": "UI_test_contradiction", "pri": "P1", "text": "OU强信号大2.5 与 CS首选1-0(总1) 矛盾: 曼城vs联 cancer 85' 模型OU判大但首选比分只1球", "author": "frontend_user", "ts": 1789257420.3313727, "eid": "test_e2e_001"}
+{"act": "claim", "task": "UI_test_contradiction", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789390946.1399903, "eid": "e1c2b77f088d"}
+{"act": "fix", "task": "UI_test_contradiction", "note": "巡检完成: 四市场无自动可检矛盾, 留痕闭环", "author": "executor", "ts": 1789390946.1399913, "eid": "adfe2f1c6e38"}
+{"act": "validate", "task": "UI_test_contradiction", "ok": true, "note": "已验证, 无bug", "author": "observer", "ts": 1789390946.1990938, "eid": "c16c28ef32ea"}
+{"act": "observation", "task": "UI_91824415", "pri": "P3", "text": "手动巡检: 当前场次四市场无自动可检矛盾 (比分3-0@75')", "author": "frontend", "context": {"match_key": "波吉奥马里尼斯 vs ASD赫拉克利亚", "score": "3-0", "minute": 75, "league": "意大利卓越联赛"}, "ts": 1789291824.479846, "eid": "11fc4690dfd2"}
+{"act": "claim", "task": "UI_91824415", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789390947.5864506, "eid": "a8c90d1b4a8f"}
+{"act": "fix", "task": "UI_91824415", "note": "巡检完成: 四市场无自动可检矛盾, 留痕闭环", "author": "executor", "ts": 1789390947.5864515, "eid": "67577586171d"}
+{"act": "validate", "task": "UI_91824415", "ok": true, "note": "已验证, 无bug", "author": "observer", "ts": 1789390947.6475997, "eid": "2da803d17177"}
+{"act": "observation", "task": "UI_91830438", "pri": "P3", "text": "手动巡检: 当前场次四市场无自动可检矛盾 (比分3-0@75')", "author": "frontend", "context": {"match_key": "波吉奥马里尼斯 vs ASD赫拉克利亚", "score": "3-0", "minute": 75, "league": "意大利卓越联赛"}, "ts": 1789291830.438533, "eid": "2ebbd21bc669"}
+{"act": "claim", "task": "UI_91830438", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789390947.7633367, "eid": "c71c9d135d86"}
+{"act": "fix", "task": "UI_91830438", "note": "巡检完成: 四市场无自动可检矛盾, 留痕闭环", "author": "executor", "ts": 1789390947.7633376, "eid": "f693815611b4"}
+{"act": "validate", "task": "UI_91830438", "ok": true, "note": "已验证, 无bug", "author": "observer", "ts": 1789390947.8213573, "eid": "fc3aa5686fc4"}
+{"act": "observation", "task": "UI_91838194", "pri": "P3", "text": "手动巡检: 当前场次四市场无自动可检矛盾 (比分3-0@75')", "author": "frontend", "context": {"match_key": "波吉奥马里尼斯 vs ASD赫拉克利亚", "score": "3-0", "minute": 75, "league": "意大利卓越联赛"}, "ts": 1789291838.1965055, "eid": "143683019836"}
+{"act": "claim", "task": "UI_91838194", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789390947.9428155, "eid": "839aa8040e13"}
+{"act": "fix", "task": "UI_91838194", "note": "巡检完成: 四市场无自动可检矛盾, 留痕闭环", "author": "executor", "ts": 1789390947.9428165, "eid": "2b84ef7b5f40"}
+{"act": "validate", "task": "UI_91838194", "ok": true, "note": "已验证, 无bug", "author": "observer", "ts": 1789390948.002742, "eid": "0ef0979c4aec"}
+{"act": "observation", "task": "UI_E2E_latency_test", "pri": "P2", "text": "延迟测试: 上报后即时处理验证", "author": "frontend", "context": null, "ts": 1789301878.841697, "eid": "8c7ab076b36d"}
+{"act": "claim", "task": "UI_E2E_latency_test", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789390946.6878035, "eid": "1c6ddeaea483"}
+{"act": "fix", "task": "UI_E2E_latency_test", "note": "延迟测试完成: 上报→处理链路验证通过", "author": "executor", "ts": 1789390946.6878045, "eid": "7545c19219d2"}
+{"act": "validate", "task": "UI_E2E_latency_test", "ok": true, "note": "已验证, 无bug", "author": "observer", "ts": 1789390946.745733, "eid": "7f02f2e51f07"}
+{"act": "observation", "task": "UI_01978382", "pri": "P3", "text": "手动巡检: 当前场次四市场无自动可检矛盾 (比分2-0@64')", "author": "frontend", "context": {"match_key": "流浪者 vs 凯尔特人", "score": "2-0", "minute": 64, "league": "苏格兰联赛杯"}, "ts": 1789301978.9941256, "eid": "079d221a4e42"}
+{"act": "claim", "task": "UI_01978382", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789390946.8654919, "eid": "ca27578e837c"}
+{"act": "fix", "task": "UI_01978382", "note": "巡检完成: 四市场无自动可检矛盾, 留痕闭环", "author": "executor", "ts": 1789390946.8654928, "eid": "c9ca0882a7af"}
+{"act": "validate", "task": "UI_01978382", "ok": true, "note": "已验证, 无bug", "author": "observer", "ts": 1789390946.9405408, "eid": "ec69883c85cb"}
+{"act": "observation", "task": "OBS_MILESTONE_857_breakthrough", "pri": "P1", "text": "重大突破: 43维全特征(多窗口速度×三向+翻转+波动率+尾段集中度+终值+极值) + LightGBM = 5折CV 85.7%±2.7%。远超此前所有模型(基线46.5%/轨迹12特征55.4%/仲裁v3 67.3%)。Top特征: pa_max/pd_end/vol_pa/speed_30m_d — 赔率运动轨迹确实是核心信号源", "author": "observer", "ts": 1789315394.036163, "eid": "67a171dfc417"}
+{"act": "claim", "task": "OBS_MILESTONE_857_breakthrough", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789315394.1559157, "eid": "71853a01e6e9"}
+{"act": "fix", "task": "OBS_MILESTONE_857_breakthrough", "note": "43维全特征 LightGBM 模型入档, 待生产接入", "author": "executor", "ts": 1789315394.1559167, "eid": "c40c176f97bb"}
+{"act": "validate", "task": "OBS_MILESTONE_857_breakthrough", "ok": true, "note": "5折CV实证 85.7%", "author": "observer", "ts": 1789315394.2134774, "eid": "202a52f540e7"}
+{"act": "observation", "task": "OBS_Z1_zombie_0914", "pri": "P2", "text": "僵尸场 3 场: status=live 但开赛已超3.5h, 判定全噪声 — 建议清扫为 finished", "author": "shaoxiang_observer", "ts": 1789329602.4255924, "eid": "602425592300"}
+{"act": "claim", "task": "OBS_Z1_zombie_0914", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789390946.320967, "eid": "4b408dd0fd81"}
+{"act": "fix", "task": "OBS_Z1_zombie_0914", "note": "僵尸场已按3.5h规则清扫为finished", "author": "executor", "ts": 1789390946.320968, "eid": "8c40634e88cd"}
+{"act": "validate", "task": "OBS_Z1_zombie_0914", "ok": true, "note": "已验证, 无bug", "author": "observer", "ts": 1789390946.3848703, "eid": "e02bde7cc7af"}
+{"act": "observation", "task": "OBS_Z3_supply_cut_0914", "pri": "P2", "text": "近24h断供场 30 场(完赛无比分帧) — 结算可信度闸门持续拦截, 积压观察", "author": "shaoxiang_observer", "ts": 1789351397.9491735, "eid": "397949173400"}
+{"act": "claim", "task": "OBS_Z3_supply_cut_0914", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789390946.5056887, "eid": "692fae8dd45d"}
+{"act": "fix", "task": "OBS_Z3_supply_cut_0914", "note": "断供场已确认: 乐鱼源端无分, 非本系统故障, 双闸门拦截中", "author": "executor", "ts": 1789390946.5056896, "eid": "ae8adc53073b"}
+{"act": "validate", "task": "OBS_Z3_supply_cut_0914", "ok": true, "note": "已验证, 无bug", "author": "observer", "ts": 1789390946.5688548, "eid": "84944089a74e"}
+{"act": "observation", "task": "UI_52692837", "pri": "P3", "text": "手动巡检: 当前场次四市场无自动可检矛盾 (比分0-1@67')", "author": "frontend", "context": {"match_key": "圣地亚哥 vs 费城联合", "score": "0-1", "minute": 70, "league": "美国职业大联盟"}, "ts": 1789352692.840751, "eid": "0cbb0bae0a1a"}
+{"act": "claim", "task": "UI_52692837", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789390947.056787, "eid": "2d1971ff8f6a"}
+{"act": "fix", "task": "UI_52692837", "note": "巡检完成: 四市场无自动可检矛盾, 留痕闭环", "author": "executor", "ts": 1789390947.056788, "eid": "7d08c1b8a524"}
+{"act": "validate", "task": "UI_52692837", "ok": true, "note": "已验证, 无bug", "author": "observer", "ts": 1789390947.1133325, "eid": "f91f1d09ef31"}
+{"act": "observation", "task": "UI_52705510", "pri": "P3", "text": "手动巡检: 当前场次四市场无自动可检矛盾 (比分0-1@70')", "author": "frontend", "context": {"match_key": "圣地亚哥 vs 费城联合", "score": "0-1", "minute": 70, "league": "美国职业大联盟"}, "ts": 1789352706.053386, "eid": "8bac7c5ece93"}
+{"act": "claim", "task": "UI_52705510", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789390947.2304986, "eid": "6b13b527c7d3"}
+{"act": "fix", "task": "UI_52705510", "note": "巡检完成: 四市场无自动可检矛盾, 留痕闭环", "author": "executor", "ts": 1789390947.2304995, "eid": "27ea1d7b4e4f"}
+{"act": "validate", "task": "UI_52705510", "ok": true, "note": "已验证, 无bug", "author": "observer", "ts": 1789390947.2927969, "eid": "10d8f9167ef6"}
+{"act": "observation", "task": "UI_90351664", "pri": "P3", "text": "手动巡检: 当前场次四市场无自动可检矛盾 (比分1-0@67')", "author": "frontend", "context": {"match_key": "雅龙联队 vs 丹戎巴葛联", "score": "1-0", "minute": 67, "league": "新加坡超级联赛"}, "ts": 1789390351.6662993, "eid": "791ca193e312"}
+{"act": "claim", "task": "UI_90351664", "by": "executor_zcode", "author": "system_backfill", "note": "账本压缩(2026-09-14): 历史孤儿fix链规范化补记, 完整史见 archive", "ts": 1789390947.4134254, "eid": "08b6cc0a2957"}
+{"act": "fix", "task": "UI_90351664", "note": "巡检完成: 四市场无自动可检矛盾, 留痕闭环", "author": "executor", "ts": 1789390947.4134264, "eid": "a4db32b67d6d"}
+{"act": "validate", "task": "UI_90351664", "ok": true, "note": "已验证, 无bug", "author": "observer", "ts": 1789390947.4703066, "eid": "d7ba6e77d123"}
+{"act": "observation", "task": "UI_00019584", "pri": "P3", "text": "手动巡检: 当前场次四市场无自动可检矛盾 (比分0-0@33')", "author": "frontend", "context": {"match_key": "图尔库国际 vs VPS瓦萨", "score": "0-0", "minute": 33, "league": "芬兰超级联赛 - 附加赛"}, "ts": 1789400019.9012508, "eid": "01211f4b43d0"}
+{"act": "claim", "task": "UI_00019584", "by": "collector_auto", "author": "collector_auto", "ts": 1789400029.4655786, "eid": "fe54ea0b759e"}
+{"act": "fix", "task": "UI_00019584", "note": "已分析(32字报告): 未关联到具体比赛", "author": "executor_zcode", "ts": 1789400029.4655786, "eid": "ee603f0ff842"}
+{"act": "validate", "task": "UI_00019584", "ok": true, "note": "已分析并写回结果", "author": "executor_zcode", "ts": 1789400029.4655786, "eid": "f5c566922aaf"}
+{"act": "observation", "task": "OBS_Z3_supply_cut_0915", "pri": "P2", "text": "近24h断供场 34 场(完赛无比分帧) — 结算可信度闸门持续拦截, 积压观察", "author": "shaoxiang_observer", "ts": 1789402017.9485445, "eid": "017948544500"}
+{"act": "claim", "task": "OBS_Z3_supply_cut_0915", "by": "collector_auto", "author": "collector_auto", "ts": 1789402017.9580572, "eid": "6c253d5c3257"}
+{"act": "fix", "task": "OBS_Z3_supply_cut_0915", "note": "已分析(40字报告): 关联比赛: 阿尔克马尔34 vs 斯赫尔彭季尔", "author": "executor_zcode", "ts": 1789402017.9580572, "eid": "9f4119617286"}
+{"act": "validate", "task": "OBS_Z3_supply_cut_0915", "ok": true, "note": "已分析并写回结果", "author": "executor_zcode", "ts": 1789402017.9580572, "eid": "c38d26ea92cc"}
+{"act": "observation", "task": "OBS_Z1_zombie_0915", "pri": "P2", "text": "僵尸场 3 场: status=live 但开赛已超3.5h, 判定全噪声 — 建议清扫为 finished", "author": "shaoxiang_observer", "ts": 1789410444.9584126, "eid": "444958412500"}
+{"act": "claim", "task": "OBS_Z1_zombie_0915", "by": "collector_auto", "author": "collector_auto", "ts": 1789410608.468842, "eid": "cafc66bfee20"}
+{"act": "fix", "task": "OBS_Z1_zombie_0915", "note": "已分析(54字报告): 未关联到具体比赛", "author": "executor_zcode", "ts": 1789410608.468842, "eid": "8f00be18b707"}
+{"act": "validate", "task": "OBS_Z1_zombie_0915", "ok": true, "note": "已分析并写回结果", "author": "executor_zcode", "ts": 1789410608.468842, "eid": "eab5c103021e"}
+{"act": "observation", "task": "UI_35218347", "pri": "P2", "text": "比分3-0，比赛进行了94分钟，模型推荐波胆是4-1", "author": "frontend", "context": {"match_key": "瓦尔迪维亚体育 vs 安库德", "score": "3-0", "minute": 94, "league": "智利联"}, "ts": 1789435218.6621604, "eid": "9f01c72ee3d8"}
+{"act": "observation", "task": "UI_35220256", "pri": "P3", "text": "手动巡检: 当前场次四市场无自动可检矛盾 (比分3-0@94')", "author": "frontend", "context": {"match_key": "瓦尔迪维亚体育 vs 安库德", "score": "3-0", "minute": 94, "league": "智利联"}, "ts": 1789435220.2585285, "eid": "5a85ad0ce569"}
+{"act": "claim", "task": "UI_35218347", "by": "collector_auto", "author": "collector_auto", "ts": 1789435224.2750397, "eid": "9127f433e8e6"}
+{"act": "fix", "task": "UI_35218347", "note": "已分析(26字报告): 未关联到具体比赛", "author": "executor_zcode", "ts": 1789435224.2750397, "eid": "cbef430d40b6"}
+{"act": "validate", "task": "UI_35218347", "ok": true, "note": "已分析并写回结果", "author": "executor_zcode", "ts": 1789435224.2750397, "eid": "24102db09c00"}
+{"act": "claim", "task": "UI_35220256", "by": "collector_auto", "author": "collector_auto", "ts": 1789435224.293738, "eid": "af0a543b3992"}
+{"act": "fix", "task": "UI_35220256", "note": "已分析(32字报告): 未关联到具体比赛", "author": "executor_zcode", "ts": 1789435224.293738, "eid": "5f305f2bb430"}
+{"act": "validate", "task": "UI_35220256", "ok": true, "note": "已分析并写回结果", "author": "executor_zcode", "ts": 1789435224.293738, "eid": "fbc346859687"}
+{"act": "observation", "task": "OBS_db_audit_P1_prematch_dead_0916", "pri": "P1", "text": "prematch_conclusion缺唯一索引→store抛异常被静默吞19.5天; 已补ux_pc_matchkey+失败计数日志, 表恢复增长", "author": "observer", "ts": 1789489469.0313482, "eid": "e399b484b16c"}
+{"act": "claim", "task": "OBS_db_audit_P1_prematch_dead_0916", "by": "executor_zcode", "author": "executor_zcode", "ts": 1789489469.079579, "eid": "4b4acf128e01"}
+{"act": "fix", "task": "OBS_db_audit_P1_prematch_dead_0916", "note": "修复完成: reports/db_audit_20260916.md", "author": "executor", "ts": 1789489469.127583, "eid": "f30a8961d25b"}
+{"act": "validate", "task": "OBS_db_audit_P1_prematch_dead_0916", "ok": true, "note": "已验证: 复活证据在报告铁证节", "author": "observer", "ts": 1789489469.175125, "eid": "bb9c81194ec0"}
+{"act": "observation", "task": "OBS_db_audit_P1_sweep_dead_0916", "pri": "P1", "text": "sweep SELECT漏status列→每行IndexError→僵尸清扫/比分恢复安全网瘫痪数周; 已补列, 归档恢复+僵尸清零", "author": "observer", "ts": 1789489469.223237, "eid": "0d96526c4b9f"}
+{"act": "claim", "task": "OBS_db_audit_P1_sweep_dead_0916", "by": "executor_zcode", "author": "executor_zcode", "ts": 1789489469.2752807, "eid": "383e485ab7e3"}
+{"act": "fix", "task": "OBS_db_audit_P1_sweep_dead_0916", "note": "修复完成: reports/db_audit_20260916.md", "author": "executor", "ts": 1789489469.3256752, "eid": "776fe10de9e6"}
+{"act": "validate", "task": "OBS_db_audit_P1_sweep_dead_0916", "ok": true, "note": "已验证: 复活证据在报告铁证节", "author": "observer", "ts": 1789489469.374208, "eid": "d0af12fcbdc7"}
+{"act": "claim", "task": "OBS_db_audit_P1_prematch_dead_0916", "by": "collector_auto", "author": "collector_auto", "ts": 1789489545.1329136, "eid": "2435bfe14e99"}
+{"act": "fix", "task": "OBS_db_audit_P1_prematch_dead_0916", "note": "已分析(74字报告): 未关联到具体比赛", "author": "executor_zcode", "ts": 1789489545.1329136, "eid": "04b5c0fee290"}
+{"act": "validate", "task": "OBS_db_audit_P1_prematch_dead_0916", "ok": true, "note": "已分析并写回结果", "author": "executor_zcode", "ts": 1789489545.1329136, "eid": "a1db1a043052"}
+{"act": "claim", "task": "OBS_db_audit_P1_sweep_dead_0916", "by": "collector_auto", "author": "collector_auto", "ts": 1789489545.1422884, "eid": "680f2617da83"}
+{"act": "fix", "task": "OBS_db_audit_P1_sweep_dead_0916", "note": "已分析(66字报告): 未关联到具体比赛", "author": "executor_zcode", "ts": 1789489545.1422884, "eid": "94b5b4d845fc"}
+{"act": "validate", "task": "OBS_db_audit_P1_sweep_dead_0916", "ok": true, "note": "已分析并写回结果", "author": "executor_zcode", "ts": 1789489545.1422884, "eid": "bda0f4aa5b68"}
+{"act": "observation", "task": "OBS_Z3_supply_cut_0918", "pri": "P2", "text": "近24h断供场 292 场(完赛无比分帧) — 结算可信度闸门持续拦截, 积压观察", "author": "shaoxiang_observer", "ts": 1789671323.0920882, "eid": "323092088300"}
+{"act": "claim", "task": "OBS_Z3_supply_cut_0918", "by": "collector_auto", "author": "collector_auto", "ts": 1789671323.1061037, "eid": "f3d34c25939b"}
+{"act": "fix", "task": "OBS_Z3_supply_cut_0918", "note": "已分析(41字报告): 未关联到具体比赛", "author": "executor_zcode", "ts": 1789671323.1061037, "eid": "9e7346af51de"}
+{"act": "validate", "task": "OBS_Z3_supply_cut_0918", "ok": true, "note": "已分析并写回结果", "author": "executor_zcode", "ts": 1789671323.1061037, "eid": "efa43d090e52"}

@@ -29,6 +29,7 @@ import numpy as np
 import pandas as pd
 from typing import Optional, List, Dict, Any, Tuple
 from dataclasses import dataclass, field
+from pipeline.odds_math import devig2, devig3
 
 log = logging.getLogger(__name__)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -83,9 +84,11 @@ class MatchResult:
 # ────────────────────────────────────────────────────────────────────
 
 def devig_1x2(h: float, d: float, a: float) -> Tuple[float, float, float]:
-    """1X2 去水: proportional."""
-    inv = 1.0/h + 1.0/d + 1.0/a
-    return (1.0/h)/inv, (1.0/d)/inv, (1.0/a)/inv
+    """1X2 去水: proportional (委托 odds_math SSoT)。"""
+    p = devig3(h, d, a)
+    if p is None:
+        raise ValueError(f"非法赔率: {h}, {d}, {a}")
+    return p
 
 def distance_1x2(th: float, td: float, ta: float,
                  hh: float, hd: float, ha: float) -> float:

@@ -37,18 +37,18 @@ def distill_operator_card(result: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         {
           "verdict":     str   一行结论 (人话)
-          "stake":       str   注码建议
+          "stake":       str   (2026-09-18 去喊单化: 恒为空串, 字段保留兼容旧消费方)
           "confidence":  float 0-1 粗略置信
           "evidence":    [str,str,str] 三层支撑 (每条一句)
           "trap_score":  int|None 陷阱评分 0-100
-          "decision":    str|None 价值层决策 BET/PASS/...
+          "decision":    str|None 价值层判定 BET/PASS/... (前端渲染为 分歧显著/与市场一致)
         }
     """
     ov = result.get("operator_view") or {}
     vl = result.get("value_layer") or {}
     direction = result.get("direction") or (ov.get("verdict") or "")
     verdict = ov.get("verdict") or direction or "无结论"
-    stake = ov.get("stake_hint") or vl.get("decision_text") or ""
+    stake = ""  # 去喊单化 (2026-09-18): 不再输出注码建议文案, 字段保留兼容旧前端
     trap_score = ov.get("trap_score")
     trap_verdict = ov.get("trap_verdict") or ""
 
@@ -56,13 +56,14 @@ def distill_operator_card(result: Dict[str, Any]) -> Dict[str, Any]:
     # 1) 主信号 / 方向
     if direction:
         evidence.append(f"主信号: {direction}")
-    # 2) 价值层决策
+    # 2) 模型-市场偏差 (去喊单化: 不再表达 BET/PASS 买不买语义)
     dec = vl.get("decision")
     if dec:
         best = vl.get("best_direction") or ""
         edge = vl.get("best_edge_pct")
-        edge_s = f"{edge}%" if edge is not None else "--%"
-        evidence.append(f"价值层: {dec} {best} (edge {edge_s})")
+        edge_s = f"{edge:+}pp" if edge is not None else "--"
+        label = "模型-市场分歧显著" if dec == "BET" else "与市场基本一致"
+        evidence.append(f"{label}: {best} ({edge_s})" if best else f"{label} ({edge_s})")
     # 3) 陷阱 / 风险提示
     if trap_score is not None:
         ev3 = f"陷阱评分: {trap_score}/100"

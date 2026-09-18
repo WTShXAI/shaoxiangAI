@@ -1,0 +1,396 @@
+{
+	"type": "gh",
+	"name": "shiyu-coder/Kronos",
+	"version": "master",
+	"default": null,
+	"files": [
+		{
+			"name": "/.gitignore",
+			"hash": "dfMwVLBxfCBVyMyKn/sLKP1mmBPt+bFEepysccOk/PM=",
+			"size": 619
+		},
+		{
+			"name": "/examples/data/XSHG_5min_600977.csv",
+			"hash": "ql7+ASG3zAmNsaFp7Tj5h4aB7xSpPIXVSmGP0HMEiJk=",
+			"size": 147854
+		},
+		{
+			"name": "/examples/prediction_batch_example.py",
+			"hash": "TS66BG6568zPGTNy3OCB+gFDHGqcGMqb+c5IXElWWGw=",
+			"size": 2312
+		},
+		{
+			"name": "/examples/prediction_cn_markets_day.py",
+			"hash": "O5U3J1Ao4GK2QmOCdCHfTuzm9ydtBAyP+r1o4Av1I2w=",
+			"size": 6514
+		},
+		{
+			"name": "/examples/prediction_example.py",
+			"hash": "/RE9lGbUKgwHru7FXI3LvcPAMZcnyfybuJzSNMTDygE=",
+			"size": 2457
+		},
+		{
+			"name": "/examples/prediction_wo_vol_example.py",
+			"hash": "w4gJfa6K80AU/XAG1LfNabdleTew/Sgz4q4FV0BM/hA=",
+			"size": 1918
+		},
+		{
+			"name": "/figures/backtest_result_example.png",
+			"hash": "e4b+oqwajZocaYA55krjl9VFMXlVdGapHaN0MfMxEmw=",
+			"size": 499292
+		},
+		{
+			"name": "/figures/logo.png",
+			"hash": "tKO7Zv7XOiT3S3TxXweY1e3xuXKe6CagytjlCI3t2mE=",
+			"size": 871803
+		},
+		{
+			"name": "/figures/overview.png",
+			"hash": "9bRVajmIP92Cs1UVpoaJmkyUSV9wq48/x6esHjEEzFA=",
+			"size": 1254487
+		},
+		{
+			"name": "/figures/prediction_example.png",
+			"hash": "JN3IYlYVhlhYJof8fO9HYfHbsTCrgWHgSVfI0XjTI/k=",
+			"size": 193945
+		},
+		{
+			"name": "/finetune/config.py",
+			"hash": "k2gRG3SiDRM8PapZHvbbOeupeqbuf7J0gcsIIXtInXo=",
+			"size": 6247
+		},
+		{
+			"name": "/finetune/dataset.py",
+			"hash": "zSV7r0l19FrQxbigTzEbdNMnqwPRymfSr9vXOys5tfY=",
+			"size": 5745
+		},
+		{
+			"name": "/finetune/qlib_data_preprocess.py",
+			"hash": "1pnKjh/88BEGcMGonBeVrXf/0K0RhR0kqamYTFb9Ihs=",
+			"size": 5645
+		},
+		{
+			"name": "/finetune/qlib_test.py",
+			"hash": "AnwEIRrzcdashAig8X9CSf3vBoxrojqP1GoWynG06HU=",
+			"size": 15140
+		},
+		{
+			"name": "/finetune/train_predictor.py",
+			"hash": "2ShOHRCMiqL6FCkTqQj9X4YIGmKODoepumw1yMV7UAQ=",
+			"size": 10077
+		},
+		{
+			"name": "/finetune/train_tokenizer.py",
+			"hash": "dODV6QWQnlZlaS6+RbtTtqyT12eDNPQCWt9pYeExTnQ=",
+			"size": 11482
+		},
+		{
+			"name": "/finetune/utils/__init__.py",
+			"hash": "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=",
+			"size": 0
+		},
+		{
+			"name": "/finetune/utils/training_utils.py",
+			"hash": "Qzmp3eQaf7KpSUFMnD5dLFUaDhDGuH5Lg+JES/kqMOE=",
+			"size": 3830
+		},
+		{
+			"name": "/finetune_csv/config_loader.py",
+			"hash": "Qt6VB4yURdybvCN0yYzi8OWytCC8gLsIBqjMZmdEzRU=",
+			"size": 11688
+		},
+		{
+			"name": "/finetune_csv/configs/config_ali09988_candle-5min.yaml",
+			"hash": "YjtM/ronyS9VZ+SI5CGu0jsRnNMieaKwix82J3UoVeM=",
+			"size": 2132
+		},
+		{
+			"name": "/finetune_csv/data/HK_ali_09988_kline_5min_all.csv",
+			"hash": "ZXJa7rw96PWXJfm3F7hiGhzoCwFCiKbWTgWsejA/Un8=",
+			"size": 5852037
+		},
+		{
+			"name": "/finetune_csv/examples/HK_ali_09988_kline_5min_all_historical_20250919_073929.png",
+			"hash": "Rvp0NSDpVkt3jFwKxvq/tw15LtVqldSHGBwwXk/45Ak=",
+			"size": 485286
+		},
+		{
+			"name": "/finetune_csv/examples/HK_ali_09988_kline_5min_all_historical_20250919_073944.png",
+			"hash": "NmRWbn+JYgZt1xzxvTK1TNeR6UVjpRWVkhrycoDPJQ0=",
+			"size": 484003
+		},
+		{
+			"name": "/finetune_csv/examples/HK_ali_09988_kline_5min_all_historical_20250919_074012.png",
+			"hash": "loRdulBzQPg9u+rMYbR3J1f6cEO5U4Qeq2vWJWOtCaQ=",
+			"size": 339080
+		},
+		{
+			"name": "/finetune_csv/examples/HK_ali_09988_kline_5min_all_historical_20250919_074042.png",
+			"hash": "N2M6Xp3+BBNYmvty3QygGxZJwoEbYtryQLATi1vd4O4=",
+			"size": 459975
+		},
+		{
+			"name": "/finetune_csv/examples/HK_ali_09988_kline_5min_all_historical_20250919_074251.png",
+			"hash": "Dw8kkQZ1pFdoIKF7cPEJ6CHdRNIyRDhBFEHjGafVTaw=",
+			"size": 543005
+		},
+		{
+			"name": "/finetune_csv/finetune_base_model.py",
+			"hash": "QsiREVgrky+LLQmfJ0jYTHp7WEO+EBFntLFbDZeOzjA=",
+			"size": 19127
+		},
+		{
+			"name": "/finetune_csv/finetune_tokenizer.py",
+			"hash": "EfBhpzm5wxg0HqeE4Tljldxh4EgQlvxfqcz3hp2bCvA=",
+			"size": 13763
+		},
+		{
+			"name": "/finetune_csv/README.md",
+			"hash": "l3QrK9BlfRv8PGgnuMiFa6BLCNW42GkyC+g/J1Kg+sY=",
+			"size": 3959
+		},
+		{
+			"name": "/finetune_csv/README_CN.md",
+			"hash": "bsJYzoupbPBHYqR5RTU1bIKlgWm6MSCfVFfcqR4aVwU=",
+			"size": 3650
+		},
+		{
+			"name": "/finetune_csv/train_sequential.py",
+			"hash": "aiqMlShHZ/haXZzO1x3MDi/ELG6Mrmvhv/gfBZ6DZ54=",
+			"size": 15358
+		},
+		{
+			"name": "/LICENSE",
+			"hash": "rLLRlNN4IE5fK+Tc0k057KxDeQNiDHkMMxWpbas4j9w=",
+			"size": 1062
+		},
+		{
+			"name": "/model/__init__.py",
+			"hash": "+PhWyj/trcqsl+GWviPRrtocPJ/+iQPWbUPqO8rGJAw=",
+			"size": 412
+		},
+		{
+			"name": "/model/kronos.py",
+			"hash": "GhC/M3EXeUKXzwW9MlY/YvSemBs/ZIRtW6MpQk3iCdw=",
+			"size": 30796
+		},
+		{
+			"name": "/model/module.py",
+			"hash": "oH7brcDpaATIFYwCG7xgY7t8xDs01/xHDVyP8gBaQJ8=",
+			"size": 23426
+		},
+		{
+			"name": "/README.md",
+			"hash": "uBW2CBkq+kuAWhG8u2Ymjz49tVc2IYlklEMY2nhlNX4=",
+			"size": 16657
+		},
+		{
+			"name": "/requirements.txt",
+			"hash": "to6qL5Rdalcm42Qs5dbIIBSzOgnDwb1jAvLFMNsiWT4=",
+			"size": 129
+		},
+		{
+			"name": "/tests/data/generate_regression_output.py",
+			"hash": "ZuKScbCrLVpe4kZFmLPUTmCgqX9x8oh5UbH+WSiLuCY=",
+			"size": 2814
+		},
+		{
+			"name": "/tests/data/regression_input.csv",
+			"hash": "ql7+ASG3zAmNsaFp7Tj5h4aB7xSpPIXVSmGP0HMEiJk=",
+			"size": 147854
+		},
+		{
+			"name": "/tests/data/regression_output_256.csv",
+			"hash": "UGTQnvf+GGucKu7Z398jRyG0sYKoMF2S2509XWs38p4=",
+			"size": 674
+		},
+		{
+			"name": "/tests/data/regression_output_512.csv",
+			"hash": "u2mpbL/POFukM7jbfpYwtFpLMDLQkdEqewusWZa60Ys=",
+			"size": 673
+		},
+		{
+			"name": "/tests/test_kronos_regression.py",
+			"hash": "Un500TfEDiVnR3dUzaQ8ZJVSKHvxGrJ6HjH/DjcGoMQ=",
+			"size": 5326
+		},
+		{
+			"name": "/webui/app.py",
+			"hash": "fC73/SgJdnSAWjnc/fWRjkAwsfHpzdqQXtS30tY2cvg=",
+			"size": 30464
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_163800.json",
+			"hash": "u5oUeKw2MDJkVQkgx6dbQsktwIeE8KEU+P+0Tk+RPlc=",
+			"size": 53680
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_164030.json",
+			"hash": "WchQFibp7+ij90+LnFnwZhG0YcA55WWGjUSYnW0vkDU=",
+			"size": 53423
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_164422.json",
+			"hash": "ye8EXmr8ebhdQkn8nTHNTlvktP+LXana8nqj6cA+BWw=",
+			"size": 53885
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_170831.json",
+			"hash": "lpEQPMmnAUF9iwekBPVJ3dX96l5uL1zQAIkCd5pK8hs=",
+			"size": 54467
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_171720.json",
+			"hash": "KWe/vxBm8RMBDbKUlnKVflmigBI0A+ryypgZcUgRTK8=",
+			"size": 54467
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_171913.json",
+			"hash": "3zomdtCyR6xdJUNeo3pbspnsB1C86kqtHiH/gnmgDxI=",
+			"size": 54467
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_172031.json",
+			"hash": "UpzthF/ChdXup/nPd3I2H7nTYIr1kLl1JmW1Pbk3b9k=",
+			"size": 54357
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_172153.json",
+			"hash": "fwQ7wCzRFqVtjYBd8KQrkRJzPCV3Caor1m5GarYvQ7E=",
+			"size": 54647
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_172740.json",
+			"hash": "HMi2B3Gr4tySjENMjWlbrTjWJOgwkvuntAkVR2GAtYQ=",
+			"size": 54979
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_173322.json",
+			"hash": "uPMKgqX6Xd2jSzaekn8JM6UigeOewE6w2+2nUuN58AA=",
+			"size": 54983
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_173455.json",
+			"hash": "Bh24iZ0ROay7mxnkB9VaJGF93uFXp8p+SkchlgMwK6Y=",
+			"size": 54937
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_174410.json",
+			"hash": "+I9NVSXlNqQhIgd14kNITHcCmP1KvRK/uTQlChaG7qI=",
+			"size": 54826
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_174809.json",
+			"hash": "TUQsUpbfu1JvWIYUqX/p0sCvGbvhy9dWvpGqGRKfCAQ=",
+			"size": 54826
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_175057.json",
+			"hash": "kverTyv1ANJEmG3P+l9YMyR0ta/4hBgUl7nopjesYCk=",
+			"size": 54821
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_175135.json",
+			"hash": "oL6ZcSM6SR4kgf+Kt6SanaICbnpzlR//duiPmBxL//4=",
+			"size": 54636
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_175909.json",
+			"hash": "ou+9/fHDw1fh2k4k8STu9BBF7izt5ysiH+j1qvrseLs=",
+			"size": 53086
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_180308.json",
+			"hash": "ZBLfkpR6yiQj6WQd4HHmqmkI24Vz8Ws0daxPiHam3W8=",
+			"size": 53086
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_180632.json",
+			"hash": "mHwXQUXorDFna/p9NuvLpU4m8CEJ7lbygz81bt1jtcc=",
+			"size": 53810
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_180745.json",
+			"hash": "w1h6+EHPtldHE10mV6CBEgAOfsTpYtUXaTCZ09Yf6yw=",
+			"size": 53701
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_180806.json",
+			"hash": "UGypzbeAxjZrPQ1rsw/qgbljF3v6q55coaE5pwT42ns=",
+			"size": 53488
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_181012.json",
+			"hash": "K6LLTTs5nHPcFT5s7nlhlKijJDCAstgpHIRTx7MwexQ=",
+			"size": 53498
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_181139.json",
+			"hash": "3lqKCuSkAXTynr/4n1yCg57pk7u23RuZ5AeLMCeuQhA=",
+			"size": 53617
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_181240.json",
+			"hash": "CA0EZAvMuqAtcDs8Lh5dI09r/XdLkikym2yVUZ1jAAA=",
+			"size": 53765
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_181434.json",
+			"hash": "Eb/c728OOq3Vkw5N0LwXrKR9iT2O21DzTtc+WFr8HFg=",
+			"size": 52890
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_181513.json",
+			"hash": "xlGdZedaGY+D7knmAn3DC6tByPLGNuMLxIQMugO0060=",
+			"size": 53442
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_181612.json",
+			"hash": "733EAKyZpXynbLOoF3HMcme9TbVzc9AN+RKxfl9tN9o=",
+			"size": 53591
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_181648.json",
+			"hash": "BYqBCOaHUZINn7EZw3RTadchOByjBWZZ2qK0yz6lttw=",
+			"size": 53650
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_181800.json",
+			"hash": "GEbw/K54wcAJQrfBIG6hbW0rEe0TXG/n4Seg4PrZJAk=",
+			"size": 53657
+		},
+		{
+			"name": "/webui/prediction_results/prediction_20250826_181932.json",
+			"hash": "WLO7lx7ZX6wJXuOApJR3OQJs5e8zH3TrBtyM4udHNZg=",
+			"size": 53459
+		},
+		{
+			"name": "/webui/README.md",
+			"hash": "x7waVF3azYuUwxryuq5LVdRwlSMA2b2Wuzwdjh0yuqY=",
+			"size": 4120
+		},
+		{
+			"name": "/webui/requirements.txt",
+			"hash": "o01ahdi5kdK/fvknkvQpRIap4ehsc3OnMe2nj/KIHR8=",
+			"size": 111
+		},
+		{
+			"name": "/webui/run.py",
+			"hash": "tgF5CV5LFb5gKB28fa8uIC1f/y4KZ2drKqgRi+mmjTE=",
+			"size": 2608
+		},
+		{
+			"name": "/webui/start.sh",
+			"hash": "CbTbvR5LlOV2YeogKmt/2JZRDImAL1ErrGuU9o26VfM=",
+			"size": 1007
+		},
+		{
+			"name": "/webui/templates/index.html",
+			"hash": "lJlcbPC16DBTc2sRAkzHED1nuK5z5r+i1AkepZ68Tpk=",
+			"size": 45997
+		}
+	],
+	"links": {
+		"stats": "https://data.jsdelivr.com/v1/stats/packages/gh/shiyu-coder/Kronos@master"
+	}
+}

@@ -38,7 +38,7 @@ _gq_drift_adapter = None
 def _get_drift_adapter():
     global _gq_drift_adapter
     if _gq_drift_adapter is None:
-        import gq_drift_adapter
+        from pipeline import gq_drift_adapter  # 2026-09-18 迁入 pipeline/
         _gq_drift_adapter = gq_drift_adapter
     return _gq_drift_adapter
 

@@ -584,10 +584,14 @@ class WSCollector:
                         ht_h, ht_a = int(a), int(b)
                     except Exception:
                         pass
+        # 2026-09-18 物理守卫: ht 不得超过当前全场比分 (完场后 feed 的 S1 项疑似镜像终场,
+        # 实测 ht列 51% 污染且 upsert 的 anti-clobber 会永久保全错值)。不可能值直接丢弃。
+        if ht_h is not None and sh is not None and (ht_h > sh or ht_a > sa):
+            ht_h = ht_a = None
         # 2026-08-27 修复: 原 `if sh is None: return` 导致 C103 帧无 S0|(如只有半场比分/格式微变)时
         # 整帧丢弃 — score/last_seen 都不更新 → 前端"比分落后"。
         # 现在: ① 半场比分 ht_h/ht_a 解析后落库(原代码解析但未使用); ② 无条件刷新 last_seen(WS 活跃证明),
-        # 仅当连全场+半场都无时才跳过.
+        # 仅当连全场+半场都无时跳过.
         if sh is None and ht_h is None:
             return
         if sh is not None:
@@ -760,59 +764,83 @@ class WSCollector:
         end_ts = (time.time() + duration_min * 60.0) if duration_min > 0 else 0.0
         started_at = time.time()
 
-        with sync_playwright() as p:
-            browser = p.chromium.launch(
-                executable_path=edge, headless=True,
-                args=["--no-sandbox", "--disable-dev-shm-usage"])
-            ctx = browser.new_context(ignore_https_errors=True, locale="zh-CN")
-            page = ctx.new_page()
+        # 临场早盘补采线程(守护, 独立于浏览器会话, 全程仅启动一次;
+        # 浏览器崩溃重建不影响它, 持续用 HTTP 兜底补采盘口)
+        try:
+            threading.Thread(target=self._prematch_backfill_worker,
+                             daemon=True, name="prematch-backfill").start()
+        except Exception as e:
+            _log(f"[PRE][WARN] 补采线程启动失败: {e}")
 
-            def on_ws(ws):
-                _log(f"[WS] open {ws.url[:70]}")
-                # Playwright Python: framereceived 回调直接收到 payload(str/bytes), 非 event 对象
-                ws.on("framereceived", lambda data: self._safe_frame(data))
-                ws.on("close", lambda: _log("[WS] closed"))
-
-            page.on("websocket", on_ws)
-            page.on("crash", lambda: _log("[WS][WARN] page crash"))
-
-            # 首轮: 先建立 mid→队名 映射, 再加载 H5
+        # 监督循环: Edge/页面崩溃(TargetClosedError / 会话断开等)时重建浏览器会话而非退出进程.
+        # 2026-09-16 修正: 原实现浏览器会话异常会冒泡到顶层 except 静默退出, 导致采集器每几分钟崩一次
+        # (历史日志 TargetClosedError / page crash). 现改为会话级自愈 —— 异常即关浏览器、5s 后重建.
+        browser = None
+        while True:
             try:
-                self.reg.refresh_all()
-            except Exception as e:
-                _log(f"[REG][WARN] 首轮刷新失败: {e}")
+                with sync_playwright() as p:
+                    browser = p.chromium.launch(
+                        executable_path=edge, headless=True,
+                        args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"])
+                    ctx = browser.new_context(ignore_https_errors=True, locale="zh-CN")
+                    page = ctx.new_page()
 
-            # 临场早盘补采线程 (WS 不推未开赛场盘口的兜底, 见方法注释)
-            try:
-                threading.Thread(target=self._prematch_backfill_worker,
-                                 daemon=True, name="prematch-backfill").start()
-            except Exception as e:
-                _log(f"[PRE][WARN] 补采线程启动失败: {e}")
+                    def on_ws(ws):
+                        _log(f"[WS] open {ws.url[:70]}")
+                        # Playwright Python: framereceived 回调直接收到 payload(str/bytes), 非 event 对象
+                        ws.on("framereceived", lambda data: self._safe_frame(data))
+                        ws.on("close", lambda: _log("[WS] closed"))
 
-            self._navigate(page, h5)
+                    page.on("websocket", on_ws)
+                    page.on("crash", lambda: _log("[WS][WARN] page crash"))
 
-            # 主循环
-            while True:
-                now = time.time()
-                # 周期性全量刷新映射
-                if now - self.last_refresh_ts >= REGISTRY_SEC:
+                    # 首轮: 先建立 mid→队名 映射, 再加载 H5
                     try:
                         self.reg.refresh_all()
                     except Exception as e:
-                        _log(f"[REG][WARN] 刷新失败: {e}")
-                    self.last_refresh_ts = now
-                # 长时间无帧 → 重载页面(重新建连 / 换 token)
-                if now - self.last_frame_ts >= IDLE_RELOAD_SEC:
-                    _log(f"[WS][WARN] {IDLE_RELOAD_SEC}s 无推送, 重载页面重建连接")
-                    self._navigate(page, h5)
-                # 退出条件
-                if once and (now - started_at >= ONCE_SEC):
-                    break
-                if end_ts and now >= end_ts:
-                    break
-                page.wait_for_timeout(int(HEARTBEAT_TICK * 1000))
+                        _log(f"[REG][WARN] 首轮刷新失败: {e}")
 
-            browser.close()
+                    self._navigate(page, h5)
+
+                    # 主循环
+                    while True:
+                        now = time.time()
+                        # 周期性全量刷新映射
+                        if now - self.last_refresh_ts >= REGISTRY_SEC:
+                            try:
+                                self.reg.refresh_all()
+                            except Exception as e:
+                                _log(f"[REG][WARN] 刷新失败: {e}")
+                            self.last_refresh_ts = now
+                        # 长时间无帧 → 重载页面(重新建连 / 换 token)
+                        if now - self.last_frame_ts >= IDLE_RELOAD_SEC:
+                            _log(f"[WS][WARN] {IDLE_RELOAD_SEC}s 无推送, 重载页面重建连接")
+                            self._navigate(page, h5)
+                        # 退出条件
+                        if once and (now - started_at >= ONCE_SEC):
+                            break
+                        if end_ts and now >= end_ts:
+                            break
+                        page.wait_for_timeout(int(HEARTBEAT_TICK * 1000))
+
+                    try:
+                        browser.close()
+                    except Exception:
+                        pass
+                break  # 正常退出(once 到期 / duration 到期)
+            except Exception as e:
+                _log(f"[SUPERVISOR] 浏览器会话异常, 5s 后重建: {type(e).__name__}: {e}")
+                try:
+                    if browser is not None:
+                        browser.close()
+                except Exception:
+                    pass
+                browser = None
+                if once:
+                    break
+                time.sleep(5)
+                continue
+
         _log(f"[DONE] 退出. 累计帧={self.stats['frames']} 快照={self.stats['snaps']} 未知mid={self.stats['unknown_mid']}")
         _log(f"[DONE] cmd分布={ {k:v for k,v in self.stats.items() if k.startswith('cmd_')} }")
         try:

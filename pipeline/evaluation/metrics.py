@@ -7,6 +7,7 @@ metrics.py — 评估指标纯函数实现 (无第三方依赖)
   - outcome: 单字符 'H' / 'D' / 'A'
 """
 from bisect import bisect_right
+from pipeline.odds_math import devig2, devig3
 
 
 def devig(oh: float, od: float, oa: float):
@@ -17,11 +18,8 @@ def devig(oh: float, od: float, oa: float):
     """
     if not (oh and od and oa and oh > 1.01 and od > 1.01 and oa > 1.01):
         return None
-    rh, rd, ra = 1.0 / oh, 1.0 / od, 1.0 / oa
-    s = rh + rd + ra
-    if s <= 0:
-        return None
-    return [rh / s, rd / s, ra / s]
+    p = devig3(oh, od, oa)
+    return list(p) if p is not None else None
 
 
 def _outcome_idx(o: str):

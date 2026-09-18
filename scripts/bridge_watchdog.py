@@ -24,6 +24,18 @@ def _ts():
     return time.strftime("%Y-%m-%d %H:%M:%S")
 
 
+def _rotate_cap(path, cap_bytes=10 * 1024 * 1024):
+    """日志超 10MB 轮转为 .1 (2026-09-18 规范化: 曾涨到 20MB/58MB 无上限)."""
+    try:
+        if os.path.exists(path) and os.path.getsize(path) > cap_bytes:
+            old = path + ".1"
+            if os.path.exists(old):
+                os.remove(old)
+            os.replace(path, old)
+    except Exception:
+        pass
+
+
 def is_healthy():
     """端口 LISTEN + /health 200 才算健康."""
     # 1) 端口连通
@@ -82,6 +94,8 @@ def wait_listen(seconds=40):
 
 
 def main():
+    _rotate_cap(LOG)
+    _rotate_cap(ERR)
     with open(LOG, "ab") as f:
         f.write(("\n[%s] watchdog tick\n" % _ts()).encode("utf-8"))
 

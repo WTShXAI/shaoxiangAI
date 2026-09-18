@@ -1,3 +1,5 @@
+# DEPRECATED (2026-09-18): 本引擎仅剩 /predict 遗留端点保活 (前端零调用)。
+# 生产预测走 pipeline/model_catalog.py M1-M7; 待 /predict 下线后本文件归档 archive/。
 """
 哨响AI v7.4 — 预测引擎抽象层
 =============================

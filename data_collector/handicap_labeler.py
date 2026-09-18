@@ -12,7 +12,7 @@ import logging
 from typing import Optional, List, Dict, Tuple
 from dataclasses import dataclass
 
-from bookmaker_sim.odds_handicap_converter import (
+from pipeline.odds_handicap_converter import (  # 2026-09-19 bookmaker_sim 解耦归档
     odds_to_handicap,
     odds_to_handicap_bin,
     compute_cover_result,

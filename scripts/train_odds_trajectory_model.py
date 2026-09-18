@@ -34,13 +34,10 @@ from pipeline.odds_trajectory import trajectory_features  # noqa
 
 
 def devig3(h, d, a):
-    s = 1/h + 1/d + 1/a
-    return [x/s for x in inv]
-
-
-def devig3(h, d, a):
-    s = 1/h + 1/d + 1/a
-    return [x/s for x in inv]
+    """比例法去水 (2026-09-18 修复: 原两份重复定义均引用未定义变量 inv, 调用即 NameError)。"""
+    inv = [1.0 / h, 1.0 / d, 1.0 / a]
+    s = sum(inv)
+    return [x / s for x in inv]
 
 
 def build_dataset(con, days=45, max_matches=800):

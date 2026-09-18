@@ -11,9 +11,12 @@ import subprocess, sys, os, time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # 强制使用 venv Python, 防止被系统 Python 拉起造成双实例写库
-VENV_PY = os.path.join(ROOT, ".venv", "Scripts", "pythonw.exe")
+# 2026-09-16 修正: 优先用控制台 python.exe。
+# 原 pythonw.exe 在 DETACHED 下偶发卡死在初始化前(stdout 句柄/控制台子系统问题),
+# 导致 detached 实例起不来; 控制台 python.exe + DETACHED_PROCESS 不弹窗且 stdout 已重定向到日志, 稳定。
+VENV_PY = os.path.join(ROOT, ".venv", "Scripts", "python.exe")
 if not os.path.exists(VENV_PY):
-    VENV_PY = os.path.join(ROOT, ".venv", "Scripts", "python.exe")
+    VENV_PY = os.path.join(ROOT, ".venv", "Scripts", "pythonw.exe")
 
 script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ws_collector.py")
 log = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ws_daemon.log")

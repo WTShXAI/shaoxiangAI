@@ -105,7 +105,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio pytest-cov fastapi
+          pip install pytest pytest-asyncio pytest-timeout pytest-cov fastapi
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
       - name: py_compile 全量语法检查 (pre-merge guard)
@@ -134,19 +134,13 @@ jobs:
         # ECC 生产标准: 关键单一事实源必须维持高测试覆盖, 防公式漂移/回归
         run: |
           python -m pytest tests/ -q \
-            --cov=scripts.bet_core --cov=scripts.quant_executor \
+            --cov=pipeline.odds_math --cov=pipeline.settle \
             --cov=pipeline.collectors.api_budget \
             --cov-report= --cov-fail-under=80 --timeout=120 \
             || (echo "❌ 关键 SSoT 覆盖率 < 80% — 阻断 merge" && exit 1)
           echo "✅ 关键 SSoT 覆盖率达标 (≥80%)"
 
-      - name: P0-1 soft-line 决策闭环回归 (独立守护)
-        run: |
-          python scripts/test_softline_decision_closure.py
-
-      - name: P0-3 分歧闸门 + 规范凯利回归 (独立守护)
-        run: |
-          python scripts/test_p0_3_divergence_gate.py
+      # P0-1 soft-line / P0-3 分歧闸门回归已随投注决策外围归档 (archive/betting_decisions/, 2026-09-18)
 
       - name: bet_core 单一事实源回归 (独立守护)
         run: |
@@ -168,9 +162,7 @@ jobs:
         run: |
           python scripts/test_g9_fill_wc6.py
 
-      - name: G3 live 累积幂等守护回归 (独立守护)
-        run: |
-          python scripts/test_live_accumulator.py
+      # G3 live 累积幂等守护已退场 (scripts/test_live_accumulator.py 不存在, wrapper 同步归档 2026-09-18)
 
       - name: E4+E5 P2-18 数据质量门禁 (DB 存在时阻断致命项)
         run: |

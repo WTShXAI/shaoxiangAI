@@ -19,7 +19,7 @@ def pk(s):
     except: return None
 
 # ---- 复用 gq_odds_filter 取初盘 ----
-from gq_odds_filter import get_open
+from pipeline.gq_odds_filter import get_open
 
 def deoverround(oh, od, oa):
     """去水 -> 隐含概率. 返回 (ph,pd,pa)."""
