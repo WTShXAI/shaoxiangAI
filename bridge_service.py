@@ -6252,7 +6252,7 @@ async def all_fixtures_api(days: int = 7):
 _PRED_CACHE: Dict[str, tuple] = {}   # date -> (fetched_at, response_dict)
 
 
-def _build_predictions_payload(target: str) -> Dict[str, Any]:
+def _build_predictions_payload(target: str, refresh: bool = False) -> Dict[str, Any]:
     import json as _json
     from pipeline.predict_export import TABLE_DDL, read_for_date, predict_match_full
     from gq.db import conn as gq_conn
@@ -6262,13 +6262,15 @@ def _build_predictions_payload(target: str) -> Dict[str, Any]:
             rows = read_for_date(con, target)
     except Exception:
         rows = []
-    if not rows:
-        # 轻路径补算 (allow_candles_compute=False → 不加载torch)
+    if not rows or refresh:
+        # 轻路径补算/刷新 (allow_candles_compute=False → 不加载torch)。
+        # refresh=True: 未开赛行重算, 使临场写入的 K线判定及时应用 (2026-09-19 覆盖修复;
+        # 开赛定格语义由 build_for_date 的 ko_ts 守卫保证, 已开赛行不覆盖)。
         try:
             with gq_conn() as con:
                 con.executescript(TABLE_DDL)
                 from pipeline.predict_export import build_for_date
-                build_for_date(con, target, allow_candles_compute=False)
+                build_for_date(con, target, refresh=refresh, allow_candles_compute=False)
             with gq_conn(readonly=True) as con:
                 rows = read_for_date(con, target)
         except Exception as _e:
@@ -6286,7 +6288,7 @@ async def predictions_api(date: str = "", refresh: int = 0):
     now = time.time()
     cached = _PRED_CACHE.get(target)
     if refresh or not cached or now - cached[0] > 300:
-        payload = await asyncio.to_thread(_build_predictions_payload, target)
+        payload = await asyncio.to_thread(_build_predictions_payload, target, bool(refresh))
         _PRED_CACHE[target] = (now, payload)
     else:
         payload = cached[1]
@@ -6307,6 +6309,102 @@ async def predictions_calibration_api():
             return _wrap_data(_json.load(f))
     except Exception as _e:
         return _wrap_data({"error": f"校准报告读取失败: {_e}"})
+
+
+# ── 沙盘回放 (2026-09-19, 借鉴灵汐AI 沙箱推演→诊断闭环): 开赛冻结预测 vs 实际赛果 ──
+# 只读 events.db (daily_predictions 开赛定格行 + matches 赛果), 复用 settle.py 结算原语。
+_PRED_REPLAY_CACHE: dict = {}
+
+
+def _build_predictions_replay(date_str: str) -> dict:
+    """指定日期: 逐场命中/对数损失 + 当日汇总诊断 (n/LL/Brier/TOP1, 按模型源分列)。
+    纯校准证据口径 — 无注码、无盈亏; 未完赛场保留但不计入指标。
+    假0-0守卫 (2026-09-19): 0-0 且终盘 tick < kickoff+95min 的断流场 → 比分存疑,
+    actual 置空 (计入 n_unsettled) 且标注 score_dubious, 不进任何指标。"""
+    import json as _json
+    import math as _math
+    import sqlite3 as _sq
+    from pipeline.settle import result_1x2, credible_1x2
+    from pipeline.odds_candles import parse_kickoff_ts
+    db = os.path.join(PROJECT_ROOT, "data", "events.db")
+    con = _sq.connect(f"file:{db}?mode=ro", uri=True)
+    con.row_factory = _sq.Row
+    rows = con.execute("""
+        SELECT dp.match_key, dp.payload, m.status, m.score_home, m.score_away,
+               m.kickoff,
+               (SELECT MAX(captured_at) FROM odds_changes oc WHERE oc.match_key = m.match_key) AS last_odds
+        FROM daily_predictions dp
+        LEFT JOIN matches m ON m.match_key = dp.match_key
+        WHERE dp.match_date = ? ORDER BY dp.kickoff""", (date_str,)).fetchall()
+    con.close()
+    keys = ("home", "draw", "away")
+    matches = []
+    agg = {"n": 0, "ll": 0.0, "brier": 0.0, "hit": 0}
+    by_source: dict = {}
+    for r in rows:
+        try:
+            p = _json.loads(r["payload"])
+        except Exception:
+            continue
+        pv = [p.get("p_home"), p.get("p_draw"), p.get("p_away")]
+        if not all(isinstance(v, (int, float)) for v in pv):
+            continue
+        src = p.get("model_source") or "market_baseline"
+        actual = result_1x2(r["score_home"], r["score_away"])
+        score = (f"{r['score_home']}-{r['score_away']}"
+                 if r["score_home"] is not None and r["score_away"] is not None else None)
+        e = {
+            "match_key": r["match_key"],
+            "home": p.get("home") or r["match_key"], "away": p.get("away") or "",
+            "league": p.get("league"), "kickoff": p.get("kickoff"),
+            "model_source": src,
+            "probs": {k: round(v, 4) for k, v in zip(keys, pv)},
+            "pick": keys[max(range(3), key=lambda i: pv[i])],
+            "status": r["status"], "score": score, "actual": actual,
+        }
+        if actual and not credible_1x2(r["score_home"], r["score_away"],
+                                       r["last_odds"], parse_kickoff_ts(r["kickoff"] or '')):
+            e["actual"] = None      # 假0-0: 比分存疑, 不作结算证据
+            e["score_dubious"] = True
+            actual = None
+        if actual:
+            ai = keys.index(actual)
+            clip = [min(max(float(v), 1e-15), 1.0) for v in pv]
+            e["ll"] = round(-_math.log(clip[ai]), 4)
+            e["hit"] = bool(e["pick"] == actual)
+            b = sum((clip[i] - (1.0 if i == ai else 0.0)) ** 2 for i in range(3))
+            for bucket in (agg, by_source.setdefault(src, {"n": 0, "ll": 0.0, "brier": 0.0, "hit": 0})):
+                bucket["n"] += 1
+                bucket["ll"] += e["ll"]
+                bucket["brier"] += b
+                bucket["hit"] += 1 if e["hit"] else 0
+        matches.append(e)
+
+    def _summary(b: dict) -> dict:
+        n = b["n"]
+        if not n:
+            return {"n": 0}
+        return {"n": n, "log_loss": round(b["ll"] / n, 4), "brier": round(b["brier"] / n, 4),
+                "accuracy": round(b["hit"] / n, 4)}
+
+    return {"date": date_str, "n_total": len(matches), "n_settled": agg["n"],
+            "n_unsettled": len(matches) - agg["n"],
+            "overall": _summary(agg), "by_source": {k: _summary(v) for k, v in by_source.items()},
+            "matches": matches}
+
+
+@app.get("/api/predictions/replay")
+async def predictions_replay_api(date: str = ""):
+    """沙盘回放: 指定日期的开赛冻结预测 vs 实际赛果 (逐场 + 当日 LL/Brier/TOP1 诊断, 按模型源分列)。"""
+    target = (date or datetime.now().strftime("%Y-%m-%d")).strip()[:10]
+    now = time.time()
+    cached = _PRED_REPLAY_CACHE.get(target)
+    if not cached or now - cached[0] > 300:
+        payload = await asyncio.to_thread(_build_predictions_replay, target)
+        _PRED_REPLAY_CACHE[target] = (now, payload)
+    else:
+        payload = cached[1]
+    return _wrap_data(payload)
 
 
 # ── 自动赛果查询 (Req3: 替代手动赛果查询, 直接对接盘口自动记录) ──

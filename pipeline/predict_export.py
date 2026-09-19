@@ -100,6 +100,26 @@ def latest_prematch_ou(con, match_key: str, ko_ts: float) -> Optional[Dict[str, 
     return {'line': line, 'p_over': round(p_over, 4), 'implied_total': round(implied_total, 3)}
 
 
+def latest_prematch_btts(con, match_key: str, ko_ts: float) -> Optional[Dict[str, float]]:
+    """赛前最后 tick 的 BTTS (双方进球) 盘 — 市场对照口径 (2026-09-19 接入, 单庄同源, IR-32 合规)。
+    返回 {p_yes, odds_yes, odds_no}; 无盘/非法返回 None。"""
+    from pipeline.odds_math import devig2
+    rows = con.execute("""
+        SELECT selection, to_odds, captured_at FROM odds_changes
+        WHERE match_key=? AND market='BTTS' AND to_odds>1.001 AND to_odds<500
+        ORDER BY captured_at""", (match_key,)).fetchall()
+    last: Dict[str, float] = {}
+    for sel, odds, cap in rows:
+        if float(cap) <= ko_ts:
+            last[str(sel).lower()] = float(odds)
+    if not last.get('yes') or not last.get('no'):
+        return None
+    r = devig2(last['yes'], last['no'])
+    if r is None:
+        return None
+    return {'p_yes': round(r[0], 4), 'odds_yes': last['yes'], 'odds_no': last['no']}
+
+
 def candles_verdict(con, match_key: str) -> Optional[Dict[str, Any]]:
     """读采集器开赛定格的 K线集成判定 (采集器在临场≤2h 写入, 无则返回 None)。"""
     row = con.execute(
@@ -165,6 +185,7 @@ def predict_match_full(con, match_key: str, allow_candles_compute: bool = False)
     #   系统性高估 ~1 球 (O2.5 LogLoss 0.757→0.677, ECE 0.209→0.085, BTTS ECE 0.159→0.084,
     #   期望偏差 -1.13→-0.59)。产品层派生市场用诚实锚 1.0; score_model 本体默认值不动。
     ou = latest_prematch_ou(con, match_key, ko_ts)
+    btts_mkt = latest_prematch_btts(con, match_key, ko_ts)
     r = predict_score(home, away, oh, od, oa,
                       goal_scale=1.0,
                       implied_total=(ou or {}).get('implied_total'))
@@ -210,7 +231,10 @@ def predict_match_full(con, match_key: str, allow_candles_compute: bool = False)
         'market_implied': {**market_implied,
                            'ou_line': (ou or {}).get('line'),
                            'p_over': (ou or {}).get('p_over'),
-                           'odds_1x2': [round(oh, 2), round(od, 2), round(oa, 2)]},
+                           'btts_p': (btts_mkt or {}).get('p_yes'),
+                           'odds_1x2': [round(oh, 2), round(od, 2), round(oa, 2)],
+                           'odds_btts': ([round(btts_mkt['odds_yes'], 2), round(btts_mkt['odds_no'], 2)]
+                                         if btts_mkt else None)},
         'deviation_note': note,
         'generated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
     }

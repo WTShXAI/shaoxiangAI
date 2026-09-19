@@ -33,10 +33,19 @@ sys.path.insert(0, r'D:\Architecture')
 
 from pipeline.calibration import reliability, ece, calibration_slope
 from pipeline.score_model import deoverround
-from pipeline.settle import result_1x2, settle_ou
+from pipeline.settle import result_1x2, settle_ou, credible_1x2
+from pipeline.odds_candles import parse_kickoff_ts
 
 EPS = 1e-15
 REPORT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'reports')
+
+# 假0-0守卫 (2026-09-19): 0-0 且最后赔率 tick < kickoff+95min = 比分帧断流定格 → 剔除。
+# 实证: 已结算台账平局率 42.9% (0-0 占平局 73%) vs 数据丰富场 29.7% — 修复前全部结算面被污染。
+_LAST_ODDS_SUB = ("(SELECT MAX(captured_at) FROM odds_changes oc WHERE oc.match_key = m.match_key)")
+
+
+def _credible(fsh, fsa, kickoff, last_odds):
+    return credible_1x2(fsh, fsa, last_odds, parse_kickoff_ts(kickoff or ''))
 
 
 # ── 多分类指标 ────────────────────────────────────────────────────────────
@@ -89,12 +98,12 @@ def diff_vs(base, comp):
 # ── 各判定源取数 ──────────────────────────────────────────────────────────
 
 def _outcome_and_market(con, day_limit):
-    """预载: match_key → (actual, (mkt_h, mkt_d, mkt_a) 去水)。市场价来自 match_outcomes 开盘1X2。"""
-    rows = con.execute("""
-        SELECT m.match_key,
-               CASE WHEN m.score_home > m.score_away THEN 'home'
-                    WHEN m.score_home = m.score_away THEN 'draw' ELSE 'away' END,
-               o.op_1x2_h, o.op_1x2_d, o.op_1x2_a
+    """预载: match_key → (actual, (mkt_h, mkt_d, mkt_a) 去水)。市场价来自 match_outcomes 开盘1X2。
+    假0-0守卫: 0-0 且终盘 tick < kickoff+95min 的断流场剔除。"""
+    rows = con.execute(f"""
+        SELECT m.match_key, m.score_home, m.score_away,
+               o.op_1x2_h, o.op_1x2_d, o.op_1x2_a,
+               m.kickoff, {_LAST_ODDS_SUB}
         FROM matches m
         JOIN match_outcomes o ON o.mid = m.mid
         WHERE m.status='finished' AND m.score_home IS NOT NULL
@@ -103,7 +112,10 @@ def _outcome_and_market(con, day_limit):
           AND m.kickoff >= datetime('now', 'localtime', ?)""",
         (f'-{day_limit} day',)).fetchall()
     out = {}
-    for mk, act, oh, od, oa in rows:
+    for mk, fsh, fsa, oh, od, oa, ko, lodds in rows:
+        act = result_1x2(fsh, fsa)
+        if act is None or not _credible(fsh, fsa, ko, lodds):
+            continue
         mkt = deoverround(float(oh), float(od), float(oa))
         out[mk] = (act, mkt)
     return out
@@ -129,37 +141,44 @@ def section_candles(con, om):
 
 
 def section_knn(con):
-    rows = con.execute("""SELECT p.verdict_code, p.draw_signal,
-        CASE WHEN m.score_home > m.score_away THEN 'home'
-             WHEN m.score_home = m.score_away THEN 'draw' ELSE 'away' END
+    rows = con.execute(f"""SELECT p.verdict_code, p.draw_signal,
+        m.score_home, m.score_away, m.kickoff, {_LAST_ODDS_SUB}
         FROM prematch_conclusion p JOIN matches m ON m.match_key = p.match_key
         WHERE m.status='finished' AND m.score_home IS NOT NULL
           AND p.verdict_code IN ('H','D','A')""").fetchall()
-    if not rows:
+    kept = []
+    for code, ds, fsh, fsa, ko, lodds in rows:
+        act = result_1x2(fsh, fsa)
+        if act is None or not _credible(fsh, fsa, ko, lodds):
+            continue
+        kept.append((code, ds, act))
+    if not kept:
         return None
-    n = len(rows)
-    hits = sum(1 for code, _, act in rows if {'H': 'home', 'D': 'draw', 'A': 'away'}[code] == act)
-    alerts = [(act) for code, ds, act in rows if ds]
+    n = len(kept)
+    hits = sum(1 for code, _, act in kept if {'H': 'home', 'D': 'draw', 'A': 'away'}[code] == act)
+    alerts = [(act) for code, ds, act in kept if ds]
     alert_draw = sum(1 for act in alerts if act == 'draw')
-    base = sum(1 for _, _, act in rows if act == 'draw') / n
+    base = sum(1 for _, _, act in kept if act == 'draw') / n
     return {'n': n, 'accuracy': round(hits / n, 4),
-            'note': 'KNN只输出方向无概率 → 仅准确率口径 (历史主口径, 注意其标签由相似场ROI派生)',
+            'note': 'KNN只输出方向无概率 → 仅准确率口径 (历史主口径, 注意其标签由相似场ROI派生); 假0-0守卫后',
             'draw_alert_n': len(alerts),
             'draw_alert_precision': round(alert_draw / len(alerts), 4) if alerts else None,
             'draw_base_rate': round(base, 4)}
 
 
 def section_halftime(con):
-    rows = con.execute("""SELECT h.x2_home, h.x2_draw, h.x2_away, h.ou_prob, h.ou_line,
-        m.score_home, m.score_away, m.ht_score_home, m.ht_score_away
+    rows = con.execute(f"""SELECT h.x2_home, h.x2_draw, h.x2_away, h.ou_prob, h.ou_line,
+        m.score_home, m.score_away, m.ht_score_home, m.ht_score_away,
+        m.kickoff, {_LAST_ODDS_SUB}
         FROM halftime_conclusion h JOIN matches m ON m.match_key = h.match_key
         WHERE m.status='finished' AND m.score_home IS NOT NULL
           AND h.x2_home IS NOT NULL AND h.x2_draw IS NOT NULL AND h.x2_away IS NOT NULL""").fetchall()
     x2_rows, ou_rows = [], []
-    for xh, xd, xa, oup, oul, fsh, fsa, hth, hta in rows:
+    for xh, xd, xa, oup, oul, fsh, fsa, hth, hta, ko, lodds in rows:
         act = result_1x2(fsh, fsa)
-        if act:
-            x2_rows.append((float(xh), float(xd), float(xa), act))
+        if act is None or not _credible(fsh, fsa, ko, lodds):
+            continue
+        x2_rows.append((float(xh), float(xd), float(xa), act))
         if oup is not None and oul is not None and fsh is not None and hth is not None:
             ft_total, ht_total = fsh + fsa, hth + hta
             res = settle_ou(ft_total - ht_total, float(oul))  # 下半场大小
@@ -181,14 +200,17 @@ def section_halftime(con):
 
 
 def section_ht_model(con):
-    rows = con.execute("""SELECT v.x2_probs, v.ou_probs, v.ou_line,
-        m.score_home, m.score_away FROM ht_model_verdict v
+    rows = con.execute(f"""SELECT v.x2_probs, v.ou_probs, v.ou_line,
+        m.score_home, m.score_away, m.kickoff, {_LAST_ODDS_SUB}
+        FROM ht_model_verdict v
         JOIN matches m ON m.match_key = v.match_key
         WHERE m.status='finished' AND m.score_home IS NOT NULL""").fetchall()
     x2_rows, ou_rows = [], []
-    for xp, op, oul, fsh, fsa in rows:
+    for xp, op, oul, fsh, fsa, ko, lodds in rows:
         act = result_1x2(fsh, fsa)
-        if act and xp:
+        if not act or not _credible(fsh, fsa, ko, lodds):
+            continue
+        if xp:
             try:
                 p = json.loads(xp)
                 if isinstance(p, dict):
@@ -236,14 +258,20 @@ def _binary_metrics(points):
 
 def section_daily_predictions(con):
     try:
-        rows = con.execute("""SELECT d.payload, m.score_home, m.score_away
+        rows = con.execute(f"""SELECT d.payload, m.score_home, m.score_away,
+            m.kickoff, {_LAST_ODDS_SUB}
             FROM daily_predictions d JOIN matches m ON m.match_key = d.match_key
             WHERE m.status='finished' AND m.score_home IS NOT NULL""").fetchall()
     except Exception:
         return None
+    kept = []
+    for payload, fsh, fsa, ko, lodds in rows:
+        if result_1x2(fsh, fsa) is None or not _credible(fsh, fsa, ko, lodds):
+            continue
+        kept.append((payload, fsh, fsa))
     model_rows, market_rows = [], []
-    ou25_rows, btts_rows, mou25_rows = [], [], []
-    for payload, fsh, fsa in rows:
+    ou25_rows, btts_rows, mou25_rows, mbtts_rows = [], [], [], []
+    for payload, fsh, fsa in kept:
         try:
             p = json.loads(payload)
         except Exception:
@@ -262,6 +290,8 @@ def section_daily_predictions(con):
             btts_rows.append((float(p['btts']), 1 if (fsh > 0 and fsa > 0) else 0))
         if mi.get('ou_line') == 2.5 and mi.get('p_over') is not None:
             mou25_rows.append((float(mi['p_over']), 1 if total > 2.5 else 0))
+        if mi.get('btts_p') is not None:
+            mbtts_rows.append((float(mi['btts_p']), 1 if (fsh > 0 and fsa > 0) else 0))
     if not model_rows:
         return {'n': 0, 'note': '预测产品层样本不足 (需已完赛且有预测行的场次)'}
     return {'daily_predictions': multi_metrics(model_rows),
@@ -269,8 +299,9 @@ def section_daily_predictions(con):
             'over_2_5': _binary_metrics(ou25_rows),
             'market_over_2_5_line2.5': _binary_metrics(mou25_rows),
             'btts': _binary_metrics(btts_rows),
-            'expected_total_bins': _etot_simple(rows),
-            'note': 'O2.5/BTTS/期望进球出自 OIP 比分矩阵 (赛前tick重建), 市场O2.5对照仅限盘口=2.5的场'}
+            'market_btts': _binary_metrics(mbtts_rows),
+            'expected_total_bins': _etot_simple(kept),
+            'note': 'O2.5/BTTS/期望进球出自 OIP 比分矩阵 (赛前tick重建), 市场O2.5对照仅限盘口=2.5的场, 市场BTTS对照仅限有BTTS盘的场'}
 
 
 def _etot_simple(rows):
@@ -296,18 +327,24 @@ def _etot_simple(rows):
 
 
 def section_market_big(con, day_limit):
-    rows = con.execute("""
-        SELECT o.op_1x2_h, o.op_1x2_d, o.op_1x2_a, o.result
+    rows = con.execute(f"""
+        SELECT o.op_1x2_h, o.op_1x2_d, o.op_1x2_a, o.result,
+               m.score_home, m.score_away, m.kickoff, {_LAST_ODDS_SUB}
         FROM match_outcomes o
+        JOIN matches m ON m.mid = o.mid
         WHERE o.result IN ('home','draw','away')
           AND o.op_1x2_h > 1 AND o.op_1x2_d > 1 AND o.op_1x2_a > 1
           AND o.is_valid = 1
           AND o.kickoff >= datetime('now', 'localtime', ?)
-        LIMIT 60000""", (f'-{day_limit} day',)).fetchall()
-    pts = [(*deoverround(float(h), float(d), float(a)), r) for h, d, a, r in rows]
+        LIMIT 120000""", (f'-{day_limit} day',)).fetchall()
+    pts = []
+    for oh, od, oa, r, fsh, fsa, ko, lodds in rows:
+        if r == 'draw' and not _credible(fsh, fsa, ko, lodds):
+            continue  # 假0-0 → 市场基准同场剔除 (draw 判定不可信)
+        pts.append((*deoverround(float(oh), float(od), float(oa)), r))
     m = multi_metrics(pts)
     if m:
-        m['note'] = '市场去水隐含概率 vs 真实赛果 — 概率体系的大样本效率基准 (margin≈市场定价误差容忍度)'
+        m['note'] = '市场去水隐含概率 vs 真实赛果 — 概率体系的大样本效率基准 (margin≈市场定价误差容忍度); 假0-0守卫后'
     return m
 
 
@@ -370,6 +407,7 @@ def main():
         'daily_over_2_5': daily.get('over_2_5') if daily else None,
         'daily_market_over_2_5': daily.get('market_over_2_5_line2.5') if daily else None,
         'daily_btts': daily.get('btts') if daily else None,
+        'daily_market_btts': daily.get('market_btts') if daily else None,
         'daily_expected_total_bins': daily.get('expected_total_bins') if daily else None,
         'market_baseline_big': market_big,
     }
@@ -394,6 +432,7 @@ def main():
     o25 = report.get('daily_over_2_5') or {}
     bts = report.get('daily_btts') or {}
     mo25 = report.get('daily_market_over_2_5')
+    mbt = report.get('daily_market_btts')
     daily_detail = ""
     if o25 or bts:
         o25_line = (f"- **O2.5**: n={o25.get('n', 0)}, LogLoss {o25.get('log_loss')}, "
@@ -402,7 +441,9 @@ def main():
         daily_detail = ("## E2. 预测产品层派生市场 (OIP 矩阵, 赛前tick重建)\n\n"
                         + o25_line + "\n"
                         + f"- **BTTS 双方进球**: n={bts.get('n', 0)}, LogLoss {bts.get('log_loss')}, "
-                          f"Brier {bts.get('brier')}, ECE {bts.get('ece')}\n"
+                          f"Brier {bts.get('brier')}, ECE {bts.get('ece')}"
+                        + (f" | 市场BTTS同集对照: LogLoss {mbt.get('log_loss')} (n={mbt.get('n')})" if mbt else "")
+                        + "\n"
                         + f"- {daily.get('note') if daily else ''}\n" + etot_md)
     md = [f"# 预测校准报告 ({report['generated_at']})",
          f"> {report['metric_principle']}\n",

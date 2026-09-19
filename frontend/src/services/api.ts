@@ -496,7 +496,9 @@ export interface PredictionEntry {
   market_implied: {
     home: number; draw: number; away: number
     ou_line: number | null; p_over: number | null
+    btts_p?: number | null
     odds_1x2?: [number, number, number]
+    odds_btts?: [number, number] | null
   }
   deviation_note: string
   generated_at: string
@@ -511,6 +513,40 @@ export interface PredictionCalibrationSection {
   per_outcome?: Record<string, { ece?: number; slope?: number | null }>
 }
 
+/** 沙盘回放: 开赛冻结预测 vs 实际赛果 (逐场 + 当日诊断, 校准证据口径) */
+export interface ReplayMatch {
+  match_key: string
+  home: string
+  away: string
+  league: string | null
+  kickoff: string
+  model_source: 'candles_ensemble' | 'market_baseline' | string
+  probs: { home: number; draw: number; away: number }
+  pick: 'home' | 'draw' | 'away'
+  status: string | null
+  score: string | null
+  actual: 'home' | 'draw' | 'away' | null
+  ll?: number
+  hit?: boolean
+}
+
+export interface ReplaySummary {
+  n: number
+  log_loss?: number | null
+  brier?: number | null
+  accuracy?: number | null
+}
+
+export interface ReplayPayload {
+  date: string
+  n_total: number
+  n_settled: number
+  n_unsettled: number
+  overall: ReplaySummary
+  by_source: Record<string, ReplaySummary>
+  matches: ReplayMatch[]
+}
+
 export const predictionsService = {
   /** 指定日期的逐场概率预测 (date=YYYY-MM-DD, 缺省今天) */
   getByDate: (date: string, refresh = false, signal?: AbortSignal) =>
@@ -521,5 +557,10 @@ export const predictionsService = {
   calibration: (signal?: AbortSignal) =>
     bridgeApi.get<ApiResponse<Record<string, PredictionCalibrationSection | string>>>(
       '/api/predictions/calibration', { signal },
+    ),
+  /** 沙盘回放: 指定日期冻结预测 vs 实际赛果 (LL/Brier/TOP1, 按模型源分列) */
+  replay: (date: string, signal?: AbortSignal) =>
+    bridgeApi.get<ApiResponse<ReplayPayload>>(
+      `/api/predictions/replay?date=${date}`, { signal },
     ),
 }

@@ -7,7 +7,7 @@ import PageHeader from '@/components/layout/PageHeader'
 import ApiError from '@/components/shared/ApiError'
 import Skeleton from '@/components/shared/Skeleton'
 import EmptyState from '@/components/shared/EmptyState'
-import { predictionsService, type PredictionEntry, type PredictionCalibrationSection } from '@/services/api'
+import { predictionsService, type PredictionEntry, type PredictionCalibrationSection, type ReplayMatch, type ReplayPayload } from '@/services/api'
 
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
@@ -19,7 +19,8 @@ function shanghaiToday(): string {
 }
 function fmtKickoff(ko: string): string {
   if (!ko) return '--:--'
-  const d = new Date(ko.replace(' ', 'T'))
+  // kickoff 为上海本地时间字面量, 与 isDone 同口径补 +08:00 (跨时区浏览器显示一致)
+  const d = new Date(ko.replace(' ', 'T') + '+08:00')
   if (isNaN(d.getTime())) return ko
   return inShanghai(d).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
 }
@@ -53,7 +54,7 @@ function groupByLeague(items: PredictionEntry[]): [string, PredictionEntry[]][] 
 }
 
 /** 联赛分组卡片列表 */
-function LeagueGroups({ groups, nowMs }: { groups: [string, PredictionEntry[]][]; nowMs: number }) {
+function LeagueGroups({ groups, nowMs, verdicts }: { groups: [string, PredictionEntry[]][]; nowMs: number; verdicts?: Map<string, ReplayMatch> }) {
   return (
     <div className="space-y-5">
       {groups.map(([league, items]) => (
@@ -65,7 +66,7 @@ function LeagueGroups({ groups, nowMs }: { groups: [string, PredictionEntry[]][]
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             {items.map((p) => (
-              <PredictionCard key={p.match_key} p={p} done={isDone(p, nowMs)} />
+              <PredictionCard key={p.match_key} p={p} done={isDone(p, nowMs)} verdict={verdicts?.get(p.match_key)} />
             ))}
           </div>
         </div>
@@ -85,6 +86,8 @@ function isDone(p: PredictionEntry, nowMs: number): boolean {
   if (isNaN(ko.getTime())) return false
   return nowMs - ko.getTime() > 3.5 * 3600 * 1000
 }
+
+const OUTCOME_LABEL: Record<'home' | 'draw' | 'away', string> = { home: '主胜', draw: '平局', away: '客胜' }
 
 const SOURCE_LABEL: Record<PredictionEntry['model_source'], string> = {
   candles_ensemble: 'K线集成',
@@ -120,11 +123,46 @@ function ProbBar({ p }: { p: PredictionEntry }) {
   )
 }
 
-function PredictionCard({ p, done }: { p: PredictionEntry; done?: boolean }) {
+/** 总进球分布 vs 实际 (分布证据, 已结算场显示) */
+function TotalGoalsDistribution({ p, actualTotal }: { p: PredictionEntry; actualTotal: number }) {
+  const dist = p.total_goals_distribution || {}
+  const buckets = ['0', '1', '2', '3', '4', '5', '6', '7+']
+  const max = Math.max(...buckets.map((b) => dist[b] || 0), 0.01)
+  return (
+    <div className="mt-2.5">
+      <div className="text-[10px] text-ink-disabled mb-1">
+        总进球分布 · 实际 <span className="text-field-400 font-semibold">{actualTotal} 球</span>
+      </div>
+      <div className="flex items-end gap-1 h-8">
+        {buckets.map((b) => {
+          const v = dist[b] || 0
+          const isActual = actualTotal >= 7 ? b === '7+' : b === String(actualTotal)
+          return (
+            <div key={b} className="flex-1 flex flex-col items-center justify-end gap-0.5 h-full" title={`${b} 球 ${pct(v, 1)}`}>
+              <div
+                className={`w-full rounded-sm ${isActual ? 'bg-field-500' : 'bg-white/[0.12]'}`}
+                style={{ height: `${Math.max(6, (v / max) * 100)}%` }}
+              />
+              <span className={`text-[9px] tabular-nums ${isActual ? 'text-field-400 font-semibold' : 'text-ink-disabled'}`}>{b}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function parseTotal(score: string): number | null {
+  const m = /^(\d+)-(\d+)$/.exec(score.trim())
+  return m ? Number(m[1]) + Number(m[2]) : null
+}
+
+function PredictionCard({ p, done, verdict }: { p: PredictionEntry; done?: boolean; verdict?: ReplayMatch }) {
   const mi = p.market_implied || ({} as PredictionEntry['market_implied'])
   const dHome = mi.home != null ? (p.p_home - mi.home) * 100 : null
   const dAway = mi.away != null ? (p.p_away - mi.away) * 100 : null
   const dDraw = mi.draw != null ? (p.p_draw - mi.draw) * 100 : null
+  const actualTotal = verdict?.score ? parseTotal(verdict.score) : null
   return (
     <div className="rounded-xl border border-surface-border bg-surface-dark/60 p-4 hover:border-field-500/30 transition-colors">
       {/* 头行: 时间 + 对阵 + 徽标 */}
@@ -133,8 +171,19 @@ function PredictionCard({ p, done }: { p: PredictionEntry; done?: boolean }) {
         <span className="text-sm font-semibold text-ink-primary">
           {p.home} <span className="text-ink-disabled font-normal mx-1">vs</span> {p.away}
         </span>
-        {done && (
+        {done && !verdict?.actual && (
           <span className="text-[10px] px-1.5 py-0.5 rounded border border-danger-500/30 text-danger-400 font-semibold">已结束</span>
+        )}
+        {verdict?.actual && (
+          <>
+            <span className="text-[10px] px-1.5 py-0.5 rounded border border-surface-border text-ink-muted tabular-nums">
+              终场 {verdict.score} · {OUTCOME_LABEL[verdict.actual]}
+            </span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold tabular-nums ${
+              verdict.hit ? 'border-field-500/40 text-field-400' : 'border-danger-500/30 text-danger-400'}`}>
+              {verdict.hit ? '命中 ✓' : '未中 ✗'} · LL {verdict.ll?.toFixed(2)}
+            </span>
+          </>
         )}
         {p.league && (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.05] text-ink-muted">{p.league}</span>
@@ -163,6 +212,7 @@ function PredictionCard({ p, done }: { p: PredictionEntry; done?: boolean }) {
         </div>
       </div>
       <ProbBar p={p} />
+      {verdict?.actual && actualTotal != null && <TotalGoalsDistribution p={p} actualTotal={actualTotal} />}
 
       {/* 派生市场 + 期望进球 */}
       <div className="grid grid-cols-4 gap-2 mt-3 text-center">
@@ -179,6 +229,11 @@ function PredictionCard({ p, done }: { p: PredictionEntry; done?: boolean }) {
         <div className="rounded-lg bg-white/[0.03] py-1.5">
           <div className="text-[10px] text-ink-disabled">双方进球</div>
           <div className="text-xs font-semibold text-ink-primary tabular-nums">{pct(p.btts)}</div>
+          {mi.btts_p != null && (
+            <div className={`text-[9px] tabular-nums ${Math.abs((p.btts - mi.btts_p) * 100) >= 3 ? 'text-ember-400' : 'text-ink-disabled'}`}>
+              市 {pct(mi.btts_p)}
+            </div>
+          )}
         </div>
         <div className="rounded-lg bg-white/[0.03] py-1.5">
           <div className="text-[10px] text-ink-disabled">最可能比分</div>
@@ -237,6 +292,43 @@ function CalibrationStrip() {
   )
 }
 
+/** 当日复盘条 (沙盘回放): 开赛冻结预测 vs 实际赛果的当日诊断 */
+function ReplayStrip({ replay }: { replay?: ReplayPayload }) {
+  if (!replay || replay.n_settled === 0) return null
+  const o = replay.overall
+  const hits = o.accuracy != null ? Math.round(o.accuracy * o.n) : null
+  return (
+    <div className="mb-4 rounded-xl border border-field-500/20 bg-surface-dark/60 px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs">
+      <span className="text-ink-disabled font-medium">当日复盘 <span className="text-ink-disabled/60 font-normal">(开赛冻结口径)</span></span>
+      <span className="text-ink-muted">
+        已结算 <b className="text-ink-primary tabular-nums">{replay.n_settled}</b>/{replay.n_total} 场
+        {replay.n_unsettled > 0 && <span className="text-ink-disabled"> · {replay.n_unsettled} 场未完赛不计入</span>}
+      </span>
+      {o.log_loss != null && (
+        <span className="text-ink-muted">LogLoss <b className="text-ink-primary tabular-nums">{o.log_loss.toFixed(4)}</b></span>
+      )}
+      {o.brier != null && (
+        <span className="text-ink-muted">Brier <b className="text-ink-primary tabular-nums">{o.brier.toFixed(4)}</b></span>
+      )}
+      {o.accuracy != null && (
+        <span className="text-ink-muted">
+          TOP1 <b className="text-ink-primary tabular-nums">{pct(o.accuracy, 1)}</b>
+          {hits != null && <span className="text-ink-disabled"> ({hits}/{o.n})</span>}
+        </span>
+      )}
+      {Object.entries(replay.by_source)
+        .filter(([, s]) => s.log_loss != null)
+        .map(([src, s]) => (
+          <span key={src} className="text-ink-disabled">
+            {SOURCE_LABEL[src as PredictionEntry['model_source']] || src}:{' '}
+            LL <span className="tabular-nums">{s.log_loss?.toFixed(4)}</span> · n={s.n}
+            {s.accuracy != null && <span> · TOP1 {pct(s.accuracy, 0)}</span>}
+          </span>
+        ))}
+    </div>
+  )
+}
+
 export default function Predictions() {
   const [day, setDay] = useState(shanghaiToday())
   const [now] = useState(() => Date.now())
@@ -247,6 +339,19 @@ export default function Predictions() {
     queryFn: ({ signal }) => predictionsService.getByDate(day, false, signal),
     staleTime: 5 * 60 * 1000,
   })
+
+  // 沙盘回放: 该日冻结预测 vs 实际赛果 (复盘条 + 完赛卡判定/分布证据)
+  const { data: replayData } = useQuery({
+    queryKey: ['predictions-replay', day],
+    queryFn: ({ signal }) => predictionsService.replay(day, signal),
+    staleTime: 5 * 60 * 1000,
+  })
+  const replay = replayData?.data?.data as ReplayPayload | undefined
+  const verdicts = useMemo(() => {
+    const m = new Map<string, ReplayMatch>()
+    replay?.matches?.forEach((x) => { if (x.actual) m.set(x.match_key, x) })
+    return m
+  }, [replay])
 
   const payload = data?.data?.data
   const list = (payload?.predictions || []) as PredictionEntry[]
@@ -286,9 +391,9 @@ export default function Predictions() {
                 ? 'text-field-400 bg-field-500/10 border-field-500/25'
                 : 'text-ink-muted border-surface-border hover:text-ink-primary hover:bg-white/[0.04]'
             }`}
-          >
-            {t.label}
-          </button>
+        >
+          {t.label}
+        </button>
         ))}
         <span className="flex-1" />
         <button
@@ -299,6 +404,8 @@ export default function Predictions() {
           {isFetching ? '刷新中…' : '刷新'}
         </button>
       </div>
+
+      <ReplayStrip replay={replay} />
 
       {isLoading ? (
         <Skeleton rows={6} />
@@ -311,7 +418,7 @@ export default function Predictions() {
         />
       ) : (
         <div className="space-y-6">
-          {groupedUpcoming.length > 0 && <LeagueGroups groups={groupedUpcoming} nowMs={now} />}
+          {groupedUpcoming.length > 0 && <LeagueGroups groups={groupedUpcoming} nowMs={now} verdicts={verdicts} />}
           {groupedFinished.length > 0 && (
             <div>
               <div className="text-xs font-semibold text-danger-400/90 mb-2 flex items-center gap-2">
@@ -319,7 +426,7 @@ export default function Predictions() {
                 <span className="text-ink-disabled/60 font-normal">{finished.length} 场 · 新完赛在前</span>
                 <span className="flex-1 h-px bg-surface-border" />
               </div>
-              <LeagueGroups groups={groupedFinished} nowMs={now} />
+              <LeagueGroups groups={groupedFinished} nowMs={now} verdicts={verdicts} />
             </div>
           )}
         </div>

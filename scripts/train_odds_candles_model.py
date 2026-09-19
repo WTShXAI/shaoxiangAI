@@ -50,6 +50,13 @@ def build_dataset(con, days=26, max_matches=12000):
                 skipped += 1; continue
             events = load_match_events(con, mk)
             pre = [e for e in events if e['captured_at'] <= ko_ts]
+            # 假0-0守卫 (2026-09-19): 全场 0-0 且终盘 tick < kickoff+95min = 比分帧断流
+            # 定格的假 0-0 → dirty 标签: 评估折一律剔除; 训练折是否剔除由 --clean-train 决定
+            # (A/B 实验: 脏标签训练是否伤害模型, 实证见 pipeline/settle.py::credible_1x2)
+            dirty = False
+            if fsh == 0 and fsa == 0:
+                last_tick = max((e['captured_at'] for e in events), default=None)
+                dirty = (last_tick is None or last_tick < ko_ts + 95 * 60)
             if len(pre) < 20:
                 skipped += 1; continue
             if not all(sum(1 for e in pre if e['selection'] == s) >= 2 for s in ('home', 'draw', 'away')):
@@ -85,7 +92,7 @@ def build_dataset(con, days=26, max_matches=12000):
             actual = 'home' if fsh > fsa else ('draw' if fsh == fsa else 'away')
             label = {'home': 0, 'draw': 1, 'away': 2}[actual]
             rows.append({'match_key': mk, 'kickoff': ko, 'label': label, 'actual': actual,
-                         'static': xs, 'traj': xt, 'candles': xc, 'seq': seq, 'mask': mask})
+                         'dirty': dirty, 'static': xs, 'traj': xt, 'candles': xc, 'seq': seq, 'mask': mask})
         except Exception:
             skipped += 1
             continue
@@ -94,10 +101,12 @@ def build_dataset(con, days=26, max_matches=12000):
     return rows
 
 
-def lgb_walkforward(X, y, folds, params=None):
+def lgb_walkforward(X, y, folds, params=None, train_keep=None):
     import lightgbm as lgb
     accs, probs = [], []
     for tr, te in folds:
+        if train_keep is not None:
+            tr = tr[train_keep[tr]]
         m = lgb.LGBMClassifier(n_estimators=200, learning_rate=0.05, max_depth=5,
                                verbose=-1, random_state=42, **(params or {}))
         m.fit(X[tr], y[tr])
@@ -108,7 +117,8 @@ def lgb_walkforward(X, y, folds, params=None):
 
 
 # ── E3: 小型 decoder-only transformer ──
-def train_transformer(rows, folds, epochs=25, d_model=64, n_layers=4, n_heads=4, seed=42):
+def train_transformer(rows, folds, epochs=25, d_model=64, n_layers=4, n_heads=4, seed=42,
+                      train_keep=None):
     import torch
     import torch.nn as nn
     torch.manual_seed(seed)
@@ -149,6 +159,8 @@ def train_transformer(rows, folds, epochs=25, d_model=64, n_layers=4, n_heads=4,
     y = np.array([r['label'] for r in rows])
     accs, probs = [], []
     for fi, (tr, te) in enumerate(folds):
+        if train_keep is not None:
+            tr = tr[train_keep[tr]]
         torch.manual_seed(seed + fi)
         model = Model().to(device)
         opt = torch.optim.Adam(model.parameters(), lr=1e-3)
@@ -195,6 +207,8 @@ def main():
     ap.add_argument('--rounds', type=int, default=1)
     ap.add_argument('--transformer', action='store_true')
     ap.add_argument('--seed', type=int, default=42)
+    ap.add_argument('--clean-train', action='store_true',
+                    help='假0-0脏标签从训练折剔除 (评估折无论开关一律剔除)')
     ap.add_argument('--save', default='')
     args = ap.parse_args()
 
@@ -204,8 +218,15 @@ def main():
         print('样本不足')
         return
     y = np.array([r['label'] for r in rows])
+    dirty = np.array([bool(r.get('dirty')) for r in rows])
     kickoffs = [r['kickoff'] for r in rows]
     assert kickoffs == sorted(kickoffs), '必须 kickoff 升序'
+    # --clean-train: 假0-0脏标签从训练折剔除; 无论开关, 评估折一律只用干净行 (口径统一)
+    train_keep = (~dirty) if args.clean_train else None
+    if dirty.any():
+        print(f'假0-0脏标签: {int(dirty.sum())} 场 '
+              f'({"训练折剔除 (--clean-train)" if args.clean_train else "保留在训练折 (现任策略)"}; '
+              f'评估折一律剔除)')
 
     from sklearn.model_selection import TimeSeriesSplit
     folds = list(TimeSeriesSplit(n_splits=5).split(np.zeros(len(y))))
@@ -227,22 +248,33 @@ def main():
             'D candles': X_c, 'E candles+static': X_cst, 'E2 all': X_all}
 
     # 预测系统主指标 (2026-09-18): LogLoss 与 TOP1 并列输出
-    def _ll(probs_list):
-        eps = 1e-15
-        lls = []
+    # (2026-09-19) 统一干净评估: 指标只在非 dirty 测试行上计算 — A/B 实验的同测试集保证
+    def _clean_eval(probs_list):
+        accs, lls = [], []
         for fi, (tr, te) in enumerate(folds):
-            p = np.clip(probs_list[fi], eps, 1 - eps)
-            lls.append(float(-np.mean(np.log(p[np.arange(len(te)), y[te]]))))
-        return float(np.mean(lls))
+            keep = ~dirty[te]
+            te_k, y_k = te[keep], y[te][keep]
+            if len(te_k) == 0:
+                continue
+            p = probs_list[fi][keep]
+            accs.append(float((p.argmax(1) == y_k).mean()))
+            pc = np.clip(p, 1e-15, 1 - 1e-15)
+            lls.append(float(-np.mean(np.log(pc[np.arange(len(te_k)), y_k]))))
+        return accs, (float(np.mean(lls)) if lls else float('nan'))
 
-    print(f'\n── Walkforward 5 折 TOP1 / LogLoss (days={args.days}, n={len(y)}) ──')
+    def _ll(probs_list):
+        return _clean_eval(probs_list)[1]
+
+    print(f'\n── Walkforward 5 折 TOP1 / LogLoss (days={args.days}, n={len(y)}, '
+          f'干净评估 n={int((~dirty).sum())}) ──')
     table = {}
     table_ll = {}
     lgb_probs = {}
     for name, X in fams.items():
-        accs, probs = lgb_walkforward(X, y, folds)
+        _, probs = lgb_walkforward(X, y, folds, train_keep=train_keep)
+        accs, ll = _clean_eval(probs)
         table[name] = accs
-        table_ll[name] = _ll(probs)
+        table_ll[name] = ll
         lgb_probs[name] = probs
         print(f'  {name:>18}: {np.mean(accs)*100:5.1f}% ± {np.std(accs)*100:.1f}%   LL={table_ll[name]:.4f}   '
               f'折: {" ".join(f"{a*100:.0f}" for a in accs)}')
@@ -251,18 +283,16 @@ def main():
 
     if args.transformer:
         t0 = time.time()
-        accs_t, probs_t = train_transformer(rows, folds, seed=args.seed)
+        _, probs_t = train_transformer(rows, folds, seed=args.seed, train_keep=train_keep)
+        accs_t, _ = _clean_eval(probs_t)
         table['F transformer'] = accs_t
         print(f'  {"F transformer":>18}: {np.mean(accs_t)*100:5.1f}% ± {np.std(accs_t)*100:.1f}%   [{time.time()-t0:.0f}s]')
         # E4: 集成 (最优 LGB 族 + transformer)
         best_lgb = max(fams, key=lambda n: np.mean(table[n]))
-        ens_accs = []
-        for fi, (tr, te) in enumerate(folds):
-            p = 0.5*lgb_probs[best_lgb][fi] + 0.5*probs_t[fi]
-            ens_accs.append(float((p.argmax(1) == y[te]).mean()))
-        table['G ensemble'] = ens_accs
         ens_probs = [0.5*lgb_probs[best_lgb][fi] + 0.5*probs_t[fi] for fi in range(len(folds))]
-        table_ll['G ensemble'] = _ll(ens_probs)
+        ens_accs, ens_ll = _clean_eval(ens_probs)
+        table['G ensemble'] = ens_accs
+        table_ll['G ensemble'] = ens_ll
         print(f'  {"G ensemble("+best_lgb[:8]+")":>18}: {np.mean(ens_accs)*100:5.1f}% ± {np.std(ens_accs)*100:.1f}%   LL={table_ll["G ensemble"]:.4f}')
 
     # 结论

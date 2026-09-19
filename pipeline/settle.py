@@ -55,3 +55,26 @@ def settle_ou(total: Optional[int], line: float) -> Optional[str]:
     if total < line:
         return "under"
     return "push"
+
+
+def credible_1x2(score_home, score_away, last_odds_ts=None, kickoff_ts=None,
+                 live_floor_sec: float = 95.0 * 60) -> bool:
+    """假0-0守卫 (2026-09-19): status=finished 且全场 0-0, 但最后赔率 tick 早于
+    kickoff+95min → 比分帧中途断流后定格的假 0-0, 该结算不可信。
+
+    实证 (2026-09-19, daily_predictions 已结算台账抽样):
+      0-0 场 78% 终盘 tick < kickoff+95min (中位 -3min, 纯断流);
+      1-1 场 97% / 有胜负场 92% 持续到 ≥95min;
+      通过守卫的 0-0 占已结算全集 ~6.9%, 与真实足球 0-0 频率吻合。
+    非 0-0 赛果恒可信 (有进球即有真实比分帧流动); 参数缺失时保守返回 False。
+    """
+    if score_home is None or score_away is None:
+        return False
+    if score_home != 0 or score_away != 0:
+        return True
+    if last_odds_ts is None or kickoff_ts is None:
+        return False
+    try:
+        return float(last_odds_ts) >= float(kickoff_ts) + live_floor_sec
+    except (TypeError, ValueError):
+        return False
