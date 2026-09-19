@@ -39,7 +39,7 @@
 | **模型治理** | `pipeline/model_catalog.py` | M1–M7 唯一注册表（≤7 强制校验）；旧 model_registry.json 已冻结为只读快照 |
 | **偏差层(内置)** | `bridge_service._live_predict` | 模型-市场概率对照（量化系统已删除, value_layer=偏差-only） |
 | **主入口** | `bridge_service.py` | FastAPI :9000，全部 API；`ShaoxiangBridge_Watchdog` 计划任务守护 |
-| **采集器** | `gq/auto_collector.py` + `gq/db.py` + `gq/watchdog_collector.py` | 乐鱼实时采集 → events.db；四类冻结快照（赛前KNN/临场K线/开赛CS/半场） |
+| **采集器** | `gq/auto_collector.py` + `gq/db.py` + `gq/ws_collector.py` | 乐鱼实时采集 → events.db；四类冻结快照（赛前KNN/临场K线/开赛CS/半场） |
 | **赔率双时点** | `pipeline/gq_odds_filter.py` | 初盘/中场收盘提取（2026-09-18 自根目录迁入） |
 | **去水数学** | `pipeline/odds_math.py` | devig_n/devig2/devig3/devig_power 唯一实现（2026-09-19 收敛 8 副本） |
 | **叙事特征** | `gq/match_narrative.py` | 平局/反超/进球干旱/热门失分特征记录 → match_narrative 表（15848 场），为下一代模型供料 |
@@ -105,7 +105,7 @@
 
 ```
 后端主服务:  bridge_service.py :9000 (start_backend.py DETACHED 拉起, 日志 logs/backend_daemon.log)
-采集守护:    gq/watchdog_collector.py (ShaoxiangGQ_Watchdog)
+采集守护:    已移除 (2026-09-19) — 存活性由每小时 autonomous_monitor 采集停滞告警接手
 bridge守护:  scripts/bridge_watchdog.py (ShaoxiangBridge_Watchdog; 日志10MB轮转)
 网络监护:    scripts/network_watchdog.py (ShaoxiangAI_NetWatch)
 每日复盘:    ShaoxiangAI_DailyRecheck 00:00 → scripts/recheck_analysis.py --apply

@@ -44,15 +44,33 @@ $PY scripts/eval_prediction_calibration.py            # 校准评估 → reports
 - **训练负结论存档** (清单§五/附, 2026-09-18): LGB/stacking/移动特征/isotonic(派生市场)/联赛收缩/KNN+K线stacking
   全部不敌现役源, 勿重复; **两例外已采纳**: K线集成升 70 天全语料 (LL 1.0264), HT锚 OU 全面胜现任
   (76.8% vs 50.2%, HT-OU 读数应以 ht_model_verdict 为准); 半场OU读数疑似上游 bug (见 reports/ht_ou_isotonic_eval.json)
+- **假0-0评估口径修复 (2026-09-19, 清单§五附二)**: 断流场定格 0-0 曾污染全部结算面; 结算一律走
+  `pipeline/settle.py::credible_1x2` 守卫。修复后 K线 vs 市场 ΔLL=+0.013 — "K线优于市场"为污染伪信号,
+  candles 升主赛前锚点的 ≥300 场对照决策必须用守卫后台账。
 - **devig SSoT**: pipeline/odds_math.py (devig_n/devig2/devig3/devig_power); 新代码禁再写本地去水
-- 工程规范: 测试 `.venv/Scripts/python -m pytest tests/ -q --timeout=120` (79 用例); 规范化+待办见
+- 工程规范: 测试 `.venv/Scripts/python -m pytest tests/ -q --timeout=120` (38 用例, 2026-09-19 量化归档后); 规范化+待办见
   docs/prediction_refactor_checklist.md 与 docs/pending_cleanup_backlog.md; ARCHITECTURE.md 已重写为预测系统版
-- **自主监测优化** (2026-09-19 用户指令开启): 每小时自动化 automation-23e0a46a 运行
-  scripts/autonomous_monitor.py --cycle (bridge自愈/采集活性/预测补算/叙事增量/校准漂移/重训门控);
+- **自主监测优化** (2026-09-19 用户指令开启): 每小时自动化 automation-025892d6 运行
+  scripts/autonomous_monitor.py --cycle (bridge自愈/采集活性/预测补算+每小时refresh未开赛行应用K线判定/叙事增量/校准漂移/重训门控);
   状态 reports/monitor_status.json, 历史 monitor_history.jsonl, 日志 logs/autonomous_monitor.log;
   重训建议仅提示不自动执行 (walkforward 门禁保留)
 - 前端已去喊单化 (价值层/决策/操盘手/天眼镜 → 概率偏差解释表达); 二期剩余见清单§五:
   `_live_predict` 摘除 value_layer、bookmaker_sim 解耦、bet_core 归档
+
+## 电子盘口监测 (2026-09-19, 用户指令"当游戏打"落地)
+
+- `gq/efootball_probe.py` 常驻探针 (60s/轮, euid=3020190 电子足球分区): EAFC 模拟联赛
+  赛事+赔率原始 payload 全量落 **独立库 data/efootball.db** (ef_matches/ef_odds_raw),
+  零接触 events.db; 主采集器当年用 _is_simulated_league 故意排除模拟域, 探针反其道采集。
+- 与主采集器共用 gq/.env token (热加载继承); 日志 gq/efootball_daemon.log。
+- 用途: 引擎指纹诊断 (模拟域 vs 真实域 平局率/比分分布/市场LL 对比) + 深度学习语料;
+  任何输出仍走 walkforward 门禁 + IR-32。
+- 相关实证 (2026-09-19): 真实域开盘≈收盘 (ΔLL -0.0039, 赔率为生成型非撮合型);
+  overround 模板化 (中位 1.064); 详见会话记录与 reports/candles_70d_AB_*.json 同期产物。
+- **引擎指纹首跑 (2026-09-20, n=354)**: 模拟域早盘市场 LL 1.0121 vs 真实域同口径 0.9636
+  (Δ+0.0485, ~1.5σ 提示性非结论性); 引擎口味: 平局 21% vs 真实 24%, 场均球 2.93 vs 2.76。
+  语料继续积累 (scripts/efootball_fingerprint.py 手动重跑), 数据集构建器
+  scripts/efootball_build_dataset.py 供深度学习期; 任何模型输出仍走 walkforward 门禁。
 
 ## 双 AI 协作黑板 (2026-09-13 生产接入, 必读)
 

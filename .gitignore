@@ -198,6 +198,10 @@ aiqiuke/dev.log
 frontend/test-results/
 
 gq/.collector.lock
+gq/.supervisor.lock
+gq/.token_watch_state.json
+gq/.feed_state.json
+gq/.env.bak_*
 sandbox/collab/_t3.ps1
 sandbox/collab/journal*.jsonl
 gq/_ws_markets.json

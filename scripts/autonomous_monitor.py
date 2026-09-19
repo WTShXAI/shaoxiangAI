@@ -69,7 +69,8 @@ def check_bridge():
 
 
 def check_collector():
-    """采集活性以 matches.last_seen 为准 (每轮刷新); odds_changes 只记变动, 不作活性指标。"""
+    """采集活性以 matches.last_seen 为准 (每轮刷新); odds_changes 只记变动, 不作活性指标。
+    另读 gq/.feed_state.json: WS 持续瞬断 = 会话/token 过期的显式信号 (2026-09-19 接入)。"""
     import sqlite3
     con = sqlite3.connect(f'file:{os.path.join(ROOT, "data", "events.db")}?mode=ro', uri=True)
     mx = con.execute('SELECT MAX(last_seen) FROM matches').fetchone()[0]
@@ -77,10 +78,16 @@ def check_collector():
           AND kickoff >= datetime('now', 'localtime', '-3 hour')""").fetchone()[0]
     con.close()
     stale_min = (time.time() - mx) / 60 if mx else None
-    stale_h = round(stale_min / 60, 1) if stale_min else None
+    feed_flap = False
+    try:
+        with open(os.path.join(ROOT, 'gq', '.feed_state.json'), encoding='utf-8') as f:
+            feed_flap = bool(json.load(f).get('feed_flap'))
+    except Exception:
+        pass
     return {'last_seen_age_min': round(stale_min, 1) if stale_min else None,
             'live_matches': live,
-            'alert': bool(stale_min is None or stale_min > 20)}
+            'feed_flap': feed_flap,
+            'alert': bool(stale_min is None or stale_min > 20 or feed_flap)}
 
 
 def refresh_predictions():
@@ -92,13 +99,19 @@ def refresh_predictions():
             out['before'] = len(read_for_date(con, today))
         except Exception:
             out['before'] = 0
-    if out['before'] == 0:
-        from gq.db import conn as gq_conn
-        with gq_conn() as con:
-            con.executescript(TABLE_DDL)
-            build_for_date(con, today, allow_candles_compute=False)
+    # 2026-09-19 覆盖修复: 不只首建 — 每轮 refresh 未开赛行, 使采集器临场写入的
+    # K线判定及时应用 (此前首建后永不更新, K线覆盖率被钉在首建时刻, 09-18 实测 28/155)。
+    # refresh=True 仅触及未开赛行 (开赛定格由 build_for_date 的 ko_ts 守卫保证);
+    # allow_candles_compute=False — 只读已定格判定, 不现算 torch。
+    from gq.db import conn as gq_conn
+    with gq_conn() as con:
+        con.executescript(TABLE_DDL)
+        build_for_date(con, today, refresh=True, allow_candles_compute=False)
     with _conn_ro() as con:
         out['after'] = len(read_for_date(con, today))
+        out['sources'] = {k: n for k, n in con.execute(
+            'SELECT model_source, COUNT(*) FROM daily_predictions WHERE match_date=? GROUP BY 1',
+            (today,)).fetchall()}
     out['added'] = max(0, out['after'] - out['before'])
     return out
 
@@ -129,11 +142,14 @@ def calibration_check():
             log(f'校准评估失败: {e}', 'ERROR')
     drift = None
     try:
-        rep = json.load(open(rp, encoding='utf-8'))
+        with open(rp, encoding='utf-8') as f:
+            rep = json.load(f)
         delta = (rep.get('candles_vs_market_same_set') or {}).get('log_loss_delta')
         if delta is not None:
+            # 2026-09-19 假0-0守卫后真值基线: +0.013 (K线并不优于市场; 旧 -0.022 为污染伪信号,
+            # 见 docs/prediction_refactor_checklist.md §五附)。漂移警报 = 劣化超出 0.03。
             drift = {'ll_delta_vs_market': delta,
-                     'drift_alert': bool(delta > 0.0)}  # 基线 -0.022; 转正即劣化
+                     'drift_alert': bool(delta > 0.03)}
     except Exception:
         pass
     return {'report_age_hours': round(age_h, 1) if age_h else None, 'rerun': ran, 'drift': drift}
@@ -152,7 +168,8 @@ def retrain_gate():
 
 def _last_train_ts():
     try:
-        return json.load(open(TRAIN_MARKER, encoding='utf-8'))['ts']
+        with open(TRAIN_MARKER, encoding='utf-8') as f:
+            return json.load(f)['ts']
     except Exception:
         return 0.0
 
@@ -165,10 +182,16 @@ def main():
     status = {'cycle_at': time.strftime('%Y-%m-%d %H:%M:%S')}
 
     status['bridge'] = check_bridge()
-    status['collector'] = check_collector()
+    try:
+        status['collector'] = check_collector()
+    except Exception as e:
+        status['collector'] = {'error': str(e), 'alert': False}
+        log(f'采集活性检查失败: {e}', 'ERROR')
     if status['collector'].get('alert'):
-        log(f"采集疑似停滞: live={status['collector']['live_matches']} "
-            f"最新tick距今 {status['collector']['max_age_hours']}h", 'WARN')
+        c = status['collector']
+        why = ' — WS 持续瞬断, 疑似会话/token 过期 (需更新 gq/.env)' if c.get('feed_flap') else ''
+        log(f"采集疑似停滞: live={c.get('live_matches')} "
+            f"last_seen距今 {c.get('last_seen_age_min')}min{why}", 'WARN')
     try:
         status['predictions'] = refresh_predictions()
     except Exception as e:

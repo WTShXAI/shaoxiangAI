@@ -12,7 +12,11 @@ SQLAlchemy>=2.0.0,<2.1.0
 # ── 数据科学（核心预测必需） ──
 numpy>=1.26.0,<2.1.0
 pandas>=2.0.0,<3.0.0
-scikit-learn>=1.4.0,<1.7.0
+# 2026-09-19: saved_models 5 个生产 pickle (wc_main_v1/draw_expert/operator×2/mispricing)
+# 训练于 1.9.0; 旧 pin <1.7.0 会把环境降到 1.6.1 造成 1.9.0 pickle → 1.6.1 运行时的
+# 危险反向 unpickle。运行时对齐 1.9.0 (data/models 现役 LGB 内嵌 1.6.1 LabelEncoder
+# 属 旧pickle→新运行时 的官方支持方向, 警告良性)。
+scikit-learn>=1.9.0,<2.0.0
 xgboost>=2.0.0,<3.0.0
 lightgbm>=4.0.0,<5.0.0
 joblib>=1.3.0,<2.0.0

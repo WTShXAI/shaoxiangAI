@@ -53,8 +53,7 @@ gq/event_db.py           — 完整赛事库管理(建表/回填/接口说明/�
 gq/ws_collector.py       — 乐鱼 WS 实时盘口流采集器(写 events.db)
 gq/content_collector.py  — 赛事内容(前瞻/伤病/赛果H2H) HTTP 采集(写 match_meta + h2h)
 gq/auto_collector.py     — 辅助 HTTP 列表/结构/网络工具(已退役主采集, 仅工具)
-gq/start_collector.py    — 启动入口(→ ws_collector -d 0)
-gq/watchdog_collector.py — 看门狗(每5分钟保活, \ShaoxiangGQ_Watchdog)
+gq/start_collector.py    — 启动入口(→ ws_collector -d 0); 存活性由每小时 autonomous_monitor 告警
 gq/launcher.py           — Python 后台启动器
 gq/diag_cs.py            — 波胆诊断(保留)
 gq/record_image.py       — 截图入库工具(保留)

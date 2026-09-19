@@ -170,6 +170,17 @@ def _log(msg: str):
     except Exception:
         pass
 
+
+# feed 瞬断状态落盘 (2026-09-19): autonomous_monitor 读取上报; 稳定后清除
+_FEED_STATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".feed_state.json")
+
+def _write_feed_state(flap: bool):
+    try:
+        with open(_FEED_STATE_PATH, "w", encoding="utf-8") as f:
+            json.dump({"feed_flap": bool(flap), "ts": time.time()}, f)
+    except Exception:
+        pass
+
 def _mask(url: str) -> str:
     """日志脱敏: 掩盖 token/api/sessionId 真实值。"""
     if not url:
@@ -785,11 +796,33 @@ class WSCollector:
                     ctx = browser.new_context(ignore_https_errors=True, locale="zh-CN")
                     page = ctx.new_page()
 
+                    # 瞬断检测 (2026-09-19): 连接<3s 即断 → 计数; 连续≥10 次 = 会话/token
+                    # 过期的典型模式 (09-19 事故: 过期 token 造成 5 分钟一轮瞬断循环)。
+                    # 写 gq/.feed_state.json 供 autonomous_monitor 显式上报, 稳定连接(>120s)自动清除。
+                    feed_state = {'flap': 0, 'last_marker': 0.0}
+
+                    def _feed_flap_check(opened_at, url):
+                        now = time.time()
+                        life = now - opened_at
+                        if life > 120:
+                            if feed_state['flap']:
+                                feed_state['flap'] = 0
+                                _write_feed_state(False)
+                            return
+                        feed_state['flap'] += 1
+                        if feed_state['flap'] >= 10 and now - feed_state['last_marker'] > 600:
+                            feed_state['last_marker'] = now
+                            _log(f"[FEED][CRITICAL] 连续 {feed_state['flap']} 次 WS 瞬断 — 疑似会话/token 过期, "
+                                 f"需更新 gq/.env 的 GQ_H5_URL/GQ_REQUEST_ID")
+                            _write_feed_state(True)
+
                     def on_ws(ws):
+                        opened_at = time.time()
                         _log(f"[WS] open {ws.url[:70]}")
                         # Playwright Python: framereceived 回调直接收到 payload(str/bytes), 非 event 对象
                         ws.on("framereceived", lambda data: self._safe_frame(data))
-                        ws.on("close", lambda: _log("[WS] closed"))
+                        ws.on("close", lambda: (_log("[WS] closed"),
+                                               _feed_flap_check(opened_at, ws.url)))
 
                     page.on("websocket", on_ws)
                     page.on("crash", lambda: _log("[WS][WARN] page crash"))

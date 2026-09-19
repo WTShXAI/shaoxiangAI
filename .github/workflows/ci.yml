@@ -54,8 +54,9 @@ jobs:
         run: |
           pip install mypy
           mypy
-        # 配置见 pyproject.toml [tool.mypy]: 聚焦 bet_core/deep_report/reverse_odds_engine/score_model
-        # (价值层/注码/赔率破解 SSoT), lenient 基线, 阻止 SSoT 引入类型错误.
+        # 配置见 pyproject.toml [tool.mypy]: 聚焦 reverse_odds_engine/score_model
+        # (赔率逆向/比分模型 SSoT), lenient 基线, 阻止 SSoT 引入类型错误.
+        # bet_core/deep_report 已随量化系统归档 (2026-09-19 IR-32), 同步移出 mypy 扫描列表.
 
   # ═══════════════════════════════════════════════
   # Security Scan (ECC verification-loop Phase 5)
@@ -141,22 +142,13 @@ jobs:
           echo "✅ 关键 SSoT 覆盖率达标 (≥80%)"
 
       # P0-1 soft-line / P0-3 分歧闸门回归已随投注决策外围归档 (archive/betting_decisions/, 2026-09-18)
-
-      - name: bet_core 单一事实源回归 (独立守护)
-        run: |
-          python -m pytest tests/test_bet_core.py -v
+      # bet_core / G10 softline / G4 RLM 回归已随量化系统归档
+      #   (tests/test_bet_core.py, scripts/test_g10_softline_predict.py,
+      #    scripts/test_g4_rlm_real.py → archive/quant_system_20260919/, 2026-09-19 IR-32)
 
       - name: G6 live 初盘 drift 补完回归 (独立守护)
         run: |
           python scripts/test_g6_drift_open.py
-
-      - name: G10 soft-line 进 predict() 衔接回归 (独立守护)
-        run: |
-          python scripts/test_g10_softline_predict.py
-
-      - name: G4 RLM 真 bet-split 源接入回归 (独立守护)
-        run: |
-          python scripts/test_g4_rlm_real.py
 
       - name: G9 WC2026 缺 6 场赔率幂等回填回归 (独立守护)
         run: |

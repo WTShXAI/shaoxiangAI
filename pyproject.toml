@@ -80,7 +80,8 @@ docs = [
 
 [tool.setuptools]
 # 2026-09-18 规范化: 只列真实存在的包目录 (原 19 项中 13 个不存在, pip install -e / build 会炸)
-packages = ["pipeline", "data_collector", "bookmaker_sim", "config", "data", "core"]
+# 2026-09-19: bookmaker_sim 已归档 archive/bookmaker_sim/, 移除 (目录不存在会让 build 报错)
+packages = ["pipeline", "data_collector", "config", "data", "core"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -99,7 +100,8 @@ ignore_missing_imports = true
 warn_unused_ignores = false
 warn_redundant_casts = true
 warn_unused_configs = true
-files = ["pipeline", "scripts/bet_core.py", "data_collector", "bookmaker_sim"]
+# 2026-09-19: bet_core/bookmaker_sim 已随量化系统归档, 从扫描列表移除 (路径不存在 mypy 会直接报错)
+files = ["pipeline", "data_collector"]
 
 [[tool.mypy.overrides]]
 module = [
@@ -109,7 +111,7 @@ module = [
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = ["scripts.bet_core", "pipeline.deep_report", "pipeline.reverse_odds_engine", "pipeline.score_model"]
+module = ["pipeline.reverse_odds_engine", "pipeline.score_model"]
 disallow_untyped_defs = true
 check_untyped_defs = true
 ignore_errors = false

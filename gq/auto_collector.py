@@ -5,8 +5,7 @@ GQ 全市场自动赔率采集器 — 纯 HTTP 版 v3.0 (现为「HTTP 辅助库
 本文件保留为：
   (1) HTTP 辅助库 —— ws_collector / content_collector 复用其 CUID / _build_headers /
       _api_post / fetch_match_list / fetch_match_structure 等能力；
-  (2) 旧轮询采集器 —— 已由看门狗(start_collector.py + watchdog_collector.py)改指向
-      ws_collector，不再以此文件作为活跃守护进程。
+  (2) 旧轮询采集器 —— 已由 start_collector.py 改指向 ws_collector，不再以此文件作为活跃守护进程。
 ⚠️ 勿再以此文件单独起 --daemon 双写 odds_snapshots (会与 ws_collector 重复落库)。
 
 1X2 + 让球(AH) + 大小球(OU) + 波胆(CS) (HTTP 轮询版, 仅作兜底/对照)

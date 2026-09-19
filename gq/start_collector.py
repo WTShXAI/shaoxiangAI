@@ -1,8 +1,10 @@
 """GQ 采集器 脱离式启动器 (DETACHED, 跨会话存活)
 
 【状态 2026-08-27】主采集器已切换为 ws_collector.py (乐鱼 WS 实时推送流, 全市场+内容).
-本启动器现拉起 ws_collector (守护模式 -d 0 = 无限); 看门狗(watchdog_collector.py)
-每 5 分钟调用本文件做存活维持/自愈.
+本启动器现拉起 ws_collector (守护模式 -d 0 = 无限)。
+看门狗已整体移除 (2026-09-19, ShaoxiangGQ_Watchdog 计划任务 + watchdog_collector.py +
+collector_supervisor.py): 过期 token 期间的 5 分钟杀拉循环曾造成重启风暴与双实例互踩。
+存活性由每小时 autonomous_monitor 采集停滞告警接手 (发现停滞 → 人工/会话执行本文件重启)。
 
 与 launcher.py(CREATE_NO_WINDOW) 的区别: 使用 DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
 子进程独立成新会话, 不被父 shell/调度进程树回收 —— 解决"启动后随 Bash 会话结束被杀死"的问题.
