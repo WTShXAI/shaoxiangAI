@@ -501,6 +501,14 @@ def record_snapshot(match_key: str, market: str, selection: str,
                 VALUES (?,?,?,?,?,?,?,?,?)""",
                 (match_key, market, selection, prev_odds, odds, change, now, score_at, minute_at))
             change_info = {"from": prev_odds, "to": odds, "change": change}
+        elif prev_odds is None:
+            # 首快照补种 (2026-09-20): from=to=odds, change=0 — 把"该时刻存在此赔率"这个事实
+            # 落进 changes 时间轴。否则早盘场首抓无前值 → 永远不进 odds_changes,
+            # 下游 K线特征 (load_match_events) 看到 0 tick, 判定覆盖塌方 (09-19/20 实证)。
+            c.execute("""INSERT INTO odds_changes
+                (match_key, market, selection, from_odds, to_odds, change, captured_at, score_at, minute_at)
+                VALUES (?,?,?,?,?,?,?,?,?)""",
+                (match_key, market, selection, odds, odds, 0.0, now, score_at, minute_at))
 
     return change_info
 

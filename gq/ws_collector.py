@@ -84,7 +84,9 @@ PREMATCH_WINDOW_SEC = 7200    # 临场档: kickoff 距今 ≤2h, 高频补采(�
 PREMATCH_EARLY_WINDOW_SEC = 72 * 3600   # 早盘档: kickoff 距今 ≤3天, 仅抓开盘赔率一次
 PREMATCH_MAX_PER_ROUND = 25   # 每轮上限(场间 0.4s), 克制防风控
 PREMATCH_THROTTLE_SEC = 45    # 临场/直播单场最小重采间隔(WS 推流场次不受影响, 这里只兜底)
-PREMATCH_EARLY_THROTTLE_SEC = 6 * 3600  # 早盘单场最小重采间隔(开盘后无需高频刷, 一次即可)
+PREMATCH_EARLY_THROTTLE_SEC = 45 * 60  # 早盘单场重采间隔 (2026-09-20: 6h→45min。6h 节流 +
+                                       # record_snapshot 仅变化才写 changes → 早盘 tick 断供,
+                                       # 临场场 1X2 tick 中位 0/上限 6, K线判定 0/113 可建模)
 
 # ── 市场家族分类 (基于选项形状, 逆向自 2026-08-27 抓包 122 个市场号样本) ──
 # 原则: 主流玩法精准命名, 未知归 WS_<号>(不丢、不伪造标签)。
@@ -749,9 +751,78 @@ class WSCollector:
             time.sleep(0.4)
         return n
 
+    def _capture_verdicts_tick(self):
+        """赛前判定写入 (2026-09-20 修复: 职责自退役的 auto_collector 迁入)。
+        ① K线集成判定: 临场≤2h scheduled 场每轮 upsert 刷新 (开赛定格);
+        ② KNN prematch_conclusion: 未固化场补固化 (幂等, 每场只算一次)。
+        断流事故: 09-19 02:44 后无人写入 45h+ (架构迁移时职责孤儿化)。"""
+        import sqlite3 as _sq
+        now = time.time()
+        m = kn = 0
+        try:
+            from pipeline.odds_candles_predict import predict_match
+            from pipeline.odds_candles import parse_kickoff_ts
+            from gq.db import conn as _gqconn, store_prematch_candles_verdict
+            with _gqconn(readonly=True) as c:
+                sched = c.execute("SELECT match_key, league, kickoff FROM matches WHERE status='scheduled'").fetchall()
+            for mk, lg, ko in sched:
+                ko_ts = parse_kickoff_ts(ko) if ko else None
+                if ko_ts is None or not (0 < ko_ts - now <= 2 * 3600):
+                    continue
+                try:
+                    with _gqconn(readonly=True) as c:
+                        r = predict_match(c, mk, ko_ts)
+                    if r.get('ok'):
+                        store_prematch_candles_verdict(mk, ko, r['direction'], r['probs'],
+                                                       r['confidence'], r['margin'],
+                                                       r.get('n_ticks') or 0, r.get('models'))
+                        m += 1
+                except Exception:
+                    continue
+        except Exception as e:
+            _log(f"[VERDICT][WARN] K线判定刷新失败: {e}")
+        if m:
+            _log(f"[VERDICT] K线判定刷新 {m} 场 (临场≤2h)")
+        return m
+
+    def _capture_knn_conclusions_tick(self):
+        """KNN 赛前结论补固化 (幂等): 未固化 scheduled 场, query_match → store。"""
+        import sqlite3
+        try:
+            from pipeline.prematch_similarity import query_match, DEFAULT_K
+            from gq.db import conn as _gqconn, store_prematch_conclusion, is_virtual_league
+            with _gqconn(readonly=True) as c:
+                c.row_factory = sqlite3.Row
+                sched = c.execute("SELECT match_key, league FROM matches WHERE status='scheduled'").fetchall()
+                captured = {r["match_key"] for r in c.execute("SELECT match_key FROM prematch_conclusion")}
+            n = 0
+            for mk, lg in sched:
+                if mk in captured or is_virtual_league(lg or ''):
+                    continue
+                try:
+                    r = query_match(mk, k=DEFAULT_K, draw_upgrade=True)
+                except Exception:
+                    continue
+                if not r.get('applicable'):
+                    continue
+                try:
+                    store_prematch_conclusion(mk, r['verdict'], r['verdict_cn'],
+                                              r.get('excess'), r.get('roi'),
+                                              int(r.get('draw_alert') or 0))
+                    n += 1
+                except Exception:
+                    continue
+            if n:
+                _log(f"[KNN] 赛前结论补固化 {n} 场")
+            return n
+        except Exception as e:
+            _log(f"[KNN][WARN] 结论固化失败: {e}")
+            return 0
+
     def _prematch_backfill_worker(self):
         _log(f"[PRE] 盘口兜底补采线程启动 (live断供 + 临场≤{PREMATCH_WINDOW_SEC//3600}h高频 "
              f"+ 早盘≤{PREMATCH_EARLY_WINDOW_SEC//3600}h抓开盘一次, {PREMATCH_SCAN_SEC}s/轮, 上限{PREMATCH_MAX_PER_ROUND}/轮)")
+        last_knn = 0.0
         while True:
             try:
                 n = self._prematch_backfill_tick()
@@ -759,6 +830,16 @@ class WSCollector:
                     _log(f"[PRE] 早盘补采 {n} 场")
             except Exception as e:
                 _log(f"[PRE][WARN] 补采轮失败: {e}")
+            try:
+                self._capture_verdicts_tick()
+            except Exception as e:
+                _log(f"[VERDICT][WARN] 轮失败: {e}")
+            if time.time() - last_knn > 600:  # KNN 幂等补固化, 10min 一轮足够
+                try:
+                    self._capture_knn_conclusions_tick()
+                    last_knn = time.time()
+                except Exception as e:
+                    _log(f"[KNN][WARN] 轮失败: {e}")
             time.sleep(PREMATCH_SCAN_SEC)
 
     # ---- 浏览器驱动 ----
