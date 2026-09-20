@@ -171,8 +171,13 @@ function PredictionCard({ p, done, verdict }: { p: PredictionEntry; done?: boole
         <span className="text-sm font-semibold text-ink-primary">
           {p.home} <span className="text-ink-disabled font-normal mx-1">vs</span> {p.away}
         </span>
-        {done && !verdict?.actual && (
+        {done && !verdict?.actual && !verdict?.score_dubious && (
           <span className="text-[10px] px-1.5 py-0.5 rounded border border-danger-500/30 text-danger-400 font-semibold">已结束</span>
+        )}
+        {verdict?.score_dubious && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded border border-ember-500/30 text-ember-400 font-semibold" title="终盘赔率 tick 早于开赛+95分钟, 疑似断流假0-0 — 不计入任何校准指标">
+            已结束 · 比分存疑{verdict.score ? ` (${verdict.score}?)` : ''}
+          </span>
         )}
         {verdict?.actual && (
           <>

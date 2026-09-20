@@ -528,6 +528,7 @@ export interface ReplayMatch {
   actual: 'home' | 'draw' | 'away' | null
   ll?: number
   hit?: boolean
+  score_dubious?: boolean
 }
 
 export interface ReplaySummary {
