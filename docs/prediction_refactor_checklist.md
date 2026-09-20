@@ -122,6 +122,14 @@ monitor/API 每小时 refresh 未开赛行, 临场写入的 K线判定及时应�
 build_dataset 保留 dirty 打标 (评估折一律剔除), 返回行集不变 (finalize 行为零变化)。
 证据: reports/candles_70d_AB_{A,B}_*.json, prediction_calibration_report.pre_00guard.json。
 
+### 附三: 叙事特征入模检验 (2026-09-21, ⊙不确定 — 覆盖率不足, 非负结论)
+
+球队级叙事滚动画像 (近10场 绝平/逆转/补时失球/干旱/热门失效率, 29维, 无泄漏协议) 对
+K线集成 LGB 的增益检验: 70d/14d 语料真实双边覆盖均 **1%** — match_narrative 历史太短
+(08-04 起算), 大多数语料比赛在叙事起点之前, 中性填充使实验无效。**非负结论, 勿记恨此特征族。**
+工具: scripts/eval_narrative_features.py (覆盖率<50% 自动判不确定)。
+**复核触发**: 叙事滚动历史覆盖语料 ≥60% (recheck_analysis 每日增量, 预计数周后自然满足)。
+
 ## 六、二期剩余 (未执行)
 
 1. **`_live_predict` 摘除 compute_value_layer**: 8600 行生产服务的热路径, 需 None 兜底 + 全端点回归后切换。
