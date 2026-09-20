@@ -57,9 +57,12 @@ $PY scripts/eval_prediction_calibration.py            # 校准评估 → reports
 - 前端已去喊单化 (价值层/决策/操盘手/天眼镜 → 概率偏差解释表达); 二期剩余见清单§五:
   `_live_predict` 摘除 value_layer、bookmaker_sim 解耦、bet_core 归档
 
-- **采集器运维裁决 (2026-09-20/21 双事故)**: ①K线/KNN判定写入随 auto_collector 退役孤儿化,
-  断流45h — 已迁入 ws_collector prematch 线程; ②早盘tick塌方 (record_snapshot 仅变化写
-  changes × 6h节流) — 已改 45min 节流 + 首快照补种。09-19/20 判定缺口永久; 覆盖渐进恢复。
+- **采集器运维裁决 (2026-09-20/21 四职责孤儿化全景, 已全部根治)**: auto_collector 退役时
+  四个生产职责未随迁 ws_collector: ①K线判定 ②KNN赛前结论 ③HT冻结(halftime_conclusion)
+  ④HT锚模型对照(M6 ht_model_verdict) — 09-19 02:16 起全部断流。①②已迁 prematch 线程
+  (09-20), ③④已移植 _ht_freeze_tick (09-21, 忠实保留 IR-33/领先先验/稳定守卫);
+  另修复早盘tick塌方 (6h节流→45min + 首快照补种)。09-19/20 判定缺口永久; 覆盖渐进恢复。
+  **教训: 退役任何生产进程前, 先 grep 其全部写库职责并逐项确认接盘方。**
 
 ## 电子盘口监测 (2026-09-19, 用户指令"当游戏打"落地)
 
