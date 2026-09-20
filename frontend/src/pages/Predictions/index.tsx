@@ -1,13 +1,13 @@
 // ═══ 预测中心页 (2026-09-18 系统改造: 博彩量化 → 预测系统) ═══
 // 数据: /api/predictions (逐场概率输出) + /api/predictions/calibration (系统校准指标)。
 // 设计铁律: 只解释, 不喊单 — 展示概率/期望进球/总进球分布/与市场偏差, 无任何注码/凯利/下注语义。
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import PageHeader from '@/components/layout/PageHeader'
 import ApiError from '@/components/shared/ApiError'
 import Skeleton from '@/components/shared/Skeleton'
 import EmptyState from '@/components/shared/EmptyState'
-import { predictionsService, type PredictionEntry, type PredictionCalibrationSection, type ReplayMatch, type ReplayPayload } from '@/services/api'
+import { predictionsService, type PredictionEntry, type PredictionCalibrationSection, type ReplayMatch, type ReplayPayload, type LeagueDrilldownPayload } from '@/services/api'
 
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
@@ -53,24 +53,38 @@ function groupByLeague(items: PredictionEntry[]): [string, PredictionEntry[]][] 
   return [...m.entries()]
 }
 
-/** 联赛分组卡片列表 */
-function LeagueGroups({ groups, nowMs, verdicts }: { groups: [string, PredictionEntry[]][]; nowMs: number; verdicts?: Map<string, ReplayMatch> }) {
+/** 联赛分组卡片列表 (标题内联守卫口径的联赛校准徽标) */
+function LeagueGroups({ groups, nowMs, verdicts, drill }: { groups: [string, PredictionEntry[]][]; nowMs: number; verdicts?: Map<string, ReplayMatch>; drill?: Map<string, { n: number; log_loss: number; accuracy: number }> }) {
   return (
     <div className="space-y-5">
-      {groups.map(([league, items]) => (
-        <div key={league}>
-          <div className="text-xs font-semibold text-ink-disabled mb-2 flex items-center gap-2">
-            {league}
-            <span className="text-ink-disabled/60 font-normal">{items.length} 场</span>
-            <span className="flex-1 h-px bg-surface-border" />
+      {groups.map(([league, items]) => {
+        const d = drill?.get(league)
+        return (
+          <div key={league}>
+            <div className="text-xs font-semibold text-ink-disabled mb-2 flex items-center gap-2">
+              {league}
+              <span className="text-ink-disabled/60 font-normal">{items.length} 场</span>
+              {d && (
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded border tabular-nums font-normal ${
+                    d.log_loss < 1.0 ? 'border-field-500/30 text-field-400'
+                    : d.log_loss > 1.099 ? 'border-danger-500/30 text-danger-400'
+                    : 'border-surface-border text-ink-muted'}`}
+                  title={`历史校准 (守卫口径, n=${d.n}): LogLoss ${d.log_loss.toFixed(3)} / TOP1 ${(d.accuracy * 100).toFixed(0)}% — LogLoss>1.099 即差于随机基线, 解读请降权`}
+                >
+                  历史LL {d.log_loss.toFixed(3)} · n={d.n}
+                </span>
+              )}
+              <span className="flex-1 h-px bg-surface-border" />
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {items.map((p) => (
+                <PredictionCard key={p.match_key} p={p} done={isDone(p, nowMs)} verdict={verdicts?.get(p.match_key)} />
+              ))}
+            </div>
           </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {items.map((p) => (
-              <PredictionCard key={p.match_key} p={p} done={isDone(p, nowMs)} verdict={verdicts?.get(p.match_key)} />
-            ))}
-          </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -123,24 +137,25 @@ function ProbBar({ p }: { p: PredictionEntry }) {
   )
 }
 
-/** 总进球分布 vs 实际 (分布证据, 已结算场显示) */
-function TotalGoalsDistribution({ p, actualTotal }: { p: PredictionEntry; actualTotal: number }) {
+/** 总进球分布 (分布证据前置: 赛前即显示, 已结算场高亮实际值) */
+function TotalGoalsDistribution({ p, actualTotal }: { p: PredictionEntry; actualTotal?: number | null }) {
   const dist = p.total_goals_distribution || {}
   const buckets = ['0', '1', '2', '3', '4', '5', '6', '7+']
   const max = Math.max(...buckets.map((b) => dist[b] || 0), 0.01)
   return (
     <div className="mt-2.5">
       <div className="text-[10px] text-ink-disabled mb-1">
-        总进球分布 · 实际 <span className="text-field-400 font-semibold">{actualTotal} 球</span>
+        总进球分布{actualTotal != null && <> · 实际 <span className="text-field-400 font-semibold">{actualTotal} 球</span></>}
+        {actualTotal == null && ' · 模型质量分布 (赛前后对照)'}
       </div>
-      <div className="flex items-end gap-1 h-8">
+      <div className="flex items-end gap-1 h-10">
         {buckets.map((b) => {
           const v = dist[b] || 0
-          const isActual = actualTotal >= 7 ? b === '7+' : b === String(actualTotal)
+          const isActual = actualTotal != null && (actualTotal >= 7 ? b === '7+' : b === String(actualTotal))
           return (
             <div key={b} className="flex-1 flex flex-col items-center justify-end gap-0.5 h-full" title={`${b} 球 ${pct(v, 1)}`}>
               <div
-                className={`w-full rounded-sm ${isActual ? 'bg-field-500' : 'bg-white/[0.12]'}`}
+                className={`w-full rounded-sm ${isActual ? 'bg-field-500' : actualTotal != null ? 'bg-white/[0.12]' : 'bg-frost-500/40'}`}
                 style={{ height: `${Math.max(6, (v / max) * 100)}%` }}
               />
               <span className={`text-[9px] tabular-nums ${isActual ? 'text-field-400 font-semibold' : 'text-ink-disabled'}`}>{b}</span>
@@ -196,8 +211,9 @@ function PredictionCard({ p, done, verdict }: { p: PredictionEntry; done?: boole
         <span className="text-[10px] px-1.5 py-0.5 rounded border border-surface-border text-ink-muted">
           {SOURCE_LABEL[p.model_source] || p.model_source}
         </span>
-        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${CONF_STYLE[p.model_confidence]}`}>
-          {CONF_LABEL[p.model_confidence]}
+        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${CONF_STYLE[p.model_confidence]}`}
+              title={p.model_confidence_value != null ? `数值置信度 ${p.model_confidence_value.toFixed(3)} (argmax概率)` : undefined}>
+          {CONF_LABEL[p.model_confidence]}{p.model_confidence_value != null && ` ${(p.model_confidence_value * 100).toFixed(0)}%`}
         </span>
       </div>
 
@@ -217,7 +233,7 @@ function PredictionCard({ p, done, verdict }: { p: PredictionEntry; done?: boole
         </div>
       </div>
       <ProbBar p={p} />
-      {verdict?.actual && actualTotal != null && <TotalGoalsDistribution p={p} actualTotal={actualTotal} />}
+      <TotalGoalsDistribution p={p} actualTotal={actualTotal} />
 
       {/* 派生市场 + 期望进球 */}
       <div className="grid grid-cols-4 gap-2 mt-3 text-center">
@@ -271,7 +287,7 @@ function PredictionCard({ p, done, verdict }: { p: PredictionEntry; done?: boole
 
 /** 系统校准条: 模型 vs 市场 (LogLoss/Brier 口径) */
 function CalibrationStrip() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch } = useQuery({
     queryKey: ['predictions-calibration'],
     queryFn: ({ signal }) => predictionsService.calibration(signal),
     staleTime: 10 * 60 * 1000,
@@ -279,14 +295,31 @@ function CalibrationStrip() {
   const cal = data?.data?.data as Record<string, any> | undefined
   const candles = (cal?.candles_1x2 || undefined) as PredictionCalibrationSection | undefined
   const delta = cal?.candles_vs_market_same_set as any | undefined
+  const drawPo = candles?.per_outcome?.draw as { ece?: number; slope?: number | null } | undefined
   if (isLoading) return <Skeleton rows={1} variant="card" />
-  if (!candles || candles.n == null) return null
+  if (!candles || candles.n == null) {
+    return (
+      <div className="mb-4 rounded-xl border border-danger-500/20 bg-surface-dark/60 px-4 py-3 text-xs text-ink-muted">
+        校准证据不可用 (报告缺失或过期) —
+        <button className="ml-1 underline text-field-400" onClick={() => refetch()}>重试</button>
+      </div>
+    )
+  }
   return (
     <div className="mb-4 rounded-xl border border-surface-border bg-surface-dark/60 px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs">
-      <span className="text-ink-disabled font-medium">系统校准 (K线集成 · n={candles.n})</span>
+      <span className="text-ink-disabled font-medium">
+        系统校准 (K线集成 · n={candles.n})
+        {cal?.generated_at && <span className="text-ink-disabled/60 font-normal"> · {String(cal.generated_at)}</span>}
+      </span>
       <span className="text-ink-muted">LogLoss <b className="text-ink-primary tabular-nums">{candles.log_loss?.toFixed(4)}</b> <span className="text-ink-disabled">(随机 ln3≈1.099)</span></span>
       <span className="text-ink-muted">Brier <b className="text-ink-primary tabular-nums">{candles.brier_multiclass?.toFixed(4)}</b></span>
       {candles.accuracy != null && <span className="text-ink-muted">TOP1 <b className="text-ink-primary tabular-nums">{pct(candles.accuracy, 1)}</b></span>}
+      {drawPo?.slope != null && (
+        <span className="text-ink-muted" title="可靠性斜率 ≈1 为佳; <0 表示该结果概率系统性高估">
+          平局斜率 <b className={drawPo.slope < 0.2 ? 'text-ember-400 tabular-nums' : 'text-ink-primary tabular-nums'}>{drawPo.slope.toFixed(2)}</b>
+          {drawPo.ece != null && <span className="text-ink-disabled"> ECE {drawPo.ece.toFixed(3)}</span>}
+        </span>
+      )}
       {delta && (
         <span className={delta.log_loss_delta < 0 ? 'text-field-400' : 'text-ember-400'}>
           vs 市场: LogLoss {delta.log_loss_delta >= 0 ? '+' : ''}{delta.log_loss_delta?.toFixed(4)}
@@ -336,13 +369,19 @@ function ReplayStrip({ replay }: { replay?: ReplayPayload }) {
 
 export default function Predictions() {
   const [day, setDay] = useState(shanghaiToday())
-  const [now] = useState(() => Date.now())
+  // now 心跳 (30s): 已结束区迁移/dateTabs 随时间演进, 不再挂载即冻结
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000)
+    return () => clearInterval(t)
+  }, [])
   const tabs = useMemo(() => dateTabs(now), [now])
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['predictions', day],
     queryFn: ({ signal }) => predictionsService.getByDate(day, false, signal),
     staleTime: 5 * 60 * 1000,
+    refetchInterval: 120_000,  // 市场对照/状态迁移不静默过期
   })
 
   // 沙盘回放: 该日冻结预测 vs 实际赛果 (复盘条 + 完赛卡判定/分布证据)
@@ -357,6 +396,19 @@ export default function Predictions() {
     replay?.matches?.forEach((x) => { if (x.actual) m.set(x.match_key, x) })
     return m
   }, [replay])
+
+  // 联赛校准下钻 (守卫口径): 内联到联赛分组标题的"历史LL"徽标
+  const { data: drillData } = useQuery({
+    queryKey: ['predictions-league-drilldown'],
+    queryFn: ({ signal }) => predictionsService.leagueDrilldown(signal),
+    staleTime: 60 * 60 * 1000,
+  })
+  const drill = useMemo(() => {
+    const payload = drillData?.data?.data as LeagueDrilldownPayload | undefined
+    const m = new Map<string, { n: number; log_loss: number; accuracy: number }>()
+    payload?.leagues?.forEach((x) => m.set(x.league, { n: x.n, log_loss: x.log_loss, accuracy: x.accuracy }))
+    return m
+  }, [drillData])
 
   const payload = data?.data?.data
   const list = (payload?.predictions || []) as PredictionEntry[]
@@ -401,6 +453,13 @@ export default function Predictions() {
         </button>
         ))}
         <span className="flex-1" />
+        <input
+          type="date"
+          value={day}
+          onChange={(e) => e.target.value && setDay(e.target.value)}
+          className="px-2 py-1.5 rounded-md text-xs text-ink-muted bg-surface-dark/60 border border-surface-border [color-scheme:dark]"
+          title="回看任意历史日复盘"
+        />
         <button
           onClick={() => refetch()}
           disabled={isFetching}
@@ -423,7 +482,7 @@ export default function Predictions() {
         />
       ) : (
         <div className="space-y-6">
-          {groupedUpcoming.length > 0 && <LeagueGroups groups={groupedUpcoming} nowMs={now} verdicts={verdicts} />}
+          {groupedUpcoming.length > 0 && <LeagueGroups groups={groupedUpcoming} nowMs={now} verdicts={verdicts} drill={drill} />}
           {groupedFinished.length > 0 && (
             <div>
               <div className="text-xs font-semibold text-danger-400/90 mb-2 flex items-center gap-2">
@@ -431,7 +490,7 @@ export default function Predictions() {
                 <span className="text-ink-disabled/60 font-normal">{finished.length} 场 · 新完赛在前</span>
                 <span className="flex-1 h-px bg-surface-border" />
               </div>
-              <LeagueGroups groups={groupedFinished} nowMs={now} verdicts={verdicts} />
+              <LeagueGroups groups={groupedFinished} nowMs={now} verdicts={verdicts} drill={drill} />
             </div>
           )}
         </div>

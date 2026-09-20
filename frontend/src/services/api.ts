@@ -564,4 +564,24 @@ export const predictionsService = {
     bridgeApi.get<ApiResponse<ReplayPayload>>(
       `/api/predictions/replay?date=${date}`, { signal },
     ),
+  /** 联赛校准下钻 (守卫口径): 按联赛 LL/TOP1, 挂预测中心页联赛徽标 */
+  leagueDrilldown: (signal?: AbortSignal) =>
+    bridgeApi.get<ApiResponse<LeagueDrilldownPayload>>(
+      '/api/predictions/league-drilldown', { signal },
+    ),
+}
+
+export interface LeagueDrilldownEntry {
+  league: string
+  n: number
+  log_loss: number
+  accuracy: number
+}
+
+export interface LeagueDrilldownPayload {
+  generated_at?: string
+  guard?: string
+  n_excluded_by_guard?: number
+  overall?: { n: number; log_loss: number; accuracy: number }
+  leagues: LeagueDrilldownEntry[]
 }

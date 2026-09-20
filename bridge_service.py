@@ -6393,6 +6393,22 @@ def _build_predictions_replay(date_str: str) -> dict:
             "matches": matches}
 
 
+@app.get("/api/predictions/league-drilldown")
+async def predictions_league_drilldown_api():
+    """联赛校准下钻 (守卫口径, scripts/league_drilldown.py 生成): 按联赛 LL/TOP1。"""
+    import json as _json
+    import os as _os
+    rp = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "reports",
+                       "league_calibration_drilldown.json")
+    if not _os.path.exists(rp):
+        return _wrap_data({"error": "下钻报告未生成 — 先跑 scripts/league_drilldown.py"})
+    try:
+        with open(rp, encoding="utf-8") as f:
+            return _wrap_data(_json.load(f))
+    except Exception as _e:
+        return _wrap_data({"error": f"下钻报告读取失败: {_e}"})
+
+
 @app.get("/api/predictions/replay")
 async def predictions_replay_api(date: str = ""):
     """沙盘回放: 指定日期的开赛冻结预测 vs 实际赛果 (逐场 + 当日 LL/Brier/TOP1 诊断, 按模型源分列)。"""
