@@ -57,6 +57,10 @@ $PY scripts/eval_prediction_calibration.py            # 校准评估 → reports
 - 前端已去喊单化 (价值层/决策/操盘手/天眼镜 → 概率偏差解释表达); 二期剩余见清单§五:
   `_live_predict` 摘除 value_layer、bookmaker_sim 解耦、bet_core 归档
 
+- **采集器运维裁决 (2026-09-20/21 双事故)**: ①K线/KNN判定写入随 auto_collector 退役孤儿化,
+  断流45h — 已迁入 ws_collector prematch 线程; ②早盘tick塌方 (record_snapshot 仅变化写
+  changes × 6h节流) — 已改 45min 节流 + 首快照补种。09-19/20 判定缺口永久; 覆盖渐进恢复。
+
 ## 电子盘口监测 (2026-09-19, 用户指令"当游戏打"落地)
 
 - `gq/efootball_probe.py` 常驻探针 (60s/轮, euid=3020190 电子足球分区): EAFC 模拟联赛
