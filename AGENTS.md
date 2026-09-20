@@ -84,6 +84,10 @@ $PY scripts/eval_prediction_calibration.py            # 校准评估 → reports
   (严格整场切分 0.8517, 早段 0.844 — 引擎价格过程=确定性衰减物理)。**判定: 赛果层无超额
   (攻略不存在), 价格层可预测(能力非edge)**。证据: reports/efootball_{fingerprint,sequence_eval,price_behavior}.json。
   下一决策点: 语料 5000 场复核一次价格行为稳定性; 生产模型不变。
+- **报价向量自洽性 (2026-09-21, 双阴性)**: 跨市场增量 ΔLL -0.0026 (OU/BTTS 对赛果无
+  1X2 外增量 → 报价冗余) + 市场间领先-滞后 lift 1.002 (更新同步无节奏差) → 生成器报价
+  向量自洽且瞬时。**模拟域赔率四维探索 (赛果/截面/时序/联赛先验) 全部阴性, 生成器
+  = 自洽瞬时定价机, 无可利用缝隙**。证据: reports/efootball_quote_consistency.json。
 
 ## 双 AI 协作黑板 (2026-09-13 生产接入, 必读)
 
