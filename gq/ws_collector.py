@@ -819,6 +819,161 @@ class WSCollector:
             _log(f"[KNN][WARN] 结论固化失败: {e}")
             return 0
 
+    def _ht_freeze_tick(self):
+        """HT 冻结 (2026-09-21 移植回现役采集器): 半场窗(46-58min)的 live 场用仅上半场
+        信息冻结一次判定 → halftime_conclusion + ht_model_verdict (M6 HT锚, 已采纳)。
+        事故背景: 该职责随 auto_collector 退役孤儿化, 09-19 02:16 后双表断流 46h+。
+        忠实移植自 auto_collector (含 IR-33 OU条件化/领先先验A/B/0-0延期守卫/8分钟稳定守卫)。"""
+        import sqlite3 as _sq
+        try:
+            from analysis.live_goal_probe import (
+                _lightweight_signals_batch, _dewater_1x2, get_latest_snapshot_odds,
+                _open_1x2_from_snapshots, _open_gq)
+            DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                   'data', 'events.db')
+            con = _sq.connect(DB_PATH, timeout=30)
+            con.execute("PRAGMA busy_timeout=30000")
+            con.row_factory = _sq.Row
+            now = time.time()
+            try:
+                rows = con.execute(
+                    "SELECT match_key, kickoff, score_home, score_away FROM matches "
+                    "WHERE status='live' AND kickoff IS NOT NULL AND kickoff != '' "
+                    "AND score_home IS NOT NULL AND score_away IS NOT NULL "
+                    "AND (is_override IS NULL OR is_override=0)").fetchall()
+                done = {r[0] for r in con.execute("SELECT match_key FROM halftime_conclusion").fetchall()}
+            finally:
+                con.close()
+            targets = []
+            _ht_tko = {}
+            for r in rows:
+                if r["match_key"] in done:
+                    continue
+                kots = ac._parse_kickoff(r["kickoff"])
+                if not kots:
+                    continue
+                em = (now - kots) / 60.0
+                if 46.0 <= em <= 58.0:
+                    _con2 = _sq.connect(DB_PATH, timeout=15)
+                    try:
+                        if r["score_home"] == 0 and r["score_away"] == 0:
+                            _fr = _con2.execute(
+                                "SELECT COUNT(*) FROM odds_snapshots WHERE match_key=? "
+                                "AND score_at IS NOT NULL AND score_at != '0-0'", (r["match_key"],)).fetchone()[0]
+                            if _fr == 0:
+                                continue
+                        _cur_sc = f"{r['score_home']}-{r['score_away']}"
+                        _first_of_cur = _con2.execute(
+                            "SELECT MIN(captured_at) FROM odds_snapshots WHERE match_key=? "
+                            "AND score_at IS NOT NULL AND score_at = ?", (r["match_key"], _cur_sc)).fetchone()[0]
+                        if _first_of_cur and (now - _first_of_cur) < 480:
+                            continue
+                    finally:
+                        _con2.close()
+                    targets.append((r["match_key"], int(r["score_home"]), int(r["score_away"])))
+                    _ht_tko[r["match_key"]] = r["kickoff"]
+            if not targets:
+                return 0
+            from gq import db as _db
+            _gqcon = _sq.connect(DB_PATH, timeout=30)
+            _gqcon.row_factory = _sq.Row
+            n = 0
+            for mk, sh, sa in targets:
+                try:
+                    items = [{'match_key': mk, 'minute': 45, 'score': f'{sh}-{sa}'}]
+                    sig = _lightweight_signals_batch(_gqcon, items).get(mk) or {}
+                    full = sig.get('full') or {}
+                    ou_line = full.get('line')
+                    ou_dir = full.get('direction')
+                    ou_prob = full.get('prob')
+                    try:
+                        if ou_line is not None and (int(sh) + int(sa)) > float(ou_line):
+                            ou_dir, ou_prob = 'OVER', 1.0   # IR-33 前哨: HT总球>盘口 → OVER 数学确定
+                    except (TypeError, ValueError):
+                        pass
+                    x2 = get_latest_snapshot_odds(_gqcon, mk, ['1X2'])
+                    ph = pd_ = pa = None
+                    x2_dir = None
+                    x2h = x2.get('1X2', {}).get('home') if isinstance(x2.get('1X2'), dict) else None
+                    if x2h and x2.get('1X2', {}).get('draw') and x2.get('1X2', {}).get('away'):
+                        ph, pd_, pa = _dewater_1x2(float(x2h), float(x2['1X2']['draw']), float(x2['1X2']['away'])) or (None, None, None)
+                        if ph is not None:
+                            x2_dir = max(('home', 'draw', 'away'), key=lambda k: {'home': ph, 'draw': pd_, 'away': pa}[k])
+                    if x2_dir is None:
+                        try:
+                            _g2 = _sq.connect(DB_PATH, timeout=15)
+                            oh, od, oa = _open_1x2_from_snapshots(_g2, mk)
+                            _g2.close()
+                            if oh and od and oa:
+                                ph, pd_, pa = _dewater_1x2(float(oh), float(od), float(oa)) or (None, None, None)
+                                if ph is not None:
+                                    x2_dir = max(('home', 'draw', 'away'), key=lambda k: {'home': ph, 'draw': pd_, 'away': pa}[k])
+                        except Exception:
+                            pass
+                    if sh != sa:
+                        try:
+                            from pipeline.score_analyzer import lead_win_prob as _lwp
+                            _side = 'home' if sh > sa else 'away'
+                            _pl = _lwp(_side, abs(sh - sa), 45)
+                            if _pl is not None and _pl >= 0.5:
+                                x2_dir = _side
+                                if ph is None:
+                                    ph = _pl if _side == 'home' else (1 - _pl)
+                        except Exception:
+                            pass
+                    else:
+                        x2_dir = 'draw'   # HT平局场: 持续平局基准 37.5% (2026-09-13 实证)
+                    cs_top1 = cs_top3 = None
+                    try:
+                        fh = fd = fa = None
+                        if isinstance(x2.get('1X2'), dict):
+                            fh, fd, fa = x2['1X2'].get('home'), x2['1X2'].get('draw'), x2['1X2'].get('away')
+                        if not (fh and fd and fa):
+                            _g3 = _sq.connect(DB_PATH, timeout=15)
+                            oh, od, oa = _open_1x2_from_snapshots(_g3, mk)
+                            _g3.close()
+                            fh, fd, fa = fh or oh, fd or od, fa or oa
+                        from pipeline.cs_db_match import unified_scoreline
+                        dm = unified_scoreline(h=fh, d=fd, a=fa,
+                                               current_score=f'{sh}-{sa}', current_minute=45)
+                        t5 = (dm or {}).get('top5') or []
+                        if t5:
+                            cs_top1 = t5[0]['score']
+                            cs_top3 = ','.join(t['score'] for t in t5[:3])
+                    except Exception:
+                        pass
+                    with _db.conn() as _c:
+                        _c.execute(
+                            "INSERT INTO halftime_conclusion "
+                            "(match_key, ht_home, ht_away, ou_line, ou_direction, ou_prob, "
+                            " x2_home, x2_draw, x2_away, x2_direction, cs_top1, cs_top3, frozen_at) "
+                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(match_key) DO NOTHING",
+                            (mk, sh, sa, ou_line, ou_dir, ou_prob,
+                             ph, pd_, pa, x2_dir, cs_top1, cs_top3, time.time()))
+                    try:
+                        from pipeline.ht_anchor_predict import predict_ht
+                        from pipeline.odds_candles import parse_kickoff_ts as _pkt
+                        _ko_str = _ht_tko.get(mk)
+                        _kots2 = _pkt(_ko_str) if _ko_str else None
+                        _mv = predict_ht(_gqcon, mk, _kots2, sh, sa) if _kots2 else {'ok': False}
+                        if _mv.get('ok'):
+                            from gq.db import store_ht_model_verdict as _shmv
+                            _shmv(mk, _ko_str, sh, sa, _mv['x2_dir'], _mv['x2_probs'],
+                                  _mv.get('ou_dir'), _mv.get('ou_probs'), _mv.get('ou_line'))
+                    except Exception:
+                        pass
+                    n += 1
+                    _log(f"[HT冻结] {mk[:36]} HT {sh}-{sa} → OU {ou_dir or '—'}({ou_line}) 1X2 {x2_dir or '—'} CS {cs_top1 or '—'}")
+                except Exception as _e:
+                    _log(f"[HT冻结] {mk[:30]} 失败(跳过): {_e}")
+            _gqcon.close()
+            if n:
+                _log(f"[HT冻结] 本轮冻结 {n} 场")
+            return n
+        except Exception as e:
+            _log(f"[HT冻结][WARN] 轮失败: {e}")
+            return 0
+
     def _prematch_backfill_worker(self):
         _log(f"[PRE] 盘口兜底补采线程启动 (live断供 + 临场≤{PREMATCH_WINDOW_SEC//3600}h高频 "
              f"+ 早盘≤{PREMATCH_EARLY_WINDOW_SEC//3600}h抓开盘一次, {PREMATCH_SCAN_SEC}s/轮, 上限{PREMATCH_MAX_PER_ROUND}/轮)")
@@ -834,6 +989,10 @@ class WSCollector:
                 self._capture_verdicts_tick()
             except Exception as e:
                 _log(f"[VERDICT][WARN] 轮失败: {e}")
+            try:
+                self._ht_freeze_tick()
+            except Exception as e:
+                _log(f"[HT冻结][WARN] 轮失败: {e}")
             if time.time() - last_knn > 600:  # KNN 幂等补固化, 10min 一轮足够
                 try:
                     self._capture_knn_conclusions_tick()
