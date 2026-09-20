@@ -180,14 +180,14 @@ def predict_match_full(con, match_key: str, allow_candles_compute: bool = False)
         conf_val, conf_band = None, 'baseline'
 
     # OIP 比分矩阵 (生产 SSoT): λ 锚定 OU 总进球 (诚实锚), 派生市场全部出自同一矩阵。
-    # ⚠ goal_scale=1.0 (2026-09-18 A/B 实证, n=8194 回填场, scratch_ab_goalscale.py):
-    #   score_model 默认 1.2 是波胆 top3 命中率的 λ 放大 (方差补丁), 用于期望/大小球输出会
-    #   系统性高估 ~1 球 (O2.5 LogLoss 0.757→0.677, ECE 0.209→0.085, BTTS ECE 0.159→0.084,
-    #   期望偏差 -1.13→-0.59)。产品层派生市场用诚实锚 1.0; score_model 本体默认值不动。
+    # ⚠ goal_scale 沿革: 09-18 定 1.0 的 A/B 为污染口径 (假0-0压低实际进球→偏向小scale);
+    #   2026-09-21 守卫后重跑 (n=3687, 4/4 时间切分一致, reports/goalscale_guarded_ab.json):
+    #   scale=1.1 O2.5 ΔLL -0.0062 / BTTS -0.0115, 总球MAE 近中性 → 派生市场锚采纳 1.1。
+    #   score_model 本体默认 1.2 (波胆 top3 口径) 不动。
     ou = latest_prematch_ou(con, match_key, ko_ts)
     btts_mkt = latest_prematch_btts(con, match_key, ko_ts)
     r = predict_score(home, away, oh, od, oa,
-                      goal_scale=1.0,
+                      goal_scale=1.1,
                       implied_total=(ou or {}).get('implied_total'))
     M = r['matrix']
     mg = M.shape[0] - 1

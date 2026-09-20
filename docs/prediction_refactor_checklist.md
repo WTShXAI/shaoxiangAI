@@ -130,6 +130,15 @@ K线集成 LGB 的增益检验: 70d/14d 语料真实双边覆盖均 **1%** — m
 工具: scripts/eval_narrative_features.py (覆盖率<50% 自动判不确定)。
 **复核触发**: 叙事滚动历史覆盖语料 ≥60% (recheck_analysis 每日增量, 预计数周后自然满足)。
 
+### 附四: goal_scale 守卫后翻转 (2026-09-21, 1.0→1.1 采纳)
+
+09-18 定 goal_scale=1.0 的 A/B 为**污染口径** (假0-0压低实际进球 → 系统性偏向小scale)。
+守卫后重跑 (n=3687, 验证段 1107, 4/4 时间切分一致): scale=1.1 O2.5 LL **0.6947→0.6886**
+(Δ-0.0062 过线), BTTS **0.7164→0.7049** (Δ-0.0115), 总球 MAE 近中性 (+0.006)。
+已接线 predict_export 派生市场锚 1.1 (新落库行生效, 冻结行不回写)。
+证据: reports/goalscale_guarded_ab.json; 工具: scripts/eval_goalscale_guarded.py。
+**教训: 任何基于结算面的 A/B, 必须用 credible_1x2 守卫口径重验后再信。**
+
 ## 六、二期剩余 (未执行)
 
 1. **`_live_predict` 摘除 compute_value_layer**: 8600 行生产服务的热路径, 需 None 兜底 + 全端点回归后切换。

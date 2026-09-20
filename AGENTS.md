@@ -40,7 +40,9 @@ $PY scripts/eval_prediction_calibration.py            # 校准评估 → reports
 
 - API: `GET /api/predictions?date=` · `GET /api/predictions/calibration`; 前端「预测中心」页 (/predictions)
 - 结算原语 SSoT: `pipeline/settle.py` (纯赛果判定); 投注 ROI 报表已归档, 勿再新建
-- 派生市场 (O2.5/BTTS/期望进球) 用 goal_scale=1.0 诚实锚 (A/B 实证见清单§四; score_model 默认 1.2 仅波胆 top3 口径)
+- 派生市场 (O2.5/BTTS/期望进球) 用 goal_scale=**1.1** (2026-09-21 守卫后 A/B 翻转:
+  09-18 定 1.0 的 A/B 为污染口径; 守卫后 n=3687 4/4 切分一致 O2.5 ΔLL-0.0062/BTTS-0.0115,
+  见 reports/goalscale_guarded_ab.json; score_model 默认 1.2 仅波胆 top3 口径)
 - **训练负结论存档** (清单§五/附, 2026-09-18): LGB/stacking/移动特征/isotonic(派生市场)/联赛收缩/KNN+K线stacking
   全部不敌现役源, 勿重复; **两例外已采纳**: K线集成升 70 天全语料 (LL 1.0264), HT锚 OU 全面胜现任
   (76.8% vs 50.2%, HT-OU 读数应以 ht_model_verdict 为准); 半场OU读数疑似上游 bug (见 reports/ht_ou_isotonic_eval.json)
