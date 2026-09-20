@@ -71,6 +71,12 @@ $PY scripts/eval_prediction_calibration.py            # 校准评估 → reports
   (Δ+0.0485, ~1.5σ 提示性非结论性); 引擎口味: 平局 21% vs 真实 24%, 场均球 2.93 vs 2.76。
   语料继续积累 (scripts/efootball_fingerprint.py 手动重跑), 数据集构建器
   scripts/efootball_build_dataset.py 供深度学习期; 任何模型输出仍走 walkforward 门禁。
+- **模拟域结论 (2026-09-20 晚, n=2584)**: 六路探索全部完成 — 域级信号收缩至噪声(Δ+0.032≈0.9σ)、
+  朴素模型败(+0.056)、联赛 one-hot 伤模型、联赛静态修正被时间切否决(+0.020)、
+  GRU 多市场序列模型复现生成器定价至持平(LL 0.6056 vs 0.6072)、价格方向 85% 可预测
+  (严格整场切分 0.8517, 早段 0.844 — 引擎价格过程=确定性衰减物理)。**判定: 赛果层无超额
+  (攻略不存在), 价格层可预测(能力非edge)**。证据: reports/efootball_{fingerprint,sequence_eval,price_behavior}.json。
+  下一决策点: 语料 5000 场复核一次价格行为稳定性; 生产模型不变。
 
 ## 双 AI 协作黑板 (2026-09-13 生产接入, 必读)
 
