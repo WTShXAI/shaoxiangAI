@@ -69,16 +69,21 @@ G6_pairing_diff, G6_CI_low, max_drawdown, CLV, calibration_curve`。
 - 现役 `query_match` 对 finished 硬性 applicable=False 已防回填；快照表补"赛前可见字段"不可变锚。
 - 回测/生产共用同一 snapshot 读取路径，杜绝 train-serve skew。
 
-## §3 优先级路线图（owner 决策的执行顺序）
-1. **P-INTEGRITY（NOW, 安全）**: 每日数据完整性检查脚本 `scripts/data_integrity_check.py`（只读），
-   覆盖缺盘/跳tick/ID冲突/时区/补时；输出 reports/data_integrity.json；接入 autonomous_monitor JOBS。
-2. **P-SNAPSHOT（NOW, 安全）**: 落 `match_snapshot` 表 + 冻结 SOP（扩展 2.4）。
-3. **P-TICKET（NOW, 安全）**: 建 `signal_approval_ticket` 表 + 追加守卫（扩展 2.1）。
-4. **P-LLM（NOW, 文档）**: 写 LLM Agent 权限边界文档 + qwen3-analyzer 提示词加固（扩展 2.3）。
-5. **P-AUDIT（WINDOW）**: odds_changes 加 raw_json_hash + cleaned_id 列（schema 变更，须窗口+回填）。
-6. **P-DASH（WINDOW）**: 评估看板前端（读 verification_report.json）。
-7. **P-ENG（WINDOW）**: 消息总线/特征存储（重架构，低紧急）。
-8. **P-MODEL（WINDOW）**: Dixon-Coles/Elo/贝叶斯 接入对照（walkforward 门禁）。
+## §3 优先级路线图（owner 决策的执行顺序）— 执行状态
+> 图例: ✅已落地 / 🟡部分(表/机制就绪, 数据层阻塞) / ⬜待启动
+
+1. ✅ **P-INTEGRITY（NOW, 安全）**: `scripts/data_integrity_check.py`（只读）→ reports/data_integrity.json；首跑 overall=OK。
+   monitor JOBS 接入留待回归窗口。
+2. 🟡 **P-SNAPSHOT（NOW, 安全）**: `scripts/match_snapshot.py` + 隔离库 data/snapshots.db + 不可变触发器 + 测试 ✅。
+   **阻塞 P-SNAPSHOT-data**: events.db `matches` 当前**无** 阵容/伤停/天气/裁判/赛程密度 字段（2026-09-24 核查），
+   快照表含这些列但默认 NULL，待采集层补齐后写入（不改表结构）。
+3. ✅ **P-TICKET（NOW, 安全）**: `scripts/signal_ticket.py` + 隔离库 data/signal_tickets.db + 不可变触发器 + IR-32 守卫 + 测试。
+4. ✅ **P-LLM（NOW, 文档）**: `docs/LLM_AGENT_BOUNDARY.md`（权限矩阵 + 提示词边界模板 + 守卫）。
+5. ⬜ **P-AUDIT（WINDOW）**: odds_changes 加 raw_json_hash + cleaned_id 列（schema 变更，须窗口+回填）。
+6. ⬜ **P-DASH（WINDOW）**: 评估看板前端（读 verification_report.json）。
+7. ⬜ **P-ENG（WINDOW）**: 消息总线/特征存储（重架构，低紧急）。
+8. ⬜ **P-MODEL（WINDOW）**: Dixon-Coles/Elo/贝叶斯 接入对照（walkforward 门禁）。
+9. ⬜ **P-SNAPSHOT-data（阻塞派生）**: 采集 阵容/伤停/天气/裁判/赛程密度 并写入 match_snapshot（解 P-SNAPSHOT 阻塞）。
 
 ## §4 纪律约束（落地不得违反）
 - §9 跨庄禁区：任何跨庄共识/投注占比字样禁入生产（tests/test_no_crossbook.py 守卫）。
