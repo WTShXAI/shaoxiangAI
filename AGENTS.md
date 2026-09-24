@@ -1,12 +1,10 @@
 # AGENTS.md
 
-## IR-32 跨庄共识永久禁令（2026-09-19，任何操作前必读）
+## 运行纪律 SSoT（2026-09-24 重建）
 
-跨庄共识/跨庄edge/投注占比（cross_book_edge、multibook_consensus、leyu_value_signal、
-bet_split_source、compute_value_layer、bet_core）**永久禁止**进入生产判定、API、前端、
-测试与实验；仅限自有训练/回测脚本离线后台对照。已随量化系统整体归档
-archive/quant_system_20260919/；tests/test_no_crossbook.py 为自动守卫，见到相关字样
-进入生产 import 图 = 最高级事故。
+全部运行纪律已按董事长指令废止旧 IR-xx 体系并逐条重建，唯一权威源 = `docs/DISCIPLINE.md`。
+跨庄共识禁区（原 IR-32）保留为承重纪律，见 `docs/DISCIPLINE.md` §9；自动守卫 `tests/test_no_crossbook.py` 保留。
+旧纪律快照：`archive/rules_voided_20260924/`。
 
 ## 量化系统已删除（2026-09-19）
 
