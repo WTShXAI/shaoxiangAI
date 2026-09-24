@@ -34,7 +34,7 @@
 | B1 | bridge ~65 个前端零调用端点瘦身 | 中/低（误删内部调用会崩） | 前端全量 grep + 7天访问统计 + bridge 重启回归 |
 | B2 | 前端废弃类型（Prediction/ModelComparison/... 655行） | 低/低 | `tsc --noEmit` + grep 确认引用后删 |
 | B3 | ShaoxiangVite 计划任务常驻 `npm run dev`（应改 bridge 托管 dist） | 低/中 | 构建 dist + 任务改手动/禁用 |
-| B4 | D 类模型未注册（cs_empirical/ht_break_model/inplay_*_isotonic×23） | 低/低 | 补登 model_catalog 或 RESEARCH 区块 |
+| B4 | D 类模型未注册（cs_empirical/ht_break_model/inplay_*_isotonic×23） | 低/低 | 补登 RESEARCH_DCLASS 区块 ✅ 2026-09-25（诚实标注 served但未过 walkforward, 不标 active） |
 | B5 | M3/M4 无独立 OOS 复验（M4 理论根基已被证伪） | 低/低 | 补验或降级 |
 | B6 | events.db 亿级 bak 表（odds_snapshots_bak 41.8M / odds_changes_bak 12.1M） | 中/低 | **37GB 库须停机窗口 + VACUUM**，禁在线 |
 | B7 | data/ 零引用遗留 db（bets.db/odds_vectors.db/quant_trading.db/_verify_sandbox.db/electronic_poll_*/live_poll_*） | 中/低 | 二次确认无进程持有后归档/删 |

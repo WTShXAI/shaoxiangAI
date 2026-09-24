@@ -207,6 +207,29 @@ RESEARCH_LEGACY: Dict[str, str] = {
         "M5 fl_predictor AH 分支(独立 OOS AUC 0.834 站稳), 已恢复生产",
 }
 
+# ═══════════════════════════════════════════════════════════════
+#  RESEARCH_DCLASS —— D 类模型治理盲区补登 (2026-09-25, B4)
+#  ------------------------------------------------------------
+#  cs_empirical / ht_break_model / inplay_1x2_isotonic×23 / live_1x2_ou
+#  实际被 bridge_service.py / pipeline/cross_score.py 加载服务(served),
+#  但**未进 M1-M7 注册、无 walkforward / 六道关独立 OOS 验证记录**。
+#  按诚实纪律(§0/§1): 不得标 active, 此处显式登记为诊断/对照资产,
+#  使"被服务但未验证"的盲区可见(原知识库 13234/13272 点名的治理盲区)。
+#  不影响 validate()/all_weights(), 仅登记防游离资产。
+# ═══════════════════════════════════════════════════════════════
+RESEARCH_DCLASS: Dict[str, str] = {
+    "models/cs_empirical.joblib":
+        "served by bridge_service/cross_score; 无 walkforward/OOS 验证记录 → 诊断/对照, 非生产决策",
+    "models/ht_break_model.joblib":
+        "served; 半场转折检测, 无独立 OOS 验证记录 → 诊断/对照",
+    "models/inplay_1x2_isotonic_*.joblib (23 文件)":
+        "in-play 1X2 isotonic 校准器, 被 cross_score 服务; 逐项无 walkforward 验证 → 诊断/对照",
+    "data/live_1x2_model.joblib":
+        "live in-play 1X2 模型, bridge 服务; 无六道关验证 → 诊断/对照",
+    "data/live_ou_model.joblib":
+        "live in-play OU 模型, bridge 服务; 无六道关验证 → 诊断/对照",
+}
+
 
 def validate() -> None:
     """启动期自检: 模型数不得超过 MAX_MODELS, 且 ID 连续."""

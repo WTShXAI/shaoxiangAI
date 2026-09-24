@@ -18,7 +18,7 @@
 |---|---|---|---|
 | 1 数据资产与审计链 | tick 可追溯(source/时间/延迟/原JSON哈希/清洗ID) | odds_changes 有 source+captured_at+延迟；**原 JSON 哈希/清洗 ID 缺** | PARTIAL |
 | 1 | 事件字段冻结防偷看 | query_match 对 finished 硬性 applicable=False；prematch 字段采集时落库 | PARTIAL |
-| 1 | 模型版本锁定(权重/超参/特征/窗口/种子) | model_catalog 存在；D 类模型未注册(B4) | PARTIAL |
+| 1 | 模型版本锁定(权重/超参/特征/窗口/种子) | model_catalog M1–M7 + RESEARCH_DCLASS 补登 D 类(2026-09-25, 诚实标注 served但未验证) | DONE |
 | 1 | 信号日志不可变追加(谁/何时/为何) | 无信号审批流（系统已去喊单）；黑板 collab_journal 部分覆盖 | GAP |
 | 1 | 每日自动数据完整性检查 | autonomous_monitor 含采集活性/校准漂移；**缺盘/跳tick/ID冲突/时区/补时 专项未覆盖** | GAP |
 | 1 | 自愈重启只做工程恢复 | prod_guardian 只拉起不杀、不覆盖历史 | DONE |
