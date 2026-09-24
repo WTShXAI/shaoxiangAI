@@ -80,7 +80,7 @@ G6_pairing_diff, G6_CI_low, max_drawdown, CLV, calibration_curve`。
 3. ✅ **P-TICKET（NOW, 安全）**: `scripts/signal_ticket.py` + 隔离库 data/signal_tickets.db + 不可变触发器 + IR-32 守卫 + 测试。
 4. ✅ **P-LLM（NOW, 文档）**: `docs/LLM_AGENT_BOUNDARY.md`（权限矩阵 + 提示词边界模板 + 守卫）。
 5. ⬜ **P-AUDIT（WINDOW）**: odds_changes 加 raw_json_hash + cleaned_id 列（schema 变更，须窗口+回填）。
-6. ⬜ **P-DASH（WINDOW）**: 评估看板前端（读 verification_report.json）。
+6. ✅ **P-DASH（NOW, 已落地）**: `scripts/build_dashboard.py` → `deliverables/dashboard/evaluation_dashboard.html`（只读渲染 verification_report + data_integrity，零主库，file:// 直接开）。
 7. ⬜ **P-ENG（WINDOW）**: 消息总线/特征存储（重架构，低紧急）。
 8. ⬜ **P-MODEL（WINDOW）**: Dixon-Coles/Elo/贝叶斯 接入对照（walkforward 门禁）。
 9. ⬜ **P-SNAPSHOT-data（阻塞派生）**: 采集 阵容/伤停/天气/裁判/赛程密度 并写入 match_snapshot（解 P-SNAPSHOT 阻塞）。
@@ -90,3 +90,15 @@ G6_pairing_diff, G6_CI_low, max_drawdown, CLV, calibration_curve`。
 - §0/§1 诚实：无已验证 edge 前不宣称盈利；ROI 必带胜率/隐含/edge。
 - §4 数据资产：events.db 不 rm / 不在线 VACUUM；完整性检查只读。
 - LLM 不直接给买/卖；执行须人工+二次确认。
+
+## §6.1 产品价值 判定（owner 决断, 2026-09-24）— 答"产品能否为客户带来效益"
+**诚实二分**：
+- **作为"稳赚/必中/喊单"产品 → 不能，且严禁。** 六道关全 NO EDGE / INCONCLUSIVE，全系统无已验证可交易边缘；以此定位既违法（§6 合规）又欺诈（§0/§1 诚实）。
+- **作为"体育量化研究 / 概率建模 / 赔率市场结构透明化 / 个人研究工具" → 能，且是真实价值**：
+  1. **决策质量**：把"猜胜负"转为"校准概率 + 风险披露"，帮客户识别并避开 -EV 行为（不被割）。
+  2. **审计透明**：tick 可追溯 / 不可变工单 / 反偷看快照 / 每日完整性 → 客户拿到可核查证据链，非黑箱口号。
+  3. **数据资产**：Package B 2.2亿行赔率时序 = 量化研究者硬通货（保底锚 ¥85–110万）。
+  4. **方法论资产**：walkforward 门禁 + G6 零信息机械对照 + 校准优先 → 可复用研究纪律，可内容化输出。
+- **客户效益本质 = 少亏 + 想清楚 + 可核查，不是"带飞赚钱"。** 定位严守 §6。
+- **商业化路径（§7）**：数据资产变现（P1/P2）+ 研究平台/方法论内容 + 风控概率决策案例；**不卖收益承诺**。
+- 本看板（P-DASH）即该价值的对外透明载体：客户一眼看到"系统诚实说无 edge + 数据可核查"。
