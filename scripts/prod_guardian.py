@@ -197,12 +197,15 @@ def env_fingerprint():
 
 
 def token_dead_from_log():
-    """从 ws_daemon.log 检测乐鱼鉴权失败标记 (2026-09-24 修正: 必须时间感知)。
+    """从 ws_daemon.log 检测乐鱼鉴权失败标记 (2026-09-24 修正: 必须时间感知 + 恢复感知)。
 
     早期实现只看"尾部 200KB 是否含 0401013" —— 换新 token 后旧标记仍在尾部,
     会把已恢复的系统继续误判为失效, 导致采集器永不拉起。
-    现改为: 取**最后一次**出现该标记的行, 回溯它最近的时间戳, 仅在
-    MARK_FRESH_SEC 内才认定为当前失效。
+    2026-09-24 第一版改为"取最后一次标记, 仅在 MARK_FRESH_SEC 内认失效" —— 但仍有一个缺口:
+    换号后采集器用旧 token 写的新 0401013 标记在 30 分钟内会让守护持续误判失效,
+    即便采集器已修好连上新 token 写出成功刷新, 守护仍卡在失效态不拉起。
+    现加入**恢复证据**: 若尾部窗口内存在晚于最后一次失效标记的"[REG] 刷新完成"成功行,
+    即认定已恢复 → 返回 False (不失效)。
     """
     try:
         if not os.path.exists(WS_LOG):
@@ -213,7 +216,8 @@ def token_dead_from_log():
             f.seek(max(0, size - 200 * 1024))
             lines = f.read().splitlines()
         last_ts = None
-        mark_ts = None
+        mark_ts = None          # 最后一次 0401013 失效标记时间戳
+        ok_ts = None            # 最后一次成功刷新时间戳
         for ln in lines:
             m = re.match(r'\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]', ln)
             if m:
@@ -221,10 +225,15 @@ def token_dead_from_log():
                     last_ts = datetime.strptime(m.group(1), '%Y-%m-%d %H:%M:%S')
                 except Exception:
                     pass
+                if '[REG] 刷新完成' in ln and last_ts is not None:
+                    ok_ts = last_ts     # 成功刷新 (列表非空登记)
                 continue
             # 标记行自身无时间戳 (如 "[WARN] 比赛列表 code=0401013"), 沿用上方最近时间戳
             if TOKEN_DEAD_MARK in ln and last_ts is not None:
                 mark_ts = last_ts          # 正序扫描, 持续覆盖 → 最终保留**最后一次**
+        # 恢复证据优先: 成功刷新晚于最后一次失效标记 → 已恢复
+        if ok_ts is not None and mark_ts is not None and ok_ts > mark_ts:
+            return False
         if mark_ts is None:
             return False
         return (datetime.now() - mark_ts).total_seconds() < MARK_FRESH_SEC

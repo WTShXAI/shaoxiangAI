@@ -53,6 +53,32 @@ def test_token_dead_no_marker(tmp_path, monkeypatch):
     assert g.token_dead_from_log() is False
 
 
+def test_token_dead_recovery_after_success(tmp_path, monkeypatch):
+    """bug 3 回归点 (2026-09-24): 换号后采集器修好连上新 token, 写出成功刷新行晚于
+    最后一次 0401013 标记 → 必须判为已恢复 (False), 即便失效标记仍在 MARK_FRESH_SEC 内。
+    否则守护会卡在失效态、永不拉起, 形成自愈死结。"""
+    log = tmp_path / 'ws_daemon.log'
+    fail_ts = (datetime.now() - timedelta(seconds=120)).strftime('%Y-%m-%d %H:%M:%S')
+    ok_ts = (datetime.now() - timedelta(seconds=30)).strftime('%Y-%m-%d %H:%M:%S')
+    _write(log,
+           f'[{fail_ts}] [NAV] H5 已加载\n[WARN] 比赛列表 code={g.TOKEN_DEAD_MARK}\n'
+           f'[{ok_ts}] [REG] 刷新完成: 列表 46 场, 成功登记 316 个 mid\n')
+    monkeypatch.setattr(g, 'WS_LOG', str(log))
+    assert g.token_dead_from_log() is False
+
+
+def test_token_dead_failure_after_success_is_dead(tmp_path, monkeypatch):
+    """成功刷新早于最后一次失效标记 → 仍判为当前失效 (避免用陈旧成功遮盖最新失败)。"""
+    log = tmp_path / 'ws_daemon.log'
+    ok_ts = (datetime.now() - timedelta(seconds=600)).strftime('%Y-%m-%d %H:%M:%S')
+    fail_ts = (datetime.now() - timedelta(seconds=120)).strftime('%Y-%m-%d %H:%M:%S')
+    _write(log,
+           f'[{ok_ts}] [REG] 刷新完成: 列表 46 场, 成功登记 316 个 mid\n'
+           f'[{fail_ts}] [NAV] H5 已加载\n[WARN] 比赛列表 code={g.TOKEN_DEAD_MARK}\n')
+    monkeypatch.setattr(g, 'WS_LOG', str(log))
+    assert g.token_dead_from_log() is True
+
+
 def test_env_fingerprint_changes_on_any_line(tmp_path, monkeypatch):
     """bug 2 回归点: 只改 GQ_H5_URL(sessionId) 而 GQ_REQUEST_ID 不变时, 指纹也必须变。"""
     env = tmp_path / '.env'

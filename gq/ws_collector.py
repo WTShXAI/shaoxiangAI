@@ -194,10 +194,14 @@ def _mask(url: str) -> str:
 
 # ───────────────────────── H5 URL 加载 ─────────────────────────
 def _load_h5_url() -> str:
-    """全量 H5 URL (含 token+api+sessionId), 优先环境变量 GQ_H5_URL, 否则 gq/.env。"""
-    env = os.environ.get("GQ_H5_URL")
-    if env:
-        return env.strip()
+    """全量 H5 URL (含 token+api+sessionId)。
+
+    2026-09-24 修复: **文件优先**, 环境变量 GQ_H5_URL 仅作兜底。
+    原实现优先读 os.environ, 若父进程(守护/计划任务/历史会话)环境残留旧 token,
+    则 .env 改成新 token 后运行中的采集器永远不会 pickup 新 URL —— 热重载失效,
+    连的是旧 WS requestId, 持续报 0401013。改文件优先后, 编辑 .env 即被下一次
+    导航热读 (见 _navigate), 与 2026-08-29 热重载意图一致。
+    """
     try:
         p = os.path.join(HERE, ".env")
         with open(p, encoding="utf-8") as f:
@@ -207,6 +211,9 @@ def _load_h5_url() -> str:
                     return line.split("=", 1)[1].strip().strip('"').strip("'")
     except Exception:
         pass
+    env = os.environ.get("GQ_H5_URL")
+    if env:
+        return env.strip()
     return ""
 
 def _build_fallback_url() -> str:
