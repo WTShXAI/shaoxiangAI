@@ -73,7 +73,7 @@ G6_pairing_diff, G6_CI_low, max_drawdown, CLV, calibration_curve`。
 > 图例: ✅已落地 / 🟡部分(表/机制就绪, 数据层阻塞) / ⬜待启动
 
 1. ✅ **P-INTEGRITY（NOW, 安全）**: `scripts/data_integrity_check.py`（只读）→ reports/data_integrity.json；首跑 overall=OK。
-   monitor JOBS 接入留待回归窗口。
+   **已接入 prod_guardian JOBS**（3600s 周期, 回归 10 passed）；每日 00:00 守护例行重启后生效（§6 不杀进程）。
 2. 🟡 **P-SNAPSHOT（NOW, 安全）**: `scripts/match_snapshot.py` + 隔离库 data/snapshots.db + 不可变触发器 + 测试 ✅。
    **阻塞 P-SNAPSHOT-data**: events.db `matches` 当前**无** 阵容/伤停/天气/裁判/赛程密度 字段（2026-09-24 核查），
    快照表含这些列但默认 NULL，待采集层补齐后写入（不改表结构）。
