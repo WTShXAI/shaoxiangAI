@@ -5,7 +5,10 @@ freeze_snapshot(match_key) 在 T=kickoff 冻结赛前可见字段, 生成不可�
 回测/生产共用同一读取路径(get), 杜绝 train-serve skew。
 
 当前可用字段: match_key/home/away/league/kickoff + prematch_conclusion.verdict
-缺失字段(待采集层补齐, 见 P-SNAPSHOT-data): lineup / injury / weather / ref / schedule_density
+             + match_meta.preview / news / injuries_home (P-SNAPSHOT-data Phase1, 2026-09-25 接入)
+缺失字段(待采集层补齐, 见 WINDOW 规格 docs/WINDOW_PREP.md):
+  - lineup (GQ 阵容端点"暂未接入", 全 0 行)
+  - injury 客队侧(injuries_away 0 行) / weather / ref / schedule_density (全库无源)
   → 这些列存在但默认 NULL, 采集就绪后即可写入, 不改表结构。
 
 纪律(DISCIPLINE.md §4): 冻结后不可变(同 match_key 不覆盖); 只读 events.db 取源。
@@ -17,6 +20,7 @@ freeze_snapshot(match_key) 在 T=kickoff 冻结赛前可见字段, 生成不可�
 """
 import os
 import sqlite3
+import json
 import hashlib
 from datetime import datetime, timezone
 
@@ -39,6 +43,9 @@ CREATE TABLE IF NOT EXISTS match_snapshot (
   weather        TEXT,
   ref            TEXT,
   schedule_density TEXT,
+  preview        TEXT,
+  news           TEXT,
+  injury_home    TEXT,
   fields_json    TEXT,
   hash           TEXT
 );
@@ -61,6 +68,11 @@ def init():
     con = _con()
     con.execute(SCHEMA)
     con.executescript(TRIGGERS)
+    # 幂等增量迁移: 老库补列(不被 CREATE TABLE IF NOT EXISTS 覆盖)
+    _cols = {r[1] for r in con.execute("PRAGMA table_info(match_snapshot)").fetchall()}
+    for _c, _t in (("preview", "TEXT"), ("news", "TEXT"), ("injury_home", "TEXT")):
+        if _c not in _cols:
+            con.execute(f"ALTER TABLE match_snapshot ADD COLUMN {_c} {_t}")
     con.commit()
     con.close()
 
@@ -81,11 +93,21 @@ def freeze(match_key):
         "SELECT match_key, home, away, league, kickoff FROM matches WHERE match_key=?", (match_key,)
     ).fetchone()
     verdict = None
+    preview = news = injury_home = None
     try:
-        verdict = ec.execute(
+        v = ec.execute(
             "SELECT verdict_code FROM prematch_conclusion WHERE match_key=?", (match_key,)
         ).fetchone()
-        verdict = verdict[0] if verdict else None
+        verdict = v[0] if v else None
+    except Exception:
+        pass
+    # P-SNAPSHOT-data Phase1: 冻结赛前已知态(preview/news/injuries_home)，防赛后篡改
+    try:
+        m = ec.execute(
+            "SELECT preview, news, injuries_home FROM match_meta WHERE match_key=?", (match_key,)
+        ).fetchone()
+        if m:
+            preview, news, injury_home = m[0], m[1], m[2]
     except Exception:
         pass
     ec.close()
@@ -97,17 +119,19 @@ def freeze(match_key):
         "match_key": mk, "home": home, "away": away, "league": league, "kickoff": kickoff,
         "verdict": verdict,
         "lineup": None, "injury": None, "weather": None, "ref": None, "schedule_density": None,
+        "preview": preview, "news": news, "injury_home": injury_home,
     }
-    fields_json = __import__("json").dumps(fields, ensure_ascii=False, sort_keys=True)
+    fields_json = json.dumps(fields, ensure_ascii=False, sort_keys=True)
     h = hashlib.sha256(fields_json.encode("utf-8")).hexdigest()
     sid = f"{match_key}@{int(datetime.now(timezone.utc).timestamp())}"
     con.execute(
         """INSERT INTO match_snapshot
            (snapshot_id, match_key, frozen_at, home, away, league, kickoff, verdict,
-            lineup, injury, weather, ref, schedule_density, fields_json, hash)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            lineup, injury, weather, ref, schedule_density, preview, news, injury_home,
+            fields_json, hash)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (sid, mk, datetime.now(timezone.utc).timestamp(), home, away, league, kickoff, verdict,
-         None, None, None, None, None, fields_json, h),
+         None, None, None, None, None, preview, news, injury_home, fields_json, h),
     )
     con.commit()
     con.close()

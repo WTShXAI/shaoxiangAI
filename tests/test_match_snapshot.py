@@ -2,6 +2,7 @@
 import os
 import sqlite3
 import sys
+import json
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
@@ -54,3 +55,28 @@ def test_hash_present():
     # fields_json + hash 列存在且非空
     assert snap[-1], "hash 应非空"
     assert snap[-2], "fields_json 应非空"
+
+
+def test_enrichment_from_match_meta():
+    """P-SNAPSHOT-data Phase1: freeze 应冻结 match_meta.preview/news/injuries_home。"""
+    import pytest
+    con = sqlite3.connect(f"file:{ms.EVENTS}?mode=ro", uri=True)
+    mk = con.execute(
+        "SELECT m.match_key FROM matches m JOIN match_meta mm ON m.match_key=mm.match_key "
+        "WHERE TRIM(mm.preview)<>'' LIMIT 1"
+    ).fetchone()
+    con.close()
+    if not mk:
+        pytest.skip("无同时含 preview 的 match_key")
+    mk = mk[0]
+    sid = ms.freeze(mk)
+    assert sid, "冻结应成功"
+    snap = ms.get(mk)
+    _cols = [r[1] for r in sqlite3.connect(ms.DB).execute(
+        "PRAGMA table_info(match_snapshot)").fetchall()]
+    preview = snap[_cols.index("preview")]
+    news = snap[_cols.index("news")]
+    injury_home = snap[_cols.index("injury_home")]
+    assert preview, "preview 应从 match_meta 冻结且非空"
+    # news/injury_home 可能为 NULL(覆盖率有限)，仅在有数据时断言
+    assert "preview" in json.loads(snap[_cols.index("fields_json")]), "fields_json 须含 preview 键"

@@ -17,7 +17,7 @@
 | 文档节 | 要求 | 现状 | 判定 |
 |---|---|---|---|
 | 1 数据资产与审计链 | tick 可追溯(source/时间/延迟/原JSON哈希/清洗ID) | odds_changes 有 source+captured_at+延迟；**原 JSON 哈希/清洗 ID 缺** | PARTIAL |
-| 1 | 事件字段冻结防偷看 | query_match 对 finished 硬性 applicable=False；prematch 字段采集时落库 | PARTIAL |
+| 1 | 事件字段冻结防偷看 | query_match 对 finished 硬性 applicable=False；prematch 字段采集时落库；**2026-09-25 已从 match_meta 冻结 preview/news/injuries_home** | DONE(部分字段) |
 | 1 | 模型版本锁定(权重/超参/特征/窗口/种子) | model_catalog M1–M7 + RESEARCH_DCLASS 补登 D 类(2026-09-25, 诚实标注 served但未验证) | DONE |
 | 1 | 信号日志不可变追加(谁/何时/为何) | 无信号审批流（系统已去喊单）；黑板 collab_journal 部分覆盖 | GAP |
 | 1 | 每日自动数据完整性检查 | autonomous_monitor 含采集活性/校准漂移；**缺盘/跳tick/ID冲突/时区/补时 专项未覆盖** | GAP |
@@ -74,16 +74,18 @@ G6_pairing_diff, G6_CI_low, max_drawdown, CLV, calibration_curve`。
 
 1. ✅ **P-INTEGRITY（NOW, 安全）**: `scripts/data_integrity_check.py`（只读）→ reports/data_integrity.json；首跑 overall=OK。
    **已接入 prod_guardian JOBS**（3600s 周期, 回归 10 passed）；每日 00:00 守护例行重启后生效（§6 不杀进程）。
-2. 🟡 **P-SNAPSHOT（NOW, 安全）**: `scripts/match_snapshot.py` + 隔离库 data/snapshots.db + 不可变触发器 + 测试 ✅。
-   **阻塞 P-SNAPSHOT-data**: events.db `matches` 当前**无** 阵容/伤停/天气/裁判/赛程密度 字段（2026-09-24 核查），
-   快照表含这些列但默认 NULL，待采集层补齐后写入（不改表结构）。
+2. ✅ **P-SNAPSHOT（NOW, 安全）**: `scripts/match_snapshot.py` + 隔离库 data/snapshots.db + 不可变触发器 + 测试 ✅。
+   **P-SNAPSHOT-data Phase1 已落地（2026-09-25）**：冻结时已从 `match_meta` 接入赛前已知态
+   `preview`(4790/5029) / `news`(781) / `injuries_home`(1223)，与 events.db 只读解耦、零生产写入。
+   剩余 `lineup`(GQ端点未接入,0行)/`injuries_away`/`weather`/`ref`/`schedule_density` 待采集层扩展（见 docs/WINDOW_PREP.md §1）。
 3. ✅ **P-TICKET（NOW, 安全）**: `scripts/signal_ticket.py` + 隔离库 data/signal_tickets.db + 不可变触发器 + IR-32 守卫 + 测试。
 4. ✅ **P-LLM（NOW, 文档）**: `docs/LLM_AGENT_BOUNDARY.md`（权限矩阵 + 提示词边界模板 + 守卫）。
 5. ⬜ **P-AUDIT（WINDOW）**: odds_changes 加 raw_json_hash + cleaned_id 列（schema 变更，须窗口+回填）。
 6. ✅ **P-DASH（NOW, 已落地）**: `scripts/build_dashboard.py` → `deliverables/dashboard/evaluation_dashboard.html`（只读渲染 verification_report + data_integrity，零主库，file:// 直接开）。
 7. ⬜ **P-ENG（WINDOW）**: 消息总线/特征存储（重架构，低紧急）。
 8. ⬜ **P-MODEL（WINDOW）**: Dixon-Coles/Elo/贝叶斯 接入对照（walkforward 门禁）。
-9. ⬜ **P-SNAPSHOT-data（阻塞派生）**: 采集 阵容/伤停/天气/裁判/赛程密度 并写入 match_snapshot（解 P-SNAPSHOT 阻塞）。
+9. 🟡 **P-SNAPSHOT-data（WINDOW 部分解阻塞）**: Phase1 已接 preview/news/injuries_home（已采集字段）；
+   lineup(端点未接入)/injuries_away/weather/ref/schedule_density 仍须采集层扩展（docs/WINDOW_PREP.md §1），排期维护窗口。
 
 ## §4 纪律约束（落地不得违反）
 - §9 跨庄禁区：任何跨庄共识/投注占比字样禁入生产（tests/test_no_crossbook.py 守卫）。
