@@ -16,7 +16,7 @@
 ## P. 盈利主引擎（最高优先）
 | ID | 项 | 处置 | 说明 |
 |----|----|------|------|
-| P1 | **Package B 组装**（赔率 2.32亿行：odds_changes 43.8M + odds_snapshots 122.8M + bak 12.1M/41.8M） | NOW(只读导出) → 交老板外部法律确认(P2-5) → 另售 | 全系统最高价值资产，保底锚 ¥85–110万 的实体支撑。**导出器已建** `scripts/p2_build_package_b.py`（严格只读 events.db）。样本验证通过：抽样 40万行 → 33MB `deliverables/p2_package_b/p2_package_B.sqlite`(4.2s)。**全量导出待老板确认 + 法律门禁 P2-5**（~2.2亿行/多 GB，重型）。 | ✅ 导出器就绪+样本验证 2026-09-24；全量未跑(门禁) |
+| P1 | **Package B 组装**（赔率 2.32亿行：odds_changes 43.8M + odds_snapshots 122.8M + bak 12.1M/41.8M） | NOW(只读导出) → 交老板外部法律确认(P2-5) → 另售 | 全系统最高价值资产，保底锚 ¥85–110万 的实体支撑。**导出器已建** `scripts/p2_build_package_b.py`（严格只读 events.db）。样本验证通过：抽样 40万行 → 33MB `deliverables/p2_package_b/p2_package_B.sqlite`（4.2s）。**全量导出完成 2026-09-24：167,495,260 行 → 13.9GB `deliverables/p2_package_b/p2_package_B.sqlite`（442.8s，源库零写入）。挂起待董事长 P2-5 法律确认后售。** | ✅ 全量导出完成 2026-09-24；售卖门禁 P2-5 待董事长 |
 | P2 | Package A+C 已交付（p2_package_A_C.sqlite 110MB/21表/503,610行） | DONE | 硬排除 users/赔率表/match_outcomes，无 PII。可即时挂牌。 |
 | P3 | 诊断服务产品化（概率偏差解释，非喊单） | WINDOW | 前端"预测中心"已在，需包装成对外交付物。 |
 
