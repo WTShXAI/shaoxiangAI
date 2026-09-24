@@ -79,6 +79,8 @@ JOBS = [
      3600, os.path.join(ROOT, 'logs', 'gq_token_watch.log')),
     ('knn_conclusion_writer', [VENV_PY, os.path.join(ROOT, 'scripts', 'knn_conclusion_writer.py')],
      600, os.path.join(ROOT, 'logs', 'knn_conclusion_writer.log')),
+    ('data_integrity_check', [VENV_PY, os.path.join(ROOT, 'scripts', 'data_integrity_check.py')],
+     3600, os.path.join(ROOT, 'logs', 'data_integrity.log')),
 ]
 
 
