@@ -117,3 +117,31 @@ def test_guardian_never_kills():
                             'scripts', 'prod_guardian.py'), encoding='utf-8').read()
     for banned in ('.kill(', '.terminate(', 'taskkill'):
         assert banned not in src, f'prod_guardian 不得含有 {banned}'
+
+
+def test_knn_writer_in_jobs_and_safe():
+    """2026-09-24 新增: KNN 结论弹性写入器必须接入 JOBS 且只读/只写 prematch_conclusion。
+
+    根因: ws_collector 崩溃期间 KNN tick 随死 → scheduled 场完场后永无结论 (query_match 对
+    finished 硬性拒绝, 不可回填) → 9 月 9444 场缺口。解耦独立写入器由守护代拉, 采集器死时仍保覆盖。
+    """
+    names = [j[0] for j in g.JOBS]
+    assert 'knn_conclusion_writer' in names, 'JOBS 必须含 knn_conclusion_writer'
+    job = next(j for j in g.JOBS if j[0] == 'knn_conclusion_writer')
+    name, cmd, interval, out_f = job
+    assert interval <= 600, 'KNN 写入器间隔应 ≤600s (与采集器 tick 同频兜底)'
+    assert os.path.exists(cmd[1]), '写入器脚本必须存在'
+    # 脚本可编译
+    import py_compile
+    py_compile.compile(cmd[1], doraise=True)
+    # 不得在生产 import 图出现 IR-32 禁区字样 (文档注释里列举禁区词是合规说明, 放行)
+    src = open(cmd[1], encoding='utf-8').read()
+    for banned in ('cross_book', 'multibook', 'leyu_value_signal', 'bet_split_source',
+                   'compute_value_layer', 'bet_core'):
+        assert f'import {banned}' not in src, f'knn_conclusion_writer 不得 import IR-32 禁区 {banned}'
+        assert f'from {banned}' not in src, f'knn_conclusion_writer 不得 import IR-32 禁区 {banned}'
+        assert f'{banned}.' not in src, f'knn_conclusion_writer 不得在生产逻辑调用 IR-32 禁区 {banned}'
+    # 只走 store_prematch_conclusion, 不直接写 matches/odds
+    assert 'store_prematch_conclusion' in src
+    assert 'INSERT INTO matches' not in src and 'INSERT INTO odds' not in src
+

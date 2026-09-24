@@ -69,12 +69,16 @@ TARGETS = [
 # 周期任务 (非常驻, 跑完即退, 由本守护按间隔代拉):
 #   autonomous_monitor 原靠 WorkBuddy 自动化每小时触发, gq_token_watch 靠 HOURLY;
 #   两者实测都会静默停摆 (09-22 起) 且无自愈 → 2026-09-24 一并纳入本守护。
+#   knn_conclusion_writer 是 2026-09-24 新增: KNN 赛前结论弹性写入器, 解耦于 ws_collector
+#   守护线程 —— 采集器崩溃/换号死亡期间, scheduled 场仍能拿到结论, 根治 9 月 9444 场无结论缺口。
 # (名称, 命令, 间隔秒, stdout 日志文件)
 JOBS = [
     ('autonomous_monitor', [VENV_PY, os.path.join(ROOT, 'scripts', 'autonomous_monitor.py'), '--cycle'],
      3600, os.path.join(ROOT, 'logs', 'autonomous_monitor.log')),
     ('gq_token_watch', [VENV_PY, os.path.join(ROOT, 'scripts', 'gq_token_watch.py')],
      3600, os.path.join(ROOT, 'logs', 'gq_token_watch.log')),
+    ('knn_conclusion_writer', [VENV_PY, os.path.join(ROOT, 'scripts', 'knn_conclusion_writer.py')],
+     600, os.path.join(ROOT, 'logs', 'knn_conclusion_writer.log')),
 ]
 
 
