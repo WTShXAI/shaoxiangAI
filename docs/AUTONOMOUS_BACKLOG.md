@@ -13,7 +13,7 @@
 ## 待执行（[ ] 未做 / [x] 已完成）
 
 - [x] **T01 P-AUDIT 前向迁移脚本** — `scripts/p_audit_migrate.py` 已写(幂等 ALTER + 索引, 默认 dry-run, 生产库须 `--allow-production` 守卫); 单测 4 passed(临时库, 不碰 events.db)。不运行(须维护窗口)。2026-09-25
-- [ ] **T02 P-SNAPSHOT-data lineup 采集补全规格** — `docs/` 补 content_collector 激活 GQ 阵容端点(getMatchLineupListPB)方案 + 优雅降级(0408006) + 回滚检查单。
+- [x] **T02 P-SNAPSHOT-data lineup 采集补全规格** — `docs/P-SNAPSHOT-lineup-spec.md` 已写: 根因(0400500 SPA会话保护/0408006未公布) + Tier A(低风险即时, 复用 getMatchAnalysiseDataPB sonMenuId=0) + Tier B(逆向突破 getMatchLineupListPB) + content_collector 改造草案 + match_meta/match_snapshot 集成点(列已就绪零迁移) + 优雅降级 + 防偷看保证(lineup属赛前已知态不破anti-peek) + 回滚检查单 + 验收门禁。纯规格不落地(须维护窗口)。2026-09-25
 - [ ] **T03 P-SNAPSHOT-data schedule_density 离线派生** — 写 `scripts/derive_schedule_density.py`：只读 events.db，按 team+近7日场次计数，输出到隔离库；不应用。
 - [ ] **T04 B7 零引用 db 只读审计** — 写 `scripts/audit_orphan_dbs.py`：列 data/*.db 被哪些进程持有 + grep 引用 → 产归档安全清单（仅报告）。
 - [ ] **T05 B1 bridge 端点使用率只读 grep** — 列出前端零调用端点候选（仅报告，不删）。
