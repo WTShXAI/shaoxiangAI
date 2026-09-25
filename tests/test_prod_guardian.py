@@ -145,3 +145,19 @@ def test_knn_writer_in_jobs_and_safe():
     assert 'store_prematch_conclusion' in src
     assert 'INSERT INTO matches' not in src and 'INSERT INTO odds' not in src
 
+
+
+def test_launch_commands_use_pythonw_no_console():
+    """2026-09-25 新增: 所有拉起必须用 pythonw —— 锁定"终端弹窗"根因修复。
+
+    实测根因: venv python.exe shim 二段启动【丢失 DETACHED_PROCESS 标志】→ 基础控制台
+    解释器被 OS 分配新控制台 → conhost 可见黑窗(常驻 ws_collector/efootball_probe +
+    每10分钟 JOB 闪窗)。pythonw 链零 conhost(C2 实测)且 site-packages 完整;
+    bridge/watchdog/guardian 的 pythonw+DETACHED 已稳定运行数日。
+    """
+    for name, pat, cmd, out_f in g.TARGETS:
+        assert cmd[0].endswith('pythonw.exe'), \
+            f'常驻目标 {name} 必须用 pythonw 拉起(否则 conhost 弹窗), 实际 {cmd[0]}'
+    for name, cmd, interval, out_f in g.JOBS:
+        assert cmd[0].endswith('pythonw.exe'), \
+            f'周期任务 {name} 必须用 pythonw 拉起(否则每轮闪窗), 实际 {cmd[0]}'

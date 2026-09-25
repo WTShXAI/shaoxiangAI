@@ -13,12 +13,15 @@ import subprocess, sys, os, time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # 强制使用 venv Python, 防止被系统 Python 拉起造成双实例写库
-# 2026-09-16 修正: 优先用控制台 python.exe。
-# 原 pythonw.exe 在 DETACHED 下偶发卡死在初始化前(stdout 句柄/控制台子系统问题),
-# 导致 detached 实例起不来; 控制台 python.exe + DETACHED_PROCESS 不弹窗且 stdout 已重定向到日志, 稳定。
-VENV_PY = os.path.join(ROOT, ".venv", "Scripts", "python.exe")
+# 2026-09-25 修正(弹窗根因): 优先用 pythonw.exe。
+# 实测: venv python.exe shim 二段启动会丢失 DETACHED_PROCESS 标志 → 基础控制台解释器
+# 被 OS 分配新控制台 → conhost 可见黑窗; pythonw 链零 conhost 且 site-packages 完整。
+# 09-16"pythonw+DETACHED 偶发卡死"与 stdout 未重定向相关; 本启动器 stdout 已强制
+# 重定向到 ws_daemon.log, 且 bridge/watchdog/guardian 的 pythonw+DETACHED 已稳定数日。
+# 回滚(如卡死复发): 下方两行对调优先级(黑窗会重现)。
+VENV_PY = os.path.join(ROOT, ".venv", "Scripts", "pythonw.exe")
 if not os.path.exists(VENV_PY):
-    VENV_PY = os.path.join(ROOT, ".venv", "Scripts", "pythonw.exe")
+    VENV_PY = os.path.join(ROOT, ".venv", "Scripts", "python.exe")
 
 script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ws_collector.py")
 log = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ws_daemon.log")

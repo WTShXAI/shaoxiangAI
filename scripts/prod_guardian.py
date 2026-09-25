@@ -45,6 +45,16 @@ from datetime import datetime
 ROOT = r'D:\Architecture'
 VENV_PY = os.path.join(ROOT, '.venv', 'Scripts', 'python.exe')
 VENV_PYW = os.path.join(ROOT, '.venv', 'Scripts', 'pythonw.exe')
+# 2026-09-25 弹窗根因修正: 所有拉起改用 VENV_PYW(pythonw)。
+# 实测(C1): GUI父进程 + venv python.exe shim 二段启动会【丢失 DETACHED_PROCESS 标志】
+#   → 基础控制台解释器被 OS 分配新控制台 → conhost 可见黑窗(每10分钟JOB闪窗 +
+#   ws_collector/efootball_probe 常驻黑窗)。
+# 实测(C2): pythonw 链零 conhost, 且 venv site-packages 完整(bridge/watchdog/guardian
+#   三个 pythonw+DETACHED 实例已稳定运行数日, 反证 pythonw+DETACHED 可靠)。
+# 不直启基础解释器: 其无 venv site-packages(psutil/requests 等全挂)。
+# 回滚(如 pythonw 卡死复发): 将下方 TARGETS/JOBS 的 VENV_PYW 改回 VENV_PY(弹窗重现)。
+# 09-16"pythonw+DETACHED 偶发卡死"前科与 stdout 未重定向相关; 本文件所有拉起点
+# stdout 均强制重定向(文件或 DEVNULL), 风险已消除。
 LOG = os.path.join(ROOT, 'logs', 'prod_guardian.log')
 LOCK = os.path.join(ROOT, 'logs', 'prod_guardian.lock')
 ENV_FILE = os.path.join(ROOT, 'gq', '.env')
@@ -60,9 +70,9 @@ MARK_FRESH_SEC = 1800        # 失效标记新鲜度窗口: 超过此秒数视�
 
 # 常驻目标: (名称, 进程识别串, 启动命令, stdout 日志文件)
 TARGETS = [
-    ('ws_collector', 'ws_collector.py', [VENV_PY, os.path.join(ROOT, 'gq', 'start_collector.py')], None),
+    ('ws_collector', 'ws_collector.py', [VENV_PYW, os.path.join(ROOT, 'gq', 'start_collector.py')], None),
     ('efootball_probe', 'efootball_probe.py',
-     [VENV_PY, os.path.join(ROOT, 'gq', 'efootball_probe.py'), '--loop'],
+     [VENV_PYW, os.path.join(ROOT, 'gq', 'efootball_probe.py'), '--loop'],
      os.path.join(ROOT, 'gq', 'efootball_daemon.out.log')),
 ]
 
@@ -73,13 +83,13 @@ TARGETS = [
 #   守护线程 —— 采集器崩溃/换号死亡期间, scheduled 场仍能拿到结论, 根治 9 月 9444 场无结论缺口。
 # (名称, 命令, 间隔秒, stdout 日志文件)
 JOBS = [
-    ('autonomous_monitor', [VENV_PY, os.path.join(ROOT, 'scripts', 'autonomous_monitor.py'), '--cycle'],
+    ('autonomous_monitor', [VENV_PYW, os.path.join(ROOT, 'scripts', 'autonomous_monitor.py'), '--cycle'],
      3600, os.path.join(ROOT, 'logs', 'autonomous_monitor.log')),
-    ('gq_token_watch', [VENV_PY, os.path.join(ROOT, 'scripts', 'gq_token_watch.py')],
+    ('gq_token_watch', [VENV_PYW, os.path.join(ROOT, 'scripts', 'gq_token_watch.py')],
      3600, os.path.join(ROOT, 'logs', 'gq_token_watch.log')),
-    ('knn_conclusion_writer', [VENV_PY, os.path.join(ROOT, 'scripts', 'knn_conclusion_writer.py')],
+    ('knn_conclusion_writer', [VENV_PYW, os.path.join(ROOT, 'scripts', 'knn_conclusion_writer.py')],
      600, os.path.join(ROOT, 'logs', 'knn_conclusion_writer.log')),
-    ('data_integrity_check', [VENV_PY, os.path.join(ROOT, 'scripts', 'data_integrity_check.py')],
+    ('data_integrity_check', [VENV_PYW, os.path.join(ROOT, 'scripts', 'data_integrity_check.py')],
      3600, os.path.join(ROOT, 'logs', 'data_integrity.log')),
 ]
 
