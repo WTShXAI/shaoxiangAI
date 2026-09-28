@@ -126,19 +126,26 @@ def iter_python_files(*roots: str) -> List[str]:
     return out
 
 
-def scan_git_ignored_python(roots: Tuple[str, ...] = (SCRIPTS, TESTS)) -> Dict[str, Any]:
+def scan_git_ignored_python(roots: Optional[Tuple[str, ...]] = None,
+                           root: str = ROOT) -> Dict[str, Any]:
     """Q4: 找出**被 .gitignore 静默吃掉**的 .py 文件 (整类隐患, 不只 SSoT)。
 
     失效模式 (T52/T57 各踩一次): ``.gitignore:142`` 的 ``_*.py`` 会把共享模块
-    (``_log_codec.py`` / ``_verdict_guard.py``) 整文件忽略 —— ``git status`` 里连
-    ``??`` 都不显示, 重建环境后守卫集体 import 失败, 而本地工作区毫无异常。
-    这里用 ``git check-ignore --stdin`` 一次批查, 命中项**必须进登记册并写理由**。
+    (``_log_codec.py`` / ``_verdict_guard.py``) 与 ``__init__.py`` 整体忽略 ——
+    ``git status`` 里连 ``??`` 都不显示, 重建环境后守卫集体 import 失败,
+    而本地工作区毫无异常。这里用 ``git check-ignore --stdin`` 一次批查,
+    命中项**必须进登记册并写理由**。
+
+    Args:
+        roots: 扫描根目录; 缺省 = ``scripts/`` + ``tests/``。
+        root: git 仓库根 (测试可指向临时仓库, 使本守卫的"能检出"证明不依赖真实仓库状态)。
 
     Returns:
-        dict: 未登记项 (FAIL 源) / 已登记项 / 是否被跳过(git 不可用)。
+        dict: 未登记项 (FAIL 源) / 已登记项 / 扫描面计数 / 是否被跳过(git 不可用)。
     """
-    files = iter_python_files(*roots)
-    rels = [os.path.relpath(p, ROOT).replace('\\', '/') for p in files]
+    scan_roots = tuple(roots) if roots else (SCRIPTS, TESTS)
+    files = iter_python_files(*scan_roots)
+    rels = [os.path.relpath(p, root).replace('\\', '/') for p in files]
     result: Dict[str, Any] = {'scanned': len(rels), 'ignored_total': None,
                               'unregistered': [], 'registered': {}}
     try:
@@ -147,7 +154,7 @@ def scan_git_ignored_python(roots: Tuple[str, ...] = (SCRIPTS, TESTS)) -> Dict[s
         # git 侧返回空 (rc=1), 整份扫描静默变「0 个被忽略文件」假绿。
         payload = ('\n'.join(rels) + '\n').encode('utf-8')
         proc = subprocess.run(['git', 'check-ignore', '--stdin'],
-                              cwd=ROOT, input=payload,
+                              cwd=root, input=payload,
                               capture_output=True, timeout=60)
     except (OSError, subprocess.SubprocessError):
         result['skipped'] = 'git 不可用或超时'

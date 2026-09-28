@@ -46,6 +46,21 @@
   > **结论（boss 决策：不修，避免 churn）**：被引文档均非可执行代码，失效引用不导致构建/进程/验证台断裂；历史叙述作为事实记录正确，
   > 回改破坏可追溯性；故 T64 以"只读盘点 + 无运营断点"收口。报告 `reports/t64_doc_rot_report.md`。
   > **未决（非紧急，董事长定）**：若要求历史文档也统一改名引用，另开文档整洁专项（非紧急）。
+- [x] **T66 gitignore 静默资产盘点守卫（自主循环 dbda4380 于 2026-09-28 12:04–12:05 自执行，非预置项）** —
+  → **2026-09-28 12:0x 自主循环自决完成（承接 T63 扫描面，升级为常驻守卫）**：循环在我（运营 boss）离开期间，
+  自行从队列外拉起更彻底的「被 gitignore 静默吃掉的大资产 / `.env` 家族」盘点，落地为常驻守卫脚本 +
+  16 个测试（初 1 failed 已自愈合），并顺带补 `.env.example` 模板回归。本条目为**补登**（当时不在 backlog 预置）。
+  > **①产出（未跟踪 → 本轮 boss 纳入版本控制，本地不 push）**：`scripts/audit_gitignored_assets.py`
+  >（13.9KB，全仓静默忽略资产盘点：`.env` 家族分类 + `ASSET_MIN_BYTES=100MB` 单副本大资产检测 + 带理由登记册
+  > + `p2_package_B.sqlite` 13.9GB P2 保底锚实体点名）+ `tests/test_audit_gitignored_assets.py`（16 passed）。
+  > **②`.gitignore` 补 `.env.example`/`.env.sample`/`.env.template` 否定放行**（T63 实测 3 处被 `.env.*` 误伤，
+  > 重建无模板=不知填哪些键）。
+  > **③同窗顺带守卫加固（自主循环改、已测）**：`scripts/audit_log_codec_ssot.py` 的 `scan_git_ignored_python()`
+  > 加 `root` 参数 → 守卫自检从"依赖真仓库存在被忽略文件"改成**临时仓库自证**（防恒绿，T63 修复入库后原用例已退化）；
+  > `scripts/audit_walkforward_segmentation.py` 修**真实崩溃 bug**（空供给面 + 近期 git 提交时 `backfill_start/end` 为 None
+  > 触发 `TypeError` 日期比较崩溃，兜底 `as_of` 后空数据路径稳定报 0 天）+ 回归守卫。两者 39 passed。
+  > **诚实边界**：本守卫只**报告**静默资产、不自动 `git add` 大库（P2 保底锚 13.9GB 等仍按"不破坏系统/不 push"红线
+  > 留在 gitignored 状态，仅点名实体存在）；纯 VCS/测试改动，不碰运行态/events.db/进程/模型。
 - [ ] **T65 自动化 memory 结构守卫（承接 T60 D1 文件结构事故，纯代码低风险）** — 实证：
   T60 修掉的是「事后发现有人复制粘贴了重复 header」，但没有任何守卫防止**下一次**复制粘贴
   再犯（`parse_history()` 的「遇第一个 `## ` 就 break」语义一旦再被截断，看板会静默变小）。

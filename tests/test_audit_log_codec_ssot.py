@@ -189,17 +189,38 @@ def test_no_silent_git_ignored_python_modules():
         assert rel in GITIGNORED_PY_REGISTRY and GITIGNORED_PY_REGISTRY[rel].strip()
 
 
-def test_scan_git_ignored_python_sees_the_known_case():
-    """守卫自检: 若登记册被清空, 扫描必须能检出已知那条 (防守卫退化成恒绿)。"""
+def test_scan_git_ignored_python_fails_closed_in_temp_repo(tmp_path):
+    """守卫自证: 在**临时仓库**里必须检出被 `_*.py` 吃掉的模块 (防恒绿)。
+
+    原用例依赖「真仓库里存在一个被忽略的 .py」这一事实 —— 2026-09-28 该事实被修复
+    (自动化把 `_*.py` 真实源 `git add` 入库), 用例随之失效。改成临时仓库自证后,
+    **不再依赖真实仓库状态**: 无论线上是否还剩被忽略文件, 守卫的检出能力都被钉死。
+    """
+    import subprocess
+    repo = tmp_path / 'repo'
+    (repo).mkdir()
+    proc = subprocess.run(['git', 'init', '-q'], cwd=str(repo), capture_output=True)
+    if proc.returncode != 0:
+        pytest.skip('git init 不可用')
+    (repo / '.gitignore').write_text('_*.py\n', encoding='utf-8')
+    (repo / '_hidden.py').write_text('x = 1\n', encoding='utf-8')
+    (repo / 'visible.py').write_text('y = 1\n', encoding='utf-8')
+    res = scan_git_ignored_python(roots=(str(repo),), root=str(repo))
+    if 'skipped' in res:
+        pytest.skip(res['skipped'])
+    assert res['ignored_total'] == 1, res
+    assert res['unregistered'] == ['_hidden.py'], res
+    assert res['registered'] == {}
+
+
+def test_live_git_scan_is_closed():
+    """真仓库: 被忽略项必须全部归入登记册或未登记项 (三者对账闭合, 不静默丢)。"""
     res = scan_git_ignored_python()
     if 'skipped' in res:
         pytest.skip(res['skipped'])
-    assert res['registered'] and res['ignored_total'] == len(res['registered']) + len(res['unregistered']), (
-        '扫描面未闭合: 被忽略项必须与登记册 + 未登记项数量对上'
-    )
-    assert 'scripts/_analyze_live_ou_margin.py' in res['registered'], (
-        '扫描面异常: 已知被忽略文件既没进登记册也没被检出'
-    )
+    assert res['ignored_total'] == len(res['registered']) + len(res['unregistered'])
+    for rel in res['registered']:
+        assert rel in GITIGNORED_PY_REGISTRY and GITIGNORED_PY_REGISTRY[rel].strip()
 
 
 def test_guard_registry_reasons_cannot_be_empty():

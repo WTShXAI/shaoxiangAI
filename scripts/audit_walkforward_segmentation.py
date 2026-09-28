@@ -463,9 +463,14 @@ def run(events_db: str, ledger_db: str, as_of: str | None, window_days: int) -> 
     supply_dates = sorted(supply.keys())
     ledger_last = ledger["last_date"]
     supply_last = supply_dates[-1] if supply_dates else None
-    # 补入区间 = 账本停摆日之后、供给面覆盖之日止
-    backfill_start = ledger_last or supply_last
-    backfill_end = supply_last
+    # 补入区间 = 账本停摆日之后、供给面覆盖之日止。
+    # 兜底为 as_of（2026-09-28 修复）：供给面为空时 backfill_start/end 原为 None，
+    # 一旦 git 侧存在 >=as_of 的提交（iteration_points 非空），下面的日期比较会
+    # `TypeError: '<' not supported between 'str' and 'NoneType'` 直接崩掉。
+    # 语义上"无供给 = 零天区间"，兜底成 as_of 既保持读数不变（interval_days=0），
+    # 也让空数据路径可复现 —— 空数据不该让诊断脚本崩，只该报 0。
+    backfill_start = ledger_last or supply_last or as_of
+    backfill_end = supply_last or as_of
     interval_days = 0
     if backfill_start and backfill_end:
         interval_days = max(0, (date.fromisoformat(backfill_end)

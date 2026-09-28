@@ -175,6 +175,38 @@ def test_ir30_no_profit_claim_and_g1_is_not_edge(tmp_path, monkeypatch):
         assert bad not in md, f"输出出现盈利宣称风险词: {bad}"
     assert "NO EDGE" in md
     assert summary["reach_compare"]["without_backfill"]["status"] == STATUS_NEVER
+    # 空供给面路径必须给出 0 天区间而不是崩 / 留 None（2026-09-28 修复：
+    # 仓库当日出现 >=as_of 的提交后 iteration_points 非空，暴露出 None 比较崩溃）。
+    assert summary["backfill_interval"]["start"] == "2026-09-27"
+    assert summary["backfill_interval"]["end"] == "2026-09-27"
+    assert summary["backfill_interval"]["days"] == 0
+    import json
+    assert json.dumps(summary, ensure_ascii=False, default=str)  # 全字段可序列化(无 None 日期洞)
+
+
+def test_empty_supply_does_not_crash_when_git_has_recent_commits(tmp_path, monkeypatch):
+    """回归守卫: 空供给 + 有近期提交 = 曾经崩溃的组合, 必须稳定报 0 天。"""
+    import sqlite3
+
+    import scripts.audit_walkforward_segmentation as aw
+    monkeypatch.setattr(aw, "TRAIN_MARKER", str(tmp_path / "m.json"))
+    monkeypatch.setattr(aw, "MONITOR_STATUS", str(tmp_path / "s.json"))
+    monkeypatch.setattr(aw, "MODELS_DIR", str(tmp_path / "models"))
+    (tmp_path / "models").mkdir(exist_ok=True)
+    ledger = tmp_path / "l.db"
+    events = tmp_path / "e.db"
+    for p in (ledger, events):
+        con = sqlite3.connect(p)
+        con.execute("CREATE TABLE verification_ledger (row_id INTEGER, run_id TEXT, "
+                    "match_id TEXT, model_source TEXT, match_date TEXT, is_credible INT, "
+                    "devig_method TEXT, created_at TEXT)")
+        con.execute("CREATE TABLE daily_predictions (match_key TEXT, kickoff TEXT, "
+                    "match_date TEXT, home TEXT, away TEXT, league TEXT, status TEXT, "
+                    "model_source TEXT, payload TEXT, generated_at REAL)")
+        con.commit()
+        con.close()
+    s = aw.run(str(events), str(ledger), "2026-01-01", 9)
+    assert s["backfill_interval"]["days"] == 0
 
 
 def _test_no_production_write_called():

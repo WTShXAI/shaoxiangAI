@@ -34,6 +34,10 @@ data/*.bak*
 # 环境
 .env
 .env.*
+# 模板必须入库: 重建环境时没有模板 = 不知道要填哪些键 (T63 实测 3 处被 .env.* 误伤)
+!**/.env.example
+!**/.env.sample
+!**/.env.template
 .venv/
 .venv_*/
 venv/
