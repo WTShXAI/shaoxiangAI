@@ -7,10 +7,14 @@
 > - 代码类任务写完须 `pytest` 通过才算完成；**全量回归固定加 `--basetemp=C:/pytest_run_tmp`**
 >   （跨盘临时目录；同盘的 `D:/` 路径会让 `_rel()` 走 relpath 而误红
 >   `test_audit_mh_train_div_bypass::test_guard_fails_when_someone_prints_verdict_again`，见 09-28 记忆）。
->   **⚠ 2026-09-28 12:2x 补充（踩了第三次）**：复用同一个 `--basetemp` 目录会让 safe-delete 钩子
->   把上一轮的临时残留判为冲突 → **纯 `tmp_path` 用例在 setup 阶段集体 ERROR**（本轮实测 115 errors，
->   换 fresh 目录后 **678 passed / 0 error**，同一份代码）。**每次全量回归前要么换新目录，要么先
->   `rm -rf` 该 basetemp**；看到成片 ERROR 先怀疑它，别怀疑自己的改动。
+>   **⚠ 2026-09-28 12:3x 勘误（本项目连续踩三次后的真根因）**：成片 `ERROR ... failed on setup with
+>   "SystemExit: 1"` **不是** basetemp 复用问题，也不是自己的改动 —— 是 WorkBuddy 环境钩子
+>   `cli/vendor/shim/sitecustomize.py` 的**批量删除守卫**：pytest 清理 `tmp_path` 时累计删除数超过
+>   阈值（实测报 `SAFE_DELETE_BULK_CONFIRM_REQUIRED {"count":786,"threshold":50,"scope":"turn"}`）
+>   于 fixture setup 阶段直接 `SystemExit(1)`。**特征**：错误数随"同一回合内已跑过的全量轮数"增长
+>   （同回合第 1 轮 0 error / 第 3 轮 73 error，代码完全相同）。
+>   **正确做法**：①**全量回归一回合只跑一次**，以该次 junit-xml 为准；②要再跑就换新会话/新回合，
+>   或改跑**受影响的子集**文件；③看到成片 setup ERROR 直接按本条归类，别去翻自己的 diff。
 > - 售卖仍须人工+法务双签（AI 不擅售）；WINDOW 项仅备料不执行。
 > 优先级：NOW/筹备类在前，WINDOW 备料类在后。队列清空后自动化转只读巡检+建议新任务。
 > **并发纪律（2026-09-28 12:3x 董事长授权"运营 boss"后新增，血的事实换来的）**：
@@ -22,6 +26,9 @@
 > ③**循环开工前须 `git status --porcelain` 看是否有非本轮修改**；若有未提交改动且属于同一文件，
 > 宁可换任务或只读巡检，不要覆盖。
 > ④聊天会话侧对正在改的文件，先在本节登记 "IN-FLIGHT: <路径清单>"，收尾时删除该行。
+> ⑤**写自动化 memory 条目必须落在 `## 执行历史` 标题之下** —— 12:3x 运营 boss 自己踩：
+> 把条目写在标题**上方**，解析器把它算作"段外 stranded bullet"（正是 T60 D1 的静默忽略形态），
+> 结构守卫当场报 R3 红。`scripts/audit_memory_structure_guard.py` 已能拦这一类。
 
 ---
 
@@ -90,6 +97,14 @@
   > 所以用 `parse_history()` 的结果反查缺时刻永远查不到（把 D3 复发读成健康）。已改为回到原文扫
   > 「带日期的 bullet 且未匹配 LINE_RE」（新增 `RE_DATED_BULLET`），并把命中样本一并落报告。
   > **验收**：`test_audit_memory_structure_guard` + `test_audit_memory_parse_drift` + `test_snapshot_automation_health` **50 passed**；
+  > **⚠ 并发纪律（2026-09-28 12:3x 自主循环追加）**：聊天内 boss 会话与自主循环改同一批 `scripts/audit_*.py`，
+  > 本轮独立重写的 `audit_memory_structure_guard.py` 与既有 SSoT **逐字节相同**（md5 `e9418293…`，对方已原样提交
+  > `a565ea1`）→ **结构不变式唯一 SSoT 已成立，勿再 fork 第二份**。反向教训同样成立：任何一轮动
+  > `scripts/audit_*.py` 前先 `git log -1` 确认对方是否回滚/提交，否则静默覆盖对方的 fix。
+  > **本轮另一处真增量（循环侧，已并入同一 SSoT 文件）= S3 段划分**：初版只用 `parse_history_line(行)` 判
+  > 「未解析」，**抓不到段外游离 bullet**（段闸门在 `parse_history()` 内，行级函数对段外行同样返回可解析 →
+  > "守卫有洞却看起来绿"）→ 补 `history_line_numbers()` + `R3_STRANDED_BULLET`；段内漏收改判 AMBER
+  > （解析器有意忽略「无 T 号且非巡检」的 bullet，判 RED 会把正常写作变成硬失败）。
   > 全量回归见本轮结论。**诚实边界**：只加/修守卫与测试，未改自动化 memory 内容、未碰 events.db、零进程操作。
 - [x] **T67 根目录中文怪名 artifact 清理判定（只读判定 + 提议，不直接删）** —
   → **2026-09-28 12:3x 完成（boss 自决只读评估 + 提议，删除待董事长批）**：枚举根目录可疑文件，
