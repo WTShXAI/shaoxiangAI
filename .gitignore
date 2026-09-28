@@ -140,6 +140,15 @@ _*.png
 _*.db
 _*.xml
 _*.py
+# T63 fix (2026-09-28): the _*.py rule above also silently eats every __init__.py
+# package marker and several real source modules (verification/__main__.py = `python -m
+# verification` CLI entry; verification/_ir32.py = IR-32 guard imported by report.py;
+# scripts/_analyze_live_ou_margin.py; gq/_migrate_events_to_gq.py;
+# pipeline/predictors/_compat.py = imported by 8 predictors modules). On a fresh clone
+# the whole package tree is non-importable -> rebuild breaks. Fix: ① re-include package
+# markers below; ② the real _*.py source files are force-added deliberately (git add -f)
+# and tracked — see the T63 commit. Do NOT re-add a blanket _*.py that re-eats them.
+!__init__.py
 nul
 
 # 启动脚本(非源码)
