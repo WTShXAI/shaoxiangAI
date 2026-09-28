@@ -91,6 +91,13 @@ JOBS = [
      600, os.path.join(ROOT, 'logs', 'knn_conclusion_writer.log')),
     ('data_integrity_check', [VENV_PYW, os.path.join(ROOT, 'scripts', 'data_integrity_check.py')],
      3600, os.path.join(ROOT, 'logs', 'data_integrity.log')),
+    # 2026-09-28 T47 根因修复: 盈利验证台 `python -m verification report` 此前**无任何调度**
+    #   → reports/verification_report.json + verification.db 停在 2026-09-25, 三态样本 0 增长,
+    #   永远到不了 G1=2500 场验收线。`report` = 增量 ingest(只读 events.db, 幂等 append 去重)
+    #   + 渲染报告; 由本守护代拉, 与采集器/monitor 同生命周期, 不再依赖已停摆的外部调度。
+    #   纪律: 只读 events.db(mode=ro URI) + 仅 append verification.db + 覆盖 reports/; 不杀进程。
+    ('verification_report', [VENV_PYW, '-m', 'verification', 'report'],
+     3600, os.path.join(ROOT, 'logs', 'verification_report.log')),
 ]
 
 

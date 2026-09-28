@@ -146,6 +146,33 @@ def test_knn_writer_in_jobs_and_safe():
     assert 'INSERT INTO matches' not in src and 'INSERT INTO odds' not in src
 
 
+def test_verification_report_in_jobs_and_readonly():
+    """2026-09-28 T47 根因修复: 盈利验证台(`python -m verification` 的 report 子命令)必须接入 JOBS,
+    且严格只读 events.db(不破坏数据资产红线 §4)。
+
+    根因: 此前该 CLI 无任何调度 → 报告停更 3 天, 三态样本 0 增长, 永远到不了 G1=2500 验收线。
+    `report` = 增量 ingest(幂等 append 去重) + 渲染; 只读 events.db(mode=ro URI)。
+    """
+    names = [j[0] for j in g.JOBS]
+    assert 'verification_report' in names, 'JOBS 必须含 verification_report (T47 修复)'
+    job = next(j for j in g.JOBS if j[0] == 'verification_report')
+    name, cmd, interval, out_f = job
+    assert interval == 3600, '验证台报告间隔应 =3600s(每小时增量累积)'
+    # `python -m verification report` 形态: 必须是模块调用, 不得出现硬编码脚本路径写库
+    assert cmd[0].endswith('pythonw.exe'), '必须用 pythonw(否则每轮闪窗)'
+    assert cmd[1] == '-m' and cmd[2] == 'verification' and cmd[3] == 'report', \
+        '必须是 `python -m verification report` 模块调用'
+    # verification 包 + __main__ 必须可编译(确保守护代拉不会因语法错误静默失败)
+    import py_compile
+    main_py = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           'verification', '__main__.py')
+    assert os.path.exists(main_py), 'verification/__main__.py 必须存在'
+    py_compile.compile(main_py, doraise=True)
+    # 只读纪律: events.db 连接必须是 mode=ro URI(绝不写生产库)
+    src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            'verification', '__main__.py'), encoding='utf-8').read()
+    assert 'mode=ro' in src, 'verification/__main__.py 必须以 mode=ro 只读打开 events.db'
+
 
 def test_launch_commands_use_pythonw_no_console():
     """2026-09-25 新增: 所有拉起必须用 pythonw —— 锁定"终端弹窗"根因修复。
