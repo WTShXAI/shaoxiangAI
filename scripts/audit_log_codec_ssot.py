@@ -43,6 +43,7 @@ OUT_MD = os.path.join(ROOT, 'reports', 'log_codec_ssot_audit.md')
 #: SSoT 模块名 (T61 由 ``_log_codec.py`` 改名: ``.gitignore:142`` 的 ``_*.py``
 #: 会把共享模块整文件忽略, 克隆/重建环境后两个守卫同时 import 失败且本地无感)。
 SSOT_MODULE: str = 'log_codec_ssot.py'
+SSOT_IMPORT: str = 'log_codec_ssot'          # 不含后缀的模块名 (import 语句用)
 SSOT_BASENAMES: Tuple[str, ...] = (SSOT_MODULE,)
 SSOT_REL: str = 'scripts/log_codec_ssot.py'
 
@@ -138,16 +139,22 @@ def scan_git_ignored_python(roots: Tuple[str, ...] = (SCRIPTS, TESTS)) -> Dict[s
     """
     files = iter_python_files(*roots)
     rels = [os.path.relpath(p, ROOT).replace('\\', '/') for p in files]
-    result: Dict[str, Any] = {'scanned': len(rels), 'unregistered': [], 'registered': {}}
+    result: Dict[str, Any] = {'scanned': len(rels), 'ignored_total': None,
+                              'unregistered': [], 'registered': {}}
     try:
         import subprocess
+        # 注意: 必须走 **bytes** 入参 —— 2026-09-28 T61 实测, text=True 传多行文本时
+        # git 侧返回空 (rc=1), 整份扫描静默变「0 个被忽略文件」假绿。
+        payload = ('\n'.join(rels) + '\n').encode('utf-8')
         proc = subprocess.run(['git', 'check-ignore', '--stdin'],
-                              cwd=ROOT, input='\n'.join(rels),
-                              capture_output=True, text=True, timeout=60)
+                              cwd=ROOT, input=payload,
+                              capture_output=True, timeout=60)
     except (OSError, subprocess.SubprocessError):
         result['skipped'] = 'git 不可用或超时'
         return result
-    ignored = [ln.strip() for ln in (proc.stdout or '').splitlines() if ln.strip()]
+    ignored = [ln.strip() for ln in (proc.stdout or b'').decode('utf-8', 'replace').splitlines()
+               if ln.strip()]
+    result['ignored_total'] = len(ignored)
     for rel in ignored:
         if rel in GITIGNORED_PY_REGISTRY:
             result['registered'][rel] = True
