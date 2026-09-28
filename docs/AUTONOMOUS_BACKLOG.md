@@ -7,6 +7,10 @@
 > - 代码类任务写完须 `pytest` 通过才算完成；**全量回归固定加 `--basetemp=C:/pytest_run_tmp`**
 >   （跨盘临时目录；同盘的 `D:/` 路径会让 `_rel()` 走 relpath 而误红
 >   `test_audit_mh_train_div_bypass::test_guard_fails_when_someone_prints_verdict_again`，见 09-28 记忆）。
+>   **⚠ 2026-09-28 12:2x 补充（踩了第三次）**：复用同一个 `--basetemp` 目录会让 safe-delete 钩子
+>   把上一轮的临时残留判为冲突 → **纯 `tmp_path` 用例在 setup 阶段集体 ERROR**（本轮实测 115 errors，
+>   换 fresh 目录后 **678 passed / 0 error**，同一份代码）。**每次全量回归前要么换新目录，要么先
+>   `rm -rf` 该 basetemp**；看到成片 ERROR 先怀疑它，别怀疑自己的改动。
 > - 售卖仍须人工+法务双签（AI 不擅售）；WINDOW 项仅备料不执行。
 > 优先级：NOW/筹备类在前，WINDOW 备料类在后。队列清空后自动化转只读巡检+建议新任务。
 > **并发纪律（2026-09-28 12:3x 董事长授权"运营 boss"后新增，血的事实换来的）**：
