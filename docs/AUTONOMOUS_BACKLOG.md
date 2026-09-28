@@ -19,13 +19,22 @@
 > T61 把「SSoT 被 `.gitignore` 静默吃掉」从**一个文件**升级成**整类守卫**（Q4 只扫
 > `scripts/` + `tests/`）。下面三条把同类风险与文档腐烂面继续收口，**全部纯只读/纯规格**。
 
-- [ ] **T63 全仓「被 gitignore 静默吃掉」文件盘点（承接 T61 Q4 的扫描面外，只读盘点）** —
-  实证：Q4 只覆盖 `scripts/` + `tests/` 的 `.py`，实测 503 个文件中 1 个被忽略；
-  但 `.gitignore` 的 `_*.py` / `_*.log` / `_*.png` / `_*.db` / `_*.xml` 是**目录无关**的规则，
-  仓库根、`pipeline/`、`analysis/`、`gq/`、`data/` 下同样可能躺着静默未入库的 `.py`/`.db`/`.json`。
-  本条只读盘点：①全仓 `.py`（及 `.db`/`.json`/`.md`）被忽略的**全部**清单与体积
-  ②其中是否有**生产引用方**（被 import / 被计划任务引用 / 被报告引用）③若无引用方则建议
-  登记理由，若有引用方则升级为**高风险**（重建环境即断链）。**只读，不做 `git add`、不删任何文件。**
+- [x] **T63 全仓「被 gitignore 静默吃掉」文件盘点（承接 T61 Q4 的扫描面外，只读盘点）** —
+  → **2026-09-28 11:3x 完成（只读盘点）＋ 触发授权修复 `df2d304`**：全仓 `git ls-files --others -i` 枚举
+  65596 个被忽略文件；过滤源码型候选（`.py`/`.db`/`.json`/`.md`，排除 venv/node_modules/pycache 噪声）
+  得 **1791** 个；再按命中规则二分：**INTENTIONAL（数据/产物目录，1772）** vs **DANGEROUS（前缀/`*` 规则，19）**。
+  > **①DANGEROUS=19 的真相（远超 T61 的 1 个）**：`.gitignore:142 _*.py` 不仅吃 `_` 前缀临时脚本，
+  > 还**吃掉所有 `__init__.py` 包标记 + 5 个真实源码模块**——因为它按"首字符 `_`"匹配，`__init__.py` 双下划线也中招。
+  > 实测：**全仓 0 个 `__init__.py` 入库**。重建/克隆即断链：
+  > - `verification/__main__.py`（`python -m verification` **CLI 入口**，被 `test_prod_guardian.py`/`audit_verification_ingest_scheduling.py` 引用）→ HIGH
+  > - `verification/_ir32.py`（IR-32 守卫，被 `verification/report.py:19` `from verification._ir32 import assert_clean` 引用）→ HIGH
+  > - `pipeline/predictors/_compat.py`（被 8 个 predictors 模块 `from ._compat import np` 引用，**非死代码**）→ HIGH
+  > - `scripts/_analyze_live_ou_margin.py`（被 log-codec 审计引用）/ `gq/_migrate_events_to_gq.py`（被 `gq/README.md` 引用）→ HIGH
+  > - 12 个 `*/__init__.py` 包标记（`gq`/`pipeline`/`core`/`config`/`verification`/`data_collector`/`external/Kronos_src/…`）→ HIGH
+  > **注意**：首轮脚本用 basename 匹配把 `memory.md`/`README.md` 等误报 525 个 HIGH，已用**路径精确匹配**重分类，真 HIGH 即上述 16 个源文件；其余 1772 个均为 data/产物目录（正确忽略）。
+  > **②授权修复 `df2d304`（VCS-only，不碰运行态/events.db/进程/模型/不 push）**：`.gitignore` 加 `!__init__.py` 负向放行包标记；
+  > `git add -f` 上述 5 个真实 `_*.py` 源码；`git add` 12 个 `__init__.py`。验证：全部 `ignored=NO | TRACKED`，全仓 `__init__.py` 入库数 0→12。
+  > 诚实边界：本条第①是**只读盘点**（未做 git add/未删文件）；第②修复是盘点发现"重建即断链"后，按老板"修复类可自主决断"授权单独执行的关联动作，已在 commit 写明、仅本地、未 push。
 - [ ] **T64 `docs/` + `reports/` 内引用脚本路径失效只读盘点（文档腐烂面）** — 实证：T61 过程中
   发现 `docs/P-TEST-verdict-guard-merge-spec.md` 的成文叙述与当前代码状态已经不同步（它写着
   「同款隐患尚未处理」，而 T61 已处理）。本条只读盘点 `docs/*.md`、`reports/*.md` 中所有
