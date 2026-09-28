@@ -9,6 +9,15 @@
 >   `test_audit_mh_train_div_bypass::test_guard_fails_when_someone_prints_verdict_again`，见 09-28 记忆）。
 > - 售卖仍须人工+法务双签（AI 不擅售）；WINDOW 项仅备料不执行。
 > 优先级：NOW/筹备类在前，WINDOW 备料类在后。队列清空后自动化转只读巡检+建议新任务。
+> **并发纪律（2026-09-28 12:3x 董事长授权"运营 boss"后新增，血的事实换来的）**：
+> ①**聊天会话与自主循环会同时工作** —— 12:0x 本轮实测：聊天内正在写 `audit_gitignored_assets.py`
+> 等文件时，循环按 10 分钟节拍把**同一批 in-flight 改动**当作自己的一轮成果提交（`98bb70b`），
+> 并另开 T65 改 `scripts/audit_memory_parse_drift.py`（半成品落地 → 全量回归 5 红）。
+> ②**循环提交前必须只 `git add` 本轮自己明确产生的路径**（用 `git status` 比对，勿 `git add -A`），
+> 否则会把别人的半成品或删到一半的文件固化进历史。
+> ③**循环开工前须 `git status --porcelain` 看是否有非本轮修改**；若有未提交改动且属于同一文件，
+> 宁可换任务或只读巡检，不要覆盖。
+> ④聊天会话侧对正在改的文件，先在本节登记 "IN-FLIGHT: <路径清单>"，收尾时删除该行。
 
 ---
 
@@ -61,12 +70,29 @@
   > 触发 `TypeError` 日期比较崩溃，兜底 `as_of` 后空数据路径稳定报 0 天）+ 回归守卫。两者 39 passed。
   > **诚实边界**：本守卫只**报告**静默资产、不自动 `git add` 大库（P2 保底锚 13.9GB 等仍按"不破坏系统/不 push"红线
   > 留在 gitignored 状态，仅点名实体存在）；纯 VCS/测试改动，不碰运行态/events.db/进程/模型。
-- [ ] **T65 自动化 memory 结构守卫（承接 T60 D1 文件结构事故，纯代码低风险）** — 实证：
-  T60 修掉的是「事后发现有人复制粘贴了重复 header」，但没有任何守卫防止**下一次**复制粘贴
-  再犯（`parse_history()` 的「遇第一个 `## ` 就 break」语义一旦再被截断，看板会静默变小）。
-  本条：在 `scripts/audit_memory_parse_drift.py` 或新守卫里加**结构不变式**测试 ——
-  ①`memory.md` 中 `## ` 段标题**不得重复** ②解析出的段数 == 标题数 ③新条目一律追加在**顶部**
-  且带 `date + 时刻` 字段（防 T60 D3 那种「首末轮取行序」回归）。**纯代码，不改 memory 内容。**
+- [x] **T65 自动化 memory 结构守卫（承接 T60 D1 文件结构事故，纯代码低风险）** —
+  → **2026-09-28 12:2x 完成（由聊天内运营 boss 接手收口；自主循环 12:0x 起的半成品已修）**：新增
+  `scripts/audit_memory_structure_guard.py` + `tests/test_audit_memory_structure_guard.py`（循环产出，19 passed）。
+  **SSoT 合流（boss 收口时定）**：结构不变式**唯一收敛**到 `audit_memory_structure_guard.py`（S1-S6 综合守卫），
+  原接进 `audit_memory_parse_drift.py::check_structure_invariants()` 的重复实现已**还原移除**（parse_drift 退回
+  T60 纯解析/缺陷审计范围），守本项目 SSoT 铁律、不 fork 双守卫（防未来两守卫漂移分歧）。
+  > **接手原因**：循环把该对文件改到一半落地（未提交），全量回归 **5 红**（`test_audit_memory_parse_drift.py`
+  > 五个用例）。运营 boss 判定"红树不可留"，直接接手修完。
+  > **两处真 bug（都是"守卫自己写坏、且会静默失效"那一类）**：
+  > ①**段落匹配不一致** —— 同文件另两处调用点都是前缀匹配 `startswith("## 执行历史")`，而新不变式用**精确相等**
+  > `t == HISTORY_HEADING` → 真实文档标题带括注（`## 执行历史（仅高层，详情见每日 memory）`）恒计 **0 段**，
+  > 守卫把健康文档报成红。已统一为前缀匹配。
+  > ②**缺时刻检测恒为 0（更隐蔽）** —— 解析器 `LINE_RE` 对「缺时刻」的行是**整行丢弃**，
+  > 所以用 `parse_history()` 的结果反查缺时刻永远查不到（把 D3 复发读成健康）。已改为回到原文扫
+  > 「带日期的 bullet 且未匹配 LINE_RE」（新增 `RE_DATED_BULLET`），并把命中样本一并落报告。
+  > **验收**：`test_audit_memory_structure_guard` + `test_audit_memory_parse_drift` + `test_snapshot_automation_health` **50 passed**；
+  > 全量回归见本轮结论。**诚实边界**：只加/修守卫与测试，未改自动化 memory 内容、未碰 events.db、零进程操作。
+- [ ] **T67 根目录中文怪名 artifact 清理判定（只读判定 + 提议，不直接删）** — 实证：仓库根存在
+  6 个非代码怪名文件（`承接：T40（` / `纪律锚：` / `（IRON_RULES.md` / `状态：❬❬WINDOW` /
+  `由董事长最高权限指令废止，按系统❬❬实际运行现实❬❬逐条重建。旧文件快照见` / 另一条同类），
+  应为历史会话里 shell 重定向/编码事故留下的碎片。本条只读：①逐个 dump 内容与大小、判定
+  是否含**唯一信息**（若只是既有文档的碎片 → 可归档或删除）②给出"归档到 `archive/root_debris_*/`
+  vs 直接删除 vs 保留"三选一建议与理由 ③**只提议不执行**（删除动作须董事长批）。**纯只读。**
 
 ### 2026-09-28 09:2x T58 完成后新预置（T60 已完成；下轮 pull T61）
 
