@@ -87,12 +87,15 @@
   > 「带日期的 bullet 且未匹配 LINE_RE」（新增 `RE_DATED_BULLET`），并把命中样本一并落报告。
   > **验收**：`test_audit_memory_structure_guard` + `test_audit_memory_parse_drift` + `test_snapshot_automation_health` **50 passed**；
   > 全量回归见本轮结论。**诚实边界**：只加/修守卫与测试，未改自动化 memory 内容、未碰 events.db、零进程操作。
-- [ ] **T67 根目录中文怪名 artifact 清理判定（只读判定 + 提议，不直接删）** — 实证：仓库根存在
-  6 个非代码怪名文件（`承接：T40（` / `纪律锚：` / `（IRON_RULES.md` / `状态：❬❬WINDOW` /
-  `由董事长最高权限指令废止，按系统❬❬实际运行现实❬❬逐条重建。旧文件快照见` / 另一条同类），
-  应为历史会话里 shell 重定向/编码事故留下的碎片。本条只读：①逐个 dump 内容与大小、判定
-  是否含**唯一信息**（若只是既有文档的碎片 → 可归档或删除）②给出"归档到 `archive/root_debris_*/`
-  vs 直接删除 vs 保留"三选一建议与理由 ③**只提议不执行**（删除动作须董事长批）。**纯只读。**
+- [x] **T67 根目录中文怪名 artifact 清理判定（只读判定 + 提议，不直接删）** —
+  → **2026-09-28 12:3x 完成（boss 自决只读评估 + 提议，删除待董事长批）**：枚举根目录可疑文件，
+  6 个怪名文件**全部 0 字节空文件**（文件名即本想写入的内容，shell 重定向/编码事故产物），
+  不含任何仓库外唯一信息；`决策记录.md`/`环境复现指南.md` 是有内容真实文件（误报已排除）；
+  `start_vite.bat`/`.env*`/`Dockerfile` 等正常配置。报告 `reports/t67_root_debris_assessment.md`。
+  > **处置提议（三选一，删须董事长批）**：A 直接删除（6×0B，零信息风险，**推荐**）/ B 归档到
+  > `archive/root_debris_20260928/` / C 保留（不推荐）。附 `git clean -ndx` dry-run 预览命令。
+  > **诚实边界**：纯只读，未删/未移任何文件、未碰 events.db/进程/模型/未 push；三源仍全 NO EDGE/INCONCLUSIVE, P0 FAILED 不变。
+  > **待董事长**：批准 A（或选 B）后由 boss 执行删除/归档（零风险动作）。
 
 ### 2026-09-28 09:2x T58 完成后新预置（T60 已完成；下轮 pull T61）
 
