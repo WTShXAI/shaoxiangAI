@@ -24,7 +24,7 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, 'scripts'))
 
 from scripts.audit_log_codec_ssot import (  # noqa: E402
-    GITIGNORED_PY_REGISTRY, ROOT, SSOT_MODULE, SSOT_REL, build_findings,
+    GITIGNORED_PY_REGISTRY, ROOT, SSOT_IMPORT, SSOT_MODULE, SSOT_REL, build_findings,
     iter_script_files, iter_python_files, live_regression,
     scan_duplicate_decoders, scan_git_ignored_python,
     scan_whole_file_decodes, write_report,
@@ -81,7 +81,7 @@ def test_migrated_lock_audit_imports_ssot_instead_of_defining():
     """迁移证据: 原 T44 脚本已改为 import, 且其解码行为与 SSoT 一致。"""
     import scripts.audit_predict_refresh_lock as lock_audit
     src = open(lock_audit.__file__, 'r', encoding='utf-8').read()
-    assert f'from {SSOT_MODULE} import' in src
+    assert f'from {SSOT_IMPORT} import' in src
     assert 'def decode_line(' not in src
     assert decode_line(GBK_LINE) == lock_audit.decode_line(GBK_LINE)
 
@@ -94,13 +94,14 @@ def test_no_whole_file_decode_applied_to_log_paths():
 
 def test_build_findings_is_fail_closed():
     """任一红项即 FAIL (不因其它项绿而放行); 缺 live 结果按 FAIL 处理。"""
+    q4_ok = {'unregistered': []}
     bad = build_findings([{'file': 'x.py', 'issue': 'LOCAL_DECODER_DEF'}], [], {})
     assert bad['verdict'] == 'FAIL'
     assert build_findings([], [{'file': 'y.py', 'line': 1, 'issue': 'X'}],
                           {'verdict': 'OK'})['verdict'] == 'FAIL'
     assert build_findings([], [], {})['verdict'] == 'FAIL'
     assert bad['verdict'] == 'FAIL'
-    good = build_findings([], [], {'verdict': 'OK'})
+    good = build_findings([], [], {'verdict': 'OK'}, q4_ok)
     assert good['verdict'] == 'PASS'
 
 
@@ -127,7 +128,9 @@ def test_whole_file_utf8_decode_is_proven_broken_on_live_log():
 
 
 def test_write_report_emits_markdown(tmp_path):
-    findings = build_findings([], [], {'verdict': 'OK', 'lines': 3, 'han_lines': 2})
+    findings = build_findings([], [], {'verdict': 'OK', 'lines': 3, 'han_lines': 2},
+                              {'unregistered': [], 'registered': {}, 'scanned': 2,
+                               'ignored_total': 0})
     paths = write_report(findings, out_json=str(tmp_path / 'a.json'),
                          out_md=str(tmp_path / 'a.md'))
     md = open(paths['md'], encoding='utf-8').read()
@@ -158,6 +161,11 @@ def test_ssot_module_is_tracked_by_git():
     except (OSError, subprocess.SubprocessError):
         pytest.skip('git 不可用')
     assert proc.returncode != 0, f'{SSOT_REL} 被 .gitignore 命中 → 重建环境后守卫静默失效'
+    # 真正的根因守卫: check-ignore 对【未跟踪】文件也返回「未忽略」(rc=1) → 假绿。
+    # 必须再断言文件已进 git 索引, 否则克隆/重建后该 SSoT 直接丢失、守卫 import 集体失败。
+    tracked = subprocess.run(['git', 'ls-files', '--error-unmatch', SSOT_REL],
+                             cwd=ROOT, capture_output=True, text=True, timeout=30)
+    assert tracked.returncode == 0, f'{SSOT_REL} 未纳入 git 索引(未跟踪) → 克隆/重建后守卫静默失效'
 
 
 def test_ssot_module_name_avoids_leading_underscore():
@@ -186,7 +194,7 @@ def test_scan_git_ignored_python_sees_the_known_case():
     res = scan_git_ignored_python()
     if 'skipped' in res:
         pytest.skip(res['skipped'])
-    assert res['scanned'] == len(GITIGNORED_PY_REGISTRY) + len(res['unregistered']), (
+    assert res['registered'] and res['ignored_total'] == len(res['registered']) + len(res['unregistered']), (
         '扫描面未闭合: 被忽略项必须与登记册 + 未登记项数量对上'
     )
     assert 'scripts/_analyze_live_ou_margin.py' in res['registered'], (
