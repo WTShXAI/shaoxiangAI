@@ -35,12 +35,17 @@
   > **②授权修复 `df2d304`（VCS-only，不碰运行态/events.db/进程/模型/不 push）**：`.gitignore` 加 `!__init__.py` 负向放行包标记；
   > `git add -f` 上述 5 个真实 `_*.py` 源码；`git add` 12 个 `__init__.py`。验证：全部 `ignored=NO | TRACKED`，全仓 `__init__.py` 入库数 0→12。
   > 诚实边界：本条第①是**只读盘点**（未做 git add/未删文件）；第②修复是盘点发现"重建即断链"后，按老板"修复类可自主决断"授权单独执行的关联动作，已在 commit 写明、仅本地、未 push。
-- [ ] **T64 `docs/` + `reports/` 内引用脚本路径失效只读盘点（文档腐烂面）** — 实证：T61 过程中
-  发现 `docs/P-TEST-verdict-guard-merge-spec.md` 的成文叙述与当前代码状态已经不同步（它写着
-  「同款隐患尚未处理」，而 T61 已处理）。本条只读盘点 `docs/*.md`、`reports/*.md` 中所有
-  `scripts/xxx.py`、`pipeline/xxx.py`、`tests/xxx.py` 形式的路径引用，**逐个 `os.path.exists` 核验**，
-  输出失效清单；并按「叙述性过时（需要改 docs）」vs「路径失效（需要改引用或重建文件）」分类。
-  **只读，不改任何文档。**
+- [x] **T64 `docs/` + `reports/` 内引用脚本路径失效只读盘点（文档腐烂面）** —
+  → **2026-09-28 12:0x 完成（只读盘点）**：扫描 144 篇 .md（docs 52 / reports 92），抽取 1530 个 `.py` 路径引用，
+  逐个 `os.path.exists` 核验 + 叙述性过时探测。结果：路径失效 109 / 候选叙述过时 80 / 正常 1273。
+  > **诚实分类（109 失效绝大多数为噪声，非运营断点）**：①占位/示例 token（`scripts/xxx.py`/`pipeline/a.py`/`...live_surface.py`）；
+  > ②历史叙述文件名（backlog/`P-TEST-*` 记录的 T 轮当时名 `scripts/_log_codec.py`/`_verdict_guard.py`/`_tmp_guard_probe.py`，
+  > 作为历史正确，不应改）；③规格未落地文件（`calibrate_g6_threshold.py`/`test_gates_g6_thresholds.py` 等 T45 纯规格明确"未实现"）；
+  > ④`docs/知识库.md` 历史知识库引用（短模块名/已归档脚本）；⑤正则过切伪影（`audit_verification_ingest_scheduling.py`
+  > 被切出 `verification_ingest_scheduling.py` 误报，加负向 lookbehind 消除，并抽样核实本 T63 报告引用正确无误）。
+  > **结论（boss 决策：不修，避免 churn）**：被引文档均非可执行代码，失效引用不导致构建/进程/验证台断裂；历史叙述作为事实记录正确，
+  > 回改破坏可追溯性；故 T64 以"只读盘点 + 无运营断点"收口。报告 `reports/t64_doc_rot_report.md`。
+  > **未决（非紧急，董事长定）**：若要求历史文档也统一改名引用，另开文档整洁专项（非紧急）。
 - [ ] **T65 自动化 memory 结构守卫（承接 T60 D1 文件结构事故，纯代码低风险）** — 实证：
   T60 修掉的是「事后发现有人复制粘贴了重复 header」，但没有任何守卫防止**下一次**复制粘贴
   再犯（`parse_history()` 的「遇第一个 `## ` 就 break」语义一旦再被截断，看板会静默变小）。
