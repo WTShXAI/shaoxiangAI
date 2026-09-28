@@ -101,6 +101,10 @@ NOISE_FILE_REGISTRY: Dict[str, str] = {
         "盘口/信号分类词: backend_signal() 返回 OVER/UNDER/NO_EDGE, 与 analysis/live_goal_probe.py "
         "同一套信号语义(不下注), 非验证台三态（T58 讨论改名, 在改名前先登记为噪声）"
     ),
+    "scripts/audit_signal_vocab_migration.py": (
+        "T62 只读盘点脚本: 词表本身即被盘点对象, 文件内大量 NO_EDGE/NO_BET 字面量属扫描面(self-exclude), "
+        "非三态产出体; 登记理由=免被 T58 活体撞车扫描判为未登记"
+    ),
 }
 
 #: 叙述性抄值: 硬抄当前三态结论文本, 不是产出体（T38「抄值污染」通道）。

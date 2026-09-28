@@ -164,12 +164,72 @@
   > **验收**：`tests/test_audit_log_codec_ssot.py` 19 passed；全量回归 **641 passed / 0 failures / 0 errors**（junit-xml 复核）。
   > **诚实边界**：不产生样本、不推进 G1、不产生 edge，三源仍全 `NO EDGE` / `INCONCLUSIVE`，P0 `FAILED` 不变。
   > **未决**：Q-a(`_analyze_live_ou_margin.py` 是否补 `git add`，老板决) / Q-b(Q4 扫描面是否扩到 `pipeline/`、`analysis/`)。
-- [ ] **T62 信号词存量快照读侧兼容规格（承接 T58 §S2，WINDOW 备料）** — 实证：
+- [x] **T62 信号词存量快照读侧兼容规格（承接 T58 §S2，WINDOW 备料）** — 实证：
   `data/watch_verdicts.json`（业务快照，`"signal": "NO_EDGE"`）由 `scripts/watch_live_verdicts.py`
   搬运落盘，而该脚本零调用方、零计划任务引用。**待决**：①该盯盘器是否应常驻（若不常驻，快照只是
   人工产物，迁移面可缩到纯读侧）②迁移脚本 `scripts/migrate_signal_vocab.py` 的双向映射如何与
   「判定首见即冻结」语义共存（冻结条目含老词，重跑不得改写）③窗口期内前端 map 是否双键同渲染
   （与 T54 的 fail-open 渲染同窗口落地）。**纯规格：不跑迁移、不写快照。**
+  > **2026-09-28 13:4x 完成（只读盘点 + 规格）**：`scripts/audit_signal_vocab_migration.py` +
+  > `tests/test_audit_signal_vocab_migration.py`（**29 passed**）+ 全量回归 **706 passed / 1 failed**
+  > （基线 678 + 29；唯一红为新增文件未登记，登记进两处台账后已绿）+ 规格
+  > `docs/P-TEST-signal-vocab-migration-spec.md` + 报告 `reports/signal_vocab_migration_audit.{json,md}`。
+  > **纯只读：未跑迁移 / 未写快照 / 未改 events.db（只读 mode=ro）/ 零进程操作**；本轮唯一改动是
+  > 把新审计脚本登记进两处台账（`verdict_guard_ssot.NOISE_FILE_REGISTRY` / `SIGNAL_FILE_REGISTRY`）。
+  >
+  > **①T58 漏掉的持久化面（本轮最重要发现）**：改名成本不在 JSON 快照（509 条），而在
+  > **`events.db` `prediction_ledger.signal` 列 —— 41,755 行 / 8,720 场**
+  > （NO_EDGE 19,800 · STRONG_HOLD 11,157 · STRONG_BREAK 8,190 · WEAK_TREND 2,605 · SETTLED_UNDER 3，
+  > 2026-08-23 → 09-22）。该列由 `pipeline/prediction_ledger.py::record_from_probe_result()` 写入，
+  > 属 events.db **写**方 → 存量改写 = §4 + WINDOW 停机窗口，**不属自主范围**；
+  > 故推荐「只改生产者 + 读侧归一化 + 存量保持原词」，禁止双向映射（会把「此刻不下注」
+  > 悄悄还原成「不存在 edge」，与 IR-30 结论强度冲突）。
+  > **②Q-a 答案=盯盘器不常驻但迁移面缩不到纯读侧** —— 快照 mtime 停在 2026-09-14 00:10（14 天未更新）、
+  > 509 条、`final` 仅 401 条；但任何人手工跑一次 `snapshot()` 就会用 `v.update(now_v)`
+  > 把存量 `ou.signal` 整体刷成新词，必须预置而非补救。
+  > **③Q-b 答案=双向映射应否决 + 冻结边界与文档声明不同** —— 实测 `snapshot()` 只有
+  > `first_score/first_minute/first_seen/first_verdict` 是首见写入，`ou.signal` 位于 `ou` 子字典
+  > **每轮被覆盖**；509 条中 **156 条 `first_score != score`**（冻结后又刷新过）证明两者并存。
+  > 迁移规则表：禁改 `first_*` / `ht_freeze`，可改顶层 `ou.signal`（须离线备份）。
+  > 方案推荐 **M3 canonical+legacy 双字段**，M1 次之，M2 就地改写否决。
+  > **④Q-c 答案=前端是「未知键整段消失」比 T54 更差一档** —— `Rollball/index.tsx:1183`
+  > `OU_SIG[ou.signal] && ...` 裸取键 + 短路，无 fallback；且 **ALREADY_BROKEN / SCORE_LAGGING /
+  > SETTLED_UNDER 今天就已经渲染不出来**。另生产者 `probe_match()` 有 LRU+TTL **20s** 缓存
+  > → 迁移验收须等 TTL 过期，否则「看起来没生效」。
+  > **⑤词表三处互不一致**：生产者 7 值 / 数据面 5 值 / 前端取键 5 键；
+  > `in_producer_not_frontend = {SCORE_LAGGING, SETTLED_UNDER}`、`in_data_not_frontend = {SETTLED_UNDER}`。
+  > **⑥顺带两条真缺陷（本条不修，已写入规格 §3）**：(a) **首见 OU 结算结构性空转** ——
+  > `first_verdict` 存扁平 `ou_direction`(字符串)，而 `settle()` 的 `ou_win()` 读 `v['ou']['direction']`
+  > 子字典 → `first_OU` 分支恒 None，**首见冻结的 OU 判定从未被结算过**；(b) **§4 卫生** ——
+  > `scripts/watch_live_verdicts.py:129` 以默认(可写)连接打开 events.db 却只读赛果。
+  > **诚实边界**：不产生样本 / 不推进 G1 / 不产生 edge；三源仍全 NO EDGE / INCONCLUSIVE，P0 FAILED 不变。
+  > **未决 Q-1(41,755 行是否走停机窗口) / Q-2(前端 fallback 形态) / Q-3(首见 OU 空转是否单开) / Q-4(可写连接是否同批修)**。
+
+### 2026-09-28 13:4x T62 完成后新预置（下轮 pull T69）
+
+> T62 顺带挖出两条真缺陷与一个新持久化面，下面三条把「已暴露但未修」的收口，**全部纯只读/纯规格**。
+
+- [ ] **T69 首见 OU 结算结构性空转的真修复评估（承接 T62 §3.1，只读评估）** — 实证：
+  `scripts/watch_live_verdicts.py` 的 `snapshot()` 把扁平 `ou_direction`（字符串）写进
+  `first_verdict`，而 `settle()` 的 `ou_win(v)` 读的是 `v['ou']['direction']` 子字典
+  （`o = v.get('ou') or {}` → `o.get('direction')` 恒 None）→ **`first_OU` 分支从未产生任何样本**，
+  首见冻结的 OU 判定白冻结。本条只读回答：①修法三选一（`first_verdict` 补 `ou` 子字典 /
+  `ou_win` 兼容字符串 / 结算时从顶层 `ou` 取）各自会怎样改变历史结算数字（可用快照离线重算，
+  **估算不是承诺**）②该空转是否让「首见 vs 最新」两条对照线本来就不可比③静态守卫 G1 的形状
+  （防回退：把 `ou` 补回 `first_verdict` 后，谁负责发现）。**纯只读：不跑 settle、不改快照。**
+- [ ] **T70 watch_live_verdicts 的 events.db 可写连接整改规格（承接 T62 §3.2，WINDOW 备料）** — 实证：
+  `scripts/watch_live_verdicts.py:129` 用 `sqlite3.connect(r'...\data\events.db', timeout=15)`
+  （默认可写）只读 `score_home/score_away/status`，与 §4「events.db 零写入」的只读纪律同形风险
+  （它不写，但任何后续复用该连接的改动都可能写）。本条规格只做**改连接形态**（`mode=ro` + 只读
+  SELECT）+ 落静态守卫（禁止该脚本出现无 `mode=ro` 的 events.db 连接）。
+  **不跑迁移、不改只读语义以外的行为、不碰生产进程。**
+- [ ] **T71 滚球页 OU 徽章静默消失只读盘点（承接 T62 Q-c，只读盘点）** — 实证：
+  `frontend/src/pages/Rollball/index.tsx:1183` 的 `OU_SIG[ou.signal] && ...` 是裸取键 + 短路，
+  无 fallback；生产者 7 值中 **ALREADY_BROKEN / SCORE_LAGGING / SETTLED_UNDER 今天就不在取键表内**
+  → 已在线静默不显示。本条只读盘点：①七个生产者值逐个对照前端取键与 `sigTone()` 的颜色分类，
+  列出「有值但不渲染 / 渲染成默认色」的精确清单 ②后端 `/api/rollball/analyze` 是否还有其它
+  未进取键表的字段（`ou.verdict` / `half` / `anchor`）同样静默 ③与 T54「看板 fail-open 渲染」
+  是否可合并成一条 fail-closed 渲染守卫。**纯只读盘点，不改前端。**
 
 ### 2026-09-28 04:3x T51 完成后新预置（队列已清空；下轮 pull T53）
 

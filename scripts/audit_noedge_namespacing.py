@@ -110,6 +110,10 @@ SIGNAL_FILE_REGISTRY: Dict[str, str] = {
         "复刻 backend_signal() 的回测脚本; 位于 scripts/ 根目录, 目录前缀豁免覆盖不到, "
         "是 T53/T57 必须建登记册豁免的起点"
     ),
+    "scripts/audit_signal_vocab_migration.py": (
+        "T62 只读盘点脚本: 词表本身即盘点对象, 文件内 NO_EDGE/NO_BET 字面量属被扫描面(self-exclude), "
+        "非信号生产者; 登记理由=免被本活体撞车扫描判为未登记"
+    ),
     "sandbox/collab/mock_observer.py": (
         "协同黑板异常登记文本 (ANOM_NO_EDGE_high_prob 条目), 属叙述面不是产出体"
     ),
